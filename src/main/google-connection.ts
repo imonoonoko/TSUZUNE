@@ -28,6 +28,7 @@ type FetchLike = (
 export interface GoogleConnectionDependencies {
   stateDirectory: string
   tokenStore: RefreshTokenStore
+  bundledClientId?: string | null
   authorize(clientId: string): Promise<GoogleOAuthLoopbackResult>
   fetchImpl: FetchLike
 }
@@ -187,18 +188,26 @@ export class GoogleConnectionService {
 
   private async readConfig(): Promise<GoogleOAuthClient | null> {
     const config = await readJson<Partial<GoogleOAuthClient>>(this.configPath)
-    if (
-      !config ||
-      typeof config.clientId !== 'string' ||
-      (config.clientSecret !== null &&
-        typeof config.clientSecret !== 'string')
-    ) {
-      return null
+    if (config) {
+      if (
+        typeof config.clientId !== 'string' ||
+        (config.clientSecret !== null &&
+          typeof config.clientSecret !== 'string')
+      ) {
+        return null
+      }
+      return {
+        clientId: config.clientId,
+        clientSecret: config.clientSecret
+      }
     }
-    return {
-      clientId: config.clientId,
-      clientSecret: config.clientSecret
-    }
+    const bundledClientId = this.dependencies.bundledClientId?.trim()
+    return bundledClientId
+      ? {
+          clientId: bundledClientId,
+          clientSecret: null
+        }
+      : null
   }
 
   private async requireConfig(): Promise<GoogleOAuthClient> {

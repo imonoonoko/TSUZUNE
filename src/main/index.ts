@@ -94,6 +94,8 @@ app.whenReady().then(() => {
   const googleConnection = new GoogleConnectionService({
     stateDirectory: googleStateDirectory,
     tokenStore,
+    bundledClientId:
+      import.meta.env.MAIN_VITE_GOOGLE_OAUTH_CLIENT_ID?.trim() || null,
     authorize: (clientId) =>
       runGoogleOAuthLoopback({
         clientId,

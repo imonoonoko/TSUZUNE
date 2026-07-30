@@ -101,6 +101,7 @@ export default function App(): React.JSX.Element {
   const [busy, setBusy] = useState(false)
   const [googleDialogOpen, setGoogleDialogOpen] = useState(false)
   const [googleBusy, setGoogleBusy] = useState(false)
+  const [googleAdvancedOpen, setGoogleAdvancedOpen] = useState(false)
   const [googleStatus, setGoogleStatus] = useState<GoogleDriveStatus | null>(null)
   const [drivePreview, setDrivePreview] = useState<DriveSyncPreview | null>(null)
   const [driveVaults, setDriveVaults] = useState<DriveRemoteVault[]>([])
@@ -914,6 +915,7 @@ export default function App(): React.JSX.Element {
   const openGoogleDialog = async (): Promise<void> => {
     googleDialogPreviousFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setGoogleAdvancedOpen(false)
     setGoogleDialogOpen(true)
     setGoogleBusy(true)
     setDrivePreview(null)
@@ -1508,7 +1510,7 @@ export default function App(): React.JSX.Element {
 
             {!googleStatus?.configured ? (
               <div className="google-sync-step">
-                <strong>1. Google OAuth設定</strong>
+                <strong>Google OAuth設定が必要です</strong>
                 <p>
                   Google Cloudで作成した「デスクトップアプリ」のOAuthクライアントJSONを選びます。
                 </p>
@@ -1523,7 +1525,7 @@ export default function App(): React.JSX.Element {
               </div>
             ) : !googleStatus.connected ? (
               <div className="google-sync-step">
-                <strong>2. Googleアカウントへ接続</strong>
+                <strong>Googleアカウントへ接続</strong>
                 <p>
                   基本プロフィールと、TSUZUNEが作成するDriveファイルだけを扱う権限を求めます。
                 </p>
@@ -1539,11 +1541,27 @@ export default function App(): React.JSX.Element {
                   <button
                     type="button"
                     disabled={googleBusy}
-                    onClick={() => void chooseGoogleConfig()}
+                    aria-expanded={googleAdvancedOpen}
+                    onClick={() => setGoogleAdvancedOpen((open) => !open)}
                   >
-                    OAuth JSONを変更
+                    {googleAdvancedOpen ? '詳細設定を閉じる' : '詳細設定を開く'}
                   </button>
                 </div>
+                {googleAdvancedOpen && (
+                  <div className="google-sync-advanced">
+                    <p>
+                      自分のGoogle Cloud設定を使う場合だけ、Desktop OAuth
+                      JSONを選択します。
+                    </p>
+                    <button
+                      type="button"
+                      disabled={googleBusy}
+                      onClick={() => void chooseGoogleConfig()}
+                    >
+                      独自のOAuth JSONを選ぶ
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <>

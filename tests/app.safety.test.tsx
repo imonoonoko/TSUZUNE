@@ -223,6 +223,65 @@ describe('App data-loss guards', () => {
     expect(api.applyDriveSync).not.toHaveBeenCalled()
   })
 
+  it('keeps Google login primary and OAuth JSON configuration behind advanced settings', async () => {
+    const disconnectedStatus = {
+      configured: true,
+      connected: false,
+      account: null,
+      lastSyncAt: null,
+      vaultFolderUrl: null
+    }
+    api.getGoogleDriveStatus = vi.fn(() => ok(disconnectedStatus))
+    api.connectGoogle = vi.fn(() => ok(disconnectedStatus))
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Google / 同期' }))
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Googleでログイン' })
+    )
+    await waitFor(() => {
+      expect(api.connectGoogle).toHaveBeenCalledTimes(1)
+    })
+    expect(api.chooseGoogleOAuthConfig).not.toHaveBeenCalled()
+    expect(
+      screen.queryByRole('button', { name: '独自のOAuth JSONを選ぶ' })
+    ).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '詳細設定を開く' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: '独自のOAuth JSONを選ぶ' })
+    )
+
+    await waitFor(() => {
+      expect(api.chooseGoogleOAuthConfig).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('offers OAuth JSON setup when no bundled client is available', async () => {
+    api.getGoogleDriveStatus = vi.fn(() =>
+      ok({
+        configured: false,
+        connected: false,
+        account: null,
+        lastSyncAt: null,
+        vaultFolderUrl: null
+      })
+    )
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Google / 同期' }))
+
+    expect(
+      await screen.findByRole('button', { name: 'OAuth JSONを選ぶ' })
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole('button', { name: 'Googleでログイン' })
+    ).toBeNull()
+  })
+
   it('moves focus into the Google dialog and restores it when Escape closes', async () => {
     const { container } = render(<App />)
     const opener = await screen.findByRole('button', { name: 'Google / 同期' })

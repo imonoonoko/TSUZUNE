@@ -121,26 +121,43 @@ Google接続は任意です。ログインしなくても、従来どおりロ�
 
 Google内部の広告プロファイル、Google検索履歴、他アプリが作成したDriveファイルは、このログインや同期では取得しません。GoogleログインだけでTSUZUNEのパーソナライズ情報が自動的に増えるわけではありません。
 
-### Google Cloudの準備
+### Googleでログインする
+
+TSUZUNE標準のDesktop OAuthクライアントIDを組み込んだ配布版では、利用者がOAuth JSONを用意する必要はありません。
+
+1. ヘッダーで「Google / 同期」を開きます。
+2. 「Googleでログイン」を押し、システムブラウザで権限を確認します。
+3. Vaultを開いた状態で「同期内容を確認」を押し、内容を確認してから「この内容で同期」を押します。
+
+自分のGoogle Cloudプロジェクトを使いたい場合だけ、「詳細設定を開く」から「独自のOAuth JSONを選ぶ」を使えます。選択した設定は標準クライアントIDより優先され、既存の更新トークンは混用しないよう消去されます。
+
+別PCで既存Vaultを受信する場合は、同じTSUZUNE配布版で同じGoogleアカウントへログインし、空のローカルVaultを開きます。「既存のDrive Vaultを探す」で対象を選び、「このDrive Vaultを使う」を押してから同期内容を確認してください。すでに同期済みのローカルVaultを別のDrive Vaultへ付け替える操作は拒否します。
+
+### 標準ログインを組み込んでビルドする
+
+このリポジトリには実際のGoogle OAuthクライアントIDを含めません。配布担当者が次の準備を行います。
 
 1. [Google Cloud Console](https://console.cloud.google.com/)でプロジェクトを作成または選択します。
-2. 「APIとサービス」からGoogle Drive APIを有効にします。
-3. OAuth同意画面を設定します。ExternalのTestingで試す場合は、自分のGoogleアカウントをテストユーザーへ追加します。
-4. 「認証情報を作成」からOAuthクライアントIDを作り、アプリケーションの種類に「デスクトップアプリ」を選びます。
-5. 作成したOAuthクライアントのJSONをダウンロードします。
-6. TSUZUNEのヘッダーで「Google / 同期」を開き、「OAuth JSONを選ぶ」からダウンロードしたJSONを選びます。
-7. 「Googleでログイン」を押し、ブラウザで権限を確認して接続します。
-8. Vaultを開いた状態で「同期内容を確認」を押し、内容を確認してから「この内容で同期」を押します。
+2. Google Drive APIを有効にし、OAuth同意画面を構成します。
+3. OAuthクライアントIDを「デスクトップアプリ」として作成します。
+4. 公開値であるクライアントIDだけを`MAIN_VITE_GOOGLE_OAUTH_CLIENT_ID`へ設定してビルドします。client secret、更新トークン、アカウント情報は組み込みません。
 
-別PCで既存Vaultを受信する場合は、同じDesktop OAuthクライアントJSONを設定して同じGoogleアカウントへログインし、空のローカルVaultを開きます。「既存のDrive Vaultを探す」で対象を選び、「このDrive Vaultを使う」を押してから同期内容を確認してください。すでに同期済みのローカルVaultを別のDrive Vaultへ付け替える操作は拒否します。
+PowerShellの例:
+
+```powershell
+$env:MAIN_VITE_GOOGLE_OAUTH_CLIENT_ID='発行されたクライアントID'
+npm run pack:win
+```
+
+`.env.example`を参考にローカルの`.env`へ設定することもできます。値はビルド時にmain processへ埋め込まれるため、既に作成済みのEXEへ後から`.env`を置いても反映されません。
 
 OAuth同意画面がExternalかつTestingのままだと、Googleの仕様により更新トークンは原則7日で失効します。継続利用する場合は、同意画面と公開要件を確認したうえでPublishing statusをIn productionへ移してください。
 
-OAuthクライアントJSONはアプリ設定としてローカルに保持します。更新トークンはVaultやMarkdownへ書かず、Electronの`safeStorage`を通してWindowsの暗号化機構で保護します。アクセストークンは永続保存しません。
+独自のOAuthクライアントJSONを選んだ場合だけ、その設定をローカルに保持します。更新トークンはVaultやMarkdownへ書かず、Electronの`safeStorage`を通してWindowsの暗号化機構で保護します。アクセストークンは永続保存しません。
 
 手動同期は複数端末で同時に実行せず、1台のpreview/applyが終わってから次の端末で実行してください。Drive版はアップロード直前に再確認しますが、Google Drive APIの版確認と更新は単一の原子操作ではありません。複数端末による同時applyを調停する常駐サーバーや分散ロックも実装していません。
 
-現在の自動テストは、OAuth、暗号化保存、Drive APIクライアント、同期判定、同期適用、グラフをモックまたはローカルfixtureで確認しています。実際のGoogleアカウントでの認証・Drive往復は、利用者自身のDesktop OAuth JSONが必要なため、資格情報を用いた手動確認とは区別しています。
+現在の自動テストは、組み込みクライアントIDと独自JSONの優先順位、OAuth、暗号化保存、Drive APIクライアント、同期判定、同期適用、グラフをモックまたはローカルfixtureで確認しています。実際のクライアントIDはまだ発行・組み込みされていないため、Googleアカウントでの認証・Drive往復は未確認です。
 
 Google公式仕様:
 

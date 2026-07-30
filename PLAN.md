@@ -11,7 +11,7 @@
 ## Active Track: v0.4 Google Drive Manual Sync + Local Graph
 
 更新日: 2026-07-31
-状態: 実装・ローカル検証完了（利用者のOAuth資格情報を使う実Google確認のみ未完了）
+状態: 標準ログイン経路の実装・ローカル検証完了（実クライアントIDの発行・組み込みと実Google確認は未完了）
 
 v0.4では、実運用でノート同士の近傍を確認しやすくする1-hopグラフと、ローカルMarkdownを原本のまま別端末へ運べる手動Google Drive同期だけを扱う。Googleデータ取り込みによるパーソナライズ、プラグイン、独自DB、バックグラウンド同期は同時に実装しない。
 
@@ -20,6 +20,8 @@ v0.4では、実運用でノート同士の近傍を確認しやすくする1-ho
 - [x] 要求権限、削除、競合、原本、非対象データを要件として固定
 - [x] 選択ノート中心の1-hopグラフを純粋coreとSVG＋HTMLボタンで実装
 - [x] Desktop OAuth JSON解析、PKCE、loopback callback、token exchangeを実装
+- [x] 配布版へ公開Desktop OAuthクライアントIDだけを組み込み、通常UIを「Googleでログイン」へ短縮
+- [x] 独自OAuth JSONは詳細設定へ移し、保存済みJSONを標準設定より優先
 - [x] 更新トークンの`safeStorage`向け暗号化保存を実装
 - [x] `drive.file`で専用VaultフォルダとMarkdownだけを扱うDrive APIクライアントを実装
 - [x] 送信・受信・競合・保持を決める削除非伝播の同期plannerを実装
@@ -28,15 +30,16 @@ v0.4では、実運用でノート同士の近傍を確認しやすくする1-ho
 - [x] 別端末から既存Drive Vaultを一覧・検証・明示ペアリングできる操作を追加
 - [x] 同期途中の成功操作を都度ledgerへ確定し、再試行時の不要な競合を防止
 - [x] mock/fixtureによる同期適用テストと全回帰確認
-- [ ] 利用者のDesktop OAuth JSONを使った実Google認証・Drive往復確認
+- [ ] TSUZUNE用Desktop OAuthクライアントIDを発行して配布ビルドへ組み込む
+- [ ] 組み込みIDを使った実Google認証・Drive往復確認
 
-実Google確認には利用者自身のOAuth資格情報が必要である。資格情報なしのモックテストPASSを、Googleアカウントでの認証成功やDrive上の実ファイル同期成功として報告しない。
+実Google確認にはGoogle Cloudで発行したTSUZUNE用クライアントIDが必要である。クライアントID未設定のモックテストPASSを、Googleアカウントでの認証成功やDrive上の実ファイル同期成功として報告しない。
 
 ローカル検証結果:
 
 ```text
 npm run typecheck    PASS
-npm test             PASS: 23 files / 173 tests
+npm test             PASS: 23 files / 177 tests
 npm run check:mcp    PASS: 4 read tools / 2 write tools
 npm run build        PASS
 ```
@@ -607,9 +610,10 @@ M0〜M5は完了した。Temporal Memory Liteは3つのSuccess Conditionsを満�
 
 次の独立トラックとしてv0.4 Google Drive Manual Sync + Local Graphを選択し、実装とローカル検証を完了した。残作業は次の順序に固定する。
 
-1. 利用者がDesktop OAuth JSONを用意した後、実アカウントでログイン、初回送信、別端末相当の受信、競合コピー、接続解除を手動確認する。
-2. 複数端末から同期applyを同時実行せず、端末ごとにpreview/applyを完了してから次の端末で確認する。
-3. 実Google確認後にv0.4の停止条件を判定し、Takeout、ChatGPT export、入力補助のいずれか1トラックだけを選ぶ。
+1. TSUZUNE用Desktop OAuthクライアントIDを発行し、`MAIN_VITE_GOOGLE_OAUTH_CLIENT_ID`を設定した配布ビルドを作る。
+2. 組み込みIDから実アカウントでログインし、初回送信、別端末相当の受信、競合コピー、接続解除を手動確認する。
+3. 複数端末から同期applyを同時実行せず、端末ごとにpreview/applyを完了してから次の端末で確認する。
+4. 実Google確認後にv0.4の停止条件を判定し、Takeout、ChatGPT export、入力補助のいずれか1トラックだけを選ぶ。
 
 ChatGPTアーカイブもGoogle Takeoutも未提供のまま、非公開履歴を推測取得したり、ログイン、Cookie、画面スクレイピングで代替したりしない。
 
@@ -658,7 +662,9 @@ Gate:
 Work:
 
 - Google Cloudで作成したOAuthクライアントの種類をDesktop appに限定する
-- アプリでOAuth JSONを明示選択してから接続する
+- 配布ビルドには公開値であるDesktop OAuthクライアントIDだけを組み込み、通常UIから直接接続する
+- 独自OAuth JSONは詳細設定から任意選択でき、保存済みJSONを組み込みIDより優先する
+- client secret、token、アカウント情報は配布物へ組み込まない
 - システムブラウザ、`127.0.0.1`のランダムloopback port、PKCE S256、state照合を使う
 - scopeは`openid email profile https://www.googleapis.com/auth/drive.file`だけにする
 - 名前、メールアドレスなどの基本プロフィールだけをアカウント表示に使う
@@ -669,7 +675,7 @@ Gate:
 
 - Google未設定、未ログイン、オフライン、認証失敗でもローカル編集とMCPが動く
 - OAuth callbackのstate不一致とprovider errorを拒否する
-- OAuth JSON、token、認可codeをVault、Markdown、Git、通常ログへ書かない
+- OAuth JSON、token、認可codeをVault、Markdown、Git、通常ログへ書かない。公開クライアントIDだけをmain bundleへ含める
 - `drive`、`drive.readonly`などの広いDrive scopeを要求しない
 - Googleログインだけで検索履歴や広告プロファイルを取得したと表示しない
 
@@ -678,9 +684,11 @@ Gate:
 1. Google Cloudプロジェクトを作成または選択する。
 2. Google Drive APIを有効にする。
 3. OAuth同意画面を構成する。ExternalのTestingを使う場合は利用者自身をtest userへ追加する。
-4. OAuth client IDを「Desktop app」として作成し、JSONをダウンロードする。
-5. TSUZUNEの「Google / 同期」から「OAuth JSONを選ぶ」を実行する。
-6. 「Googleでログイン」を押し、システムブラウザでscopeを確認する。
+4. OAuth client IDを「Desktop app」として作成する。
+5. クライアントIDだけを`MAIN_VITE_GOOGLE_OAUTH_CLIENT_ID`へ設定して配布ビルドを作る。
+6. TSUZUNEの「Google / 同期」から「Googleでログイン」を押し、システムブラウザでscopeを確認する。
+
+独自のGoogle Cloudプロジェクトを使う場合だけ、詳細設定からDesktop OAuth JSONを選択する。このoverrideを保存した端末では組み込みIDへ暗黙フォールバックせず、異なるクライアントの更新トークンを混用しない。
 
 ExternalかつTestingのOAuth同意画面では、Googleの仕様によりrefresh tokenは原則7日で失効する。安定運用では公開要件を確認し、Publishing statusをIn productionへ移す。TSUZUNEは期限切れtokenを回避するためにCookie、ブラウザprofile、別scopeを流用しない。
 
@@ -727,7 +735,7 @@ Gate:
 - 1-hopグラフと操作UI
 - v0.1〜v0.3、MCP、Temporal Memory Liteの回帰
 
-実Google確認には利用者自身のDesktop OAuth JSONが必要である。次を実アカウントで完了するまで「Google Drive同期の実運用確認済み」としない。
+実Google確認には発行済みのTSUZUNE用Desktop OAuthクライアントIDを組み込んだ配布ビルドが必要である。次を実アカウントで完了するまで「Google Drive同期の実運用確認済み」としない。
 
 1. Google認証と基本プロフィール表示
 2. 初回preview/applyとDrive専用フォルダ作成

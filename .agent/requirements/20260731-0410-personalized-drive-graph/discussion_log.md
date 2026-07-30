@@ -24,3 +24,10 @@
 2. Google OAuth設定、認証状態、手動同期の境界を実装する。
 3. OAuthクライアント設定がない環境でも、同期計画とエラー表示をテスト可能にする。
 4. 実Googleアカウントへの最終接続は、利用者自身のGoogle Cloud OAuthクライアントJSONを用いて確認する。
+
+### Standard Google login follow-up
+
+- 通常利用で各端末にOAuth JSONを選ばせず、TSUZUNE用Desktop OAuthクライアントIDを配布ビルドへ組み込む方針を採用した。
+- client IDは公開値として扱い、client secret、token、アカウント情報は組み込まない。
+- 独自OAuth JSONは上級者向けの詳細設定として残し、保存済みJSONを組み込みIDより優先する。
+- 実クライアントIDの発行と実Googleアカウント確認は、コードのローカル検証とは分けて未完了として扱う。

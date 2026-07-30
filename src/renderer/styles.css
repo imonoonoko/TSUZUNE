@@ -828,6 +828,16 @@ button:hover:not(:disabled) {
   word-break: normal;
 }
 
+.google-sync-advanced {
+  padding-top: 12px;
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.google-sync-advanced p {
+  margin-top: 0;
+}
+
 .drive-vault-picker,
 .drive-vault-picker label {
   display: grid;

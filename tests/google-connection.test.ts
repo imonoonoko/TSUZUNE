@@ -48,6 +48,94 @@ const oauthJson = JSON.stringify({
 })
 
 describe('GoogleConnectionService', () => {
+  it('uses the bundled OAuth client without requiring a user-selected JSON file', async () => {
+    const authorize = vi.fn(async () => ({
+      code: 'authorization-code',
+      codeVerifier: 'verifier',
+      redirectUri: 'http://127.0.0.1:54321/oauth2/callback'
+    }))
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      if (input.toString().includes('/token')) {
+        return new Response(
+          JSON.stringify({
+            access_token: 'access-token',
+            refresh_token: 'refresh-token',
+            expires_in: 3600
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      return new Response(
+        JSON.stringify({
+          sub: 'google-sub',
+          name: 'Humin',
+          email: 'humin@example.com'
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      )
+    })
+    const service = new GoogleConnectionService({
+      stateDirectory: await stateDirectory(),
+      tokenStore: memoryTokenStore(),
+      bundledClientId: 'bundled.apps.googleusercontent.com',
+      authorize,
+      fetchImpl
+    })
+
+    expect(await service.getStatus()).toMatchObject({
+      configured: true,
+      connected: false
+    })
+
+    await service.connect()
+
+    expect(authorize).toHaveBeenCalledWith(
+      'bundled.apps.googleusercontent.com'
+    )
+  })
+
+  it('prefers a user-selected OAuth client over the bundled client', async () => {
+    const authorize = vi.fn(async () => ({
+      code: 'authorization-code',
+      codeVerifier: 'verifier',
+      redirectUri: 'http://127.0.0.1:54321/oauth2/callback'
+    }))
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      if (input.toString().includes('/token')) {
+        return new Response(
+          JSON.stringify({
+            access_token: 'access-token',
+            refresh_token: 'refresh-token',
+            expires_in: 3600
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      return new Response(
+        JSON.stringify({
+          sub: 'google-sub',
+          name: 'Humin',
+          email: 'humin@example.com'
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      )
+    })
+    const service = new GoogleConnectionService({
+      stateDirectory: await stateDirectory(),
+      tokenStore: memoryTokenStore(),
+      bundledClientId: 'bundled.apps.googleusercontent.com',
+      authorize,
+      fetchImpl
+    })
+    await service.configure(oauthJson)
+
+    await service.connect()
+
+    expect(authorize).toHaveBeenCalledWith(
+      'desktop.apps.googleusercontent.com'
+    )
+  })
+
   it('keeps OAuth configuration separate from connection state', async () => {
     const service = new GoogleConnectionService({
       stateDirectory: await stateDirectory(),
