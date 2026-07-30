@@ -2,7 +2,7 @@
 
 **書いて、つないで、あとで尋ねる。**
 
-TSUZUNEは、ローカルのMarkdownファイルをそのまま扱う、Windows向けの個人用メモアプリです。v0.2では、CodexとChatGPTデスクトップからVaultを参照し、依頼に応じてノートを作成・更新できるMCP連携を追加しました。
+TSUZUNEは、ローカルのMarkdownファイルをそのまま扱う、Windows向けの個人用メモアプリです。v0.2ではCodexとChatGPTデスクトップからVaultを参照・更新するMCP連携、v0.3では時間付き記憶、v0.4では1-hopグラフと手動Google Drive同期を追加しました。
 
 ## v0.1でできること
 
@@ -22,7 +22,7 @@ TSUZUNEは、ローカルのMarkdownファイルをそのまま扱う、Windows�
 
 ## 使い始める
 
-1. Releasesまたは配布された`TSUZUNE-0.3.0-portable.exe`を起動します。
+1. Releasesまたは配布された`TSUZUNE-0.4.0-portable.exe`を起動します。
 2. 「Vaultを開く」から、メモを保存したいローカルフォルダを選びます。
 3. 「＋ ノート」で最初のMarkdownノートを作成します。
 
@@ -91,9 +91,66 @@ npm run mcp:unregister
 
 Starter Vaultを使った比較では、時間対応Contextが固定4問で4/4、State Noteから出典への一致が3/3となり、過去への未来情報漏えいは0件でした。詳細は[M5 Starter Vault Dogfood](docs/m5-dogfood.md)を参照してください。
 
-## v0.2の境界
+## v0.4: グラフとGoogle Drive手動同期
 
-MCP連携からできる書き込みは、新規ノート作成と競合検知付きの本文更新だけです。削除、移動、名前変更、フォルダ作成、強制上書き、アプリ内AIチャット、ChatGPT Webへの公開、グラフビュー、クラウド同期、アカウント、プラグイン、モバイル版、共同編集は対象外です。実際にTSUZUNEを使い、必要になった機能だけを次の版で追加します。
+### 1-hopグラフ
+
+ノートを開いて「グラフ」を選ぶと、選択中のノートと、直接つながっているリンク先・バックリンクだけを表示します。
+
+- 選択中のノートを中心にした1段階の関係だけを表示する
+- ノードをクリックまたはキーボードで選択して、そのノートを開く
+- 未保存の編集中Wikiリンクも表示へ反映する
+- グラフDBや別の索引を持たず、現在のMarkdownとWikiリンクから都度組み立てる
+
+Vault全体を力学シミュレーションするグラフではありません。日常的に「このノートの近くに何があるか」を確認するための小さな表示です。
+
+### GoogleログインとDrive同期
+
+Google接続は任意です。ログインしなくても、従来どおりローカルVaultの閲覧・編集とMCP連携を使えます。
+
+- GoogleのシステムブラウザでDesktop OAuth 2.0認証を行う
+- 要求する権限は`openid email profile`と`drive.file`だけ
+- ログインから取得する個人情報は、名前・メールアドレスなどの基本プロフィールだけ
+- ローカルMarkdownを原本とし、専用のDriveフォルダと手動で同期する
+- 「同期内容を確認」で送信・受信・競合・保持をプレビューし、「この内容で同期」で適用する
+- ローカルまたはDrive側でノートが消えても、削除を相手側へ伝播しない
+- 両側で同じノートが変更された場合、ローカル版を元のパスへ収束させ、変更前のDrive版をローカルとDriveの競合ノートとして残す
+- TSUZUNEが作成・管理するファイルだけを対象にし、Drive全体を走査しない
+- Drive側の版とパスを適用直前に再確認し、古いプランやWindows上で衝突するパスを拒否する
+- 別PCでは「既存のDrive Vaultを探す」から、以前に同期したVaultを明示選択して紐付ける
+
+Google内部の広告プロファイル、Google検索履歴、他アプリが作成したDriveファイルは、このログインや同期では取得しません。GoogleログインだけでTSUZUNEのパーソナライズ情報が自動的に増えるわけではありません。
+
+### Google Cloudの準備
+
+1. [Google Cloud Console](https://console.cloud.google.com/)でプロジェクトを作成または選択します。
+2. 「APIとサービス」からGoogle Drive APIを有効にします。
+3. OAuth同意画面を設定します。ExternalのTestingで試す場合は、自分のGoogleアカウントをテストユーザーへ追加します。
+4. 「認証情報を作成」からOAuthクライアントIDを作り、アプリケーションの種類に「デスクトップアプリ」を選びます。
+5. 作成したOAuthクライアントのJSONをダウンロードします。
+6. TSUZUNEのヘッダーで「Google / 同期」を開き、「OAuth JSONを選ぶ」からダウンロードしたJSONを選びます。
+7. 「Googleでログイン」を押し、ブラウザで権限を確認して接続します。
+8. Vaultを開いた状態で「同期内容を確認」を押し、内容を確認してから「この内容で同期」を押します。
+
+別PCで既存Vaultを受信する場合は、同じDesktop OAuthクライアントJSONを設定して同じGoogleアカウントへログインし、空のローカルVaultを開きます。「既存のDrive Vaultを探す」で対象を選び、「このDrive Vaultを使う」を押してから同期内容を確認してください。すでに同期済みのローカルVaultを別のDrive Vaultへ付け替える操作は拒否します。
+
+OAuth同意画面がExternalかつTestingのままだと、Googleの仕様により更新トークンは原則7日で失効します。継続利用する場合は、同意画面と公開要件を確認したうえでPublishing statusをIn productionへ移してください。
+
+OAuthクライアントJSONはアプリ設定としてローカルに保持します。更新トークンはVaultやMarkdownへ書かず、Electronの`safeStorage`を通してWindowsの暗号化機構で保護します。アクセストークンは永続保存しません。
+
+手動同期は複数端末で同時に実行せず、1台のpreview/applyが終わってから次の端末で実行してください。Drive版はアップロード直前に再確認しますが、Google Drive APIの版確認と更新は単一の原子操作ではありません。複数端末による同時applyを調停する常駐サーバーや分散ロックも実装していません。
+
+現在の自動テストは、OAuth、暗号化保存、Drive APIクライアント、同期判定、同期適用、グラフをモックまたはローカルfixtureで確認しています。実際のGoogleアカウントでの認証・Drive往復は、利用者自身のDesktop OAuth JSONが必要なため、資格情報を用いた手動確認とは区別しています。
+
+Google公式仕様:
+
+- [OAuth 2.0 for Desktop apps](https://developers.google.com/identity/protocols/oauth2/native-app)
+- [Google Drive API scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth)
+- [Electron safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage)
+
+## v0.2 MCPの境界
+
+MCP連携からできる書き込みは、新規ノート作成と競合検知付きの本文更新だけです。削除、移動、名前変更、フォルダ作成、強制上書きは公開していません。v0.4のグラフとGoogle Drive同期はデスクトップアプリの明示操作で使う機能であり、MCPからGoogle認証や同期を実行することはできません。アプリ内AIチャット、ChatGPT Webへの公開、プラグイン、モバイル版、共同編集も対象外です。
 
 ## データ保護
 

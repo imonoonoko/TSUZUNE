@@ -778,6 +778,170 @@ button:hover:not(:disabled) {
   margin-top: 22px;
 }
 
+.google-sync-modal {
+  width: min(680px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  overflow: auto;
+}
+
+.google-sync-modal:focus {
+  outline: 2px solid #3e7e76;
+  outline-offset: 3px;
+}
+
+.google-sync-heading,
+.google-account-card,
+.google-sync-meta,
+.google-sync-buttons,
+.sync-counts {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.google-sync-heading,
+.google-account-card,
+.google-sync-meta {
+  justify-content: space-between;
+}
+
+.google-sync-heading > div {
+  min-width: 0;
+}
+
+.google-sync-heading p {
+  margin-bottom: 0;
+}
+
+.google-sync-step,
+.google-account-card,
+.sync-preview {
+  padding: 16px;
+  margin-top: 16px;
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+.google-sync-step p {
+  margin: 7px 0 14px;
+  word-break: normal;
+}
+
+.drive-vault-picker,
+.drive-vault-picker label {
+  display: grid;
+  gap: 8px;
+}
+
+.drive-vault-picker select {
+  width: 100%;
+}
+
+.google-account-card > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.google-account-card span,
+.google-sync-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.google-sync-meta {
+  flex-wrap: wrap;
+  padding: 10px 2px 14px;
+}
+
+.google-sync-progress {
+  padding: 9px 12px;
+  margin-top: 14px !important;
+  color: #31544d !important;
+  background: var(--accent-soft);
+  border-radius: 7px;
+}
+
+.sync-counts {
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.sync-counts span,
+.sync-action {
+  padding: 3px 7px;
+  font-size: 11px;
+  border-radius: 999px;
+}
+
+.sync-counts span {
+  color: #34544f;
+  background: #e4eee9;
+}
+
+.sync-preview-list {
+  max-height: 260px;
+  padding: 0;
+  margin: 0 0 14px;
+  overflow: auto;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.sync-preview-list li {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 8px 2px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sync-preview-list li > span:last-child {
+  overflow-wrap: anywhere;
+}
+
+.sync-action {
+  text-align: center;
+}
+
+.sync-action.is-upload {
+  color: #285950;
+  background: #dcebe6;
+}
+
+.sync-action.is-download {
+  color: #37506d;
+  background: #e0e9f3;
+}
+
+.sync-action.is-conflict {
+  color: #7a352f;
+  background: #f5deda;
+}
+
+.sync-action.is-preserve {
+  color: #6d5530;
+  background: #f2e6cf;
+}
+
+.sync-no-changes {
+  margin: 4px 0 0 !important;
+  word-break: normal !important;
+}
+
+.google-sync-boundary {
+  padding-top: 14px;
+  margin: 18px 0 0 !important;
+  font-size: 11px;
+  line-height: 1.6;
+  word-break: normal !important;
+  border-top: 1px solid var(--line);
+}
+
 @media (max-width: 1040px) {
   .workspace {
     grid-template-columns: 220px minmax(400px, 1fr) 190px;

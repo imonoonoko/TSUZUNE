@@ -6,6 +6,7 @@ import {
   getOutgoingLinks,
   resolveWikiLink
 } from '../core/links'
+import { buildWikiGraph, getLocalWikiGraph } from '../core/graph'
 import {
   basenameRelative,
   dirnameRelative,
@@ -17,6 +18,9 @@ import {
 import { searchNotes } from '../core/search'
 import type {
   AppError,
+  DriveRemoteVault,
+  DriveSyncPreview,
+  GoogleDriveStatus,
   NoteDocument,
   VaultChangeEvent,
   VaultSnapshot
@@ -27,6 +31,7 @@ import MarkdownPreview from './components/MarkdownPreview'
 import MoveDialog from './components/MoveDialog'
 import RelatedNotes from './components/RelatedNotes'
 import TemporalDetails from './components/TemporalDetails'
+import WikiGraphView from './components/WikiGraphView'
 
 type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict'
 
@@ -87,13 +92,21 @@ export default function App(): React.JSX.Element {
   const versionRef = useRef(0)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveQueueRef = useRef<Promise<boolean>>(Promise.resolve(true))
-  const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit')
+  const [viewMode, setViewMode] = useState<'edit' | 'preview' | 'graph'>('edit')
   const [query, setQuery] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
   const conflictRef = useRef<ConflictState | null>(null)
   const [movePath, setMovePath] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [googleDialogOpen, setGoogleDialogOpen] = useState(false)
+  const [googleBusy, setGoogleBusy] = useState(false)
+  const [googleStatus, setGoogleStatus] = useState<GoogleDriveStatus | null>(null)
+  const [drivePreview, setDrivePreview] = useState<DriveSyncPreview | null>(null)
+  const [driveVaults, setDriveVaults] = useState<DriveRemoteVault[]>([])
+  const [selectedDriveVaultId, setSelectedDriveVaultId] = useState('')
+  const googleDialogRef = useRef<HTMLElement | null>(null)
+  const googleDialogPreviousFocusRef = useRef<HTMLElement | null>(null)
   const busyRef = useRef(false)
   const vaultGenerationRef = useRef(0)
   const vaultSwitchingRef = useRef(false)
@@ -497,6 +510,20 @@ export default function App(): React.JSX.Element {
     }
   }, [])
 
+  useEffect(() => {
+    if (!googleDialogOpen) {
+      return
+    }
+
+    googleDialogRef.current?.focus()
+    return () => {
+      const previousFocus = googleDialogPreviousFocusRef.current
+      if (previousFocus?.isConnected) {
+        previousFocus.focus()
+      }
+    }
+  }, [googleDialogOpen])
+
   const effectiveNotes = useMemo(() => {
     if (!snapshot || !selectedPath) {
       return snapshot?.notes ?? []
@@ -525,6 +552,12 @@ export default function App(): React.JSX.Element {
         : null,
     [effectiveNotes, selectedPath]
   )
+  const localGraph = useMemo(() => {
+    if (!selectedPath) {
+      return { nodes: [], edges: [] }
+    }
+    return getLocalWikiGraph(buildWikiGraph(effectiveNotes), selectedPath)
+  }, [effectiveNotes, selectedPath])
   const temporalAsOf = useMemo(() => localCalendarDate(new Date()), [])
 
   const targetDirectory = (): string => {
@@ -878,6 +911,225 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  const openGoogleDialog = async (): Promise<void> => {
+    googleDialogPreviousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setGoogleDialogOpen(true)
+    setGoogleBusy(true)
+    setDrivePreview(null)
+    try {
+      const result = await window.tsuzune.getGoogleDriveStatus()
+      if (!result.ok) {
+        setMessage(errorMessage(result.error))
+        return
+      }
+      setGoogleStatus(result.value)
+    } finally {
+      setGoogleBusy(false)
+    }
+  }
+
+  const handleGoogleDialogKeyDown = (
+    event: React.KeyboardEvent<HTMLElement>
+  ): void => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      setGoogleDialogOpen(false)
+      return
+    }
+    if (event.key !== 'Tab') {
+      return
+    }
+
+    const dialog = googleDialogRef.current
+    if (!dialog) {
+      return
+    }
+    const focusable = Array.from(
+      dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+      )
+    )
+    if (focusable.length === 0) {
+      event.preventDefault()
+      dialog.focus()
+      return
+    }
+
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    const active = document.activeElement
+    if (event.shiftKey && (active === first || active === dialog)) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && (active === last || active === dialog)) {
+      event.preventDefault()
+      first.focus()
+    } else if (!(active instanceof Node) || !dialog.contains(active)) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+
+  const chooseGoogleConfig = async (): Promise<void> => {
+    setGoogleBusy(true)
+    setDrivePreview(null)
+    try {
+      const result = await window.tsuzune.chooseGoogleOAuthConfig()
+      if (!result.ok) {
+        setMessage(errorMessage(result.error))
+        return
+      }
+      if (result.value) {
+        setGoogleStatus(result.value)
+        setMessage('Google OAuth設定を読み込みました。')
+      }
+    } finally {
+      setGoogleBusy(false)
+    }
+  }
+
+  const connectGoogle = async (): Promise<void> => {
+    setGoogleBusy(true)
+    setDrivePreview(null)
+    try {
+      const result = await window.tsuzune.connectGoogle()
+      if (!result.ok) {
+        setMessage(errorMessage(result.error))
+        return
+      }
+      setGoogleStatus(result.value)
+      setMessage(`${result.value.account?.email ?? 'Googleアカウント'}に接続しました。`)
+    } finally {
+      setGoogleBusy(false)
+    }
+  }
+
+  const disconnectGoogle = async (): Promise<void> => {
+    if (!window.confirm('この端末からGoogle接続情報を削除しますか？')) {
+      return
+    }
+    setGoogleBusy(true)
+    setDrivePreview(null)
+    try {
+      const result = await window.tsuzune.disconnectGoogle()
+      if (!result.ok) {
+        setMessage(errorMessage(result.error))
+        return
+      }
+      setGoogleStatus(result.value)
+      setDriveVaults([])
+      setSelectedDriveVaultId('')
+      setMessage('Googleアカウントとの接続を解除しました。Drive上のファイルは残ります。')
+    } finally {
+      setGoogleBusy(false)
+    }
+  }
+
+  const listRemoteDriveVaults = async (): Promise<void> => {
+    setGoogleBusy(true)
+    setDrivePreview(null)
+    try {
+      const result = await window.tsuzune.listDriveVaults()
+      if (!result.ok) {
+        setMessage(errorMessage(result.error))
+        return
+      }
+      setDriveVaults(result.value)
+      setSelectedDriveVaultId(result.value[0]?.rootFolderId ?? '')
+      setMessage(
+        result.value.length > 0
+          ? `${result.value.length}件のDrive Vaultが見つかりました。`
+          : '接続できる既存のDrive Vaultはありません。'
+      )
+    } finally {
+      setGoogleBusy(false)
+    }
+  }
+
+  const pairRemoteDriveVault = async (): Promise<void> => {
+    const selected = driveVaults.find(
+      (candidate) => candidate.rootFolderId === selectedDriveVaultId
+    )
+    if (!selected) {
+      return
+    }
+    setGoogleBusy(true)
+    setDrivePreview(null)
+    try {
+      const result = await window.tsuzune.pairDriveVault({
+        rootFolderId: selected.rootFolderId,
+        vaultId: selected.vaultId
+      })
+      if (!result.ok) {
+        setMessage(errorMessage(result.error))
+        return
+      }
+      setGoogleStatus(result.value)
+      setMessage('Drive Vaultを接続しました。')
+    } finally {
+      setGoogleBusy(false)
+    }
+  }
+
+  const previewGoogleDriveSync = async (): Promise<void> => {
+    if (!snapshot || !beginOperation()) {
+      return
+    }
+    try {
+      if (!(await flushSave())) {
+        return
+      }
+      const result = await window.tsuzune.previewDriveSync()
+      if (!result.ok) {
+        setMessage(errorMessage(result.error))
+        return
+      }
+      setDrivePreview(result.value)
+    } finally {
+      finishOperation()
+    }
+  }
+
+  const applyGoogleDriveSync = async (): Promise<void> => {
+    if (
+      !drivePreview ||
+      !window.confirm(
+        '表示中の同期内容を適用しますか？削除は伝播せず、競合は別ノートとして残します。'
+      ) ||
+      !beginOperation()
+    ) {
+      return
+    }
+    try {
+      if (!(await flushSave())) {
+        return
+      }
+      const result = await window.tsuzune.applyDriveSync(drivePreview.planId)
+      if (!result.ok) {
+        setMessage(errorMessage(result.error))
+        return
+      }
+      const currentPath = selectedPathRef.current
+      const next = await refreshSnapshot()
+      if (currentPath) {
+        loadNoteState(
+          next?.notes.find((note) => note.path === currentPath) ?? null
+        )
+      }
+      setDrivePreview(null)
+      const status = await window.tsuzune.getGoogleDriveStatus()
+      if (status.ok) {
+        setGoogleStatus(status.value)
+      }
+      setMessage(
+        `Drive同期完了: 送信${result.value.uploaded} / 受信${result.value.downloaded} / 競合${result.value.conflicts} / 保持${result.value.preserved}`
+      )
+    } finally {
+      finishOperation()
+    }
+  }
+
   const loadExternalVersion = (): void => {
     if (conflict?.kind !== 'changed') {
       return
@@ -985,13 +1237,20 @@ export default function App(): React.JSX.Element {
           処理中…
         </div>
       )}
-      <header className="app-header" inert={busy}>
+      <header className="app-header" inert={busy || googleDialogOpen}>
         <div className="brand">
           <strong>TSUZUNE</strong>
           <span>書いて、つないで、あとで尋ねる。</span>
         </div>
         <div className="vault-summary">
           <span>{snapshot ? `Vault: ${snapshot.rootName}` : 'Vault未選択'}</span>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => void openGoogleDialog()}
+          >
+            Google / 同期
+          </button>
           <button type="button" className="secondary-button" onClick={() => void chooseVault()}>
             Vaultを開く
           </button>
@@ -999,7 +1258,7 @@ export default function App(): React.JSX.Element {
       </header>
 
       {message && (
-        <div className="message-banner" role="status" inert={busy}>
+        <div className="message-banner" role="status" inert={busy || googleDialogOpen}>
           <span>{message}</span>
           {saveStatus === 'error' && (
             <button type="button" onClick={() => void flushSave()}>
@@ -1013,7 +1272,7 @@ export default function App(): React.JSX.Element {
       )}
 
       {conflict?.kind === 'changed' && (
-        <div className="conflict-banner" role="alert" inert={busy}>
+        <div className="conflict-banner" role="alert" inert={busy || googleDialogOpen}>
           <strong>このノートは別のアプリでも変更されました。</strong>
           {!conflict.localHeld ? (
             <div>
@@ -1033,7 +1292,7 @@ export default function App(): React.JSX.Element {
       )}
 
       {conflict?.kind === 'missing' && (
-        <div className="conflict-banner" role="alert" inert={busy}>
+        <div className="conflict-banner" role="alert" inert={busy || googleDialogOpen}>
           <strong>このノートは外部で削除または移動されました。</strong>
           <div>
             <button type="button" onClick={() => void saveMissingAsNew()}>
@@ -1047,7 +1306,7 @@ export default function App(): React.JSX.Element {
       )}
 
       {!snapshot ? (
-        <main className="welcome" inert={busy}>
+        <main className="welcome" inert={busy || googleDialogOpen}>
           <div>
             <p className="eyebrow">LOCAL MARKDOWN NOTEBOOK</p>
             <h1>最初のVaultを開きましょう</h1>
@@ -1060,7 +1319,7 @@ export default function App(): React.JSX.Element {
           </div>
         </main>
       ) : (
-        <main className="workspace" inert={busy}>
+        <main className="workspace" inert={busy || googleDialogOpen}>
           <aside className="left-panel">
             <label className="search-field">
               <span className="sr-only">Vaultを検索</span>
@@ -1143,6 +1402,13 @@ export default function App(): React.JSX.Element {
                     >
                       プレビュー
                     </button>
+                    <button
+                      type="button"
+                      className={viewMode === 'graph' ? 'is-active' : ''}
+                      onClick={() => setViewMode('graph')}
+                    >
+                      グラフ
+                    </button>
                   </div>
                 </header>
                 {viewMode === 'edit' ? (
@@ -1151,8 +1417,14 @@ export default function App(): React.JSX.Element {
                     onChange={handleContentChange}
                     readOnly={busy}
                   />
-                ) : (
+                ) : viewMode === 'preview' ? (
                   <MarkdownPreview content={content} onWikiLink={handleWikiLink} />
+                ) : (
+                  <WikiGraphView
+                    graph={localGraph}
+                    currentPath={selectedPath}
+                    onOpen={(path) => void openNote(path)}
+                  />
                 )}
                 <footer className="note-footer">
                   <span>{content.length.toLocaleString()}文字</span>
@@ -1194,7 +1466,7 @@ export default function App(): React.JSX.Element {
       )}
 
       {movePath && snapshot && (
-        <div inert={busy}>
+        <div inert={busy || googleDialogOpen}>
           <MoveDialog
             notePath={movePath}
             directories={snapshot.directories}
@@ -1202,6 +1474,217 @@ export default function App(): React.JSX.Element {
             onCancel={() => setMovePath(null)}
             onConfirm={(directory) => void moveSelectedNote(directory)}
           />
+        </div>
+      )}
+
+      {googleDialogOpen && (
+        <div className="modal-backdrop" role="presentation">
+          <section
+            ref={googleDialogRef}
+            className="modal google-sync-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="google-sync-title"
+            aria-busy={googleBusy || busy}
+            tabIndex={-1}
+            onKeyDown={handleGoogleDialogKeyDown}
+          >
+            <div className="google-sync-heading">
+              <div>
+                <h2 id="google-sync-title">Google Drive同期</h2>
+                <p>ローカルMarkdownを原本として、確認してから手動同期します。</p>
+              </div>
+              <button
+                type="button"
+                aria-label="Google Drive同期を閉じる"
+                disabled={googleBusy || busy}
+                onClick={() => setGoogleDialogOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            {googleBusy && <p className="google-sync-progress">Googleの処理を待っています…</p>}
+
+            {!googleStatus?.configured ? (
+              <div className="google-sync-step">
+                <strong>1. Google OAuth設定</strong>
+                <p>
+                  Google Cloudで作成した「デスクトップアプリ」のOAuthクライアントJSONを選びます。
+                </p>
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={googleBusy}
+                  onClick={() => void chooseGoogleConfig()}
+                >
+                  OAuth JSONを選ぶ
+                </button>
+              </div>
+            ) : !googleStatus.connected ? (
+              <div className="google-sync-step">
+                <strong>2. Googleアカウントへ接続</strong>
+                <p>
+                  基本プロフィールと、TSUZUNEが作成するDriveファイルだけを扱う権限を求めます。
+                </p>
+                <div className="google-sync-buttons">
+                  <button
+                    type="button"
+                    className="primary-button"
+                    disabled={googleBusy}
+                    onClick={() => void connectGoogle()}
+                  >
+                    Googleでログイン
+                  </button>
+                  <button
+                    type="button"
+                    disabled={googleBusy}
+                    onClick={() => void chooseGoogleConfig()}
+                  >
+                    OAuth JSONを変更
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="google-account-card">
+                  <div>
+                    <strong>{googleStatus.account?.name ?? 'Googleアカウント'}</strong>
+                    <span>{googleStatus.account?.email}</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={googleBusy || busy}
+                    onClick={() => void disconnectGoogle()}
+                  >
+                    接続解除
+                  </button>
+                </div>
+
+                <div className="google-sync-meta">
+                  <span>
+                    最終同期:{' '}
+                    {googleStatus.lastSyncAt
+                      ? new Date(googleStatus.lastSyncAt).toLocaleString('ja-JP')
+                      : '未実行'}
+                  </span>
+                  {googleStatus.vaultFolderUrl && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void window.tsuzune.openExternal(
+                          googleStatus.vaultFolderUrl as string
+                        )
+                      }
+                    >
+                      Driveフォルダを開く
+                    </button>
+                  )}
+                </div>
+
+                <div className="google-sync-step">
+                  <strong>既存のDrive Vaultへ接続</strong>
+                  <p>
+                    別端末で作成した空のローカルVaultへ、TSUZUNEが以前作成したDrive Vaultを接続できます。
+                  </p>
+                  <div className="google-sync-buttons">
+                    <button
+                      type="button"
+                      disabled={!snapshot || googleBusy || busy}
+                      onClick={() => void listRemoteDriveVaults()}
+                    >
+                      既存のDrive Vaultを探す
+                    </button>
+                  </div>
+                  {driveVaults.length > 0 && (
+                    <div className="drive-vault-picker">
+                      <label>
+                        <span>接続先</span>
+                        <select
+                          aria-label="接続するDrive Vault"
+                          value={selectedDriveVaultId}
+                          onChange={(event) =>
+                            setSelectedDriveVaultId(event.target.value)
+                          }
+                        >
+                          {driveVaults.map((vault) => (
+                            <option
+                              key={vault.rootFolderId}
+                              value={vault.rootFolderId}
+                            >
+                              {vault.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        className="primary-button"
+                        disabled={!selectedDriveVaultId || googleBusy || busy}
+                        onClick={() => void pairRemoteDriveVault()}
+                      >
+                        このDrive Vaultを使う
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={!snapshot || googleBusy || busy}
+                  onClick={() => void previewGoogleDriveSync()}
+                >
+                  同期内容を確認
+                </button>
+
+                {drivePreview && (
+                  <div className="sync-preview">
+                    <div className="sync-counts" aria-label="同期件数">
+                      <span>送信 {drivePreview.counts.upload}</span>
+                      <span>受信 {drivePreview.counts.download}</span>
+                      <span>競合 {drivePreview.counts.conflict}</span>
+                      <span>保持 {drivePreview.counts.preserve}</span>
+                    </div>
+                    {drivePreview.items.length > 0 ? (
+                      <ul className="sync-preview-list">
+                        {drivePreview.items.map((item) => (
+                          <li key={`${item.action}:${item.path}`}>
+                            <span className={`sync-action is-${item.action}`}>
+                              {item.action === 'upload'
+                                ? '送信'
+                                : item.action === 'download'
+                                  ? '受信'
+                                  : item.action === 'conflict'
+                                    ? '競合'
+                                    : '保持'}
+                            </span>
+                            <span>{item.path}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="sync-no-changes">同期が必要な変更はありません。</p>
+                    )}
+                    {drivePreview.items.length > 0 && (
+                      <button
+                        type="button"
+                        className="primary-button"
+                        disabled={googleBusy || busy}
+                        onClick={() => void applyGoogleDriveSync()}
+                      >
+                        この内容で同期
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            <p className="google-sync-boundary">
+              広告プロファイル、Google検索履歴、他アプリのDriveファイルは取得しません。
+            </p>
+          </section>
         </div>
       )}
     </div>

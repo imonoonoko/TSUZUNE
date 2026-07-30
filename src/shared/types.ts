@@ -113,6 +113,73 @@ export interface SearchResult {
   score: number
 }
 
+export interface GoogleAccount {
+  sub: string
+  name: string
+  email: string
+  picture: string | null
+}
+
+export interface GoogleDriveStatus {
+  configured: boolean
+  connected: boolean
+  account: GoogleAccount | null
+  lastSyncAt: string | null
+  vaultFolderUrl: string | null
+}
+
+export interface DriveRemoteVault {
+  rootFolderId: string
+  vaultId: string
+  name: string
+}
+
+export interface PairDriveVaultInput {
+  rootFolderId: string
+  vaultId: string
+}
+
+export type DriveSyncAction =
+  | 'upload'
+  | 'download'
+  | 'conflict'
+  | 'preserve'
+
+export interface DriveSyncPreviewItem {
+  path: string
+  action: DriveSyncAction
+  reason:
+    | 'new_local'
+    | 'new_remote'
+    | 'local_changed'
+    | 'remote_changed'
+    | 'both_changed'
+    | 'both_new_different'
+    | 'local_deleted'
+    | 'remote_deleted'
+}
+
+export interface DriveSyncPreview {
+  planId: string
+  createdAt: string
+  items: DriveSyncPreviewItem[]
+  counts: {
+    upload: number
+    download: number
+    conflict: number
+    preserve: number
+  }
+}
+
+export interface DriveSyncApplyResult {
+  uploaded: number
+  downloaded: number
+  conflicts: number
+  preserved: number
+  conflictPaths: string[]
+  completedAt: string
+}
+
 export interface TsuzuneApi {
   chooseVault(): Promise<Result<VaultSnapshot | null>>
   openLastVault(): Promise<Result<VaultSnapshot | null>>
@@ -126,6 +193,14 @@ export interface TsuzuneApi {
   moveNote(input: MoveNoteInput): Promise<Result<EntryOperationOutput>>
   trashEntry(path: string): Promise<Result<EntryOperationOutput>>
   setLastNote(path: string | null): Promise<Result<null>>
+  chooseGoogleOAuthConfig(): Promise<Result<GoogleDriveStatus | null>>
+  getGoogleDriveStatus(): Promise<Result<GoogleDriveStatus>>
+  connectGoogle(): Promise<Result<GoogleDriveStatus>>
+  disconnectGoogle(): Promise<Result<GoogleDriveStatus>>
+  listDriveVaults(): Promise<Result<DriveRemoteVault[]>>
+  pairDriveVault(input: PairDriveVaultInput): Promise<Result<GoogleDriveStatus>>
+  previewDriveSync(): Promise<Result<DriveSyncPreview>>
+  applyDriveSync(planId: string): Promise<Result<DriveSyncApplyResult>>
   openExternal(url: string): Promise<Result<null>>
   confirmClose(allow: boolean): void
   onVaultChanged(callback: (event: VaultChangeEvent) => void): () => void

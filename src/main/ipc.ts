@@ -1,9 +1,15 @@
 import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
+import { readFile } from 'node:fs/promises'
 import type {
   AppError,
   CreateDirectoryInput,
   CreateNoteInput,
+  DriveRemoteVault,
+  DriveSyncApplyResult,
+  DriveSyncPreview,
+  GoogleDriveStatus,
   MoveNoteInput,
+  PairDriveVaultInput,
   RenameEntryInput,
   Result,
   SaveNoteInput
@@ -11,12 +17,23 @@ import type {
 import { updateSettings, readSettings } from './settings'
 import { VaultError, VaultService } from './vault'
 import { VaultWatcher } from './watcher'
+import type { GoogleConnectionService } from './google-connection'
 
 let ipcTail: Promise<void> = Promise.resolve()
+let googleIpcTail: Promise<void> = Promise.resolve()
 
 function runInOrder<T>(operation: () => Promise<T>): Promise<T> {
   const result = ipcTail.then(operation, operation)
   ipcTail = result.then(
+    () => undefined,
+    () => undefined
+  )
+  return result
+}
+
+function runGoogleInOrder<T>(operation: () => Promise<T>): Promise<T> {
+  const result = googleIpcTail.then(operation, operation)
+  googleIpcTail = result.then(
     () => undefined,
     () => undefined
   )
@@ -41,22 +58,25 @@ function failure(error: unknown): Result<never> {
   }
 }
 
-function trustedSender(event: IpcMainInvokeEvent): boolean {
-  const url = event.senderFrame?.url
+function trustedSender(
+  event: Pick<IpcMainInvokeEvent, 'sender' | 'senderFrame'>,
+  getWindow: () => BrowserWindow | null
+): boolean {
+  const window = getWindow()
   return Boolean(
-    url &&
-      (url.startsWith('file://') ||
-        url.startsWith('http://localhost:') ||
-        url.startsWith('http://127.0.0.1:'))
+    window &&
+      event.sender === window.webContents &&
+      event.senderFrame === window.webContents.mainFrame
   )
 }
 
 function register<TArgs extends unknown[], TOutput>(
   channel: string,
+  isTrusted: (event: IpcMainInvokeEvent) => boolean,
   handler: (...args: TArgs) => Promise<TOutput>
 ): void {
   ipcMain.handle(channel, async (event, ...args: TArgs): Promise<Result<TOutput>> => {
-    if (!trustedSender(event)) {
+    if (!isTrusted(event)) {
       const error: AppError = {
         code: 'ACCESS_DENIED',
         message: 'この操作元は信頼できません。'
@@ -72,13 +92,95 @@ function register<TArgs extends unknown[], TOutput>(
   })
 }
 
+function registerConcurrent<TArgs extends unknown[], TOutput>(
+  channel: string,
+  isTrusted: (event: IpcMainInvokeEvent) => boolean,
+  handler: (...args: TArgs) => Promise<TOutput>
+): void {
+  ipcMain.handle(channel, async (event, ...args: TArgs): Promise<Result<TOutput>> => {
+    if (!isTrusted(event)) {
+      return {
+        ok: false,
+        error: {
+          code: 'ACCESS_DENIED',
+          message: 'この操作元は信頼できません。'
+        }
+      }
+    }
+
+    try {
+      return success(await handler(...args))
+    } catch (error) {
+      return failure(error)
+    }
+  })
+}
+
+function registerGoogle<TArgs extends unknown[], TOutput>(
+  channel: string,
+  isTrusted: (event: IpcMainInvokeEvent) => boolean,
+  handler: (...args: TArgs) => Promise<TOutput>
+): void {
+  ipcMain.handle(channel, async (event, ...args: TArgs): Promise<Result<TOutput>> => {
+    if (!isTrusted(event)) {
+      return {
+        ok: false,
+        error: {
+          code: 'ACCESS_DENIED',
+          message: 'この操作元は信頼できません。'
+        }
+      }
+    }
+
+    try {
+      return success(await runGoogleInOrder(() => handler(...args)))
+    } catch (error) {
+      return failure(error)
+    }
+  })
+}
+
+export interface DriveSyncIpcService {
+  getStatusMetadata(
+    rootPath: string | null
+  ): Promise<{ lastSyncAt: string | null; rootFolderId: string | null }>
+  listRemoteVaults(): Promise<DriveRemoteVault[]>
+  pairRemoteVault(rootFolderId: string, vaultId: string): Promise<void>
+  preview(): Promise<DriveSyncPreview>
+  apply(planId: string): Promise<DriveSyncApplyResult>
+}
+
+export interface GoogleIpcServices {
+  connection: GoogleConnectionService
+  driveSync: DriveSyncIpcService
+}
+
 export function registerIpc(
   vault: VaultService,
   watcher: VaultWatcher,
+  google: GoogleIpcServices,
   getWindow: () => BrowserWindow | null,
   approveClose: () => void
 ): void {
-  register('vault:choose', async () => {
+  const isTrusted = (event: IpcMainInvokeEvent): boolean =>
+    trustedSender(event, getWindow)
+
+  const registerTrusted = <TArgs extends unknown[], TOutput>(
+    channel: string,
+    handler: (...args: TArgs) => Promise<TOutput>
+  ): void => register(channel, isTrusted, handler)
+
+  const registerConcurrentTrusted = <TArgs extends unknown[], TOutput>(
+    channel: string,
+    handler: (...args: TArgs) => Promise<TOutput>
+  ): void => registerConcurrent(channel, isTrusted, handler)
+
+  const registerGoogleTrusted = <TArgs extends unknown[], TOutput>(
+    channel: string,
+    handler: (...args: TArgs) => Promise<TOutput>
+  ): void => registerGoogle(channel, isTrusted, handler)
+
+  registerTrusted('vault:choose', async () => {
     const options: Electron.OpenDialogOptions = {
       title: 'Vaultフォルダを選択',
       properties: ['openDirectory', 'createDirectory']
@@ -138,7 +240,7 @@ export function registerIpc(
     }
   })
 
-  register('vault:openLast', async () => {
+  registerTrusted('vault:openLast', async () => {
     const settings = await readSettings()
     if (!settings.lastVaultPath) {
       return null
@@ -159,11 +261,11 @@ export function registerIpc(
     }
   })
 
-  register('vault:snapshot', () => vault.scan())
-  register('vault:readNote', (path: string) => vault.readNote(path))
-  register('settings:get', () => readSettings())
+  registerTrusted('vault:snapshot', () => vault.scan())
+  registerTrusted('vault:readNote', (path: string) => vault.readNote(path))
+  registerTrusted('settings:get', () => readSettings())
 
-  register('note:save', async (input: SaveNoteInput) => {
+  registerTrusted('note:save', async (input: SaveNoteInput) => {
     const saved = await vault.saveNote(input)
     watcher.expectOwnWrite(
       input.path,
@@ -174,32 +276,82 @@ export function registerIpc(
     return saved
   })
 
-  register('entry:createNote', async (input: CreateNoteInput) => {
+  registerTrusted('entry:createNote', async (input: CreateNoteInput) => {
     return vault.createNote(input)
   })
 
-  register('entry:createDirectory', async (input: CreateDirectoryInput) => {
+  registerTrusted('entry:createDirectory', async (input: CreateDirectoryInput) => {
     return vault.createDirectory(input)
   })
 
-  register('entry:rename', async (input: RenameEntryInput) => {
+  registerTrusted('entry:rename', async (input: RenameEntryInput) => {
     return vault.renameEntry(input)
   })
 
-  register('entry:moveNote', async (input: MoveNoteInput) => {
+  registerTrusted('entry:moveNote', async (input: MoveNoteInput) => {
     return vault.moveNote(input)
   })
 
-  register('entry:trash', async (path: string) => {
+  registerTrusted('entry:trash', async (path: string) => {
     return vault.trashEntry(path)
   })
 
-  register('settings:setLastNote', async (path: string | null) => {
+  registerTrusted('settings:setLastNote', async (path: string | null) => {
     await updateSettings({ lastNotePath: path })
     return null
   })
 
-  register('system:openExternal', async (url: string) => {
+  const getGoogleStatus = async (): Promise<GoogleDriveStatus> => {
+    const connection = await google.connection.getStatus()
+    const metadata = await google.driveSync.getStatusMetadata(vault.getRootPath())
+    return {
+      ...connection,
+      lastSyncAt: metadata.lastSyncAt,
+      vaultFolderUrl: metadata.rootFolderId
+        ? `https://drive.google.com/drive/folders/${encodeURIComponent(metadata.rootFolderId)}`
+        : null
+    }
+  }
+
+  registerGoogleTrusted('google:chooseConfig', async () => {
+    const options: Electron.OpenDialogOptions = {
+      title: 'Google Desktop OAuth設定JSONを選択',
+      properties: ['openFile'],
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    }
+    const owner = getWindow()
+    const result = owner
+      ? await dialog.showOpenDialog(owner, options)
+      : await dialog.showOpenDialog(options)
+    if (result.canceled || result.filePaths.length === 0) {
+      return null
+    }
+    await google.connection.configure(await readFile(result.filePaths[0], 'utf8'))
+    return getGoogleStatus()
+  })
+
+  registerConcurrentTrusted('google:status', getGoogleStatus)
+  registerGoogleTrusted('google:connect', async () => {
+    await google.connection.connect()
+    return getGoogleStatus()
+  })
+  registerGoogleTrusted('google:disconnect', async () => {
+    await google.connection.disconnect()
+    return getGoogleStatus()
+  })
+  registerGoogleTrusted('drive:listVaults', () =>
+    google.driveSync.listRemoteVaults()
+  )
+  registerTrusted('drive:pairVault', async (input: PairDriveVaultInput) => {
+    return runGoogleInOrder(async () => {
+      await google.driveSync.pairRemoteVault(input.rootFolderId, input.vaultId)
+      return getGoogleStatus()
+    })
+  })
+  registerTrusted('drive:preview', () => google.driveSync.preview())
+  registerTrusted('drive:apply', (planId: string) => google.driveSync.apply(planId))
+
+  registerTrusted('system:openExternal', async (url: string) => {
     const parsed = new URL(url)
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       throw new VaultError({
@@ -212,13 +364,7 @@ export function registerIpc(
   })
 
   ipcMain.on('app:confirmClose', (event, allow: boolean) => {
-    const url = event.senderFrame?.url
-    if (
-      !url ||
-      (!url.startsWith('file://') &&
-        !url.startsWith('http://localhost:') &&
-        !url.startsWith('http://127.0.0.1:'))
-    ) {
+    if (!trustedSender(event, getWindow)) {
       return
     }
     if (allow) {

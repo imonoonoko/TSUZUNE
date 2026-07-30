@@ -1,6 +1,10 @@
-import { app, BrowserWindow, Menu, shell } from 'electron'
+import { app, BrowserWindow, Menu, safeStorage, shell } from 'electron'
 import { join } from 'node:path'
+import { DriveSyncService } from './drive-sync-service'
+import { GoogleConnectionService } from './google-connection'
+import { runGoogleOAuthLoopback } from './google-oauth-flow'
 import { registerIpc } from './ipc'
+import { SecureTokenStore } from './secure-token-store'
 import { VaultService } from './vault'
 import { VaultWatcher } from './watcher'
 
@@ -77,9 +81,38 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null)
+  const googleStateDirectory = join(app.getPath('userData'), 'google')
+  const tokenStore = new SecureTokenStore(
+    join(googleStateDirectory, 'refresh-token.json'),
+    {
+      isAvailable: () => safeStorage.isAsyncEncryptionAvailable(),
+      encrypt: (plainText) => safeStorage.encryptStringAsync(plainText),
+      decrypt: async (encrypted) =>
+        (await safeStorage.decryptStringAsync(encrypted)).result
+    }
+  )
+  const googleConnection = new GoogleConnectionService({
+    stateDirectory: googleStateDirectory,
+    tokenStore,
+    authorize: (clientId) =>
+      runGoogleOAuthLoopback({
+        clientId,
+        openExternal: (url) => shell.openExternal(url)
+      }),
+    fetchImpl: globalThis.fetch
+  })
+  const driveSync = new DriveSyncService({
+    ledgerPath: join(googleStateDirectory, 'drive-sync.json'),
+    vault,
+    connection: googleConnection
+  })
   registerIpc(
     vault,
     watcher,
+    {
+      connection: googleConnection,
+      driveSync
+    },
     () => mainWindow,
     () => {
       closeApproved = true

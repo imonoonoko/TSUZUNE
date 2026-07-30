@@ -106,6 +106,66 @@ beforeEach(() => {
     moveNote: vi.fn(),
     trashEntry: vi.fn(),
     setLastNote: vi.fn(() => ok(null)),
+    chooseGoogleOAuthConfig: vi.fn(() => ok(null)),
+    getGoogleDriveStatus: vi.fn(() =>
+      ok({
+        configured: true,
+        connected: true,
+        account: {
+          sub: 'google-user',
+          name: 'TSUZUNE User',
+          email: 'user@example.com',
+          picture: null
+        },
+        lastSyncAt: null,
+        vaultFolderUrl: null
+      })
+    ),
+    connectGoogle: vi.fn(),
+    disconnectGoogle: vi.fn(),
+    listDriveVaults: vi.fn(() =>
+      ok([
+        {
+          rootFolderId: 'remote-root',
+          vaultId: 'remote-vault',
+          name: 'TSUZUNE - Main Vault'
+        }
+      ])
+    ),
+    pairDriveVault: vi.fn(() =>
+      ok({
+        configured: true,
+        connected: true,
+        account: {
+          sub: 'google-user',
+          name: 'TSUZUNE User',
+          email: 'user@example.com',
+          picture: null
+        },
+        lastSyncAt: null,
+        vaultFolderUrl: 'https://drive.google.com/drive/folders/remote-root'
+      })
+    ),
+    previewDriveSync: vi.fn(() =>
+      ok({
+        planId: 'plan-1',
+        createdAt: '2026-07-31T00:00:00.000Z',
+        items: [
+          {
+            path: 'A.md',
+            action: 'upload',
+            reason: 'local_changed'
+          }
+        ],
+        counts: {
+          upload: 1,
+          download: 0,
+          conflict: 0,
+          preserve: 0
+        }
+      })
+    ),
+    applyDriveSync: vi.fn(),
     openExternal: vi.fn(() => ok(null)),
     confirmClose: vi.fn(),
     onVaultChanged: vi.fn((callback) => {
@@ -126,6 +186,104 @@ afterEach(() => {
 })
 
 describe('App data-loss guards', () => {
+  it('shows the selected note local graph and opens a connected note', async () => {
+    const graphSnapshot: VaultSnapshot = {
+      ...snapshot,
+      notes: [{ ...noteA, content: '[[B]]' }, noteB, noteC]
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue({
+      ok: true,
+      value: graphSnapshot
+    })
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'グラフ' }))
+    const linkedNote = await screen.findByRole('button', {
+      name: 'B（リンク先）を開く'
+    })
+    fireEvent.click(linkedNote)
+
+    expect(
+      await screen.findByRole('button', { name: 'B（現在のノート）' })
+    ).toBeTruthy()
+    expect(api.setLastNote).toHaveBeenCalledWith('B.md')
+  })
+
+  it('previews Google Drive changes before applying them', async () => {
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Google / 同期' }))
+    expect(await screen.findByText('user@example.com')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '同期内容を確認' }))
+
+    expect(await screen.findByText('A.md')).toBeTruthy()
+    expect(screen.getByText('送信 1')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'この内容で同期' })).toBeTruthy()
+    expect(api.applyDriveSync).not.toHaveBeenCalled()
+  })
+
+  it('moves focus into the Google dialog and restores it when Escape closes', async () => {
+    const { container } = render(<App />)
+    const opener = await screen.findByRole('button', { name: 'Google / 同期' })
+    opener.focus()
+
+    fireEvent.click(opener)
+
+    const dialog = await screen.findByRole('dialog', { name: 'Google Drive同期' })
+    await waitFor(() => {
+      expect(dialog.contains(document.activeElement)).toBe(true)
+    })
+    expect(dialog.getAttribute('aria-modal')).toBe('true')
+    expect(container.querySelector('.app-header')?.hasAttribute('inert')).toBe(true)
+
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Google Drive同期' })).toBeNull()
+    })
+    expect(document.activeElement).toBe(opener)
+    expect(container.querySelector('.app-header')?.hasAttribute('inert')).toBe(false)
+  })
+
+  it('traps Tab and Shift+Tab within the Google dialog', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Google / 同期' }))
+
+    const closeButton = await screen.findByRole('button', {
+      name: 'Google Drive同期を閉じる'
+    })
+    const lastButton = await screen.findByRole('button', { name: '同期内容を確認' })
+
+    closeButton.focus()
+    fireEvent.keyDown(closeButton, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(lastButton)
+
+    fireEvent.keyDown(lastButton, { key: 'Tab' })
+    expect(document.activeElement).toBe(closeButton)
+  })
+
+  it('pairs the local Vault with an existing TSUZUNE Drive Vault', async () => {
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Google / 同期' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: '既存のDrive Vaultを探す' })
+    )
+    expect(
+      await screen.findByRole('option', { name: 'TSUZUNE - Main Vault' })
+    ).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'このDrive Vaultを使う' }))
+
+    await waitFor(() => {
+      expect(api.pairDriveVault).toHaveBeenCalledWith({
+        rootFolderId: 'remote-root',
+        vaultId: 'remote-vault'
+      })
+    })
+    expect(await screen.findByText('Drive Vaultを接続しました。')).toBeTruthy()
+  })
+
   it('keeps malformed temporal metadata visible without blocking note editing', async () => {
     const malformedContent = [
       '---',

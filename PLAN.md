@@ -8,6 +8,39 @@
 
 この文書は、TSUZUNEの長期的な機能一覧ではなく、次に実装する順序と停止条件を決めるための計画である。`docs/v0.1-scope.md`を置き換えず、グラフ、同期、プラグイン、独自DBまで一度に扱わない。
 
+## Active Track: v0.4 Google Drive Manual Sync + Local Graph
+
+更新日: 2026-07-31
+状態: 実装・ローカル検証完了（利用者のOAuth資格情報を使う実Google確認のみ未完了）
+
+v0.4では、実運用でノート同士の近傍を確認しやすくする1-hopグラフと、ローカルMarkdownを原本のまま別端末へ運べる手動Google Drive同期だけを扱う。Googleデータ取り込みによるパーソナライズ、プラグイン、独自DB、バックグラウンド同期は同時に実装しない。
+
+### v0.4 Progress
+
+- [x] 要求権限、削除、競合、原本、非対象データを要件として固定
+- [x] 選択ノート中心の1-hopグラフを純粋coreとSVG＋HTMLボタンで実装
+- [x] Desktop OAuth JSON解析、PKCE、loopback callback、token exchangeを実装
+- [x] 更新トークンの`safeStorage`向け暗号化保存を実装
+- [x] `drive.file`で専用VaultフォルダとMarkdownだけを扱うDrive APIクライアントを実装
+- [x] 送信・受信・競合・保持を決める削除非伝播の同期plannerを実装
+- [x] デスクトップ画面へGoogle接続、同期preview/apply、グラフの操作面を追加
+- [x] main processで認証、Driveクライアント、Vault、同期ledgerを接続
+- [x] 別端末から既存Drive Vaultを一覧・検証・明示ペアリングできる操作を追加
+- [x] 同期途中の成功操作を都度ledgerへ確定し、再試行時の不要な競合を防止
+- [x] mock/fixtureによる同期適用テストと全回帰確認
+- [ ] 利用者のDesktop OAuth JSONを使った実Google認証・Drive往復確認
+
+実Google確認には利用者自身のOAuth資格情報が必要である。資格情報なしのモックテストPASSを、Googleアカウントでの認証成功やDrive上の実ファイル同期成功として報告しない。
+
+ローカル検証結果:
+
+```text
+npm run typecheck    PASS
+npm test             PASS: 23 files / 173 tests
+npm run check:mcp    PASS: 4 read tools / 2 write tools
+npm run build        PASS
+```
+
 ## Progress
 
 - [x] M0: v0.2基準（`0c66af8`）の型検査、56テスト、MCP smoke、ビルドを確認
@@ -102,6 +135,9 @@ Markdownノートへ任意の時間情報と出典を付け、TSUZUNEとCodexが
 - 右パネルは現在、過去、未来、出来事、再確認期限超過、置き換え済みを読み取り専用で表示する
 - 過去の`as_of`では、有効時点を持たない通常ノート本文を採用せず、内容省略と対象Pathを構造化して返す
 - Starter Vault dogfoodの比較、誤判定、手作業負担、修正結果は`docs/m5-dogfood.md`に固定した
+- v0.4では1-hopグラフ、Google Desktop OAuth、暗号化token store、`drive.file`限定Driveクライアント、削除非伝播の同期planner、main process、画面とpreload APIを接続済み
+- 同期適用はDrive版の直前再確認、危険な相対パス拒否、Windows上の大文字小文字衝突拒否、stale plan拒否、競合コピーを含む
+- v0.4の実Googleアカウント確認だけが、この時点では未完了
 
 確認済みの基準:
 
@@ -569,12 +605,11 @@ Control:
 
 M0〜M5は完了した。Temporal Memory Liteは3つのSuccess Conditionsを満たしたため、ここで機能追加を停止する。
 
-次に着手するときは、次のいずれか1トラックだけを選び、独立した困りごと、入力資料、受け入れ条件を別PLANへ固定する。
+次の独立トラックとしてv0.4 Google Drive Manual Sync + Local Graphを選択し、実装とローカル検証を完了した。残作業は次の順序に固定する。
 
-1. ChatGPT公式エクスポートが提供された場合は、C0 Archive Contract And Source Preservation。
-2. Google Takeoutが提供された場合は、G0 Contract And Privacy Boundary。
-3. 時間情報の手入力負担を先に解消する場合は、小さなState/Event入力補助。
-4. グラフ、同期、プラグイン、SQLiteは、それぞれ必要性を示すdogfood証拠が得られた場合だけ独立して計画する。
+1. 利用者がDesktop OAuth JSONを用意した後、実アカウントでログイン、初回送信、別端末相当の受信、競合コピー、接続解除を手動確認する。
+2. 複数端末から同期applyを同時実行せず、端末ごとにpreview/applyを完了してから次の端末で確認する。
+3. 実Google確認後にv0.4の停止条件を判定し、Takeout、ChatGPT export、入力補助のいずれか1トラックだけを選ぶ。
 
 ChatGPTアーカイブもGoogle Takeoutも未提供のまま、非公開履歴を推測取得したり、ログイン、Cookie、画面スクレイピングで代替したりしない。
 
@@ -584,174 +619,152 @@ ChatGPTアーカイブもGoogle Takeoutも未提供のまま、非公開履歴�
 - 過去時点の検索が役立たなければ、データモデルを拡張しない。
 - 履歴が多すぎる場合は、DBより先に検索範囲と表示方法を見直す。
 - 自動状態記録が必要になった場合は、書き込み整合性を別PLANで定義する。
-- グラフ、同期、プラグイン、SQLiteは、それぞれ独立した困りごとと受け入れ条件が確認された後に別々に計画する。
+- v0.4グラフは1-hopに留め、Vault全体グラフやGraphRAGが必要かはdogfood後に別判断する。
+- v0.4同期は明示preview/applyに留め、バックグラウンド同期、削除伝播、Drive Changes APIはdogfood後に別判断する。
+- プラグインAPIとSQLiteは、それぞれ独立した困りごとと受け入れ条件が確認された後に別々に計画する。
 
-## 17. Future Track: Google Data Intake And Optional Sync
+## 17. Active Track: v0.4 Google Sign-In, Manual Drive Sync, Local Graph
 
-このトラックはM5完了後に着手する。Temporal Memory Liteへ割り込ませず、Googleアカウントを使わない既存のローカル運用を標準のまま維持する。
+このトラックはM5完了後の独立トラックである。Google接続を使わないローカルMarkdown運用を標準のまま維持し、認証、同期、パーソナライズ用データ取り込みを混同しない。
 
-Google連携は次の3機能を混同しない。
+### v0.4 Scope
 
-1. Googleログインによる本人識別
-2. 本人が許可したGoogleデータのコピー取り込み
-3. TSUZUNE VaultのGoogle Driveバックアップまたは同期
+1. 選択中のノートと直接つながるノートだけを示す1-hopグラフ
+2. Google Desktop OAuthによる任意のアカウント接続
+3. TSUZUNE管理下のMarkdownだけを対象にした、preview/apply式の手動Drive同期
 
-### Confirmed Availability Boundary
+ローカルMarkdownが唯一の原本である。同期ledgerとGoogle接続情報はアプリのuser dataへ置き、Vault本文へアプリ固有の同期メタデータを書き込まない。
 
-2026-07-31時点のGoogle公式仕様を基準に、次を前提とする。
+### V4-1. Selected-Note 1-Hop Graph
 
-- Google検索履歴は、Google Takeoutの「マイ アクティビティ」からJSONまたはHTMLのコピーとして取り込める。
-- Google Data Portability APIには`myactivity.search`と`myactivity.myadcenter`がある。
-- 日本はData Portability APIの提供地域に含まれていないため、日本の個人アカウントではTakeoutの手動インポートを第一経路にする。
-- `myactivity.myadcenter`が提供するのは、広告を増減した、ブロックした、評価したなどのMy Ad Center操作履歴である。
-- Google内部の完全な広告ターゲティングモデル、関心スコア、推定根拠、予測ロジックを取得できる一般公開APIはない。
-- 検索履歴はActivity Controls、削除操作、自動削除期間によって欠落し得るため、完全な行動履歴とは表示しない。
-- My Ad Center画面のスクレイピングやCookie流用を代替手段にしない。
-- 実装着手時には提供地域、OAuth scope、審査要件を公式資料で再確認する。
+Work:
+
+- 現在選択しているノートを中心にする
+- 直接のリンク先とバックリンクだけをノードにする
+- ノード操作で既存のノートを開く
+- 未保存の編集中Wikiリンクを表示へ反映する
+- Markdownと既存Wikiリンクresolverから都度構築し、グラフDBや新しい永続索引を持たない
+
+Gate:
+
+- 選択ノート、リンク先、バックリンクの1段階だけを表示する
+- 孤立ノートでも空状態として破綻しない
+- マウスとキーボードの両方でノートを開ける
+- ノートを開き直すと、そのノートを中心に再構築する
+- Vault全体の力学グラフ、GraphRAG、編集可能なグラフへ拡張しない
+
+### V4-2. Optional Google Desktop OAuth
+
+Work:
+
+- Google Cloudで作成したOAuthクライアントの種類をDesktop appに限定する
+- アプリでOAuth JSONを明示選択してから接続する
+- システムブラウザ、`127.0.0.1`のランダムloopback port、PKCE S256、state照合を使う
+- scopeは`openid email profile https://www.googleapis.com/auth/drive.file`だけにする
+- 名前、メールアドレスなどの基本プロフィールだけをアカウント表示に使う
+- 更新トークンはElectron `safeStorage`を通してWindowsの暗号化機構へ保存し、アクセストークンは永続保存しない
+- 接続解除でローカルの更新トークンを削除し、Drive上のファイルとローカルVaultは残す
+
+Gate:
+
+- Google未設定、未ログイン、オフライン、認証失敗でもローカル編集とMCPが動く
+- OAuth callbackのstate不一致とprovider errorを拒否する
+- OAuth JSON、token、認可codeをVault、Markdown、Git、通常ログへ書かない
+- `drive`、`drive.readonly`などの広いDrive scopeを要求しない
+- Googleログインだけで検索履歴や広告プロファイルを取得したと表示しない
+
+### Google Cloud Setup Contract
+
+1. Google Cloudプロジェクトを作成または選択する。
+2. Google Drive APIを有効にする。
+3. OAuth同意画面を構成する。ExternalのTestingを使う場合は利用者自身をtest userへ追加する。
+4. OAuth client IDを「Desktop app」として作成し、JSONをダウンロードする。
+5. TSUZUNEの「Google / 同期」から「OAuth JSONを選ぶ」を実行する。
+6. 「Googleでログイン」を押し、システムブラウザでscopeを確認する。
+
+ExternalかつTestingのOAuth同意画面では、Googleの仕様によりrefresh tokenは原則7日で失効する。安定運用では公開要件を確認し、Publishing statusをIn productionへ移す。TSUZUNEは期限切れtokenを回避するためにCookie、ブラウザprofile、別scopeを流用しない。
 
 公式仕様:
 
-- https://support.google.com/accounts/answer/3024190
-- https://support.google.com/accounts/answer/14452558?hl=ja
-- https://developers.google.com/data-portability/schema-reference/my_activity
+- https://developers.google.com/identity/protocols/oauth2/native-app
+- https://developers.google.com/workspace/drive/api/guides/api-specific-auth
+- https://www.electronjs.org/docs/latest/api/safe-storage
 
-### G0. Contract And Privacy Boundary
-
-Work:
-
-- 対応するTakeoutファイル、必須フィールド、文字コード、最大入力サイズをfixtureで固定する
-- 原本、抽出候補、本人確認済みプロフィールを別レイヤーにする
-- インポート前プレビュー、対象期間、対象サービス、保存先を定義する
-- Googleログインなし、ネットワークなしでも既存Vaultが完全に動くことを不変条件にする
-
-Gate:
-
-- どのデータを読み、どのノートを作るかをインポート前に説明できる
-- 取り込まないデータと削除方法を説明できる
-- Googleの内部広告プロファイルを完全取得できると表示しない
-- 健康、宗教、政治、性的指向などのセンシティブ属性を履歴から自動推定しない
-
-### G1. Local Takeout Import
+### V4-3. Manual Drive Sync
 
 Work:
 
-- ユーザーが選択したTakeoutアーカイブだけをローカルで解析する
-- 最初はGoogle検索履歴とMy Ad Center操作履歴だけを対象にする
-- 元レコードの時刻、サービス、タイトル、URL、取り込み日時を出典として保持する
-- 重複を安定した識別子または内容ハッシュで検出する
-- 作成予定ノートと除外予定レコードを確認してから書き込む
-
-Suggested flow:
-
-```text
-Google Takeout archive
-        |
-        v
-local parser
-        |
-        +--> immutable source records
-        |
-        v
-interest / habit candidates
-        |
-        v
-user review
-        |
-        v
-approved Markdown notes
-```
+- `drive.file`でTSUZUNEが作成・管理する専用VaultフォルダとMarkdownだけを扱う
+- ローカルとDriveの内容ハッシュ、前回同期ハッシュ、Drive file IDを比較する
+- 最初に送信・受信・競合・保持のpreviewを表示し、利用者がapplyした場合だけ変更する
+- 片側だけに新規ノートがある場合は、存在する側から存在しない側へコピーする
+- 前回同期済みノートが片側で欠落した場合は、削除を伝播せず、残っている側を保持する
+- 両側で変更された場合は無言のlast-write-winsを行わず、Drive版をローカルの別ノートとして保存する
+- 同期中もローカル原本を上書きする前に版を再確認し、stale previewを拒否する
+- 各同期操作が成功するたびにledgerをチェックポイントし、後続操作の失敗後も成功済み状態を保持する
+- 別端末ではDrive上の既存TSUZUNE Vaultを列挙し、空で未同期のローカルVaultへ明示ペアリングする
+- Drive上のTSUZUNEファイルを削除するAPIは実装しない
 
 Gate:
 
-- 同じアーカイブを再取り込みしても同じ原本ノートを重複作成しない
-- malformedレコードがあっても既存Vaultを変更しない
-- 抽出した関心へ出典と対象期間を付ける
+- 新規送信、新規受信、ローカル変更、Drive変更、両側変更、片側欠落、変更なしをfixtureで再現できる
+- previewとapplyの間に内容が変わった場合、古いplanを適用しない
+- 競合時にローカル原本、Drive原本、ローカル競合コピーの三者を失わない
+- 通信中断または認証切れで既存Markdownを失わない
+- 複数操作の途中失敗後に成功済みノートを編集しても、不要な両側競合として扱わない
+- 同期済みローカルVaultを別のDrive Vaultへ付け替えない
+- `.trash`、ドットフォルダ、シンボリックリンク、OAuth JSON、token、同期ledgerをアップロードしない
+- Drive全体を走査せず、他アプリが作成したファイルを取得しない
+
+### V4-4. Verification Boundary
+
+自動テストでは次をモックまたはローカルfixtureで確認する。
+
+- OAuth URL、PKCE、callback、token exchange、refresh
+- 暗号化token store
+- Drive APIのlist、folder作成、download、create、update
+- 同期plannerと同期適用
+- 1-hopグラフと操作UI
+- v0.1〜v0.3、MCP、Temporal Memory Liteの回帰
+
+実Google確認には利用者自身のDesktop OAuth JSONが必要である。次を実アカウントで完了するまで「Google Drive同期の実運用確認済み」としない。
+
+1. Google認証と基本プロフィール表示
+2. 初回preview/applyとDrive専用フォルダ作成
+3. ローカル変更の送信とDrive変更の受信
+4. 両側変更時のローカル競合コピー
+5. 片側欠落時の削除非伝播
+6. アプリ再起動後のtoken refresh
+7. 接続解除後のローカルVault継続利用
+8. 別端末相当の空Vaultから既存Drive Vaultを選択し、ノートを受信
+9. preview後にDrive側を変更し、古い版の更新を拒否して両内容を保持
+
+### Personalization Data Boundary After v0.4
+
+Googleログインで得る基本プロフィールは、本人の関心、好み、検索行動を増やす材料にはならない。パーソナライズ情報を増やす別トラックでは、利用者が明示選択したGoogle Takeoutをローカルで取り込み、原本、抽出候補、本人確認済みノートを分離する。
+
+- Google内部の完全な広告ターゲティングモデル、関心スコア、推定根拠、予測ロジックを取得できる一般公開APIはない
+- Google検索履歴はOAuth基本プロフィールや`drive.file`では取得できない
+- 検索履歴を扱う場合は、利用者が提供したTakeoutの「マイ アクティビティ」を第一経路にする
 - 検索1回を恒久的な好みとして確定しない
-- 原本と候補を削除しても既存の通常ノートへ影響しない
+- 候補には根拠レコード、期間、件数、最終観測日を付け、本人確認後だけ通常ノートへ反映する
+- My Ad CenterやMy Activityの画面スクレイピング、Cookie流用、Drive全体取得を代替手段にしない
 
-### G2. Optional Google Sign-In And Manual Drive Backup
+Takeout importer、Google Data Portability API、パーソナライズ候補生成はv0.4へ含めない。
 
-Work:
-
-- システムブラウザを使うOAuth 2.0 / OpenID ConnectとPKCEを採用する
-- ログインはDrive接続時だけ要求し、アプリ起動条件にしない
-- 最初のDrive機能は明示操作によるバックアップと復元だけにする
-- 必要最小限の`openid email profile`と`drive.file`を基本候補にする
-- 初版では`drive`や`drive.readonly`などの広いDrive権限を要求しない
-- 更新トークンをVault、Markdown、ログ、Gitへ保存せず、Windowsの資格情報保護へ保存する
-- ログアウト、権限取消、ローカルデータ維持を実装する
-
-Gate:
-
-- 未ログイン、オフライン、認証失敗時もローカル編集が動く
-- バックアップ前に対象、容量、宛先、暗号化状態を確認できる
-- 復元前に現在Vaultの退避コピーを作る
-- Google接続解除後もローカルVaultを読める
-
-### Data Portability API Reconsideration Gate
-
-日本向けData Portability API連携は、次をすべて満たすまで実装しない。
-
-- Google公式の提供地域一覧に日本が含まれる
-- 対象resource groupと出力schemaを再確認できる
-- sensitiveまたはrestricted scopeの審査とセキュリティ要件を満たせる
-- 手動Takeout取り込みより明確な実利用上の利点が確認される
-
-### G3. Bidirectional Drive Sync
-
-手動バックアップのdogfoodで必要性が確認された場合だけ着手する。
-
-Work:
-
-- ファイルハッシュ、同期世代、削除記録、Drive変更トークンを持つ
-- 同時編集では無言のlast-write-winsを行わず、両方を競合コピーとして残す
-- 同期前スナップショットと復旧経路を用意する
-- 常駐同期ではなく、起動時と明示操作を初期方式にする
-
-Gate:
-
-- ローカルのみ変更、Driveのみ変更、同時変更、削除競合をfixtureで再現できる
-- 通信中断や認証切れでMarkdownを失わない
-- 同じ同期操作を再実行しても内容が壊れない
-- 同期対象外フォルダと秘密情報をアップロードしない
-
-### G4. Local Personalization Candidates
-
-Takeout原本からTSUZUNE独自のパーソナライズ候補を作る。Googleの広告プロファイルを複製したものとは呼ばない。
-
-候補例:
-
-- 継続的に調べている分野
-- 一時的なプロジェクト調査
-- 繰り返し参照する製品、人物、場所
-- 時間とともに増減した関心
-
-Rules:
-
-- 候補には根拠レコード、期間、件数、最終観測日を付ける
-- 一時的な調査と長期的な好みを区別する
-- AIの推測は候補止まりにし、承認前は通常プロフィールへ混ぜない
-- 検索語、URL、位置、広告操作履歴を外部AIへ自動送信しない
-- 原本を要約で上書きせず、解釈だけを版管理する
-
-Gate:
-
-- 候補から根拠レコードへ戻れる
-- 誤った候補を却下または訂正できる
-- 新しい履歴で関心が変わっても古い解釈を履歴として確認できる
-- Googleデータなしのユーザー体験を劣化させない
-
-### Explicit Non-Goals For The First Google Track
+### Explicit Non-Goals For v0.4
 
 - Googleアカウント必須化
-- Google内部の完全な広告プロファイル取得
-- 検索履歴を完全な行動記録として扱うこと
-- My Ad CenterやMy Activityの画面スクレイピング
-- Gmail本文、Google Photos、位置履歴の初版取り込み
-- バックグラウンドでの無確認な常時収集
-- 取り込み直後の自動プロフィール確定
-- 外部AIへの原履歴の自動送信
-- 独自クラウド、複数人共有、モバイル同期
+- Google内部の広告プロファイル取得
+- Google検索履歴、Gmail、Google Photos、位置履歴の取得
+- `drive`または`drive.readonly`によるDrive全体取得
+- Google Docsの自動取り込み
+- バックグラウンド常駐同期、webhook、Drive Changes API
+- 削除伝播、Driveファイル削除、無言のlast-write-wins
+- Vault全体グラフ、GraphRAG、グラフDB
+- プラグインAPI、SQLite、独自クラウド
+- 複数人共有、モバイル同期
+- ログイン情報からの自動プロフィール確定
 
 ## 18. Future Track: ChatGPT Export Intake
 

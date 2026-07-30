@@ -3,9 +3,14 @@ import type {
   AppSettings,
   CreateDirectoryInput,
   CreateNoteInput,
+  DriveRemoteVault,
+  DriveSyncApplyResult,
+  DriveSyncPreview,
   EntryOperationOutput,
+  GoogleDriveStatus,
   MoveNoteInput,
   NoteDocument,
+  PairDriveVaultInput,
   RenameEntryInput,
   Result,
   SaveNoteInput,
@@ -36,6 +41,22 @@ const api: TsuzuneApi = {
   trashEntry: (path: string) => invoke<EntryOperationOutput>('entry:trash', path),
   setLastNote: (path: string | null) =>
     invoke<null>('settings:setLastNote', path),
+  chooseGoogleOAuthConfig: () =>
+    invoke<GoogleDriveStatus | null>('google:chooseConfig'),
+  getGoogleDriveStatus: () =>
+    invoke<GoogleDriveStatus>('google:status'),
+  connectGoogle: () =>
+    invoke<GoogleDriveStatus>('google:connect'),
+  disconnectGoogle: () =>
+    invoke<GoogleDriveStatus>('google:disconnect'),
+  listDriveVaults: () =>
+    invoke<DriveRemoteVault[]>('drive:listVaults'),
+  pairDriveVault: (input: PairDriveVaultInput) =>
+    invoke<GoogleDriveStatus>('drive:pairVault', input),
+  previewDriveSync: () =>
+    invoke<DriveSyncPreview>('drive:preview'),
+  applyDriveSync: (planId: string) =>
+    invoke<DriveSyncApplyResult>('drive:apply', planId),
   openExternal: (url: string) => invoke<null>('system:openExternal', url),
   confirmClose: (allow: boolean) => ipcRenderer.send('app:confirmClose', allow),
   onVaultChanged: (callback: (event: VaultChangeEvent) => void) => {
