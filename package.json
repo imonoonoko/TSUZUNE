@@ -1,6 +1,6 @@
 {
   "name": "tsuzune",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "書いて、つないで、あとで尋ねる。ローカルMarkdownとWikiリンクのWindowsメモ帳。",
   "private": true,
   "type": "module",
@@ -12,17 +12,24 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "npm run typecheck && electron-vite build",
+    "build:mcp": "node scripts/build-mcp.mjs",
+    "check:mcp": "npm run build:mcp && node scripts/check-mcp.mjs",
+    "mcp": "node out/mcp/server.js",
+    "mcp:register": "npm run build:mcp && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/register-codex-mcp.ps1",
+    "mcp:unregister": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/unregister-codex-mcp.ps1",
+    "build": "npm run typecheck && electron-vite build && npm run build:mcp",
     "pack:dir": "npm run build && electron-builder --dir",
     "pack:win": "npm run build && electron-builder --win portable --x64"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "6.5.1",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "chokidar": "5.0.0",
     "codemirror": "6.0.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "react-markdown": "10.1.0"
+    "react-markdown": "10.1.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "7.0.0",
@@ -35,6 +42,7 @@
     "electron": "43.2.0",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
+    "esbuild": "0.25.12",
     "jsdom": "29.1.1",
     "typescript": "5.9.3",
     "vite": "7.3.6",
