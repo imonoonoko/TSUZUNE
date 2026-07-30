@@ -3,6 +3,7 @@ import type { NoteDocument, ResolvedWikiLink } from '../../shared/types'
 interface RelatedNotesProps {
   outgoing: ResolvedWikiLink[]
   backlinks: NoteDocument[]
+  temporal: React.ReactNode
   onOpen: (path: string) => void
   onMissing: (target: string) => void
 }
@@ -26,6 +27,7 @@ function Section({
 export default function RelatedNotes({
   outgoing,
   backlinks,
+  temporal,
   onOpen,
   onMissing
 }: RelatedNotesProps): React.JSX.Element {
@@ -36,6 +38,8 @@ export default function RelatedNotes({
 
   return (
     <aside className="related-panel" aria-label="関連ノート">
+      {temporal}
+
       <Section title="リンク先" empty={resolved.length === 0}>
         {resolved.map((link) => (
           <button

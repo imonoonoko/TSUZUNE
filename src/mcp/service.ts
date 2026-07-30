@@ -59,8 +59,22 @@ export interface ContextOutput {
   markdown: string
   character_count: number
   truncated: boolean
-  included: ContextBundle['included']
+  as_of: string
+  included: Array<{
+    path: string
+    name: string
+    relation: ContextBundle['included'][number]['relation']
+    truncated: boolean
+    temporal_status?: ContextBundle['included'][number]['temporalStatus']
+    selection_reasons: string[]
+  }>
   omitted_ids: string[]
+  warnings: ContextBundle['warnings']
+}
+
+export interface BuildContextOptions {
+  asOf?: string
+  includeHistory?: boolean
 }
 
 export interface WriteOutput {
@@ -261,12 +275,15 @@ export class VaultMcpService {
 
   async buildContext(
     id: string,
-    maxCharacters = 15_000
+    maxCharacters = 15_000,
+    options: BuildContextOptions = {}
   ): Promise<ContextOutput> {
     const { snapshot } = await this.snapshot()
     const note = canonicalNote(snapshot, id)
     const bundle = buildContextBundle(note.path, snapshot.notes, {
-      maxCharacters
+      maxCharacters,
+      asOf: options.asOf,
+      includeHistory: options.includeHistory
     })
 
     return {
@@ -274,8 +291,28 @@ export class VaultMcpService {
       markdown: bundle.markdown,
       character_count: bundle.characterCount,
       truncated: bundle.truncated,
-      included: bundle.included,
-      omitted_ids: bundle.omittedPaths
+      as_of: bundle.asOf,
+      included: bundle.included.map(
+        ({
+          path,
+          name,
+          relation,
+          truncated,
+          temporalStatus,
+          selectionReasons
+        }) => ({
+          path,
+          name,
+          relation,
+          truncated,
+          ...(temporalStatus
+            ? { temporal_status: temporalStatus }
+            : {}),
+          selection_reasons: selectionReasons
+        })
+      ),
+      omitted_ids: bundle.omittedPaths,
+      warnings: bundle.warnings
     }
   }
 }

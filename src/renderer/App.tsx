@@ -26,6 +26,7 @@ import MarkdownEditor from './components/MarkdownEditor'
 import MarkdownPreview from './components/MarkdownPreview'
 import MoveDialog from './components/MoveDialog'
 import RelatedNotes from './components/RelatedNotes'
+import TemporalDetails from './components/TemporalDetails'
 
 type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict'
 
@@ -60,6 +61,13 @@ function saveStatusLabel(status: SaveStatus): string {
 
 function errorMessage(error: AppError): string {
   return error.message || '操作を完了できませんでした。'
+}
+
+function localCalendarDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 export default function App(): React.JSX.Element {
@@ -510,6 +518,14 @@ export default function App(): React.JSX.Element {
     () => searchNotes(effectiveNotes, query),
     [effectiveNotes, query]
   )
+  const selectedNote = useMemo(
+    () =>
+      selectedPath
+        ? effectiveNotes.find((note) => note.path === selectedPath) ?? null
+        : null,
+    [effectiveNotes, selectedPath]
+  )
+  const temporalAsOf = useMemo(() => localCalendarDate(new Date()), [])
 
   const targetDirectory = (): string => {
     if (treeSelection?.kind === 'directory') {
@@ -1159,6 +1175,15 @@ export default function App(): React.JSX.Element {
             <RelatedNotes
               outgoing={outgoing}
               backlinks={backlinks}
+              temporal={
+                selectedNote ? (
+                  <TemporalDetails
+                    selectedNote={selectedNote}
+                    notes={effectiveNotes}
+                    asOf={temporalAsOf}
+                  />
+                ) : null
+              }
               onOpen={(path) => void openNote(path)}
               onMissing={(target) => void createMissingLink(target)}
             />

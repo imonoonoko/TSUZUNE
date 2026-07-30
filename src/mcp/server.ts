@@ -234,7 +234,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEコンテキスト作成',
       description:
-        'Build a bounded Markdown context bundle from one note, up to five outgoing links, and up to three backlinks.',
+        'Build a bounded Markdown context bundle from one note, its linked notes, and related temporal state or event notes.',
       inputSchema: {
         id: z.string().min(1).describe('Relative note path'),
         max_characters: z
@@ -243,27 +243,68 @@ async function main(): Promise<void> {
           .min(1_000)
           .max(100_000)
           .optional()
-          .default(15_000)
+          .default(15_000),
+        as_of: z
+          .union([z.iso.date(), z.iso.datetime({ offset: true })])
+          .optional()
+          .describe('Optional ISO 8601 date or timezone-aware date-time'),
+        include_history: z
+          .boolean()
+          .optional()
+          .default(false)
+          .describe('Include historical and superseded temporal notes')
       },
       outputSchema: {
         seed_id: z.string(),
         markdown: z.string(),
         character_count: z.number(),
         truncated: z.boolean(),
+        as_of: z.string(),
         included: z.array(
           z.object({
             path: z.string(),
             name: z.string(),
             relation: z.enum(['seed', 'outgoing', 'backlink']),
-            truncated: z.boolean()
+            truncated: z.boolean(),
+            temporal_status: z
+              .enum([
+                'current',
+                'historical',
+                'future',
+                'occurred',
+                'review_due',
+                'superseded'
+              ])
+              .optional(),
+            selection_reasons: z.array(z.string())
           })
         ),
-        omitted_ids: z.array(z.string())
+        omitted_ids: z.array(z.string()),
+        warnings: z.array(
+          z.object({
+            code: z.enum([
+              'CONFLICTING_CURRENT_STATES',
+              'MALFORMED_TEMPORAL_METADATA',
+              'REVIEW_DUE',
+              'TEMPORAL_METADATA_WARNING',
+              'UNRESOLVED_SOURCE',
+              'UNKNOWN_OBSERVED_AT'
+            ]),
+            message: z.string(),
+            path: z.string().optional(),
+            paths: z.array(z.string()).optional()
+          })
+        )
       },
       annotations: readOnlyAnnotations
     },
-    async ({ id, max_characters }) =>
-      textResult(await vault.buildContext(id, max_characters))
+    async ({ id, max_characters, as_of, include_history }) =>
+      textResult(
+        await vault.buildContext(id, max_characters, {
+          asOf: as_of,
+          includeHistory: include_history
+        })
+      )
   )
 
   await server.connect(new StdioServerTransport())

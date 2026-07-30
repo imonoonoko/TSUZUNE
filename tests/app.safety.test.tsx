@@ -126,6 +126,37 @@ afterEach(() => {
 })
 
 describe('App data-loss guards', () => {
+  it('keeps malformed temporal metadata visible without blocking note editing', async () => {
+    const malformedContent = [
+      '---',
+      'kind: state',
+      'subject: "[[A]]"',
+      'status: active',
+      'valid_from: someday',
+      '---',
+      '# 編集できる本文'
+    ].join('\n')
+    const malformedSnapshot: VaultSnapshot = {
+      ...snapshot,
+      notes: [{ ...noteA, content: malformedContent }, noteB, noteC]
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue({
+      ok: true,
+      value: malformedSnapshot
+    })
+
+    render(<App />)
+
+    expect(await screen.findByText('メタデータ不完全。本文の編集は続けられます。')).toBeTruthy()
+    const editor = screen.getByLabelText('Markdown編集欄')
+    fireEvent.change(editor, {
+      target: { value: `${malformedContent}\n\n追記` }
+    })
+
+    expect((editor as HTMLTextAreaElement).value).toContain('追記')
+    expect((editor as HTMLTextAreaElement).readOnly).toBe(false)
+  })
+
   it('keeps local text recoverable when autosave reports that the note is missing', async () => {
     vi.mocked(api.saveNote).mockResolvedValue({
       ok: false,

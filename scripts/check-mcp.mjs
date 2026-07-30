@@ -36,6 +36,7 @@ transport.stderr?.on('data', (chunk) => {
 
 try {
   await mkdir(join(vaultPath, 'Projects'))
+  await mkdir(join(vaultPath, 'History'))
   await writeFile(
     join(vaultPath, 'Home.md'),
     '# Home\n\nTSUZUNE MCP smoke test. [[Projects/TSUZUNE]]',
@@ -44,6 +45,33 @@ try {
   await writeFile(
     join(vaultPath, 'Projects', 'TSUZUNE.md'),
     '# TSUZUNE\n\nLocal Markdown memory.',
+    'utf8'
+  )
+  await writeFile(
+    join(vaultPath, 'History', 'Home-planning.md'),
+    [
+      '---',
+      'kind: state',
+      'subject: "[[Home]]"',
+      'status: planning',
+      'valid_from: 2026-06-01',
+      'valid_to: 2026-07-01',
+      '---',
+      '# Home planning'
+    ].join('\n'),
+    'utf8'
+  )
+  await writeFile(
+    join(vaultPath, 'History', 'Home-active.md'),
+    [
+      '---',
+      'kind: state',
+      'subject: "[[Home]]"',
+      'status: active',
+      'valid_from: 2026-07-01',
+      '---',
+      '# Home active'
+    ].join('\n'),
     'utf8'
   )
 
@@ -132,6 +160,33 @@ try {
     )
   ) {
     throw new Error('build_context did not include the linked note.')
+  }
+
+  const temporalContext = await client.callTool({
+    name: 'build_context',
+    arguments: {
+      id: 'Home.md',
+      max_characters: 5_000,
+      as_of: '2026-07-15',
+      include_history: true
+    }
+  })
+  const temporalSources = temporalContext.structuredContent?.included
+  const historicalSource = Array.isArray(temporalSources)
+    ? temporalSources.find(
+        (source) => source?.path === 'History/Home-planning.md'
+      )
+    : undefined
+  if (
+    temporalContext.isError ||
+    temporalContext.structuredContent?.as_of !== '2026-07-15' ||
+    historicalSource?.temporal_status !== 'historical' ||
+    !Array.isArray(historicalSource?.selection_reasons) ||
+    !Array.isArray(temporalContext.structuredContent?.warnings)
+  ) {
+    throw new Error(
+      'build_context did not expose the requested temporal context.'
+    )
   }
 
   const rejected = await client.callTool({

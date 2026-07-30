@@ -52,6 +52,95 @@ describe('MCP vault service', () => {
     expect(context.markdown).toContain('Path: Projects/TSUZUNE.md')
   })
 
+  it('builds an as-of context with temporal evidence in the MCP output', async () => {
+    await mkdir(join(root, 'History'))
+    await writeFile(
+      join(root, 'History', 'Home-planning.md'),
+      [
+        '---',
+        'kind: state',
+        'subject: "[[Home]]"',
+        'status: planning',
+        'valid_from: 2026-06-01',
+        'valid_to: 2026-07-01',
+        'review_after: 2026-06-10',
+        '---',
+        '# Home planning'
+      ].join('\n'),
+      'utf8'
+    )
+
+    const context = await service.buildContext('Home.md', 15_000, {
+      asOf: '2026-06-15'
+    })
+
+    expect(context.as_of).toBe('2026-06-15')
+    expect(context.included).toContainEqual({
+      path: 'History/Home-planning.md',
+      name: 'Home-planning',
+      relation: 'backlink',
+      truncated: false,
+      temporal_status: 'review_due',
+      selection_reasons: ['指定時点で有効だが再確認期限を超過']
+    })
+    expect(context.warnings).toContainEqual({
+      code: 'REVIEW_DUE',
+      message: '現在も有効か再確認が必要です。',
+      path: 'History/Home-planning.md'
+    })
+  })
+
+  it('includes historical states only when the MCP caller requests them', async () => {
+    await mkdir(join(root, 'History'))
+    await writeFile(
+      join(root, 'History', 'Home-planning.md'),
+      [
+        '---',
+        'kind: state',
+        'subject: "[[Home]]"',
+        'status: planning',
+        'valid_from: 2026-06-01',
+        'valid_to: 2026-07-01',
+        '---',
+        '# Home planning'
+      ].join('\n'),
+      'utf8'
+    )
+    await writeFile(
+      join(root, 'History', 'Home-active.md'),
+      [
+        '---',
+        'kind: state',
+        'subject: "[[Home]]"',
+        'status: active',
+        'valid_from: 2026-07-01',
+        '---',
+        '# Home active'
+      ].join('\n'),
+      'utf8'
+    )
+
+    const current = await service.buildContext('Home.md', 15_000, {
+      asOf: '2026-07-15'
+    })
+    const withHistory = await service.buildContext('Home.md', 15_000, {
+      asOf: '2026-07-15',
+      includeHistory: true
+    })
+
+    expect(current.included.map((source) => source.path)).not.toContain(
+      'History/Home-planning.md'
+    )
+    expect(withHistory.included).toContainEqual({
+      path: 'History/Home-planning.md',
+      name: 'Home-planning',
+      relation: 'backlink',
+      truncated: false,
+      temporal_status: 'historical',
+      selection_reasons: ['指定時点より前に終了した状態']
+    })
+  })
+
   it('rejects traversal and does not modify Markdown files', async () => {
     const path = join(root, 'Home.md')
     const beforeContent = await readFile(path, 'utf8')
