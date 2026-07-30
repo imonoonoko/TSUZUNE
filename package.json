@@ -1,0 +1,69 @@
+{
+  "name": "tsuzune",
+  "version": "0.1.0",
+  "description": "書いて、つないで、あとで尋ねる。ローカルMarkdownとWikiリンクのWindowsメモ帳。",
+  "private": true,
+  "type": "module",
+  "main": "./out/main/index.js",
+  "author": "Im_onoko",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "npm run typecheck && electron-vite build",
+    "pack:dir": "npm run build && electron-builder --dir",
+    "pack:win": "npm run build && electron-builder --win portable --x64"
+  },
+  "dependencies": {
+    "@codemirror/lang-markdown": "6.5.1",
+    "chokidar": "5.0.0",
+    "codemirror": "6.0.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-markdown": "10.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "7.0.0",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.1",
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "5.2.0",
+    "electron": "43.2.0",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "jsdom": "29.1.1",
+    "typescript": "5.9.3",
+    "vite": "7.3.6",
+    "vitest": "4.1.10"
+  },
+  "build": {
+    "appId": "jp.tsuzune.app",
+    "productName": "TSUZUNE",
+    "asar": true,
+    "compression": "normal",
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "executableName": "TSUZUNE",
+      "artifactName": "TSUZUNE-${version}-portable.${ext}"
+    }
+  }
+}
