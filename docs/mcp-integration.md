@@ -1,6 +1,6 @@
 # Codex・ChatGPTデスクトップ連携
 
-TSUZUNE v0.2は、現在開いているローカルVaultを、CodexとChatGPTデスクトップから検索・参照し、依頼に応じてノートを作成・更新できるMCPサーバーを含みます。
+TSUZUNE v0.2以降は、現在開いているローカルVaultを、CodexとChatGPTデスクトップから検索・参照し、依頼に応じてノートを作成・更新できるMCPサーバーを含みます。
 
 ## 最初の設定
 
@@ -51,6 +51,16 @@ TSUZUNEの「00_入口/プロジェクト地図.md」を起点に文脈を作り
 今回決まった連携方針を追記して。
 ```
 
+```text
+「10_プロジェクト/TSUZUNE.md」を起点に、
+2026-07-22時点の文脈を作って。当時不明なことは推測しないで。
+```
+
+```text
+「10_プロジェクト/TSUZUNE.md」を起点に、
+2026-07-22までにAIが知っていた情報だけで文脈を作って。
+```
+
 最初に`search`で候補を探し、必要なノートだけを`fetch`または`build_context`で読むのが基本です。
 
 既存ノートの更新では、`fetch`で完全な本文と改訂トークンを取得してから、`update_note`で本文全体を置き換えます。取得後に外部編集やVault切替が起きた場合は更新を拒否するため、再取得が必要です。
@@ -66,7 +76,15 @@ TSUZUNEの「00_入口/プロジェクト地図.md」を起点に文脈を作り
 | `create_note` | 既存フォルダ内へ新規ノートを作成 | 本文10万文字 |
 | `update_note` | 改訂トークンが一致する既存ノートの本文を更新 | 本文10万文字 |
 
-`build_context`が辿るのは、起点ノート、リンク先最大5件、バックリンク最大3件の1段だけです。無制限にVault全体を読み込みません。
+`build_context`が辿るのは、起点ノート、リンク先最大5件、バックリンク最大3件の1段だけです。無制限にVault全体を読み込みません。関連するState NoteとEvent Noteがあれば、時間判定と選定理由も返します。
+
+任意入力:
+
+- `as_of`: ISO 8601の日付またはタイムゾーン付き日時。指定時点で有効だった状態と、その時点までに発生した出来事を選びます。
+- `include_history`: `true`にすると、過去状態や置き換え済みの記録も候補へ含めます。
+- `temporal_perspective`: 既定の`valid-time`は「その時点で実際に有効・発生していた情報」、`knowledge-time`は`observed_at`を使って「その時点までにTSUZUNEまたはAIが知っていた情報」を選びます。`knowledge-time`で`observed_at`がなければ推測せず省略します。
+
+出力には`as_of`、`temporal_perspective`、`temporal_status`、`selection_reasons`、`warnings`が含まれます。明示した過去時点では、有効時点を持たない通常ノート本文を現在知識として遡及利用しません。該当本文は省略し、`content_omitted: true`と`UNSCOPED_NORMAL_CONTENT_OMITTED`警告で対象Pathを示します。起点自身が未来のState/Event Noteまたは指定knowledge-timeで未観測なら、その本文も省略します。該当するState Noteがなければ、通常ノートの更新日時から過去状態を推測せず「不明」と扱います。
 
 ## Vaultの切り替え
 

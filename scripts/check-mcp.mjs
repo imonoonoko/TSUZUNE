@@ -26,7 +26,7 @@ const transport = new StdioClientTransport({
 })
 const client = new Client({
   name: 'tsuzune-mcp-check',
-  version: '0.2.0'
+  version: '0.3.0'
 })
 
 let stderr = ''
@@ -177,15 +177,51 @@ try {
         (source) => source?.path === 'History/Home-planning.md'
       )
     : undefined
+  const historicalSeed = Array.isArray(temporalSources)
+    ? temporalSources.find((source) => source?.path === 'Home.md')
+    : undefined
+  const temporalWarnings = temporalContext.structuredContent?.warnings
   if (
     temporalContext.isError ||
     temporalContext.structuredContent?.as_of !== '2026-07-15' ||
+    temporalContext.structuredContent?.temporal_perspective !==
+      'valid-time' ||
+    historicalSeed?.content_omitted !== true ||
     historicalSource?.temporal_status !== 'historical' ||
     !Array.isArray(historicalSource?.selection_reasons) ||
-    !Array.isArray(temporalContext.structuredContent?.warnings)
+    !Array.isArray(temporalWarnings) ||
+    !temporalWarnings.some(
+      (warning) =>
+        warning?.code === 'UNSCOPED_NORMAL_CONTENT_OMITTED'
+    ) ||
+    String(temporalContext.structuredContent?.markdown).includes(
+      'TSUZUNE MCP smoke test.'
+    )
   ) {
     throw new Error(
       'build_context did not expose the requested temporal context.'
+    )
+  }
+
+  const knowledgeContext = await client.callTool({
+    name: 'build_context',
+    arguments: {
+      id: 'Home.md',
+      max_characters: 5_000,
+      as_of: '2026-07-15',
+      temporal_perspective: 'knowledge-time'
+    }
+  })
+  if (
+    knowledgeContext.isError ||
+    knowledgeContext.structuredContent?.temporal_perspective !==
+      'knowledge-time' ||
+    String(knowledgeContext.structuredContent?.markdown).includes(
+      '# Home active'
+    )
+  ) {
+    throw new Error(
+      'build_context did not honor the requested knowledge-time perspective.'
     )
   }
 

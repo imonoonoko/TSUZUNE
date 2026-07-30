@@ -22,7 +22,7 @@ TSUZUNEは、ローカルのMarkdownファイルをそのまま扱う、Windows�
 
 ## 使い始める
 
-1. Releasesまたは配布された`TSUZUNE-0.2.0-portable.exe`を起動します。
+1. Releasesまたは配布された`TSUZUNE-0.3.0-portable.exe`を起動します。
 2. 「Vaultを開く」から、メモを保存したいローカルフォルダを選びます。
 3. 「＋ ノート」で最初のMarkdownノートを作成します。
 
@@ -77,6 +77,19 @@ npm run mcp:unregister
 ```
 
 詳細は[Codex・ChatGPTデスクトップ連携ガイド](docs/mcp-integration.md)を参照してください。
+
+## v0.3: Temporal Memory Lite
+
+重要な状態や出来事だけに任意のYAML frontmatterを付けると、TSUZUNEは通常のMarkdownを原本のまま、現在・過去・未来・再確認期限超過・置き換え済みとして読み分けます。
+
+- 右パネルのTemporal Inspectorで時間判定と警告を確認する
+- `build_context`の`as_of`で指定日時点の文脈を作る
+- `temporal_perspective`で、実際の有効時点と当時の知識時点を選ぶ
+- `include_history`で過去・置き換え済みの記録も含める
+- State Noteから`source`の根拠ノートを追跡する
+- 過去時点では、有効時点を持たない通常ノート本文を推測材料にせず、省略警告を返す
+
+Starter Vaultを使った比較では、時間対応Contextが固定4問で4/4、State Noteから出典への一致が3/3となり、過去への未来情報漏えいは0件でした。詳細は[M5 Starter Vault Dogfood](docs/m5-dogfood.md)を参照してください。
 
 ## v0.2の境界
 

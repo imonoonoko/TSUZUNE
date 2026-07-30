@@ -75,6 +75,22 @@ describe('MCP vault service', () => {
     })
 
     expect(context.as_of).toBe('2026-06-15')
+    expect(context.temporal_perspective).toBe('valid-time')
+    expect(context.included).toContainEqual({
+      path: 'Home.md',
+      name: 'Home',
+      relation: 'seed',
+      truncated: false,
+      content_omitted: true,
+      selection_reasons: ['起点ノート（時間範囲のない本文は省略）']
+    })
+    expect(context.markdown).not.toContain('[[Projects/TSUZUNE]]')
+    expect(context.warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'UNSCOPED_NORMAL_CONTENT_OMITTED',
+        paths: ['Home.md', 'Projects/TSUZUNE.md']
+      })
+    )
     expect(context.included).toContainEqual({
       path: 'History/Home-planning.md',
       name: 'Home-planning',
@@ -88,6 +104,39 @@ describe('MCP vault service', () => {
       message: '現在も有効か再確認が必要です。',
       path: 'History/Home-planning.md'
     })
+  })
+
+  it('lets MCP callers choose knowledge-time explicitly', async () => {
+    await mkdir(join(root, 'History'))
+    await writeFile(
+      join(root, 'History', 'Home-observed-later.md'),
+      [
+        '---',
+        'kind: state',
+        'subject: "[[Home]]"',
+        'status: active',
+        'valid_from: 2026-06-01',
+        'observed_at: 2026-07-01',
+        '---',
+        '# OBSERVED_LATER_SENTINEL'
+      ].join('\n'),
+      'utf8'
+    )
+
+    const validTime = await service.buildContext('Home.md', 15_000, {
+      asOf: '2026-06-15'
+    })
+    const knowledgeTime = await service.buildContext('Home.md', 15_000, {
+      asOf: '2026-06-15',
+      temporalPerspective: 'knowledge-time'
+    })
+
+    expect(validTime.markdown).toContain('OBSERVED_LATER_SENTINEL')
+    expect(validTime.temporal_perspective).toBe('valid-time')
+    expect(knowledgeTime.markdown).not.toContain(
+      'OBSERVED_LATER_SENTINEL'
+    )
+    expect(knowledgeTime.temporal_perspective).toBe('knowledge-time')
   })
 
   it('includes historical states only when the MCP caller requests them', async () => {

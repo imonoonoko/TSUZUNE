@@ -7,6 +7,7 @@ import {
   validateRelativePath
 } from '../core/paths'
 import { searchNotes } from '../core/search'
+import type { TemporalPerspective } from '../core/temporal'
 import { VaultError, VaultService } from '../main/vault'
 import type { NoteDocument, VaultSnapshot } from '../shared/types'
 import {
@@ -60,11 +61,13 @@ export interface ContextOutput {
   character_count: number
   truncated: boolean
   as_of: string
+  temporal_perspective: TemporalPerspective
   included: Array<{
     path: string
     name: string
     relation: ContextBundle['included'][number]['relation']
     truncated: boolean
+    content_omitted?: boolean
     temporal_status?: ContextBundle['included'][number]['temporalStatus']
     selection_reasons: string[]
   }>
@@ -75,6 +78,7 @@ export interface ContextOutput {
 export interface BuildContextOptions {
   asOf?: string
   includeHistory?: boolean
+  temporalPerspective?: TemporalPerspective
 }
 
 export interface WriteOutput {
@@ -283,7 +287,8 @@ export class VaultMcpService {
     const bundle = buildContextBundle(note.path, snapshot.notes, {
       maxCharacters,
       asOf: options.asOf,
-      includeHistory: options.includeHistory
+      includeHistory: options.includeHistory,
+      temporalPerspective: options.temporalPerspective
     })
 
     return {
@@ -292,12 +297,14 @@ export class VaultMcpService {
       character_count: bundle.characterCount,
       truncated: bundle.truncated,
       as_of: bundle.asOf,
+      temporal_perspective: bundle.temporalPerspective,
       included: bundle.included.map(
         ({
           path,
           name,
           relation,
           truncated,
+          contentOmitted,
           temporalStatus,
           selectionReasons
         }) => ({
@@ -305,6 +312,7 @@ export class VaultMcpService {
           name,
           relation,
           truncated,
+          ...(contentOmitted ? { content_omitted: true } : {}),
           ...(temporalStatus
             ? { temporal_status: temporalStatus }
             : {}),

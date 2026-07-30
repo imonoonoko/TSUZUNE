@@ -7,6 +7,7 @@ import {
 import {
   buildTemporalTimeline,
   evaluateKnowledgeTime,
+  evaluateTemporal,
   parseTemporalNote,
   type TemporalPerspective,
   type TemporalTimelineEntry
@@ -27,7 +28,9 @@ export type ContextWarningCode =
   | 'CONFLICTING_CURRENT_STATES'
   | 'MALFORMED_TEMPORAL_METADATA'
   | 'REVIEW_DUE'
+  | 'TEMPORAL_SEED_CONTENT_OMITTED'
   | 'TEMPORAL_METADATA_WARNING'
+  | 'UNSCOPED_NORMAL_CONTENT_OMITTED'
   | 'UNRESOLVED_SOURCE'
   | 'UNKNOWN_OBSERVED_AT'
 
@@ -43,6 +46,7 @@ export interface ContextSource {
   name: string
   relation: ContextRelation
   truncated: boolean
+  contentOmitted?: boolean
   temporalStatus?: ContextTemporalStatus
   selectionReasons: string[]
   provenance?: ResolvedWikiLink
@@ -102,6 +106,7 @@ function sourceSectionParts(
       ...(source.temporalStatus
         ? [`Temporal status: ${source.temporalStatus}`]
         : []),
+      ...(source.contentOmitted ? ['Content omitted: true'] : []),
       ...(source.provenance
         ? [
             `Provenance: ${source.provenance.status}${
@@ -140,25 +145,99 @@ export function buildContextBundle(
   const temporalPerspective = options.temporalPerspective ?? 'valid-time'
   const query = options.query?.trim()
   const warnings: ContextWarning[] = []
-  parseContextTemporalNote(seed, warnings)
+  const seedTemporal = parseContextTemporalNote(seed, warnings)
+  const historicalRequest = isHistoricalRequest(asOf, generatedAt)
+  const omittedNormalPaths = new Set<string>()
+  const seedEvaluation = seedTemporal.metadata
+    ? evaluateTemporal(seedTemporal.metadata, asOf)
+    : undefined
+  const seedKnowledgeStatus =
+    seedTemporal.metadata && temporalPerspective === 'knowledge-time'
+      ? evaluateKnowledgeTime(seedTemporal.metadata, asOf)
+      : undefined
+  const seedIsFuture = seedEvaluation?.phase === 'future'
+  const seedHasMalformedTemporalMetadata = warnings.some(
+    (warning) =>
+      warning.code === 'MALFORMED_TEMPORAL_METADATA' &&
+      warning.path === seed.path
+  )
+  const seedIsUnavailableKnowledge =
+    temporalPerspective === 'knowledge-time' &&
+    (seedHasMalformedTemporalMetadata ||
+      (seedTemporal.kind !== 'normal' &&
+        (!seedTemporal.metadata || seedKnowledgeStatus !== 'known')))
+  const seedIsUnscoped =
+    historicalRequest &&
+    (seedTemporal.kind === 'normal' || !seedTemporal.metadata)
+  const seedContentOmitted =
+    seedIsUnscoped || seedIsFuture || seedIsUnavailableKnowledge
+
+  if (
+    seedTemporal.metadata &&
+    temporalPerspective === 'knowledge-time' &&
+    seedKnowledgeStatus === 'unknown'
+  ) {
+    warnings.push({
+      code: 'UNKNOWN_OBSERVED_AT',
+      message:
+        'observed_atがないため、この時点で既知だった情報か確認できません。',
+      path: seed.path
+    })
+  }
+  if (seedIsFuture || seedIsUnavailableKnowledge) {
+    warnings.push({
+      code: 'TEMPORAL_SEED_CONTENT_OMITTED',
+      message:
+        seedIsFuture
+          ? '起点のState/Event Noteは指定時点より後の情報であるため、本文を省略しました。'
+          : '起点のState/Event Noteは指定知識時点で利用可能と確認できないため、本文を省略しました。',
+      path: seed.path
+    })
+  }
+
+  const contextSeed = seedContentOmitted
+    ? omitContextBody(
+        seed,
+        seedIsUnscoped
+          ? '[時間範囲が不明な通常ノート本文は、指定過去時点の事実として使用できないため省略されました]'
+          : '[指定時点で利用できないState/Event Note本文は省略されました]'
+      )
+    : seed
+  if (seedIsUnscoped) {
+    omittedNormalPaths.add(seed.path)
+  }
+  const seedOmissionReason = seedIsUnscoped
+    ? '起点ノート（時間範囲のない本文は省略）'
+    : seedIsFuture
+      ? '起点ノート（指定時点より後のため本文は省略）'
+      : seedIsUnavailableKnowledge
+        ? '起点ノート（指定知識時点で利用不可のため本文は省略）'
+        : '起点ノート'
 
   const candidates: Array<{
     note: NoteDocument
     source: Omit<ContextSource, 'truncated'>
   }> = [
     {
-      note: seed,
+      note: contextSeed,
       source: {
         path: seed.path,
         name: seed.name,
         relation: 'seed',
-        selectionReasons: ['起点ノート']
+        ...(seedContentOmitted ? { contentOmitted: true } : {}),
+        ...(seedIsFuture ? { temporalStatus: 'future' as const } : {}),
+        selectionReasons: [seedOmissionReason]
       }
     }
   ]
   const selected = new Set([seed.path])
 
-  const outgoingNotes = getOutgoingLinks(seed.content, notes)
+  const allowRelatedNormalMetadata =
+    !seedContentOmitted || seedTemporal.kind === 'normal'
+  const outgoingNotes = getOutgoingLinks(
+    allowRelatedNormalMetadata ? seed.content : '',
+    notes
+  )
     .flatMap((link) => {
       if (link.status !== 'resolved' || !link.resolvedPath) {
         return []
@@ -166,10 +245,15 @@ export function buildContextBundle(
       const note = notes.find((item) => item.path === link.resolvedPath)
       return note && isSafeNormalContextNote(note, warnings) ? [note] : []
     })
-  for (const note of rankByQuery(outgoingNotes, query).slice(
+  const rankedOutgoing = rankByQuery(outgoingNotes, query).slice(
     0,
     maxOutgoing
-  )) {
+  )
+  for (const note of rankedOutgoing) {
+    if (historicalRequest) {
+      omittedNormalPaths.add(note.path)
+      continue
+    }
     if (!selected.has(note.path)) {
       selected.add(note.path)
       const queryMatched = queryScore(note, query) > 0
@@ -188,13 +272,20 @@ export function buildContextBundle(
     }
   }
 
-  const backlinkNotes = getBacklinks(seed.path, notes).filter((note) =>
-    isSafeNormalContextNote(note, warnings)
-  )
-  for (const note of rankByQuery(backlinkNotes, query).slice(
+  const backlinkNotes = allowRelatedNormalMetadata
+    ? getBacklinks(seed.path, notes).filter((note) =>
+        isSafeNormalContextNote(note, warnings)
+      )
+    : []
+  const rankedBacklinks = rankByQuery(backlinkNotes, query).slice(
     0,
     maxBacklinks
-  )) {
+  )
+  for (const note of rankedBacklinks) {
+    if (historicalRequest) {
+      omittedNormalPaths.add(note.path)
+      continue
+    }
     if (!selected.has(note.path)) {
       selected.add(note.path)
       const queryMatched = queryScore(note, query) > 0
@@ -211,6 +302,16 @@ export function buildContextBundle(
         }
       })
     }
+  }
+  if (omittedNormalPaths.size > 0) {
+    warnings.push({
+      code: 'UNSCOPED_NORMAL_CONTENT_OMITTED',
+      message:
+        '指定過去時点より後の内容混入を避けるため、時間範囲のない通常ノート本文を省略しました。',
+      paths: [...omittedNormalPaths].sort((left, right) =>
+        left.localeCompare(right, 'ja')
+      )
+    })
   }
 
   const subject = `[[${seed.path.replace(/\.md$/i, '')}]]`
@@ -415,6 +516,36 @@ export function buildContextBundle(
     temporalPerspective,
     ...(query ? { query } : {}),
     warnings
+  }
+}
+
+function isHistoricalRequest(asOf: string, generatedAt: string): boolean {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(asOf)) {
+    return asOf < generatedAt.slice(0, 10)
+  }
+
+  return Date.parse(asOf) < Date.parse(generatedAt)
+}
+
+function omitUnscopedNormalBody(
+  note: NoteDocument,
+  omittedPaths: Set<string>
+): NoteDocument {
+  omittedPaths.add(note.path)
+  return omitContextBody(
+    note,
+    '[時間範囲が不明な通常ノート本文は、指定過去時点の事実として使用できないため省略されました]'
+  )
+}
+
+function omitContextBody(
+  note: NoteDocument,
+  content: string
+): NoteDocument {
+  return {
+    ...note,
+    content,
+    size: content.length
   }
 }
 

@@ -88,7 +88,7 @@ async function main(): Promise<void> {
   const server = new McpServer(
     {
       name: 'tsuzune',
-      version: '0.2.0'
+      version: '0.3.0'
     },
     {
       instructions:
@@ -252,7 +252,14 @@ async function main(): Promise<void> {
           .boolean()
           .optional()
           .default(false)
-          .describe('Include historical and superseded temporal notes')
+          .describe('Include historical and superseded temporal notes'),
+        temporal_perspective: z
+          .enum(['valid-time', 'knowledge-time'])
+          .optional()
+          .default('valid-time')
+          .describe(
+            'Use valid-time for what was true, or knowledge-time for what was known'
+          )
       },
       outputSchema: {
         seed_id: z.string(),
@@ -260,12 +267,14 @@ async function main(): Promise<void> {
         character_count: z.number(),
         truncated: z.boolean(),
         as_of: z.string(),
+        temporal_perspective: z.enum(['valid-time', 'knowledge-time']),
         included: z.array(
           z.object({
             path: z.string(),
             name: z.string(),
             relation: z.enum(['seed', 'outgoing', 'backlink']),
             truncated: z.boolean(),
+            content_omitted: z.boolean().optional(),
             temporal_status: z
               .enum([
                 'current',
@@ -286,7 +295,9 @@ async function main(): Promise<void> {
               'CONFLICTING_CURRENT_STATES',
               'MALFORMED_TEMPORAL_METADATA',
               'REVIEW_DUE',
+              'TEMPORAL_SEED_CONTENT_OMITTED',
               'TEMPORAL_METADATA_WARNING',
+              'UNSCOPED_NORMAL_CONTENT_OMITTED',
               'UNRESOLVED_SOURCE',
               'UNKNOWN_OBSERVED_AT'
             ]),
@@ -298,11 +309,18 @@ async function main(): Promise<void> {
       },
       annotations: readOnlyAnnotations
     },
-    async ({ id, max_characters, as_of, include_history }) =>
+    async ({
+      id,
+      max_characters,
+      as_of,
+      include_history,
+      temporal_perspective
+    }) =>
       textResult(
         await vault.buildContext(id, max_characters, {
           asOf: as_of,
-          includeHistory: include_history
+          includeHistory: include_history,
+          temporalPerspective: temporal_perspective
         })
       )
   )

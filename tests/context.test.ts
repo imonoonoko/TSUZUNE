@@ -117,6 +117,246 @@ describe('context bundle', () => {
     expect(bundle.markdown).not.toContain('# 将来の予定')
   })
 
+  it('does not expose unscoped normal-note bodies to a historical request', () => {
+    const historicalNotes = [
+      note(
+        'Project.md',
+        '# FUTURE_NORMAL_SENTINEL\n\n[[Background]]'
+      ),
+      note('Background.md', '# FUTURE_BACKGROUND_SENTINEL'),
+      note(
+        'Backlink.md',
+        '# FUTURE_BACKLINK_SENTINEL\n\n[[Project]]'
+      ),
+      note(
+        '50_履歴/Project-開発中.md',
+        [
+          '---',
+          'kind: state',
+          'subject: "[[Project]]"',
+          'status: active',
+          'valid_from: 2026-07-22',
+          'observed_at: 2026-07-22',
+          '---',
+          '# 2026-07-22に確認した状態'
+        ].join('\n')
+      )
+    ]
+
+    const bundle = buildContextBundle('Project.md', historicalNotes, {
+      asOf: '2026-07-22',
+      generatedAt: '2026-07-31T03:00:00+09:00'
+    })
+
+    expect(bundle.markdown).not.toContain('FUTURE_NORMAL_SENTINEL')
+    expect(bundle.markdown).not.toContain('FUTURE_BACKGROUND_SENTINEL')
+    expect(bundle.markdown).not.toContain('FUTURE_BACKLINK_SENTINEL')
+    expect(bundle.markdown).toContain('# 2026-07-22に確認した状態')
+    expect(bundle.included.map((source) => source.path)).toEqual([
+      'Project.md',
+      '50_履歴/Project-開発中.md'
+    ])
+    expect(bundle.warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'UNSCOPED_NORMAL_CONTENT_OMITTED',
+        paths: ['Background.md', 'Backlink.md', 'Project.md']
+      })
+    )
+  })
+
+  it.each([
+    {
+      kind: 'state',
+      temporalField: 'status: planned\nvalid_from: 2026-08-01'
+    },
+    {
+      kind: 'event',
+      temporalField: 'event: launch\noccurred_at: 2026-08-01'
+    }
+  ])(
+    'does not expose a future $kind note when it is the seed',
+    ({ kind, temporalField }) => {
+      const futureSeed = note(
+        'Future.md',
+        [
+          '---',
+          `kind: ${kind}`,
+          'subject: "[[Project]]"',
+          temporalField,
+          'observed_at: 2026-08-01',
+          '---',
+          '# FUTURE_SEED_SENTINEL'
+        ].join('\n')
+      )
+
+      const bundle = buildContextBundle('Future.md', [futureSeed], {
+        asOf: '2026-07-22',
+        generatedAt: '2026-07-31T03:00:00+09:00',
+        includeHistory: true
+      })
+
+      expect(bundle.markdown).not.toContain('FUTURE_SEED_SENTINEL')
+      expect(bundle.included).toContainEqual({
+        path: 'Future.md',
+        name: 'Future',
+        relation: 'seed',
+        truncated: false,
+        contentOmitted: true,
+        temporalStatus: 'future',
+        selectionReasons: [
+          '起点ノート（指定時点より後のため本文は省略）'
+        ]
+      })
+      expect(bundle.warnings).toContainEqual({
+        code: 'TEMPORAL_SEED_CONTENT_OMITTED',
+        message:
+          '起点のState/Event Noteは指定時点より後の情報であるため、本文を省略しました。',
+        path: 'Future.md'
+      })
+    }
+  )
+
+  it('applies knowledge-time to the temporal seed itself', () => {
+    const laterObservedSeed = note(
+      'ObservedLater.md',
+      [
+        '---',
+        'kind: state',
+        'subject: "[[Project]]"',
+        'status: active',
+        'valid_from: 2026-07-01',
+        'observed_at: 2026-07-30',
+        '---',
+        '# LATER_OBSERVED_SENTINEL'
+      ].join('\n')
+    )
+    const options = {
+      asOf: '2026-07-22',
+      generatedAt: '2026-07-31T03:00:00+09:00'
+    }
+
+    const validTime = buildContextBundle(
+      'ObservedLater.md',
+      [laterObservedSeed],
+      options
+    )
+    const knowledgeTime = buildContextBundle(
+      'ObservedLater.md',
+      [laterObservedSeed],
+      {
+        ...options,
+        temporalPerspective: 'knowledge-time'
+      }
+    )
+
+    expect(validTime.markdown).toContain('LATER_OBSERVED_SENTINEL')
+    expect(knowledgeTime.markdown).not.toContain(
+      'LATER_OBSERVED_SENTINEL'
+    )
+    expect(knowledgeTime.included[0]).toMatchObject({
+      path: 'ObservedLater.md',
+      contentOmitted: true,
+      selectionReasons: [
+        '起点ノート（指定知識時点で利用不可のため本文は省略）'
+      ]
+    })
+    expect(knowledgeTime.warnings).toContainEqual({
+      code: 'TEMPORAL_SEED_CONTENT_OMITTED',
+      message:
+        '起点のState/Event Noteは指定知識時点で利用可能と確認できないため、本文を省略しました。',
+      path: 'ObservedLater.md'
+    })
+  })
+
+  it('does not guess seed knowledge-time when observed_at is missing', () => {
+    const unknownSeed = note(
+      'UnknownObservation.md',
+      [
+        '---',
+        'kind: state',
+        'subject: "[[Project]]"',
+        'status: active',
+        'valid_from: 2026-07-01',
+        '---',
+        '# UNKNOWN_OBSERVED_SEED_SENTINEL'
+      ].join('\n')
+    )
+
+    const bundle = buildContextBundle(
+      'UnknownObservation.md',
+      [unknownSeed],
+      {
+        asOf: '2026-07-22',
+        generatedAt: '2026-07-31T03:00:00+09:00',
+        temporalPerspective: 'knowledge-time'
+      }
+    )
+
+    expect(bundle.markdown).not.toContain(
+      'UNKNOWN_OBSERVED_SEED_SENTINEL'
+    )
+    expect(bundle.warnings).toContainEqual({
+      code: 'UNKNOWN_OBSERVED_AT',
+      message:
+        'observed_atがないため、この時点で既知だった情報か確認できません。',
+      path: 'UnknownObservation.md'
+    })
+  })
+
+  it('keeps current normal-note bodies and never treats mtime as valid-time', () => {
+    const baseNotes = [
+      note('Project.md', '# NORMAL_BODY'),
+      note(
+        '50_履歴/Project-開発中.md',
+        [
+          '---',
+          'kind: state',
+          'subject: "[[Project]]"',
+          'status: active',
+          'valid_from: 2026-07-22',
+          '---',
+          '# 開発中'
+        ].join('\n')
+      )
+    ]
+    const oldMtime = baseNotes.map((item) => ({
+      ...item,
+      modifiedAt: Date.parse('2020-01-01T00:00:00Z')
+    }))
+    const futureMtime = baseNotes.map((item) => ({
+      ...item,
+      modifiedAt: Date.parse('2030-01-01T00:00:00Z')
+    }))
+    const options = {
+      asOf: '2026-07-22',
+      generatedAt: '2026-07-31T03:00:00+09:00'
+    }
+
+    const oldResult = buildContextBundle('Project.md', oldMtime, options)
+    const futureResult = buildContextBundle(
+      'Project.md',
+      futureMtime,
+      options
+    )
+    const current = buildContextBundle('Project.md', futureMtime, {
+      asOf: '2026-07-31',
+      generatedAt: '2026-07-31T03:00:00+09:00'
+    })
+
+    expect(oldResult.included).toEqual(futureResult.included)
+    expect(oldResult.warnings).toEqual(futureResult.warnings)
+    expect(oldResult.markdown).not.toContain('# NORMAL_BODY')
+    expect(futureResult.markdown).not.toContain('# NORMAL_BODY')
+    expect(current.markdown).toContain('# NORMAL_BODY')
+    expect(current.warnings).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'UNSCOPED_NORMAL_CONTENT_OMITTED'
+        })
+      ])
+    )
+  })
+
   it('keeps superseded State Notes out of current context unless history is requested', () => {
     const temporalNotes = [
       note('Project.md', '# Project'),
@@ -504,6 +744,48 @@ describe('context bundle', () => {
       message: '壊れた時間メタデータをContextから除外しました。',
       path: 'Project.md'
     })
+  })
+
+  it('fails closed for a malformed temporal seed in knowledge-time', () => {
+    const malformedSeed = note(
+      'Project.md',
+      [
+        '---',
+        'kind: state',
+        'status: active',
+        'valid_from: 2026-07-30',
+        '# closing delimiter is missing',
+        '# MALFORMED_KNOWLEDGE_SENTINEL'
+      ].join('\n')
+    )
+
+    const bundle = buildContextBundle('Project.md', [malformedSeed], {
+      asOf: '2026-07-30',
+      generatedAt: '2026-07-30T12:00:00+09:00',
+      temporalPerspective: 'knowledge-time'
+    })
+
+    expect(bundle.markdown).not.toContain(
+      'MALFORMED_KNOWLEDGE_SENTINEL'
+    )
+    expect(bundle.included[0]).toMatchObject({
+      contentOmitted: true,
+      selectionReasons: [
+        '起点ノート（指定知識時点で利用不可のため本文は省略）'
+      ]
+    })
+    expect(bundle.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'MALFORMED_TEMPORAL_METADATA',
+          path: 'Project.md'
+        }),
+        expect.objectContaining({
+          code: 'TEMPORAL_SEED_CONTENT_OMITTED',
+          path: 'Project.md'
+        })
+      ])
+    )
   })
 
   it('keeps usable temporal facts when only optional metadata is invalid and warns about the partial loss', () => {

@@ -20,6 +20,7 @@
     "src/shared/**/*.ts",
     "src/core/**/*.ts",
     "src/mcp/**/*.ts",
+    "scripts/**/*.ts",
     "tests/**/*.ts",
     "vitest.config.ts"
   ]

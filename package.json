@@ -1,6 +1,6 @@
 {
   "name": "tsuzune",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "書いて、つないで、あとで尋ねる。ローカルMarkdownとWikiリンクのWindowsメモ帳。",
   "private": true,
   "type": "module",
@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
     "test:watch": "vitest",
+    "dogfood:m5": "node scripts/build-m5-dogfood.mjs",
     "build:mcp": "node scripts/build-mcp.mjs",
     "check:mcp": "npm run build:mcp && node scripts/check-mcp.mjs",
     "mcp": "node out/mcp/server.js",

@@ -3,8 +3,8 @@
 ## Temporal Memory Lite
 
 作成日: 2026-07-30
-状態: 実装中（M0〜M4完了）
-対象: v0.2のCodex・ChatGPTデスクトップ連携を基礎にした次期開発
+状態: 完了（M0〜M5）
+対象: v0.2のCodex・ChatGPTデスクトップ連携を基礎にしたv0.3開発
 
 この文書は、TSUZUNEの長期的な機能一覧ではなく、次に実装する順序と停止条件を決めるための計画である。`docs/v0.1-scope.md`を置き換えず、グラフ、同期、プラグイン、独自DBまで一度に扱わない。
 
@@ -15,9 +15,9 @@
 - [x] M2: 非破壊frontmatter parser、時間判定、再確認期限、`supersedes`、subject別タイムラインを純粋coreとして実装
 - [x] M3: 時点・質問・知識時点を考慮し、根拠と警告を付けるContext Compiler
 - [x] M4: MCPと右パネルのTemporal Inspector
-- [ ] M5: Starter Vaultでdogfood
+- [x] M5: Starter Vaultでdogfood
 
-M4では、既存MCPの後方互換性を保ったまま`as_of`と`include_history`を公開し、右パネルへ読み取り専用のTemporal Inspectorを追加した。不正な時間メタデータがあっても、ノート編集は継続できる。
+M4では、既存MCPの後方互換性を保ったまま`as_of`と`include_history`を公開し、右パネルへ読み取り専用のTemporal Inspectorを追加した。不正な時間メタデータがあっても、ノート編集は継続できる。M5の公開前監査で、MCPにも`temporal_perspective`を追加し、既定のvalid-timeと明示的なknowledge-timeを呼び分けられるようにした。
 
 M4完了時点の検証:
 
@@ -28,6 +28,42 @@ npm run check:mcp    PASS: 4 read tools / 2 write tools
 npm run build        PASS
 git diff --check     PASS
 ```
+
+M4の公開済みチェックポイント:
+
+```text
+branch: agent/tsuzune-mcp-integration
+commit: 4b35765 Add temporal memory context and inspector
+remote: origin/agent/tsuzune-mcp-integration
+visibility: private
+```
+
+M5ではStarter Vaultへ3対象、State Note 5件、Event Note 3件、追加出典ノート1件を投入し、起点だけ、従来1段Context、時間対応Contextを同じ固定質問で比較した。
+
+```text
+固定4問の厳密正答        A: 1/4  B: 1/4  C: 4/4
+State Note → Source一致 A: 0/3  B: 0/3  C: 3/3
+過去への未来State/Event C: 0
+過去への時点不明本文     C: 0
+再確認警告               C: 2
+安全性プローブ           PASS: 4/4
+```
+
+dogfood中に、過去時点Contextへ後日の通常ノート本文が露出する問題を発見した。明示された過去の`as_of`では、有効時点を持たない通常ノート本文を保守的に省略し、stub、`content_omitted`、`UNSCOPED_NORMAL_CONTENT_OMITTED`警告を返すよう最小修正した。詳細は`docs/m5-dogfood.md`に記録した。
+
+M5完了時点の検証:
+
+```text
+npm run typecheck    PASS
+npm test             PASS: 14 files / 113 tests
+npm run check:mcp    PASS: 4 read tools / 2 write tools
+npm run build        PASS
+npm run dogfood:m5 -- "<Starter Vault path>" 2026-07-31 2026-07-22
+                       PASS
+git diff --check     PASS
+```
+
+M5の実装・検証結果は、このブランチの次の公開チェックポイントとして確定する。
 
 ## 1. Objective
 
@@ -47,11 +83,11 @@ Markdownノートへ任意の時間情報と出典を付け、TSUZUNEとCodexが
 
 ## 2. Current State
 
-2026-07-30に現在のリポジトリで確認した状態:
+2026-07-31に現在のリポジトリで確認した状態:
 
 - `main`はv0.1.0の基礎メモアプリ（`cf24860`）
-- 現在の`agent/tsuzune-mcp-integration`ブランチはv0.2.0（`0c66af8`）
-- v0.2.0はまだ`main`へ統合されていないため、Temporal実装前に受け入れ状態を確定する
+- 現在の`agent/tsuzune-mcp-integration`ブランチは、v0.2.0基準（`0c66af8`）へTemporal Memory Lite M0〜M4を加えた`4b35765`上でM5を完了した
+- `4b35765`はprivate remoteへpush済みだが、まだ`main`へ統合していない
 - Markdownが原本で、アプリ固有DBはない
 - Vault走査結果は`NoteDocument[]`としてメモリ上で扱う
 - Wikiリンク、バックリンク、文字列検索が純粋なcore処理として分離されている
@@ -62,7 +98,10 @@ Markdownノートへ任意の時間情報と出典を付け、TSUZUNEとCodexが
 - Context Compilerは質問一致を1段リンクの上限適用前に順位付けする
 - Context本文は参照データ境界で囲み、ノート内の命令文をシステム命令として扱わない方針を明示する
 - MCPの`build_context`は任意の`as_of`と`include_history`を受け取り、時間判定、選定理由、警告を返す
+- MCPの`build_context`は任意の`temporal_perspective`でvalid-timeとknowledge-timeを選べる
 - 右パネルは現在、過去、未来、出来事、再確認期限超過、置き換え済みを読み取り専用で表示する
+- 過去の`as_of`では、有効時点を持たない通常ノート本文を採用せず、内容省略と対象Pathを構造化して返す
+- Starter Vault dogfoodの比較、誤判定、手作業負担、修正結果は`docs/m5-dogfood.md`に固定した
 
 確認済みの基準:
 
@@ -247,6 +286,7 @@ source: "[[40_情報源/会話-新しいソフト作成希望]]"
 3. その日付までに発生したEvent Noteを選ぶ。
 4. 現在の知識で過去を書き換えず、当時有効だった状態を示す。
 5. 該当する時間情報がない場合は「不明」とし、推測で補完しない。
+6. 有効時点を持たない通常ノート本文は過去の根拠に採用せず、内容省略と対象Pathを警告する。
 
 ### Malformed Metadata
 
@@ -406,6 +446,8 @@ Gate:
 
 ### M5. Starter Vault Dogfood
 
+Result: PASS（2026-07-31）
+
 Work:
 
 - Starter Vaultへ少数の時間付きサンプルを追加する
@@ -434,6 +476,8 @@ Gate:
 - 観測されていない便利機能を追加しない
 
 このA/Bは「モデル一般が賢くなった」と証明するものではない。TSUZUNEが、同じモデルへより正確で時点整合的な根拠を渡せるかを検証する。
+
+実測結果、比較回答、dogfoodで発見した過去Contextの本文漏えいと修正、手作業負担は`docs/m5-dogfood.md`を正本とする。
 
 ## 12. Verification Baseline
 
@@ -523,17 +567,16 @@ Control:
 
 ## 15. Immediate Next Work
 
-実装開始時は次の順番を崩さない。
+M0〜M5は完了した。Temporal Memory Liteは3つのSuccess Conditionsを満たしたため、ここで機能追加を停止する。
 
-1. v0.2 MCPブランチの基準を確定する。
-2. frontmatterのfixtureと失敗例を先に作る。
-3. `frontmatter.ts`と`temporal.ts`を純粋coreとして実装する。
-4. 現在・過去・再確認期限・置き換えの単体テストを通す。
-5. `build_context`へ時点指定を追加する。
-6. MCPを後方互換で拡張する。
-7. 右パネルへ読み取り表示を追加する。
-8. Starter Vaultで実際のプロジェクト状態を使ってdogfoodする。
-9. Success Conditionsを満たしたら停止する。
+次に着手するときは、次のいずれか1トラックだけを選び、独立した困りごと、入力資料、受け入れ条件を別PLANへ固定する。
+
+1. ChatGPT公式エクスポートが提供された場合は、C0 Archive Contract And Source Preservation。
+2. Google Takeoutが提供された場合は、G0 Contract And Privacy Boundary。
+3. 時間情報の手入力負担を先に解消する場合は、小さなState/Event入力補助。
+4. グラフ、同期、プラグイン、SQLiteは、それぞれ必要性を示すdogfood証拠が得られた場合だけ独立して計画する。
+
+ChatGPTアーカイブもGoogle Takeoutも未提供のまま、非公開履歴を推測取得したり、ログイン、Cookie、画面スクレイピングで代替したりしない。
 
 ## 16. Decision Rules After Dogfood
 
@@ -713,6 +756,12 @@ Gate:
 ## 18. Future Track: ChatGPT Export Intake
 
 このトラックはM5完了後に着手する。Google連携やChatGPTへのログインとは分離し、ユーザーが明示的に選択したChatGPTデータエクスポートだけをローカルで取り込む。
+
+### Current Intake Status
+
+2026-07-31時点では、ローカルにChatGPT公式データエクスポートのZIP、`conversations.json`、`chat.html`は見つかっていない。現在参照できた会話はStarter Vaultへ出典付きで選択保存したが、全アーカイブ取込とは扱わない。
+
+次の開始条件は、ユーザーが公式エクスポートZIPまたは展開済みフォルダを提供することである。製品内の自動インポーターはM5完了後の別トラックだが、Codexによる一回限りの原本保持型整理はアーカイブ受領後に実行できる。
 
 ### Confirmed Availability Boundary
 
