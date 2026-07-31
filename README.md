@@ -2,7 +2,7 @@
 
 **書いて、つないで、あとで尋ねる。**
 
-TSUZUNEは、ローカルのMarkdownファイルをそのまま扱う、Windows向けの個人用メモアプリです。v0.2ではCodexとChatGPTデスクトップからVaultを参照・更新するMCP連携、v0.3では時間付き記憶、v0.4では1-hopグラフと手動Google Drive同期を追加しました。
+TSUZUNEは、ローカルのMarkdownファイルをそのまま扱う、Windows向けの個人用メモアプリです。v0.2ではCodexとChatGPTデスクトップからVaultを参照・更新するMCP連携、v0.3では時間付き記憶、v0.4では1-hopグラフと手動Google Drive同期を追加しました。現在のv0.5開発では、グラフの深度1／2、ローカル／Vault全体表示、絞り込み、ズーム、パン、全体表示を使えます。
 
 ## v0.1でできること
 
@@ -93,16 +93,23 @@ Starter Vaultを使った比較では、時間対応Contextが固定4問で4/4�
 
 ## v0.4: グラフとGoogle Drive手動同期
 
-### 1-hopグラフ
+### グラフ（v0.5 P0-3まで）
 
-ノートを開いて「グラフ」を選ぶと、選択中のノートと、直接つながっているリンク先・バックリンクだけを表示します。
+ノートを開いて「グラフ」を選ぶと、選択中のノートを中心に、指定した深度までのリンク先・バックリンクを表示します。
 
-- 選択中のノートを中心にした1段階の関係だけを表示する
+- 選択中のノートを中心に、指定した深度までの関係だけを表示する
+- 深度1／2を切り替え、2段先までの関連ノートを必要な時だけ表示する
+- ローカルグラフと、解決済みリンクでつながるVault全体グラフを切り替える
+- Vault全体表示では、孤立ノートを含めるか選択する
+- ノート名またはパスで表示対象を絞り込む
+- 60〜180%へ拡大縮小する
+- 背景ドラッグまたは矢印キーで表示位置を動かす
+- 「全体表示」で100%・原点へ戻す
 - ノードをクリックまたはキーボードで選択して、そのノートを開く
 - 未保存の編集中Wikiリンクも表示へ反映する
 - グラフDBや別の索引を持たず、現在のMarkdownとWikiリンクから都度組み立てる
 
-Vault全体を力学シミュレーションするグラフではありません。日常的に「このノートの近くに何があるか」を確認するための小さな表示です。
+力学シミュレーションや保存レイアウトは使っていません。現段階の「全体表示」は固定リング配置を100%・原点へ戻す操作で、内容境界を自動計測するfitではありません。大きなVault向けの表示上限と省略通知はP0-4でdogfoodします。P0-3の実測値と4画面の実アプリ撮影は[Graph Explorer P0-3 HTML Report](docs/reports/graph-explorer-p0-3-2026-08-01.html)で確認できます。
 
 ### GoogleログインとDrive同期
 
@@ -123,7 +130,7 @@ Google内部の広告プロファイル、Google検索履歴、他アプリが�
 
 ### Googleでログインする
 
-TSUZUNE標準のDesktop OAuthクライアントIDを組み込んだ配布版では、利用者がOAuth JSONを用意する必要はありません。
+TSUZUNE標準のDesktop OAuthクライアントを組み込んだ個人用ビルドでは、利用者がOAuth JSONを用意する必要はありません。
 
 1. ヘッダーで「Google / 同期」を開きます。
 2. 「Googleでログイン」を押し、システムブラウザで権限を確認します。
@@ -135,29 +142,34 @@ TSUZUNE標準のDesktop OAuthクライアントIDを組み込んだ配布版で�
 
 ### 標準ログインを組み込んでビルドする
 
-このリポジトリには実際のGoogle OAuthクライアントIDを含めません。配布担当者が次の準備を行います。
+このリポジトリには実際のGoogle OAuthクライアントIDとclient secretを含めません。個人用ビルドの作成者が次の準備を行います。
 
 1. [Google Cloud Console](https://console.cloud.google.com/)でプロジェクトを作成または選択します。
 2. Google Drive APIを有効にし、OAuth同意画面を構成します。
 3. OAuthクライアントIDを「デスクトップアプリ」として作成します。
-4. 公開値であるクライアントIDだけを`MAIN_VITE_GOOGLE_OAUTH_CLIENT_ID`へ設定してビルドします。client secret、更新トークン、アカウント情報は組み込みません。
+4. クライアントIDを`MAIN_VITE_GOOGLE_OAUTH_CLIENT_ID`、client secretを`MAIN_VITE_GOOGLE_OAUTH_CLIENT_SECRET`へ設定してビルドします。このTSUZUNE用Desktopクライアントではtoken exchangeに両方が必要です。値はビルド時だけ渡し、Gitへ保存しません。
 
 PowerShellの例:
 
 ```powershell
 $env:MAIN_VITE_GOOGLE_OAUTH_CLIENT_ID='発行されたクライアントID'
+$env:MAIN_VITE_GOOGLE_OAUTH_CLIENT_SECRET='発行されたclient secret'
 npm run pack:win
 ```
 
 `.env.example`を参考にローカルの`.env`へ設定することもできます。値はビルド時にmain processへ埋め込まれるため、既に作成済みのEXEへ後から`.env`を置いても反映されません。
 
+Desktop appのclient secretは、個人用EXEへ組み込んでも抽出可能であり、機密情報として保護できません。この標準ログイン方式は個人用ビルド限定です。認可codeの横取りやcallbackの偽装を防ぐため、システムブラウザ、ランダムなloopback port、PKCE S256、state照合は引き続き使用します。更新トークンとアカウント情報はEXEへ組み込みません。
+
+2026-07-31時点で、TSUZUNE用Google CloudプロジェクトのDrive API、External / Testing同意画面、テストユーザー、Desktop appクライアントを構成し、クライアントIDとclient secretをビルド時だけ渡した`dist/TSUZUNE-0.4.0-portable.exe`をローカル作成済みです。両値の実値、OAuth JSON、token、アカウント情報はリポジトリへ保存していません。
+
 OAuth同意画面がExternalかつTestingのままだと、Googleの仕様により更新トークンは原則7日で失効します。継続利用する場合は、同意画面と公開要件を確認したうえでPublishing statusをIn productionへ移してください。
 
-独自のOAuthクライアントJSONを選んだ場合だけ、その設定をローカルに保持します。更新トークンはVaultやMarkdownへ書かず、Electronの`safeStorage`を通してWindowsの暗号化機構で保護します。アクセストークンは永続保存しません。
+独自のOAuthクライアントJSONを選んだ場合だけ、その設定をローカルに保持します。ログイン後の基本プロフィールは`%APPDATA%\TSUZUNE\google\google-account.json`、更新トークンは`%APPDATA%\TSUZUNE\google\refresh-token.json`へ保存します。更新トークンはVaultやMarkdownへ書かず、Electronの`safeStorage`を通してWindowsの暗号化機構で保護します。アクセストークンは永続保存しません。
 
 手動同期は複数端末で同時に実行せず、1台のpreview/applyが終わってから次の端末で実行してください。Drive版はアップロード直前に再確認しますが、Google Drive APIの版確認と更新は単一の原子操作ではありません。複数端末による同時applyを調停する常駐サーバーや分散ロックも実装していません。
 
-現在の自動テストは、組み込みクライアントIDと独自JSONの優先順位、OAuth、暗号化保存、Drive APIクライアント、同期判定、同期適用、グラフをモックまたはローカルfixtureで確認しています。実際のクライアントIDはまだ発行・組み込みされていないため、Googleアカウントでの認証・Drive往復は未確認です。
+現在の自動テストは、組み込みOAuth設定と独自JSONの優先順位、OAuth、暗号化保存、Drive APIクライアント、同期判定、同期適用、グラフをモックまたはローカルfixtureで確認しています。2026-07-31に実GoogleアカウントでOAuthログインと基本プロフィール表示に成功し、`google-account.json`と暗号化された`refresh-token.json`の保存を確認しました。Drive同期の読み取り専用previewは送信40件、受信0件、競合0件、保持0件で成功し、その後に利用者が初回applyを実行しました。同期台帳には2026-07-31 14:42:24 JSTの完了時刻、40件の固有Drive file ID、40件すべてで一致するローカル・Driveハッシュが記録され、現在のローカルMarkdownも40/40件で同期時ハッシュと一致しています。別端末相当の受信や競合解決を含む同期往復は引き続き未確認です。
 
 Google公式仕様:
 

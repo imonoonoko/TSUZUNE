@@ -47,6 +47,8 @@ const api: TsuzuneApi = {
     invoke<GoogleDriveStatus>('google:status'),
   connectGoogle: () =>
     invoke<GoogleDriveStatus>('google:connect'),
+  authorizeGoogleCalendar: () =>
+    invoke<GoogleDriveStatus>('google:authorizeCalendar'),
   disconnectGoogle: () =>
     invoke<GoogleDriveStatus>('google:disconnect'),
   listDriveVaults: () =>

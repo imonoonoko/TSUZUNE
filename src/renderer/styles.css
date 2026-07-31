@@ -874,6 +874,15 @@ button:hover:not(:disabled) {
   border-radius: 7px;
 }
 
+.google-sync-error {
+  padding: 9px 12px;
+  margin-top: 14px !important;
+  color: #702f2b !important;
+  background: #f8deda;
+  border: 1px solid #dbaaa4;
+  border-radius: 7px;
+}
+
 .sync-counts {
   flex-wrap: wrap;
   margin-bottom: 10px;

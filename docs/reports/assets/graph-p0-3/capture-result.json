@@ -1,0 +1,1101 @@
+{
+  "filtered": {
+    "filter": "ONOKO",
+    "zoom": "表示倍率 100%",
+    "transform": "translate(0px, 0px) scale(1)",
+    "nodes": [
+      "プロジェクト地図",
+      "ONOKO・CodexAtelier・Forest Room"
+    ],
+    "edges": [
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      }
+    ]
+  },
+  "zoomed": {
+    "filter": "",
+    "zoom": "表示倍率 140%",
+    "transform": "translate(0px, 0px) scale(1.4)",
+    "nodes": [
+      "プロジェクト地図",
+      "ホーム",
+      "Bit-TTT-Engine・BitLlama",
+      "BloodLedger",
+      "NKキーボード",
+      "ONOKO・CodexAtelier・Forest Room",
+      "TSUZUNE",
+      "Yoitomoshi",
+      "となり町再生記",
+      "若年無業アトラス",
+      "宵灯工房",
+      "個人用ソフト開発",
+      "本人の関心とAI協働",
+      "このVaultは受信箱から地図へ育てる",
+      "プロジェクト状態は本人の現在認識を優先する",
+      "検証は証拠の種類を区別する",
+      "個人用ソフトは小さく始める",
+      "手戻りは契約を先に固定して減らす",
+      "TSUZUNE-Graph-P0-3検証-2026-08-01"
+    ],
+    "edges": [
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "00_入口/ホーム.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/Bit-TTT-Engine・BitLlama.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/BloodLedger.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/NKキーボード.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/Yoitomoshi.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/となり町再生記.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/若年無業アトラス.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/宵灯工房.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "20_分野/本人の関心とAI協働.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/BloodLedger.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/NKキーボード.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/Yoitomoshi.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/若年無業アトラス.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "30_知識/このVaultは受信箱から地図へ育てる.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Bit-TTT-Engine・BitLlama.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Bit-TTT-Engine・BitLlama.md",
+        "targetPath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/BloodLedger.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/BloodLedger.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/BloodLedger.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/BloodLedger.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/NKキーボード.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/NKキーボード.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/NKキーボード.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/NKキーボード.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md",
+        "targetPath": "20_分野/本人の関心とAI協働.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/TSUZUNE.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/TSUZUNE.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Yoitomoshi.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Yoitomoshi.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Yoitomoshi.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Yoitomoshi.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/となり町再生記.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/となり町再生記.md",
+        "targetPath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/若年無業アトラス.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/若年無業アトラス.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/若年無業アトラス.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/若年無業アトラス.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/宵灯工房.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/宵灯工房.md",
+        "targetPath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "00_入口/ホーム.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/BloodLedger.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/NKキーボード.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/Yoitomoshi.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/若年無業アトラス.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "20_分野/本人の関心とAI協働.md",
+        "targetPath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md"
+      },
+      {
+        "sourcePath": "20_分野/本人の関心とAI協働.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "20_分野/本人の関心とAI協働.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "30_知識/このVaultは受信箱から地図へ育てる.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md",
+        "targetPath": "10_プロジェクト/Bit-TTT-Engine・BitLlama.md"
+      },
+      {
+        "sourcePath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md",
+        "targetPath": "10_プロジェクト/となり町再生記.md"
+      },
+      {
+        "sourcePath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md",
+        "targetPath": "10_プロジェクト/宵灯工房.md"
+      },
+      {
+        "sourcePath": "30_知識/検証は証拠の種類を区別する.md",
+        "targetPath": "10_プロジェクト/NKキーボード.md"
+      },
+      {
+        "sourcePath": "30_知識/検証は証拠の種類を区別する.md",
+        "targetPath": "10_プロジェクト/若年無業アトラス.md"
+      },
+      {
+        "sourcePath": "30_知識/個人用ソフトは小さく始める.md",
+        "targetPath": "10_プロジェクト/BloodLedger.md"
+      },
+      {
+        "sourcePath": "30_知識/個人用ソフトは小さく始める.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "30_知識/個人用ソフトは小さく始める.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "30_知識/個人用ソフトは小さく始める.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "30_知識/手戻りは契約を先に固定して減らす.md",
+        "targetPath": "10_プロジェクト/BloodLedger.md"
+      },
+      {
+        "sourcePath": "30_知識/手戻りは契約を先に固定して減らす.md",
+        "targetPath": "10_プロジェクト/NKキーボード.md"
+      },
+      {
+        "sourcePath": "30_知識/手戻りは契約を先に固定して減らす.md",
+        "targetPath": "10_プロジェクト/Yoitomoshi.md"
+      },
+      {
+        "sourcePath": "30_知識/手戻りは契約を先に固定して減らす.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "40_情報源/TSUZUNE-Graph-P0-3検証-2026-08-01.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "40_情報源/TSUZUNE-Graph-P0-3検証-2026-08-01.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "40_情報源/TSUZUNE-Graph-P0-3検証-2026-08-01.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "40_情報源/TSUZUNE-Graph-P0-3検証-2026-08-01.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      }
+    ]
+  },
+  "panned": {
+    "filter": "",
+    "zoom": "表示倍率 140%",
+    "transform": "translate(90px, 55px) scale(1.4)",
+    "nodes": [
+      "プロジェクト地図",
+      "ホーム",
+      "Bit-TTT-Engine・BitLlama",
+      "BloodLedger",
+      "NKキーボード",
+      "ONOKO・CodexAtelier・Forest Room",
+      "TSUZUNE",
+      "Yoitomoshi",
+      "となり町再生記",
+      "若年無業アトラス",
+      "宵灯工房",
+      "個人用ソフト開発",
+      "本人の関心とAI協働",
+      "このVaultは受信箱から地図へ育てる",
+      "プロジェクト状態は本人の現在認識を優先する",
+      "検証は証拠の種類を区別する",
+      "個人用ソフトは小さく始める",
+      "手戻りは契約を先に固定して減らす",
+      "TSUZUNE-Graph-P0-3検証-2026-08-01"
+    ],
+    "edges": [
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "00_入口/ホーム.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/Bit-TTT-Engine・BitLlama.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/BloodLedger.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/NKキーボード.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/Yoitomoshi.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/となり町再生記.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/若年無業アトラス.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/宵灯工房.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "20_分野/本人の関心とAI協働.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/BloodLedger.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/NKキーボード.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/Yoitomoshi.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/若年無業アトラス.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "30_知識/このVaultは受信箱から地図へ育てる.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Bit-TTT-Engine・BitLlama.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Bit-TTT-Engine・BitLlama.md",
+        "targetPath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/BloodLedger.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/BloodLedger.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/BloodLedger.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/BloodLedger.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/NKキーボード.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/NKキーボード.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/NKキーボード.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/NKキーボード.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md",
+        "targetPath": "20_分野/本人の関心とAI協働.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/TSUZUNE.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/TSUZUNE.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Yoitomoshi.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Yoitomoshi.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Yoitomoshi.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Yoitomoshi.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/となり町再生記.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/となり町再生記.md",
+        "targetPath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/若年無業アトラス.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/若年無業アトラス.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/若年無業アトラス.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/若年無業アトラス.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/宵灯工房.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/宵灯工房.md",
+        "targetPath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "00_入口/ホーム.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/BloodLedger.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/NKキーボード.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/Yoitomoshi.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/若年無業アトラス.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "20_分野/本人の関心とAI協働.md",
+        "targetPath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md"
+      },
+      {
+        "sourcePath": "20_分野/本人の関心とAI協働.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "20_分野/本人の関心とAI協働.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "30_知識/このVaultは受信箱から地図へ育てる.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md",
+        "targetPath": "10_プロジェクト/Bit-TTT-Engine・BitLlama.md"
+      },
+      {
+        "sourcePath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md",
+        "targetPath": "10_プロジェクト/となり町再生記.md"
+      },
+      {
+        "sourcePath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md",
+        "targetPath": "10_プロジェクト/宵灯工房.md"
+      },
+      {
+        "sourcePath": "30_知識/検証は証拠の種類を区別する.md",
+        "targetPath": "10_プロジェクト/NKキーボード.md"
+      },
+      {
+        "sourcePath": "30_知識/検証は証拠の種類を区別する.md",
+        "targetPath": "10_プロジェクト/若年無業アトラス.md"
+      },
+      {
+        "sourcePath": "30_知識/個人用ソフトは小さく始める.md",
+        "targetPath": "10_プロジェクト/BloodLedger.md"
+      },
+      {
+        "sourcePath": "30_知識/個人用ソフトは小さく始める.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "30_知識/個人用ソフトは小さく始める.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "30_知識/個人用ソフトは小さく始める.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "30_知識/手戻りは契約を先に固定して減らす.md",
+        "targetPath": "10_プロジェクト/BloodLedger.md"
+      },
+      {
+        "sourcePath": "30_知識/手戻りは契約を先に固定して減らす.md",
+        "targetPath": "10_プロジェクト/NKキーボード.md"
+      },
+      {
+        "sourcePath": "30_知識/手戻りは契約を先に固定して減らす.md",
+        "targetPath": "10_プロジェクト/Yoitomoshi.md"
+      },
+      {
+        "sourcePath": "30_知識/手戻りは契約を先に固定して減らす.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "40_情報源/TSUZUNE-Graph-P0-3検証-2026-08-01.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "40_情報源/TSUZUNE-Graph-P0-3検証-2026-08-01.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "40_情報源/TSUZUNE-Graph-P0-3検証-2026-08-01.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "40_情報源/TSUZUNE-Graph-P0-3検証-2026-08-01.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      }
+    ]
+  },
+  "fitted": {
+    "filter": "",
+    "zoom": "表示倍率 100%",
+    "transform": "translate(0px, 0px) scale(1)",
+    "nodes": [
+      "プロジェクト地図",
+      "ホーム",
+      "Bit-TTT-Engine・BitLlama",
+      "BloodLedger",
+      "NKキーボード",
+      "ONOKO・CodexAtelier・Forest Room",
+      "TSUZUNE",
+      "Yoitomoshi",
+      "となり町再生記",
+      "若年無業アトラス",
+      "宵灯工房",
+      "個人用ソフト開発",
+      "本人の関心とAI協働",
+      "このVaultは受信箱から地図へ育てる",
+      "プロジェクト状態は本人の現在認識を優先する",
+      "検証は証拠の種類を区別する",
+      "個人用ソフトは小さく始める",
+      "手戻りは契約を先に固定して減らす",
+      "TSUZUNE-Graph-P0-3検証-2026-08-01"
+    ],
+    "edges": [
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "00_入口/ホーム.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/Bit-TTT-Engine・BitLlama.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/BloodLedger.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/NKキーボード.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/Yoitomoshi.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/となり町再生記.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/若年無業アトラス.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "10_プロジェクト/宵灯工房.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "20_分野/本人の関心とAI協働.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      },
+      {
+        "sourcePath": "00_入口/プロジェクト地図.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/BloodLedger.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/NKキーボード.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/Yoitomoshi.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "10_プロジェクト/若年無業アトラス.md"
+      },
+      {
+        "sourcePath": "00_入口/ホーム.md",
+        "targetPath": "30_知識/このVaultは受信箱から地図へ育てる.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Bit-TTT-Engine・BitLlama.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Bit-TTT-Engine・BitLlama.md",
+        "targetPath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/BloodLedger.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/BloodLedger.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/BloodLedger.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/BloodLedger.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/NKキーボード.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/NKキーボード.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/NKキーボード.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/NKキーボード.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md",
+        "targetPath": "20_分野/本人の関心とAI協働.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/TSUZUNE.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/TSUZUNE.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Yoitomoshi.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Yoitomoshi.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Yoitomoshi.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/Yoitomoshi.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/となり町再生記.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/となり町再生記.md",
+        "targetPath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/若年無業アトラス.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/若年無業アトラス.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/若年無業アトラス.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/若年無業アトラス.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/宵灯工房.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "10_プロジェクト/宵灯工房.md",
+        "targetPath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "00_入口/ホーム.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/BloodLedger.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/NKキーボード.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/Yoitomoshi.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "10_プロジェクト/若年無業アトラス.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      },
+      {
+        "sourcePath": "20_分野/個人用ソフト開発.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "20_分野/本人の関心とAI協働.md",
+        "targetPath": "10_プロジェクト/ONOKO・CodexAtelier・Forest Room.md"
+      },
+      {
+        "sourcePath": "20_分野/本人の関心とAI協働.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "20_分野/本人の関心とAI協働.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "30_知識/このVaultは受信箱から地図へ育てる.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md",
+        "targetPath": "10_プロジェクト/Bit-TTT-Engine・BitLlama.md"
+      },
+      {
+        "sourcePath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md",
+        "targetPath": "10_プロジェクト/となり町再生記.md"
+      },
+      {
+        "sourcePath": "30_知識/プロジェクト状態は本人の現在認識を優先する.md",
+        "targetPath": "10_プロジェクト/宵灯工房.md"
+      },
+      {
+        "sourcePath": "30_知識/検証は証拠の種類を区別する.md",
+        "targetPath": "10_プロジェクト/NKキーボード.md"
+      },
+      {
+        "sourcePath": "30_知識/検証は証拠の種類を区別する.md",
+        "targetPath": "10_プロジェクト/若年無業アトラス.md"
+      },
+      {
+        "sourcePath": "30_知識/個人用ソフトは小さく始める.md",
+        "targetPath": "10_プロジェクト/BloodLedger.md"
+      },
+      {
+        "sourcePath": "30_知識/個人用ソフトは小さく始める.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "30_知識/個人用ソフトは小さく始める.md",
+        "targetPath": "20_分野/個人用ソフト開発.md"
+      },
+      {
+        "sourcePath": "30_知識/個人用ソフトは小さく始める.md",
+        "targetPath": "30_知識/手戻りは契約を先に固定して減らす.md"
+      },
+      {
+        "sourcePath": "30_知識/手戻りは契約を先に固定して減らす.md",
+        "targetPath": "10_プロジェクト/BloodLedger.md"
+      },
+      {
+        "sourcePath": "30_知識/手戻りは契約を先に固定して減らす.md",
+        "targetPath": "10_プロジェクト/NKキーボード.md"
+      },
+      {
+        "sourcePath": "30_知識/手戻りは契約を先に固定して減らす.md",
+        "targetPath": "10_プロジェクト/Yoitomoshi.md"
+      },
+      {
+        "sourcePath": "30_知識/手戻りは契約を先に固定して減らす.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "40_情報源/TSUZUNE-Graph-P0-3検証-2026-08-01.md",
+        "targetPath": "00_入口/プロジェクト地図.md"
+      },
+      {
+        "sourcePath": "40_情報源/TSUZUNE-Graph-P0-3検証-2026-08-01.md",
+        "targetPath": "10_プロジェクト/TSUZUNE.md"
+      },
+      {
+        "sourcePath": "40_情報源/TSUZUNE-Graph-P0-3検証-2026-08-01.md",
+        "targetPath": "30_知識/検証は証拠の種類を区別する.md"
+      },
+      {
+        "sourcePath": "40_情報源/TSUZUNE-Graph-P0-3検証-2026-08-01.md",
+        "targetPath": "30_知識/個人用ソフトは小さく始める.md"
+      }
+    ]
+  }
+}

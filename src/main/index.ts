@@ -96,9 +96,13 @@ app.whenReady().then(() => {
     tokenStore,
     bundledClientId:
       import.meta.env.MAIN_VITE_GOOGLE_OAUTH_CLIENT_ID?.trim() || null,
-    authorize: (clientId) =>
+    bundledClientSecret:
+      import.meta.env.MAIN_VITE_GOOGLE_OAUTH_CLIENT_SECRET?.trim() || null,
+    authorize: ({ clientId, scopes, loginHint }) =>
       runGoogleOAuthLoopback({
         clientId,
+        scopes,
+        loginHint,
         openExternal: (url) => shell.openExternal(url)
       }),
     fetchImpl: globalThis.fetch

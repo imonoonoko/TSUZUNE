@@ -6,7 +6,13 @@ import {
   getOutgoingLinks,
   resolveWikiLink
 } from '../core/links'
-import { buildWikiGraph, getLocalWikiGraph } from '../core/graph'
+import {
+  buildWikiGraph,
+  getLocalWikiGraph,
+  getVaultWikiGraph,
+  type WikiGraphDepth,
+  type WikiGraphScope
+} from '../core/graph'
 import {
   basenameRelative,
   dirnameRelative,
@@ -93,6 +99,9 @@ export default function App(): React.JSX.Element {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveQueueRef = useRef<Promise<boolean>>(Promise.resolve(true))
   const [viewMode, setViewMode] = useState<'edit' | 'preview' | 'graph'>('edit')
+  const [graphDepth, setGraphDepth] = useState<WikiGraphDepth>(1)
+  const [graphScope, setGraphScope] = useState<WikiGraphScope>('local')
+  const [graphIncludesOrphans, setGraphIncludesOrphans] = useState(false)
   const [query, setQuery] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
@@ -101,6 +110,7 @@ export default function App(): React.JSX.Element {
   const [busy, setBusy] = useState(false)
   const [googleDialogOpen, setGoogleDialogOpen] = useState(false)
   const [googleBusy, setGoogleBusy] = useState(false)
+  const [googleError, setGoogleError] = useState<string | null>(null)
   const [googleAdvancedOpen, setGoogleAdvancedOpen] = useState(false)
   const [googleStatus, setGoogleStatus] = useState<GoogleDriveStatus | null>(null)
   const [drivePreview, setDrivePreview] = useState<DriveSyncPreview | null>(null)
@@ -553,12 +563,15 @@ export default function App(): React.JSX.Element {
         : null,
     [effectiveNotes, selectedPath]
   )
-  const localGraph = useMemo(() => {
+  const visibleGraph = useMemo(() => {
     if (!selectedPath) {
       return { nodes: [], edges: [] }
     }
-    return getLocalWikiGraph(buildWikiGraph(effectiveNotes), selectedPath)
-  }, [effectiveNotes, selectedPath])
+    const graph = buildWikiGraph(effectiveNotes)
+    return graphScope === 'local'
+      ? getLocalWikiGraph(graph, selectedPath, graphDepth)
+      : getVaultWikiGraph(graph, selectedPath, graphIncludesOrphans)
+  }, [effectiveNotes, selectedPath, graphDepth, graphScope, graphIncludesOrphans])
   const temporalAsOf = useMemo(() => localCalendarDate(new Date()), [])
 
   const targetDirectory = (): string => {
@@ -916,6 +929,7 @@ export default function App(): React.JSX.Element {
     googleDialogPreviousFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null
     setGoogleAdvancedOpen(false)
+    setGoogleError(null)
     setGoogleDialogOpen(true)
     setGoogleBusy(true)
     setDrivePreview(null)
@@ -993,15 +1007,36 @@ export default function App(): React.JSX.Element {
 
   const connectGoogle = async (): Promise<void> => {
     setGoogleBusy(true)
+    setGoogleError(null)
     setDrivePreview(null)
     try {
       const result = await window.tsuzune.connectGoogle()
       if (!result.ok) {
-        setMessage(errorMessage(result.error))
+        const nextError = errorMessage(result.error)
+        setGoogleError(nextError)
+        setMessage(nextError)
         return
       }
       setGoogleStatus(result.value)
       setMessage(`${result.value.account?.email ?? 'Googleアカウント'}に接続しました。`)
+    } finally {
+      setGoogleBusy(false)
+    }
+  }
+
+  const authorizeGoogleCalendar = async (): Promise<void> => {
+    setGoogleBusy(true)
+    setGoogleError(null)
+    try {
+      const result = await window.tsuzune.authorizeGoogleCalendar()
+      if (!result.ok) {
+        const nextError = errorMessage(result.error)
+        setGoogleError(nextError)
+        setMessage(nextError)
+        return
+      }
+      setGoogleStatus(result.value)
+      setMessage('Google Calendarの読取権限を有効にしました。')
     } finally {
       setGoogleBusy(false)
     }
@@ -1423,8 +1458,14 @@ export default function App(): React.JSX.Element {
                   <MarkdownPreview content={content} onWikiLink={handleWikiLink} />
                 ) : (
                   <WikiGraphView
-                    graph={localGraph}
+                    graph={visibleGraph}
                     currentPath={selectedPath}
+                    depth={graphDepth}
+                    scope={graphScope}
+                    includeOrphans={graphIncludesOrphans}
+                    onDepthChange={setGraphDepth}
+                    onScopeChange={setGraphScope}
+                    onIncludeOrphansChange={setGraphIncludesOrphans}
                     onOpen={(path) => void openNote(path)}
                   />
                 )}
@@ -1507,6 +1548,11 @@ export default function App(): React.JSX.Element {
             </div>
 
             {googleBusy && <p className="google-sync-progress">Googleの処理を待っています…</p>}
+            {googleError && (
+              <p className="google-sync-error" role="alert">
+                {googleError}
+              </p>
+            )}
 
             {!googleStatus?.configured ? (
               <div className="google-sync-step">
@@ -1577,6 +1623,36 @@ export default function App(): React.JSX.Element {
                   >
                     接続解除
                   </button>
+                </div>
+
+                <div className="google-sync-step">
+                  <strong>Google読取機能</strong>
+                  <p>
+                    Calendarはここでは読取権限だけを準備します。予定の確認と取込は次の段階で追加します。
+                  </p>
+                  <p>
+                    Drive同期:{' '}
+                    {googleStatus.authorizedFeatures.includes('drive_sync')
+                      ? '許可済み'
+                      : '未許可'}
+                  </p>
+                  <p>
+                    Calendar読取:{' '}
+                    {googleStatus.authorizedFeatures.includes('calendar_read')
+                      ? '許可済み'
+                      : '未許可'}
+                  </p>
+                  {!googleStatus.authorizedFeatures.includes(
+                    'calendar_read'
+                  ) && (
+                    <button
+                      type="button"
+                      disabled={googleBusy || busy}
+                      onClick={() => void authorizeGoogleCalendar()}
+                    >
+                      Calendar読取を有効にする
+                    </button>
+                  )}
                 </div>
 
                 <div className="google-sync-meta">

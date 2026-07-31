@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>TSUZUNE Graph Explorer P0-3 機能レポート</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172522;
+        --muted: #66736f;
+        --paper: #f7f4ec;
+        --card: #fffdf8;
+        --line: #d8d3c7;
+        --green: #245c52;
+        --green-soft: #dcebe7;
+        --amber: #9a6616;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font-family: "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif;
+        line-height: 1.65;
+      }
+
+      header {
+        padding: 56px max(24px, calc((100vw - 1120px) / 2));
+        color: #fff;
+        background: linear-gradient(135deg, #173e37, #2c675c);
+      }
+
+      header p { max-width: 800px; margin: 12px 0 0; color: #e8f3f0; }
+      h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.15; }
+      h2 { margin: 0 0 16px; font-size: 1.55rem; }
+      h3 { margin: 0; font-size: 1.22rem; }
+
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 32px auto 64px;
+      }
+
+      .summary,
+      .feature,
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--card);
+        box-shadow: 0 8px 24px rgba(25, 45, 40, 0.07);
+      }
+
+      .summary { padding: 28px; }
+
+      .badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 11px;
+        border-radius: 999px;
+        color: var(--green);
+        background: var(--green-soft);
+        font-weight: 700;
+        font-size: 0.88rem;
+      }
+
+      .badge::before { content: "✓"; }
+
+      .meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      .meta div {
+        padding: 14px;
+        border-radius: 10px;
+        background: #f2efe6;
+      }
+
+      .meta strong { display: block; color: var(--muted); font-size: 0.8rem; }
+      .section-title { margin: 42px 0 16px; }
+      .features { display: grid; gap: 24px; }
+      .feature { overflow: hidden; }
+      .feature-copy { padding: 22px 24px 18px; }
+      .feature-copy p { margin: 8px 0 0; color: var(--muted); }
+
+      figure { margin: 0; border-top: 1px solid var(--line); background: #e9e5db; }
+      figure img { display: block; width: 100%; height: auto; }
+      figcaption { padding: 10px 16px; color: #53615d; background: #f2efe6; font-size: 0.86rem; }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+        gap: 20px;
+      }
+
+      .panel { padding: 24px; }
+      .panel ul { margin: 12px 0 0; padding-left: 1.25rem; }
+      .panel li + li { margin-top: 7px; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+      th, td { padding: 12px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { color: var(--muted); font-size: 0.82rem; }
+      .pass { color: var(--green); font-weight: 800; }
+      code { padding: 2px 5px; border-radius: 4px; background: #efebe1; font-family: Consolas, monospace; }
+      .next { border-left: 5px solid var(--amber); background: #fff9ec; }
+      footer { margin-top: 40px; color: var(--muted); font-size: 0.86rem; text-align: center; }
+
+      @media (max-width: 640px) {
+        header { padding-top: 36px; padding-bottom: 36px; }
+        .summary, .panel { padding: 20px; }
+        .feature-copy { padding: 18px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Graph Explorer P0-3</h1>
+      <p>TSUZUNEのグラフを、探したいノートへ絞り込み、必要な倍率と位置で確認し、いつでも全体表示へ戻せるようにした区切りの機能レポートです。</p>
+    </header>
+
+    <main>
+      <section class="summary" aria-labelledby="outcome-title">
+        <div class="badge-row">
+          <span class="badge">P0-3 完了</span>
+          <span class="badge">194 tests</span>
+          <span class="badge">Starter Vault</span>
+          <span class="badge">Real Electron</span>
+        </div>
+        <h2 id="outcome-title">結果: 絞り込み・ズーム・パン・復帰を実装</h2>
+        <p>名前またはパスで表示ノートを絞り込み、60〜180%の範囲で拡大縮小できます。背景ドラッグと矢印キーで表示位置を動かし、「全体表示」で100%・中央位置へ戻せます。操作は表示状態だけに作用し、Markdown本文や選択ノートを書き換えません。</p>
+        <div class="meta">
+          <div><strong>記録日時</strong>2026-08-01 03:11 JST</div>
+          <div><strong>Branch</strong>agent/tsuzune-mcp-integration</div>
+          <div><strong>Base HEAD</strong>0ab44bc + uncommitted worktree</div>
+          <div><strong>Package</strong>0.4.0 development build</div>
+        </div>
+      </section>
+
+      <h2 class="section-title">機能別スクリーンショット</h2>
+      <section class="features" aria-label="機能別スクリーンショット">
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>1. ノート名・パスの絞り込み</h3>
+            <p>「ONOKO」で絞り込むと、一致ノートと現在ノートだけを残し、両端が表示される接続だけを描画します。</p>
+          </div>
+          <figure>
+            <img src="assets/graph-p0-3/01-filter-onoko.png" alt="TSUZUNEのローカルグラフをONOKOで絞り込んだ画面">
+            <figcaption>実測: 入力値 ONOKO、表示2ノード。</figcaption>
+          </figure>
+        </article>
+
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>2. ズーム</h3>
+            <p>拡大・縮小ボタンで20%ずつ倍率を変更します。表示倍率は60〜180%に制限され、現在値を常に確認できます。</p>
+          </div>
+          <figure>
+            <img src="assets/graph-p0-3/02-zoom-140.png" alt="TSUZUNEのローカルグラフを140パーセントへ拡大した画面">
+            <figcaption>実測: 表示倍率140%、stage変換 scale(1.4)。</figcaption>
+          </figure>
+        </article>
+
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>3. 背景ドラッグによるパン</h3>
+            <p>グラフの背景をドラッグすると、ズーム状態を維持したまま見たい位置へ移動できます。キーボードの矢印キーでも移動できます。</p>
+          </div>
+          <figure>
+            <img src="assets/graph-p0-3/03-pan.png" alt="TSUZUNEのグラフ背景をドラッグして表示位置を移動した画面">
+            <figcaption>実測: 140%のまま横90px・縦55px移動。</figcaption>
+          </figure>
+        </article>
+
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>4. 全体表示へ復帰</h3>
+            <p>「全体表示」を押すと、ズームとパンをまとめて既定値へ戻します。</p>
+          </div>
+          <figure>
+            <img src="assets/graph-p0-3/04-fit.png" alt="TSUZUNEのグラフを全体表示へ戻した画面">
+            <figcaption>実測: 表示倍率100%、移動量0px。</figcaption>
+          </figure>
+        </article>
+      </section>
+
+      <h2 class="section-title">検証</h2>
+      <section class="grid">
+        <article class="panel">
+          <h3>自動検証</h3>
+          <table>
+            <thead><tr><th>検証</th><th>結果</th></tr></thead>
+            <tbody>
+              <tr><td><code>npm run typecheck</code></td><td class="pass">PASS</td></tr>
+              <tr><td><code>npm test</code></td><td class="pass">24 files / 194 tests</td></tr>
+              <tr><td><code>npm run check:mcp</code></td><td class="pass">4 read / 2 write</td></tr>
+              <tr><td><code>npm run build</code></td><td class="pass">PASS</td></tr>
+              <tr><td><code>git diff --check</code></td><td class="pass">PASS</td></tr>
+            </tbody>
+          </table>
+        </article>
+
+        <article class="panel">
+          <h3>実アプリ確認</h3>
+          <ul>
+            <li>利用中のStarter Vaultを実Electronウィンドウで開いた。</li>
+            <li>実Electronでは名前絞り込み、140%ズーム、ポインタパン、全体表示を機械判定した。</li>
+            <li>パス絞り込み、60／180%境界、矢印キーパンは自動テストで確認した。</li>
+            <li>4枚ともElectronの<code>webContents.capturePage()</code>で取得した。</li>
+            <li>同じ手順の前後で42件のMarkdown複合SHA-256が一致した（<code>6DB2BE6B…D9B3</code>）。</li>
+            <li>機械可読な実測値は<code>capture-result.json</code>と<code>verification-result.json</code>へ保存した。</li>
+          </ul>
+        </article>
+
+        <article class="panel">
+          <h3>P0-3の境界</h3>
+          <ul>
+            <li>「全体表示」は固定リング配置の100%・原点復帰で、内容境界の自動計測ではない。</li>
+            <li>グラフの原本はMarkdownとWikiリンクのまま。独自DBや保存レイアウトは追加していない。</li>
+            <li>実OSのスクリーンリーダー、High Contrast、物理キーボード、複数DPIは未受入。</li>
+            <li>大規模Vaultの表示上限と省略通知はP0-4でdogfoodする。</li>
+          </ul>
+        </article>
+
+        <article class="panel next">
+          <h3>次の区切り: P0-4</h3>
+          <p>Starter Vaultで実際の探索作業を繰り返し、見切れ、密集、操作疲労、表示上限を確認します。そこで得た実測に基づき、接続強調や安定配置を独立sliceとして追加するか判断します。</p>
+        </article>
+      </section>
+
+      <footer>
+        TSUZUNE — 書いて、つないで、あとで尋ねる。／ このレポートはローカル開発作業ツリーの証跡です。
+      </footer>
+    </main>
+  </body>
+</html>

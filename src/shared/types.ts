@@ -120,10 +120,13 @@ export interface GoogleAccount {
   picture: string | null
 }
 
+export type GoogleAuthorizedFeature = 'drive_sync' | 'calendar_read'
+
 export interface GoogleDriveStatus {
   configured: boolean
   connected: boolean
   account: GoogleAccount | null
+  authorizedFeatures: GoogleAuthorizedFeature[]
   lastSyncAt: string | null
   vaultFolderUrl: string | null
 }
@@ -196,6 +199,7 @@ export interface TsuzuneApi {
   chooseGoogleOAuthConfig(): Promise<Result<GoogleDriveStatus | null>>
   getGoogleDriveStatus(): Promise<Result<GoogleDriveStatus>>
   connectGoogle(): Promise<Result<GoogleDriveStatus>>
+  authorizeGoogleCalendar(): Promise<Result<GoogleDriveStatus>>
   disconnectGoogle(): Promise<Result<GoogleDriveStatus>>
   listDriveVaults(): Promise<Result<DriveRemoteVault[]>>
   pairDriveVault(input: PairDriveVaultInput): Promise<Result<GoogleDriveStatus>>

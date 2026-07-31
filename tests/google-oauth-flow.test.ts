@@ -5,6 +5,10 @@ import {
   refreshGoogleAccessToken,
   runGoogleOAuthLoopback
 } from '../src/main/google-oauth-flow'
+import {
+  GOOGLE_CALENDAR_READ_SCOPE,
+  GOOGLE_OAUTH_SCOPES
+} from '../src/main/google-auth'
 
 describe('Google OAuth loopback flow', () => {
   it('opens the system-browser URL and accepts one callback on 127.0.0.1', async () => {
@@ -30,6 +34,31 @@ describe('Google OAuth loopback flow', () => {
     expect(new URL(result.redirectUri).hostname).toBe('127.0.0.1')
     expect(result.code).toBe('authorization-code')
     expect(result.codeVerifier).toMatch(/^[A-Za-z0-9_-]{43,128}$/)
+  })
+
+  it('passes an expanded installed-app scope set to the system browser', async () => {
+    let openedUrl = ''
+    const scopes = [...GOOGLE_OAUTH_SCOPES, GOOGLE_CALENDAR_READ_SCOPE]
+
+    await runGoogleOAuthLoopback({
+      clientId: 'desktop.apps.googleusercontent.com',
+      scopes,
+      timeoutMs: 2_000,
+      openExternal: async (authorizationUrl) => {
+        openedUrl = authorizationUrl
+        const url = new URL(authorizationUrl)
+        const callback = new URL(url.searchParams.get('redirect_uri') ?? '')
+        callback.searchParams.set('code', 'authorization-code')
+        callback.searchParams.set('state', url.searchParams.get('state') ?? '')
+        setTimeout(() => {
+          void fetch(callback)
+        }, 10)
+      }
+    })
+
+    expect(new URL(openedUrl).searchParams.get('scope')?.split(' ')).toEqual(
+      scopes
+    )
   })
 })
 

@@ -1,17 +1,394 @@
-# TSUZUNE Near-Term Plan
+# TSUZUNE Product Plan
 
-## Temporal Memory Lite
+## Product Direction: Obsidian Parity + AI-Native Memory
+
+決定日: 2026-08-01
+状態: 採用
+対象: v0.5以降
+
+TSUZUNEを、Obsidianの主要機能を可能な限り備えたローカルファーストの知識ワークスペースへ育て、その上でContext Compiler、時間付き記憶、出典管理、個人データ取込、AI向け文脈評価を統合する。
+
+目標は画面や内部実装を一字一句複製することではない。個人用Windowsアプリとして、Obsidianで日常的に行える仕事を同等以上に完了でき、Markdown Vaultを失わず移行できることを機能的な互換性とする。Obsidian固有の有料クラウドサービスは、Google Drive同期や静的サイト出力などTSUZUNE向けの代替で同じ利用目的を満たす。
+
+以前の「MVPではグラフ、同期、プラグイン、独自DBへ広げない」という記述は、各マイルストーンの停止条件としては維持するが、製品全体の恒久的な除外方針としてはこの決定で置き換える。機能範囲は広げるが、一度に実装するのは常に1つの検証可能な縦切りだけとする。
+
+### North Star
+
+1. **Obsidian互換の知識基盤**: Markdown、YAML properties、Wikiリンク、添付、Canvasなど、アプリ外でも読める原本を守る。
+2. **毎日使える操作性**: 書く、探す、つなぐ、並べる、振り返る、復元する、同期する作業をTSUZUNEだけで完了できる。
+3. **AIが使える記憶**: AIへVault全体を無差別に渡さず、質問に必要な根拠だけをContext Compilerが組み立てる。
+4. **本人専用の進化**: Google、ChatGPT export、将来の選択取込から得た情報を、出典と時刻を保った候補として育てる。
+5. **説明できる賢さ**: AIが何を読んだか、なぜ選んだか、いつ有効な情報か、どの原典へ戻れるかを確認できる。
+
+### Product Guardrails
+
+- Markdownと添付原本を正本とし、SQLite、FTS、ベクトル索引、グラフ索引は削除して再構築できる補助データに限る。
+- 既存Vaultを独自形式へ強制移行しない。対応する公開形式がある場合はMarkdown、YAML、JSON Canvasなどを優先する。
+- 名前変更、移動、同期、変換、AI提案ではpreview、衝突検出、復元経路を持ち、黙って情報を失わせない。
+- AIは原本を無承認で統合、削除、現在事実化しない。自動処理は検索、候補生成、重複・矛盾検出を中心にする。
+- 個人利用、ローカル動作、オフライン継続を既定にし、Google接続、同期、外部取込、公開は明示操作にする。
+- コア機能を先に安定させ、プラグイン機構は権限、Restricted Mode、障害分離を備えてから有効にする。
+- 「ある」だけで完了にせず、実Vault dogfood、アクセシビリティ、性能、データ非破壊を受入条件へ含める。
+
+### Parity Levels
+
+| Level | 定義 |
+|---|---|
+| P0 | 未対応または計画のみ |
+| P1 | 既存形式を安全に読み、最低限の表示・移動ができる |
+| P2 | 個人の日常運用でObsidian相当の作業を完了できる |
+| P3 | TSUZUNE固有の時間、出典、AI連携によってObsidian相当を超える |
+
+全機能群を最低P2へ上げることを互換ロードマップの完了条件とする。Obsidian Sync、Publish、Mobile、Community plugin APIのようにサービスまたは外部生態系へ依存する領域は、利用目的を満たすTSUZUNE版をP2とし、完全なプロトコル互換を必須にしない。
+
+`P0-1`〜`P0-4`は既存Graph Explorerで使っているdelivery slice IDであり、この表のParity Levelとは別物である。新規sliceは`O1-1`、`X1-1`のようにstage名を接頭辞にして混同を避ける。
+
+### Official Obsidian Baseline
+
+2026-08-01時点の公式仕様を基準に機能台帳を維持し、各ステージ開始時に再確認する。
+
+- [Core plugins](https://obsidian.md/help/plugins)
+- [Views and editing mode](https://obsidian.md/help/edit-and-read)
+- [Internal links](https://obsidian.md/help/links)
+- [Properties](https://obsidian.md/help/properties)
+- [Tags](https://obsidian.md/help/Editing%2Band%2Bformatting/Tags)
+- [Templates](https://obsidian.md/help/Plugins/Templates)
+- [Daily notes](https://obsidian.md/help/plugins/daily-notes)
+- [Search](https://obsidian.md/help/plugins/search)
+- [Graph view](https://obsidian.md/help/plugins/graph)
+- [Bases](https://obsidian.md/help/bases)
+- [Canvas](https://obsidian.md/help/Plugins/Canvas)
+- [Attachments](https://obsidian.md/help/attachments)
+- [File recovery](https://obsidian.md/help/plugins/file-recovery)
+- [Community plugins](https://obsidian.md/help/community-plugins)
+- [Themes](https://obsidian.md/help/themes)
+- [Sync](https://obsidian.md/help/sync)
+- [Publish](https://obsidian.md/help/publish)
+- [Web Clipper](https://obsidian.md/help/web-clipper)
+- [Import](https://obsidian.md/help/import)
+- [Mobile](https://obsidian.md/help/mobile)
+- [CLI](https://obsidian.md/help/cli)
+- [URI](https://obsidian.md/help/uri)
+
+### Capability Coverage
+
+| 機能群 | Obsidian相当の対象 | 現在 | 目標 |
+|---|---|---:|---:|
+| Vault・ファイル | Explorer、作成、移動、改名、trash、外部変更検知 | P2 | P3 |
+| 編集・表示 | Source、Live Preview、Reading、Markdown補完、undo/redo | P1 | P2 |
+| リンク | Wiki/Markdown link、見出し・block、alias、embed、自動更新 | P1 | P2 |
+| 関連情報 | outgoing、backlink、unlinked mention、outline、footnotes、page preview | P1 | P2 |
+| 移動・レイアウト | tabs、split panes、workspaces、quick switcher、commands、hotkeys | P0 | P2 |
+| 検索 | 本文検索、演算子、property/tag/task検索、履歴、埋込query | P1 | P2 |
+| Properties・Tags | 型付きYAML、properties view、tag view、rename、絞込 | P1 | P3 |
+| Graph | local/global、depth、filter、groups、display、forces、navigation | P1 | P3 |
+| 日常運用 | templates、daily notes、unique note、bookmarks、random note | P0 | P2 |
+| 構造化ビュー | Basesのtable/list/cards/map、sort、filter、group、formula | P0 | P3 |
+| Visual thinking | JSON Canvas、cards、groups、labels、media/web、embed | P0 | P3 |
+| Media | 添付paste/drop、画像、PDF、音声、動画、録音、slides、web viewer | P0 | P2 |
+| 復旧・履歴 | snapshots、file recovery、version history、監査ログ | P0 | P3 |
+| 同期 | Google Drive手動同期、選択同期、状態表示、競合、履歴 | P1 | P3 |
+| 取込・出力・公開 | Importer、Web Clipper、format converter、可搬Markdown/PDF・backup export、静的Publish | P0 | P3 |
+| 外観 | themes、CSS snippets、icons、表示密度、アクセシビリティ | P0 | P2 |
+| 拡張 | core module toggle、plugin API、Restricted Mode、権限、更新 | P0 | P3 |
+| 自動化・アプリ間連携 | CLI、deep-link URI、commands、MCPによる同等操作 | P1 | P3 |
+| Mobile | 閲覧・編集・検索・quick capture・同期・mobile toolbar相当 | P0 | P2 |
+| AI記憶連携 | MCP、Context Compiler、時間、出典 | P2 | P3 |
+| 個人データ知識化 | Google・ChatGPT取込、候補、承認、評価 | P0 | P3 |
+
+### Obsidian Parity Delivery Stages
+
+#### O0. Graph Explorer Completion（進行中）
+
+- P0-3: グラフ固有の絞り込み、ズーム、パン、全体表示
+- P0-4: 表示上限、省略件数、矢印と凡例、hover強調、Starter Vault dogfood
+- 次段: groups、tag/attachment/unresolved filters、node/link表示調整、安定レイアウト、context menu
+
+Gate:
+
+1. 小規模Vaultでlocal/global探索を日常利用できる。
+2. 大規模fixtureで固まらず、表示上限と省略理由を説明する。
+3. pointer、keyboard、screen reader向けのノード操作を壊さない。
+
+#### O1. Daily Writing And Navigation
+
+- Source、Live Preview、Readingの一貫した編集体験
+- headings、lists、tasks、tables、callouts、code、math、Mermaid、comments、footnotes、folding、spellcheckの編集・表示
+- tabs、split panes、pinned tabs、workspaces、前後移動、最近使ったノート
+- quick switcher、command palette、hotkeys、slash commands
+- heading/block links、aliases、embeds、link autocomplete、自動リンク更新
+- outline、footnotes view、page preview、word count
+- 画像と添付のpaste/drop、保存先規則、基本media preview
+
+Gate:
+
+1. 既存Markdownを破壊せず、主要記法を編集・表示・移動できる。
+2. Obsidianを開かずに7日間の通常メモ運用を完了する。
+3. タブ、分割、キーボード操作を含む再起動復元が通る。
+
+#### O2. Organization And Retrieval
+
+- 型付きproperties editorと全Vault properties view
+- nested tags、tag rename、tag view
+- search operators、regex、property/tag/task検索、検索履歴、埋込query、Explain
+- templates、daily notes、unique note creator、bookmarks、random note
+- unlinked mentions、note composer、format converter
+- 必要性を測定した場合だけSQLite/FTSを再構築可能な索引として導入する
+
+Gate:
+
+1. 2,000ノートfixtureで検索、タグ、property一覧が実用速度で動く。
+2. property変更とnote composerが原本損失なしでundoまたは復元できる。
+3. Daily/Template運用を1週間dogfoodし、手作業の重複を減らす。
+
+#### O3. Bases-Compatible Structured Views
+
+- file-backedなview定義
+- table、list、cardsを先行し、必要性確認後にmapを追加する
+- propertyの表示・編集、sort、filter、group、formula、summary
+- Markdownへの埋込とsaved view
+- Temporal State/Event、source、freshnessを通常propertiesと同じ仕組みから利用する
+
+Gate:
+
+1. viewを消してもMarkdownとpropertiesが失われない。
+2. 主要な`.base`相当データを読み書きし、未対応項目を黙って捨てない。
+3. プロジェクト、読書、人物、資料の4 fixtureで表・カード運用を確認する。
+
+#### O4. Canvas And Rich Media
+
+- open JSON Canvasの読込・保存・round-trip
+- text、note、image、PDF、audio、video、web cards
+- directed edge、label、color、group、selection、duplicate、swap
+- pan、zoom、fit、selection navigation、Canvas embed
+- audio recorder、PDF/media viewer、slides、web viewer
+
+Gate:
+
+1. JSON Canvas fixtureを往復して未知フィールドを失わない。
+2. 100 cards fixtureで編集と移動が実用速度で動く。
+3. Canvasから元ノートと出典へ戻れ、Canvasだけに重要情報を閉じ込めない。
+
+#### O5. Recovery, Sync, Import And Publish
+
+- file recovery snapshots、version history、restore preview、監査ログ
+- Google Drive同期の往復、選択同期、状態表示、競合履歴、再試行
+- Importer、Web Clipper、外部Markdown/HTML/JSON取込、format conversion
+- 選択ノートまたはVaultの可搬Markdown/PDF・backup exportと、復元前のmanifest検証
+- 静的HTMLによる選択ノートPublish、リンク・添付・検索索引の出力
+- 個人利用で必要になった時だけ暗号化、別端末常時同期、mobile companionを評価する
+
+Gate:
+
+1. 編集、改名、削除、同期競合を履歴から復元できる。
+2. import、clip、publishの全成果から原URLまたは原ファイルへ戻れる。
+3. オフラインやGoogle障害でもローカル編集と原本読取を継続できる。
+
+#### O6. Customization And Plugin Platform
+
+- themes、CSS snippets、icon/color/density settings
+- core機能のenable/disableとcommand registry
+- TSUZUNE CLIとdeep-link URIを、既存MCP commandの権限境界を再利用して提供する
+- plugin manifest、commands、views、settings、read/write Vault API
+- permission declaration、Restricted Mode、per-plugin disable、crash isolation
+- local package installを先行し、署名またはcurated registryは実需要後に検討する
+- Obsidian community plugin API互換層は調査対象とし、全プラグイン互換を無条件には約束しない
+
+Gate:
+
+1. plugin無効化で通常起動へ復帰できる。
+2. Vault外、Google、ネットワーク、MCP writeは権限なしに利用できない。
+3. sample pluginでcommand、view、設定、限定Vault read/writeを検証する。
+
+#### O7. Parity Closure
+
+- 公式Core plugins台帳を1項目ずつP2以上へ更新する
+- 既存Obsidian Vaultのread-only auditと移行preview
+- accessibility、2,000/10,000ノート性能、起動、メモリ使用量、壊れたMarkdownの耐性
+- help、shortcuts、migration、recovery、troubleshooting文書
+- mobile、hosted publish、collaborationは個人利用価値を再評価し、実装または明示的なTSUZUNE代替を確定する
+- Mobileを実装する場合は閲覧、編集、検索、quick capture、同期、mobile toolbar相当を同一Vault fixtureで検証する
+
+Gate:
+
+1. 公式Core plugins台帳に未分類項目がない。
+2. Starter Vaultと実Vaultで30日間dogfoodし、Obsidianを通常運用に必要としない。
+3. 未対応形式や機能を起動時またはimport previewで説明できる。
+
+### Beyond Obsidian: Intelligence Stages
+
+#### X1. Context Compiler 2.0
+
+- keyword、property、Wiki graph、time、sourceを併用して候補を集める
+- token/文字数budget、重複除去、多様性、freshness、confidenceで順位付けする
+- `explain_retrieval`で採用・除外理由と原典を表示する
+- current-only、historical、as-of、project packを用途別に生成する
+
+#### X2. Provenance-Backed Personalization
+
+- Google Tasks、Drive選択取込、YouTube、Data Portability、ChatGPT exportをsourceとして扱う
+- raw source、extraction candidate、confirmed noteを分離する
+- 元ID、時刻、hash、role、取得方法を保持し、再取込で重複しない
+- 単発行動やAI回答を恒久的な本人プロフィールへ自動確定しない
+
+#### X3. Temporal Memory Lifecycle
+
+- occurred/observed/valid/recorded time、freshness、review dueを統合する
+- supersession、矛盾、状態変化、当時の信念、現在の信念を区別する
+- 古い記憶を破壊せず検索優先度を弱め、再確認候補を出す
+- Memory InspectorとMemory Unit Testsで誤った現在化や未来情報漏えいを検出する
+
+#### X4. AI-Assisted Knowledge Maintenance
+
+- link、tag、property、要約、重複、矛盾、古い情報の候補を提示する
+- Inboxから既存ノートへの追記、新規ノート、保留、却下をpreviewする
+- 承認規則を明示できる単純処理だけ自動化し、削除と統合は確認を残す
+- ユーザーへ日常的な分類、採点、重複整理を要求しない
+
+#### X5. Retrieval Quality Evaluation
+
+- `モデルのみ`、`現在ノートのみ`、`全文検索`、`リンク展開`、`Context Compiler`を固定質問で比較する
+- 正答、根拠一致、時間漏えい、矛盾、文脈量、応答時間を測る
+- グラフ、ベクトル検索、AI整理は評価で改善した場合だけ既定へ昇格する
+- 「賢くなった気がする」ではなく、どの情報が回答を改善または悪化させたかを記録する
+
+#### Intelligence Gates
+
+1. X1はM5 dogfoodの固定質問4/4、出典追跡3/3を維持し、質問または単一起点から複数subjectの必要文脈を文字数budget内で再現する。
+2. X2は取込ノートからraw sourceへ100%戻れ、抽出候補を本人確認済みプロフィールへ自動昇格させない。
+3. X3はcurrent、historical、knowledge-timeのfixtureで未来情報漏えい0件を維持し、supersessionとconflictを説明する。
+4. X4は通常ノートへ事前の分類作業を要求せず、提案却下時とpreview時にVault本文を変更しない。
+5. X5は同じ質問集合、モデル、時点、budgetで比較し、精度または根拠一致を改善しない複雑な方式を既定化しない。
+
+### Execution Rules
+
+1. 一度に実装するのは1つのdelivery sliceだけとし、次の基盤を同時追加しない。
+2. 各sliceは公開挙動の失敗テスト、最小実装、全回帰、実Electron dogfood、文書更新で閉じる。
+3. parity機能は公式仕様と実Vaultを基準にし、見た目だけのモックを完了扱いにしない。
+4. X系AI機能は比較評価を先に固定し、改善が確認できない方式を複雑さだけで採用しない。
+5. 既存のGoogle、Temporal、MCP機能を壊さず、未コミット変更を機能単位で分離する。
+6. 新しい長期計画があっても、現在のsliceの停止条件を満たす前に次へ進まない。
+
+## Completed Foundation: Temporal Memory Lite
 
 作成日: 2026-07-30
 状態: 完了（M0〜M5）
 対象: v0.2のCodex・ChatGPTデスクトップ連携を基礎にしたv0.3開発
 
-この文書は、TSUZUNEの長期的な機能一覧ではなく、次に実装する順序と停止条件を決めるための計画である。`docs/v0.1-scope.md`を置き換えず、グラフ、同期、プラグイン、独自DBまで一度に扱わない。
+Temporal Memory Liteは完了済みの基盤として保持する。以下のM0〜M5は履歴と回帰条件であり、上記の長期方向によって削除しない。`docs/v0.1-scope.md`も初期スコープの履歴として残す。
 
-## Active Track: v0.4 Google Drive Manual Sync + Local Graph
+## Active Track: v0.5 Graph Explorer + Personal Google Intake
+
+更新日: 2026-08-01
+状態: Graph P0-1／P0-2／P0-3完了。次はP0-4
+
+### Current Transition Queue
+
+別の優先指示がない限り、現在着手済みのsliceと、すでに約束したPersonal Google Intakeを閉じてからObsidian Coverageを順に広げる。
+
+1. Graph Explorer P0-4を完了する
+2. Google Tasks読取
+3. Google Drive選択取込
+4. YouTube読取
+5. Google Data Portability
+6. O1 Daily Writing And NavigationからO7 Parity Closureまで、1 sliceずつ進める
+7. X1〜X5は対応するObsidian基盤が安定した時点で小さく接続し、比較評価を通して昇格する
+
+Google Calendarの追加認可基盤は残すが、Calendar APIの取込実装はこの列の1〜5が完了するまで保留する。Google Drive同期の往復確認は既存データ保護の確認として残すが、新機能開発の主トラックにはしない。この順序は長期の機能範囲を狭めるものではなく、未完了sliceを増やさないための実行順である。
+
+### Graph Explorer Goal
+
+Vault全体の構造と、選択ノートの近傍を同じ画面で行き来できるようにする。Obsidian Graph viewの主要操作を段階的に取り込み、UIの画素単位の複製ではなく、同じ探索目的を安全に完了できる機能的互換を目指す。
+
+- ローカルグラフの深さを1段・2段から選択する
+- ローカルグラフとVault全体グラフを切り替える
+- ノート名・パスで表示対象を絞り込む
+- ズーム、パン、全体表示への復帰
+- 選択ノート、リンク先、バックリンク、相互リンクを見分ける
+- ノードからノートを開き、開いたノートを新しい中心にする
+
+P0-3／P0-4では力学シミュレーション、グラフDB、GraphRAG、グラフ上でのノート編集、無制限な全Vault描画を入れない。Markdownと既存Wikiリンクresolverを原本とし、表示件数に安全な上限を置く。groups、表示調整、安定レイアウト、力学設定はP0-4のdogfood後にO0の独立sliceとして扱う。
+
+### Graph Explorer Delivery Slices
+
+- [x] P0-1: ローカルグラフの1段・2段切替
+- [x] P0-2: Vault全体グラフとローカルグラフの切替、孤立ノート表示の選択
+- [x] P0-3: ノート絞り込み、ズーム、パン、全体表示
+- [ ] P0-4: Starter Vaultで操作性と表示上限をdogfood
+
+P0-1の受入条件:
+
+1. 既定値は現在互換の1段である。
+2. 2段を選ぶと、現在ノートから無向距離2以内のノートと、その集合内のリンクだけを表示する。
+3. 深さを切り替えてもMarkdown、リンク、選択ノートを変更しない。
+4. 孤立ノートは深さに関係なく中心ノートとして表示する。
+
+2026-08-01 P0-1 verification:
+
+```text
+npm run typecheck    PASS
+npm test             PASS: 24 files / 189 tests
+npm run check:mcp    PASS: 4 read tools / 2 write tools
+npm run build        PASS
+git diff --check     PASS
+```
+
+P0-2の受入条件:
+
+1. 既定値はローカルグラフのままである。
+2. Vault全体表示は、解決済みリンクに参加する全ノートと、そのリンクを表示する。
+3. 孤立ノートは既定で隠し、明示した場合だけ追加する。
+4. 現在ノートが孤立していても中心ノートとして維持する。
+5. 範囲や孤立ノート表示を切り替えてもMarkdown、選択ノート、保存状態を変更しない。
+
+2026-08-01 P0-2 verification:
+
+```text
+npm run typecheck    PASS
+npm test             PASS: 24 files / 191 tests
+npm run check:mcp    PASS: 4 read tools / 2 write tools
+npm run build        PASS
+git diff --check     PASS
+real Electron smoke  PASS: 4 graph states / synthetic Vault
+```
+
+機能別スクリーンショットと検証対応は[Graph Explorer P0-2 HTML Report](docs/reports/graph-explorer-p0-2-2026-08-01.html)に残す。
+
+P0-3の受入条件:
+
+1. ノート名またはパスの大文字小文字を区別しない部分一致で絞り込み、現在ノートは中心として維持する。
+2. 絞り込み後は、両端のノートが表示されるWikiリンクだけを描画する。
+3. 60〜180%のズーム、背景ドラッグと矢印キーによるパン、100%・原点へ戻す全体表示を使える。
+4. 現在ノートを切り替えた時はズームとパンを既定値へ戻す。
+5. 絞り込み、ズーム、パン、全体表示はMarkdown、選択ノート、保存状態を変更しない。
+
+2026-08-01 P0-3 verification:
+
+```text
+npm run typecheck    PASS
+npm test             PASS: 24 files / 194 tests
+npm run check:mcp    PASS: 4 read tools / 2 write tools
+npm run build        PASS
+git diff --check     PASS
+real Electron smoke  PASS: filter / zoom 140% / pan 90x55 / fit 100%
+Markdown invariant   PASS: 42 files, capture前後の複合SHA-256一致
+```
+
+機能別スクリーンショット、実測値、未受入の境界は[Graph Explorer P0-3 HTML Report](docs/reports/graph-explorer-p0-3-2026-08-01.html)に残す。
+
+### Personal Google Intake Order
+
+- [ ] P1: Google Tasks読取
+- [ ] P2: Google Drive選択取込
+- [ ] P3: YouTube読取
+- [ ] P4: Google Data Portability
+
+各Pを認可、preview、apply、出典保持、重複防止、実アカウントdogfoodまで完了してから次へ進む。4機能を同時実装せず、次機能向けの抽象化を先回りしない。
+
+## Completed Track: v0.4 Google Drive Manual Sync + Local Graph
 
 更新日: 2026-07-31
-状態: 標準ログイン経路の実装・ローカル検証完了（実クライアントIDの発行・組み込みと実Google確認は未完了）
+状態: 実Google認証・初回Drive送信40件完了（Drive往復確認は未完了）
 
 v0.4では、実運用でノート同士の近傍を確認しやすくする1-hopグラフと、ローカルMarkdownを原本のまま別端末へ運べる手動Google Drive同期だけを扱う。Googleデータ取り込みによるパーソナライズ、プラグイン、独自DB、バックグラウンド同期は同時に実装しない。
 
@@ -20,7 +397,7 @@ v0.4では、実運用でノート同士の近傍を確認しやすくする1-ho
 - [x] 要求権限、削除、競合、原本、非対象データを要件として固定
 - [x] 選択ノート中心の1-hopグラフを純粋coreとSVG＋HTMLボタンで実装
 - [x] Desktop OAuth JSON解析、PKCE、loopback callback、token exchangeを実装
-- [x] 配布版へ公開Desktop OAuthクライアントIDだけを組み込み、通常UIを「Googleでログイン」へ短縮
+- [x] 個人用ビルドへDesktop OAuthクライアントIDとclient secretをビルド時だけ組み込み、通常UIを「Googleでログイン」へ短縮
 - [x] 独自OAuth JSONは詳細設定へ移し、保存済みJSONを標準設定より優先
 - [x] 更新トークンの`safeStorage`向け暗号化保存を実装
 - [x] `drive.file`で専用VaultフォルダとMarkdownだけを扱うDrive APIクライアントを実装
@@ -30,10 +407,13 @@ v0.4では、実運用でノート同士の近傍を確認しやすくする1-ho
 - [x] 別端末から既存Drive Vaultを一覧・検証・明示ペアリングできる操作を追加
 - [x] 同期途中の成功操作を都度ledgerへ確定し、再試行時の不要な競合を防止
 - [x] mock/fixtureによる同期適用テストと全回帰確認
-- [ ] TSUZUNE用Desktop OAuthクライアントIDを発行して配布ビルドへ組み込む
-- [ ] 組み込みIDを使った実Google認証・Drive往復確認
+- [x] TSUZUNE用Desktop OAuthクライアントを発行し、IDとclient secretを個人用ビルドへ組み込む
+- [x] 組み込みOAuth設定を使った実Google認証と基本プロフィール表示
+- [x] Drive同期の読み取り専用preview（送信40件、受信0件、競合0件、保持0件）
+- [x] 「この内容で同期」による初回apply（送信40件）
+- [ ] 別端末相当の受信、競合コピー、削除非伝播を含むDrive往復確認
 
-実Google確認にはGoogle Cloudで発行したTSUZUNE用クライアントIDが必要である。クライアントID未設定のモックテストPASSを、Googleアカウントでの認証成功やDrive上の実ファイル同期成功として報告しない。
+Google Cloudプロジェクト`TSUZUNE`でDrive APIを有効化し、External / Testingの同意画面、テストユーザー、Desktop appクライアントを構成した。このDesktopクライアントではtoken exchangeにクライアントIDとclient secretの両方が必要なため、両値をビルド時だけ渡し、Gitへ保存していない。2026-07-31に実Google認証が成功し、`%APPDATA%\TSUZUNE\google\google-account.json`と暗号化された`refresh-token.json`の保存を確認した。Driveの読み取り専用previewは送信40件、受信0件、競合0件、保持0件で成功し、その後に利用者が初回applyを実行した。同期台帳の完了時刻は2026-07-31 14:42:24 JSTで、40件すべてに固有のDrive file IDがあり、ローカル・Driveハッシュも40/40件で一致している。現在のローカルMarkdownも40/40件で同期時ハッシュと一致し、欠損はない。ただし別端末相当の受信や競合解決を含むDrive往復はまだ確認していない。
 
 ローカル検証結果:
 
@@ -42,6 +422,8 @@ npm run typecheck    PASS
 npm test             PASS: 23 files / 177 tests
 npm run check:mcp    PASS: 4 read tools / 2 write tools
 npm run build        PASS
+npm run pack:win     PASS: dist/TSUZUNE-0.4.0-portable.exe
+bundle credential check PASS: ID + client secret（値は表示しない）
 ```
 
 ## Progress
@@ -140,7 +522,7 @@ Markdownノートへ任意の時間情報と出典を付け、TSUZUNEとCodexが
 - Starter Vault dogfoodの比較、誤判定、手作業負担、修正結果は`docs/m5-dogfood.md`に固定した
 - v0.4では1-hopグラフ、Google Desktop OAuth、暗号化token store、`drive.file`限定Driveクライアント、削除非伝播の同期planner、main process、画面とpreload APIを接続済み
 - 同期適用はDrive版の直前再確認、危険な相対パス拒否、Windows上の大文字小文字衝突拒否、stale plan拒否、競合コピーを含む
-- v0.4の実Googleアカウント確認だけが、この時点では未完了
+- v0.4の実Googleアカウント認証、読み取り専用preview、初回送信40件のapplyは確認済みで、Drive往復の手動確認が未完了
 
 確認済みの基準:
 
@@ -150,7 +532,9 @@ npm test             PASS: 10 files / 56 tests
 npm run check:mcp    PASS: 4 read tools / 2 write tools
 ```
 
-## 3. Product Rules
+## 3. Temporal Memory Lite M0-M5 Rules
+
+この節の版指定ルールは完了済みM0〜M5の実装境界であり、文書先頭の将来ロードマップを禁止しない。後続版でSQLite、プラグイン、同期などを採用する場合も、Markdownを原本とするProduct Guardrailsと独立したGateを満たす。
 
 1. Markdownを唯一の原本として保つ。
 2. 時間情報は任意とし、既存ノートへ追加を強制しない。
@@ -604,16 +988,18 @@ Control:
 - 汎用データベースやNotion風プロパティ編集UI
 - MCPからの削除、移動、名前変更、強制上書き
 
-## 15. Immediate Next Work
+## 15. Historical Next Work（superseded）
 
-M0〜M5は完了した。Temporal Memory Liteは3つのSuccess Conditionsを満たしたため、ここで機能追加を停止する。
+この節はTemporal Memory Lite完了時点の判断履歴である。現行の実行順と停止条件は文書先頭の`Active Track: v0.5 Graph Explorer + Personal Google Intake`を正とする。
 
-次の独立トラックとしてv0.4 Google Drive Manual Sync + Local Graphを選択し、実装とローカル検証を完了した。残作業は次の順序に固定する。
+M0〜M5は完了した。Temporal Memory Liteは3つのSuccess Conditionsを満たしたため、このトラックでは機能追加を停止した。
 
-1. TSUZUNE用Desktop OAuthクライアントIDを発行し、`MAIN_VITE_GOOGLE_OAUTH_CLIENT_ID`を設定した配布ビルドを作る。
-2. 組み込みIDから実アカウントでログインし、初回送信、別端末相当の受信、競合コピー、接続解除を手動確認する。
-3. 複数端末から同期applyを同時実行せず、端末ごとにpreview/applyを完了してから次の端末で確認する。
-4. 実Google確認後にv0.4の停止条件を判定し、Takeout、ChatGPT export、入力補助のいずれか1トラックだけを選ぶ。
+次の独立トラックとしてv0.4 Google Drive Manual Sync + Local Graphを選択し、実装、ローカル検証、Desktop OAuth設定の個人用ビルドへの組み込み、実Google認証、読み取り専用preview、初回送信40件のapplyまで完了した。残作業は次の順序に固定する。
+
+1. 別端末相当の受信、競合コピー、削除非伝播、接続解除を手動確認する。
+2. 複数端末から同期applyを同時実行せず、端末ごとにpreview/applyを完了してから次の端末で確認する。
+3. Drive往復確認後にv0.4の停止条件を判定し、次の独立トラックとしてPersonal Google Read-only Intakeを開始する。
+4. Calendar、Tasks、Drive選択取込、YouTube、Data Portabilityを同時実装せず、1本ずつ受け入れ条件を満たしてから次へ進む。
 
 ChatGPTアーカイブもGoogle Takeoutも未提供のまま、非公開履歴を推測取得したり、ログイン、Cookie、画面スクレイピングで代替したりしない。
 
@@ -623,11 +1009,11 @@ ChatGPTアーカイブもGoogle Takeoutも未提供のまま、非公開履歴�
 - 過去時点の検索が役立たなければ、データモデルを拡張しない。
 - 履歴が多すぎる場合は、DBより先に検索範囲と表示方法を見直す。
 - 自動状態記録が必要になった場合は、書き込み整合性を別PLANで定義する。
-- v0.4グラフは1-hopに留め、Vault全体グラフやGraphRAGが必要かはdogfood後に別判断する。
+- v0.4グラフは当時1-hopに留めた。その後v0.5 Graph Explorerを独立採用し、P0-2まで完了した。GraphRAGは引き続き対象外とする。
 - v0.4同期は明示preview/applyに留め、バックグラウンド同期、削除伝播、Drive Changes APIはdogfood後に別判断する。
 - プラグインAPIとSQLiteは、それぞれ独立した困りごとと受け入れ条件が確認された後に別々に計画する。
 
-## 17. Active Track: v0.4 Google Sign-In, Manual Drive Sync, Local Graph
+## 17. Completed Track Detail: v0.4 Google Sign-In, Manual Drive Sync, Local Graph
 
 このトラックはM5完了後の独立トラックである。Google接続を使わないローカルMarkdown運用を標準のまま維持し、認証、同期、パーソナライズ用データ取り込みを混同しない。
 
@@ -662,9 +1048,10 @@ Gate:
 Work:
 
 - Google Cloudで作成したOAuthクライアントの種類をDesktop appに限定する
-- 配布ビルドには公開値であるDesktop OAuthクライアントIDだけを組み込み、通常UIから直接接続する
+- 個人用ビルドにはDesktop OAuthクライアントIDとclient secretをビルド時だけ組み込み、通常UIから直接接続する
 - 独自OAuth JSONは詳細設定から任意選択でき、保存済みJSONを組み込みIDより優先する
-- client secret、token、アカウント情報は配布物へ組み込まない
+- client secretの実値はGitへ保存しない。ただしEXEへ組み込んだDesktop appのclient secretは抽出可能で、機密情報にはならないため、この方式を個人用ビルド限定とする
+- tokenとアカウント情報は配布物へ組み込まない
 - システムブラウザ、`127.0.0.1`のランダムloopback port、PKCE S256、state照合を使う
 - scopeは`openid email profile https://www.googleapis.com/auth/drive.file`だけにする
 - 名前、メールアドレスなどの基本プロフィールだけをアカウント表示に使う
@@ -675,7 +1062,7 @@ Gate:
 
 - Google未設定、未ログイン、オフライン、認証失敗でもローカル編集とMCPが動く
 - OAuth callbackのstate不一致とprovider errorを拒否する
-- OAuth JSON、token、認可codeをVault、Markdown、Git、通常ログへ書かない。公開クライアントIDだけをmain bundleへ含める
+- OAuth JSON、token、認可codeをVault、Markdown、Git、通常ログへ書かない。main bundleへ含めるIDとclient secretの実値もGitへ保存しない
 - `drive`、`drive.readonly`などの広いDrive scopeを要求しない
 - Googleログインだけで検索履歴や広告プロファイルを取得したと表示しない
 
@@ -685,10 +1072,12 @@ Gate:
 2. Google Drive APIを有効にする。
 3. OAuth同意画面を構成する。ExternalのTestingを使う場合は利用者自身をtest userへ追加する。
 4. OAuth client IDを「Desktop app」として作成する。
-5. クライアントIDだけを`MAIN_VITE_GOOGLE_OAUTH_CLIENT_ID`へ設定して配布ビルドを作る。
+5. クライアントIDを`MAIN_VITE_GOOGLE_OAUTH_CLIENT_ID`、client secretを`MAIN_VITE_GOOGLE_OAUTH_CLIENT_SECRET`へ設定して個人用ビルドを作る。値はビルド時だけ渡し、Gitへ保存しない。
 6. TSUZUNEの「Google / 同期」から「Googleでログイン」を押し、システムブラウザでscopeを確認する。
 
 独自のGoogle Cloudプロジェクトを使う場合だけ、詳細設定からDesktop OAuth JSONを選択する。このoverrideを保存した端末では組み込みIDへ暗黙フォールバックせず、異なるクライアントの更新トークンを混用しない。
+
+Desktop appのclient secretは個人用EXEから抽出でき、真の秘密として扱えない。標準ログインは個人用ビルド限定とし、認可フローではシステムブラウザ、`127.0.0.1`のランダムloopback port、PKCE S256、state照合を維持する。
 
 ExternalかつTestingのOAuth同意画面では、Googleの仕様によりrefresh tokenは原則7日で失効する。安定運用では公開要件を確認し、Publishing statusをIn productionへ移す。TSUZUNEは期限切れtokenを回避するためにCookie、ブラウザprofile、別scopeを流用しない。
 
@@ -735,30 +1124,31 @@ Gate:
 - 1-hopグラフと操作UI
 - v0.1〜v0.3、MCP、Temporal Memory Liteの回帰
 
-実Google確認には発行済みのTSUZUNE用Desktop OAuthクライアントIDを組み込んだ配布ビルドが必要である。次を実アカウントで完了するまで「Google Drive同期の実運用確認済み」としない。
+実Google確認には発行済みのTSUZUNE用Desktop OAuthクライアントIDとclient secretを組み込んだ個人用ビルドが必要である。2026-07-31に実Google認証と基本プロフィール表示を完了し、`%APPDATA%\TSUZUNE\google\google-account.json`と暗号化された`refresh-token.json`の保存を確認した。Drive同期の読み取り専用previewは送信40件、受信0件、競合0件、保持0件で成功し、その後の初回applyも完了した。同期台帳には2026-07-31 14:42:24 JSTの完了時刻と40件の固有Drive file IDがあり、ローカル・Driveハッシュは40/40件で一致している。次の残項目を実アカウントで完了するまで「Google Drive同期の実運用確認済み」としない。
 
-1. Google認証と基本プロフィール表示
-2. 初回preview/applyとDrive専用フォルダ作成
-3. ローカル変更の送信とDrive変更の受信
-4. 両側変更時のローカル競合コピー
-5. 片側欠落時の削除非伝播
-6. アプリ再起動後のtoken refresh
-7. 接続解除後のローカルVault継続利用
-8. 別端末相当の空Vaultから既存Drive Vaultを選択し、ノートを受信
-9. preview後にDrive側を変更し、古い版の更新を拒否して両内容を保持
+1. [x] Google認証と基本プロフィール表示
+2. [x] 初回preview（読み取り専用）
+3. [x] 初回applyとDrive専用フォルダ作成
+4. [ ] ローカル変更の送信とDrive変更の受信
+5. [ ] 両側変更時のローカル競合コピー
+6. [ ] 片側欠落時の削除非伝播
+7. [ ] アプリ再起動後のtoken refresh
+8. [ ] 接続解除後のローカルVault継続利用
+9. [ ] 別端末相当の空Vaultから既存Drive Vaultを選択し、ノートを受信
+10. [ ] preview後にDrive側を変更し、古い版の更新を拒否して両内容を保持
 
 ### Personalization Data Boundary After v0.4
 
-Googleログインで得る基本プロフィールは、本人の関心、好み、検索行動を増やす材料にはならない。パーソナライズ情報を増やす別トラックでは、利用者が明示選択したGoogle Takeoutをローカルで取り込み、原本、抽出候補、本人確認済みノートを分離する。
+Googleログインで得る基本プロフィールは、本人の関心、好み、検索行動を増やす材料にはならない。パーソナライズ情報を増やす別トラックでは、利用者が個別に有効化したCalendar、Tasks、Drive選択取込、YouTube、Data Portabilityだけを対象にし、原本、抽出候補、本人確認済みノートを分離する。
 
 - Google内部の完全な広告ターゲティングモデル、関心スコア、推定根拠、予測ロジックを取得できる一般公開APIはない
 - Google検索履歴はOAuth基本プロフィールや`drive.file`では取得できない
-- 検索履歴を扱う場合は、利用者が提供したTakeoutの「マイ アクティビティ」を第一経路にする
+- 検索履歴などのMy Activityを扱う場合は、通常のGoogle OAuth APIではなく、利用者が明示実行したData Portability exportだけを対象にする
 - 検索1回を恒久的な好みとして確定しない
 - 候補には根拠レコード、期間、件数、最終観測日を付け、本人確認後だけ通常ノートへ反映する
 - My Ad CenterやMy Activityの画面スクレイピング、Cookie流用、Drive全体取得を代替手段にしない
 
-Takeout importer、Google Data Portability API、パーソナライズ候補生成はv0.4へ含めない。
+Personal Google Read-only Intakeとパーソナライズ候補生成はv0.4へ含めず、Drive往復確認後の独立トラックとして扱う。
 
 ### Explicit Non-Goals For v0.4
 
@@ -774,7 +1164,175 @@ Takeout importer、Google Data Portability API、パーソナライズ候補生�
 - 複数人共有、モバイル同期
 - ログイン情報からの自動プロフィール確定
 
-## 18. Future Track: ChatGPT Export Intake
+## 18. Active Track Detail: Personal Google Read-only Intake
+
+状態: G0ローカル実装・回帰確認完了。利用者指定によりTasks、Drive選択取込、YouTube、Data Portabilityを最優先化
+対象: 個人利用、1 Googleアカウント、手動取込
+開始: 2026-07-31の利用者指示によりG0を開始。同日の優先順位変更によりCalendar取込を保留し、Tasksから実データ取込を開始する
+
+### Goal
+
+Google上の本人データを無差別に同期せず、利用者が機能、対象、期間を明示選択した時だけ読み取り、TSUZUNEへ出典付きの情報源と候補ノートを追加する。Google上の原データを変更せず、候補を現在の好み、事実、決定として自動確定しない。
+
+採用する機能と順序を次に固定する。
+
+1. Google Tasks読取
+2. Google Drive選択取込
+3. YouTube読取
+4. Google Data Portability
+5. Google Calendar読取（保留）
+
+G0の共通基盤を使い、G1〜G4を1本ずつ実装、検証、dogfoodする。次の機能のための抽象化を先回りして追加せず、現在の機能で確認できた共通処理だけを再利用する。Calendar用に作成済みの追加認可UIとテストは削除せず、Calendar API接続だけを保留する。
+
+### Common Contract
+
+- 全機能は任意、手動、読み取り専用とし、Google上の予定、タスク、ファイル、YouTubeデータを作成、変更、削除しない
+- Data Portabilityのexport job作成だけは外部状態を作るため、対象データと期間を表示し、実行直前に明示確認する
+- 起動時自動取込、バックグラウンド取得、定期ポーリング、webhookを初版へ入れない
+- v0.4の初回ログインでは将来機能のscopeを先取りしない
+- Desktop appではincremental authorizationが非対応のため、機能を有効化した時だけ既存scopeと必要最小scopeの和集合へ再同意を求め、実際に許可されたscopeを保存、表示する
+- 未認可の機能を無言で呼び出さず、Google未接続、権限不足、オフラインでもローカル編集、検索、MCPを維持する
+- previewまではVaultを変更しない
+- applyはローカルの情報源と候補だけを追加し、既存ノートを無言で上書きしない
+- Google側で削除されたデータをローカルへ削除伝播しない
+- source kind、Google resource ID、元更新日時、import日時、内容hashを保持する
+- 同じ項目またはarchiveを再取込しても重複作成しない
+- 候補の承認、却下、訂正が保存済み原本を変更しない
+- token、OAuth JSON、Data Portability archiveの機微な原本を通常ノートや通常ログへ書かない
+- 個人利用であっても、Googleのscope制限、API利用条件、検証要件を迂回しない
+
+### G0. Scope Expansion And Source Contract
+
+Work:
+
+- [x] 現在の基本＋Drive scopeとCalendar機能scopeを分離する
+- [x] Desktop appの制約に合わせ、既存scope＋Calendar scopeの和集合へ再同意する
+- [x] refresh token、実許可scope、account subを同じ暗号化credential bundleとして保存する
+- [x] 旧版の生refresh tokenを基本＋Drive許可済みとして互換読込する
+- [x] Drive同期とCalendar読取の許可状態を画面で区別する
+- [x] Drive同期ledgerとは別に、Google情報源のprovenanceと再取込識別を純粋coreで定義する
+- [ ] 実GoogleアカウントでCalendar再同意を行い、既存Drive同期が継続することを確認する
+- [ ] G5でCalendar adapterのpreview/applyと情報源保存を接続する
+
+Gate:
+
+1. ローカルmockでは既存Drive credentialを保持したままCalendar再同意を要求でき、権限不足時にも旧credentialを保持する。実Google確認は未完了。
+2. 認可済み機能と未認可機能を画面で区別できる。PASS。
+3. 同じGoogle resource＋同じhashを再取込した時に`same_observation`となる共通fixtureがPASSする。
+
+2026-07-31 verification:
+
+```text
+npm run typecheck    PASS
+npm test             PASS: 24 files / 187 tests
+npm run check:mcp    PASS: 4 read tools / 2 write tools
+npm run build        PASS
+```
+
+G0ではGoogle Calendar APIをまだ呼び出さず、同意UIと情報源の重複判定契約までに止めた。Data Portabilityは通常Google credentialへ混ぜず、G4で別OAuth flowと別保存領域を使う。
+
+### G5. Google Calendar Read-only Intake（保留）
+
+Scope:
+
+- 最小scopeは`https://www.googleapis.com/auth/calendar.events.readonly`
+- 利用者が対象カレンダーと有限の期間を選択する
+- 繰返し予定はAPIが返したevent instanceを出典付きで扱い、初版で完全な繰返し編集モデルを作らない
+
+Gate:
+
+1. previewで対象カレンダー、期間、件数、日時、タイトルを確認できる。
+2. apply後の情報源と候補から元calendar IDとevent IDへ戻れる。
+3. 再取込で重複せず、変更された予定を新しい観測として区別し、Google Calendarへ書き込まない。
+
+### G1. Google Tasks Read-only Intake
+
+Scope:
+
+- 最小scopeは`https://www.googleapis.com/auth/tasks.readonly`
+- 利用者が対象task listを選択する
+- タイトル、期限、完了状態、親子関係を候補化する
+- 初回previewでは`showCompleted=true`、`showHidden=true`、`showDeleted=false`で、完了済みを含む現在のタスクを読む
+- Tasks APIの`due`は時刻を持たない日付として正規化し、締切時刻を推測しない
+
+Gate:
+
+1. previewで対象list、件数、期限、完了状態を確認できる。
+2. apply後も元task list IDとtask IDを保持する。
+3. 再取込で重複せず、完了または期限変更を新しい観測として扱い、Google Tasksへ書き込まない。
+
+### G2. Google Drive Selected-file Intake
+
+Scope:
+
+- Drive全体を走査せず、Google Pickerなどで利用者が明示選択したファイルだけを対象にする
+- Desktop向けGoogle Pickerは通常接続のcredentialへ混ぜず、`drive.file`だけを要求する専用の一時OAuth flowにする
+- Picker認可は`prompt=consent`と`trigger_onepick=true`を使い、callbackの`picked_file_ids`に含まれるファイルだけを対象にする
+- `drive`や`drive.readonly`へ拡張せず、既存Drive同期credentialのscope unionにもPicker認可を混ぜない
+- TSUZUNE同期Vaultと一般資料取込の保存領域、識別子、ledgerを分離する
+- 初版の対応形式を固定し、Google Docs変換を暗黙追加しない
+
+Gate:
+
+1. previewで選択ファイルの名前、種類、サイズ、更新日時、対応可否を確認できる。
+2. applyは対応ファイルだけをhash付き原本として保存し、既存ノートを上書きしない。
+3. 未選択ファイルとDrive全体を取得せず、同じ版の再取込で重複しない。
+
+### G3. YouTube Read-only Intake
+
+Scope:
+
+- 最小scopeは`https://www.googleapis.com/auth/youtube.readonly`
+- 初版は購読チャンネルと、利用者が明示選択したプレイリストまたは項目に限定する
+- 通常のYouTube Data APIで視聴履歴、検索履歴、広告嗜好を取得できると表示しない
+
+Gate:
+
+1. previewで出典種別、チャンネルまたは動画名、元ID、更新日時を確認できる。
+2. apply後もsubscription、playlist、videoの元IDを保持し、再取込で重複しない。
+3. 単発の購読や動画を恒久的嗜好へ自動確定せず、quota超過時も既存ノートを変更しない。
+
+### G4. Google Data Portability
+
+Scope:
+
+- 通常のGoogle接続とは別の認可フローとし、Data Portability scopeをDrive、Calendar、Tasks、YouTubeのscopeと同じ認可要求へ混ぜない
+- 初版は`dataportability.myactivity.youtube`の1種類だけに固定し、利用者が明示選択したexportだけを扱う
+- Data Portability tokenからGoogleアカウント識別情報を取得できると仮定せず、通常接続の`accountSub`へ自動的に結び付けない
+- 常時同期ではなく、明示実行されたスナップショットarchiveの取込として扱う
+- My Activity画面スクレイピング、Cookie流用、内部広告プロファイル取得を代替手段にしない
+
+Gate:
+
+1. export job開始前に対象データ、期間、外部処理の発生を表示し、明示確認なしには開始しない。
+2. 完了archiveをmanifest、hash、取得日時付きで保存し、原本と抽出候補を分離する。
+3. 同じarchiveの再取込で重複せず、API未提供、地域制限、検証未完了時は既存Vaultを変更せず停止する。
+
+Data Portabilityは個人利用でも専用OAuth、対象scope、利用可能地域、Googleの検証要件に従う。通常のGoogle接続だけで検索履歴やMy Activityを取得できるとは扱わない。実装開始時点で公式仕様を再確認し、要件を満たせない場合はCookieや画面操作で迂回しない。
+
+公式仕様:
+
+- https://developers.google.com/workspace/calendar/api/auth
+- https://developers.google.com/workspace/tasks/auth
+- https://developers.google.com/workspace/drive/api/guides/api-specific-auth
+- https://developers.google.com/workspace/drive/picker/guides/desktop-mobile-picker
+- https://developers.google.com/youtube/v3/guides/auth/installed-apps
+- https://developers.google.com/data-portability/user-guide/scopes
+- https://developers.google.com/data-portability/user-guide/configure-oauth
+
+### Explicit Non-Goals For The First Personal Google Intake Track
+
+- Gmail、Google Photos、People/Contacts
+- CalendarまたはTasksへの書き戻し
+- Drive全体スキャンとGoogle Docsの無差別自動取込
+- YouTube視聴履歴を通常のYouTube Data APIから取得すること
+- Google内部の完全な広告プロファイル、関心スコア、予測モデルの取得
+- 全scopeの初回一括同意
+- バックグラウンド同期、定期取込、Google側削除の伝播
+- 5機能の同時実装
+- 公開配布、複数利用者、複数Googleアカウント対応
+
+## 19. Future Track: ChatGPT Export Intake
 
 このトラックはM5完了後に着手する。Google連携やChatGPTへのログインとは分離し、ユーザーが明示的に選択したChatGPTデータエクスポートだけをローカルで取り込む。
 
@@ -858,7 +1416,7 @@ Gate:
 - 現在情報、過去情報、未確認候補を区別できる
 - 候補の承認、却下、訂正が原本を変更しない
 - 原本と出典がない候補をactiveな記憶へ昇格させない
-- Google Takeout候補とChatGPT候補を同じ出典種別として混同しない
+- Google由来の候補とChatGPT候補を同じ出典種別として混同しない
 
 ### Explicit Non-Goals For The First ChatGPT Export Track
 

@@ -7,6 +7,9 @@ export const GOOGLE_OAUTH_SCOPES = [
   'https://www.googleapis.com/auth/drive.file'
 ] as const
 
+export const GOOGLE_CALENDAR_READ_SCOPE =
+  'https://www.googleapis.com/auth/calendar.events.readonly'
+
 export interface GoogleOAuthClient {
   clientId: string
   clientSecret: string | null
@@ -17,6 +20,8 @@ export interface GoogleAuthorizationInput {
   redirectUri: string
   state: string
   codeChallenge: string
+  scopes?: readonly string[]
+  loginHint?: string
 }
 
 export interface PkcePair {
@@ -70,12 +75,18 @@ export function buildGoogleAuthorizationUrl(
   url.searchParams.set('client_id', input.clientId)
   url.searchParams.set('redirect_uri', input.redirectUri)
   url.searchParams.set('response_type', 'code')
-  url.searchParams.set('scope', GOOGLE_OAUTH_SCOPES.join(' '))
+  url.searchParams.set(
+    'scope',
+    (input.scopes ?? GOOGLE_OAUTH_SCOPES).join(' ')
+  )
   url.searchParams.set('state', input.state)
   url.searchParams.set('code_challenge', input.codeChallenge)
   url.searchParams.set('code_challenge_method', 'S256')
   url.searchParams.set('access_type', 'offline')
   url.searchParams.set('prompt', 'consent')
+  if (input.loginHint) {
+    url.searchParams.set('login_hint', input.loginHint)
+  }
   return url.toString()
 }
 

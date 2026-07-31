@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>TSUZUNE Graph Explorer P0-2 機能レポート</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172522;
+        --muted: #66736f;
+        --paper: #f7f4ec;
+        --card: #fffdf8;
+        --line: #d8d3c7;
+        --green: #245c52;
+        --green-soft: #dcebe7;
+        --amber: #9a6616;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font-family: "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif;
+        line-height: 1.65;
+      }
+
+      header {
+        padding: 56px max(24px, calc((100vw - 1120px) / 2));
+        color: #fff;
+        background: linear-gradient(135deg, #173e37, #2c675c);
+      }
+
+      header p { max-width: 760px; margin: 12px 0 0; color: #e8f3f0; }
+      h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.15; }
+      h2 { margin: 0 0 16px; font-size: 1.55rem; }
+      h3 { margin: 0; font-size: 1.22rem; }
+
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 32px auto 64px;
+      }
+
+      .summary,
+      .feature,
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--card);
+        box-shadow: 0 8px 24px rgba(25, 45, 40, 0.07);
+      }
+
+      .summary { padding: 28px; }
+
+      .badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 11px;
+        border-radius: 999px;
+        color: var(--green);
+        background: var(--green-soft);
+        font-weight: 700;
+        font-size: 0.88rem;
+      }
+
+      .badge::before { content: "✓"; }
+
+      .meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      .meta div {
+        padding: 14px;
+        border-radius: 10px;
+        background: #f2efe6;
+      }
+
+      .meta strong { display: block; color: var(--muted); font-size: 0.8rem; }
+
+      .section-title { margin: 42px 0 16px; }
+      .features { display: grid; gap: 24px; }
+      .feature { overflow: hidden; }
+      .feature-copy { padding: 22px 24px 18px; }
+      .feature-copy p { margin: 8px 0 0; color: var(--muted); }
+
+      figure { margin: 0; border-top: 1px solid var(--line); background: #e9e5db; }
+      figure img { display: block; width: 100%; height: auto; }
+      figcaption { padding: 10px 16px; color: #53615d; background: #f2efe6; font-size: 0.86rem; }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+        gap: 20px;
+      }
+
+      .panel { padding: 24px; }
+      .panel ul { margin: 12px 0 0; padding-left: 1.25rem; }
+      .panel li + li { margin-top: 7px; }
+
+      table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+      th, td { padding: 12px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { color: var(--muted); font-size: 0.82rem; }
+      .pass { color: var(--green); font-weight: 800; }
+      code { padding: 2px 5px; border-radius: 4px; background: #efebe1; font-family: Consolas, monospace; }
+
+      .next {
+        border-left: 5px solid var(--amber);
+        background: #fff9ec;
+      }
+
+      footer { margin-top: 40px; color: var(--muted); font-size: 0.86rem; text-align: center; }
+
+      @media (max-width: 640px) {
+        header { padding-top: 36px; padding-bottom: 36px; }
+        .summary, .panel { padding: 20px; }
+        .feature-copy { padding: 18px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Graph Explorer P0-2</h1>
+      <p>TSUZUNEのローカルグラフとVault全体グラフを行き来し、孤立ノートを必要な時だけ確認できるようにした区切りの機能レポートです。</p>
+    </header>
+
+    <main>
+      <section class="summary" aria-labelledby="outcome-title">
+        <div class="badge-row">
+          <span class="badge">P0-1 完了</span>
+          <span class="badge">P0-2 完了</span>
+          <span class="badge">191 tests</span>
+          <span class="badge">Real Electron</span>
+        </div>
+        <h2 id="outcome-title">結果: ローカルとVault全体を安全に切替可能</h2>
+        <p>既定のローカル表示を維持しながら、解決済みWikiリンクに参加する全ノートへ表示範囲を広げられます。孤立ノートは既定で隠れ、チェックした時だけ追加されます。切替は表示だけに作用し、Markdown本文や選択ノートを変更しません。</p>
+        <div class="meta">
+          <div><strong>記録日時</strong>2026-08-01 01:43 JST</div>
+          <div><strong>Branch</strong>agent/tsuzune-mcp-integration</div>
+          <div><strong>Base HEAD</strong>0ab44bc + uncommitted worktree</div>
+          <div><strong>Package</strong>0.4.0 development build</div>
+        </div>
+      </section>
+
+      <h2 class="section-title">機能別スクリーンショット</h2>
+      <section class="features" aria-label="機能別スクリーンショット">
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>1. ローカルグラフ・深度1</h3>
+            <p>現在ノートと直接つながるリンク先・バックリンク・相互リンクだけを表示する既定状態です。</p>
+          </div>
+          <figure>
+            <img src="assets/graph-p0-2/01-local-depth-1.png" alt="TSUZUNEで中心ノートのローカルグラフを深度1で表示した画面">
+            <figcaption>4ノード: 中心ノート、リンク先、参照元、相互リンク。</figcaption>
+          </figure>
+        </article>
+
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>2. ローカルグラフ・深度2</h3>
+            <p>深度2へ切り替えると二段先だけが追加され、三段先までは広がりません。</p>
+          </div>
+          <figure>
+            <img src="assets/graph-p0-2/02-local-depth-2.png" alt="TSUZUNEで中心ノートのローカルグラフを深度2で表示した画面">
+            <figcaption>5ノード: 深度1の4ノードに「二段先」が追加。</figcaption>
+          </figure>
+        </article>
+
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>3. Vault全体・孤立ノートなし</h3>
+            <p>現在ノートと無関係な別コンポーネントも含め、解決済みリンクに参加するノートをVault全体から表示します。</p>
+          </div>
+          <figure>
+            <img src="assets/graph-p0-2/03-vault-connected.png" alt="TSUZUNEでVault全体グラフを孤立ノートなしで表示した画面">
+            <figcaption>8ノード: 別プロジェクトと別資料の接続成分も表示し、孤立ノートは除外。</figcaption>
+          </figure>
+        </article>
+
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>4. Vault全体・孤立ノートあり</h3>
+            <p>「孤立ノートを表示」を選択すると、次数0のノートが追加されます。</p>
+          </div>
+          <figure>
+            <img src="assets/graph-p0-2/04-vault-with-orphans.png" alt="TSUZUNEでVault全体グラフに孤立ノートを含めた画面">
+            <figcaption>9ノード: 既存8ノードに「孤立ノート」が追加。</figcaption>
+          </figure>
+        </article>
+      </section>
+
+      <h2 class="section-title">検証</h2>
+      <section class="grid">
+        <article class="panel">
+          <h3>自動検証</h3>
+          <table>
+            <thead><tr><th>検証</th><th>結果</th></tr></thead>
+            <tbody>
+              <tr><td><code>npm run typecheck</code></td><td class="pass">PASS</td></tr>
+              <tr><td><code>npm test</code></td><td class="pass">24 files / 191 tests</td></tr>
+              <tr><td><code>npm run check:mcp</code></td><td class="pass">4 read / 2 write</td></tr>
+              <tr><td><code>npm run build</code></td><td class="pass">PASS</td></tr>
+              <tr><td><code>git diff --check</code></td><td class="pass">PASS</td></tr>
+            </tbody>
+          </table>
+        </article>
+
+        <article class="panel">
+          <h3>実アプリ確認</h3>
+          <ul>
+            <li>1280×800の実Electronウィンドウを非表示で起動。</li>
+            <li>個人データを含まない9ノートの合成Vaultを使用。</li>
+            <li>各切替後のDOM状態と表示ノード名を記録して撮影。</li>
+            <li>4枚ともElectronの<code>webContents.capturePage()</code>で取得。</li>
+          </ul>
+        </article>
+
+        <article class="panel">
+          <h3>P0-2の境界</h3>
+          <ul>
+            <li>孤立ノートは「リンクが1本もないノート」と定義。</li>
+            <li>孤立中の現在ノートは表示を維持。</li>
+            <li>深度切替はローカル表示だけ、孤立切替はVault全体だけに表示。</li>
+            <li>独自DBやグラフ保存データは追加していない。</li>
+          </ul>
+        </article>
+
+        <article class="panel next">
+          <h3>次の区切り: P0-3</h3>
+          <p>次はノート名・パスの絞り込み、ズーム、パン、全体表示です。Vault全体は現時点で固定配置かつ件数無制限なので、P0-3では表示上限と省略通知を先に固定してから操作を追加します。P0-4のStarter Vault dogfoodまでは、大規模Vault対応完了とは扱いません。</p>
+        </article>
+      </section>
+
+      <footer>
+        TSUZUNE — 書いて、つないで、あとで尋ねる。／ このレポートはローカル開発作業ツリーの証跡です。
+      </footer>
+    </main>
+  </body>
+</html>

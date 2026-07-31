@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import {
+  GOOGLE_CALENDAR_READ_SCOPE,
+  GOOGLE_OAUTH_SCOPES,
   parseGoogleOAuthClient,
   type GoogleOAuthClient
 } from './google-auth'
@@ -29,19 +31,93 @@ export interface GoogleConnectionDependencies {
   stateDirectory: string
   tokenStore: RefreshTokenStore
   bundledClientId?: string | null
-  authorize(clientId: string): Promise<GoogleOAuthLoopbackResult>
+  bundledClientSecret?: string | null
+  authorize(input: {
+    clientId: string
+    scopes: readonly string[]
+    loginHint?: string
+  }): Promise<GoogleOAuthLoopbackResult>
   fetchImpl: FetchLike
 }
+
+export type GoogleAuthorizedFeature = 'drive_sync' | 'calendar_read'
 
 export interface GoogleConnectionStatus {
   configured: boolean
   connected: boolean
   account: GoogleProfile | null
+  authorizedFeatures: GoogleAuthorizedFeature[]
 }
 
 interface CachedAccessToken {
   value: string
   expiresAt: number
+}
+
+interface GoogleCredentialBundle {
+  version: 1
+  refreshToken: string
+  grantedScopes: string[]
+  accountSub: string
+}
+
+function parseCredential(
+  storedValue: string,
+  accountSub: string | null
+): GoogleCredentialBundle {
+  try {
+    const parsed = JSON.parse(storedValue) as Partial<GoogleCredentialBundle>
+    if (
+      parsed.version === 1 &&
+      typeof parsed.refreshToken === 'string' &&
+      Array.isArray(parsed.grantedScopes) &&
+      parsed.grantedScopes.every((scope) => typeof scope === 'string') &&
+      typeof parsed.accountSub === 'string'
+    ) {
+      return {
+        version: 1,
+        refreshToken: parsed.refreshToken,
+        grantedScopes: parsed.grantedScopes,
+        accountSub: parsed.accountSub
+      }
+    }
+  } catch {
+    // Previous TSUZUNE versions stored the refresh token as a plain string.
+  }
+
+  return {
+    version: 1,
+    refreshToken: storedValue,
+    grantedScopes: [...GOOGLE_OAUTH_SCOPES],
+    accountSub: accountSub ?? ''
+  }
+}
+
+function authorizedFeatures(
+  grantedScopes: readonly string[]
+): GoogleAuthorizedFeature[] {
+  const features: GoogleAuthorizedFeature[] = []
+  if (grantedScopes.includes('https://www.googleapis.com/auth/drive.file')) {
+    features.push('drive_sync')
+  }
+  if (grantedScopes.includes(GOOGLE_CALENDAR_READ_SCOPE)) {
+    features.push('calendar_read')
+  }
+  return features
+}
+
+function requireGrantedScopes(
+  token: GoogleToken,
+  requestedScopes: readonly string[]
+): void {
+  const missing = requestedScopes.filter(
+    (scope) => !token.grantedScopes.includes(scope)
+  )
+  if (missing.length > 0) {
+    throw new Error(
+      'Googleで必要な権限がすべて許可されませんでした。既存の接続は変更していません。'
+    )
+  }
 }
 
 async function readJson<T>(path: string): Promise<T | null> {
@@ -98,27 +174,39 @@ export class GoogleConnectionService {
       return {
         configured: false,
         connected: false,
-        account: null
+        account: null,
+        authorizedFeatures: []
       }
     }
-    const refreshToken = await this.dependencies.tokenStore.read()
+    const storedCredential = await this.dependencies.tokenStore.read()
     const account = await readJson<GoogleProfile>(this.accountPath)
+    const credential = storedCredential
+      ? parseCredential(storedCredential, account?.sub ?? null)
+      : null
     return {
       configured: true,
-      connected: Boolean(refreshToken),
-      account
+      connected: Boolean(credential),
+      account,
+      authorizedFeatures: credential
+        ? authorizedFeatures(credential.grantedScopes)
+        : []
     }
   }
 
   async connect(): Promise<GoogleConnectionStatus> {
     const config = await this.requireConfig()
-    const authorization = await this.dependencies.authorize(config.clientId)
+    const requestedScopes = [...GOOGLE_OAUTH_SCOPES]
+    const authorization = await this.dependencies.authorize({
+      clientId: config.clientId,
+      scopes: requestedScopes
+    })
     const token = await exchangeGoogleAuthorizationCode(
       {
         ...config,
         code: authorization.code,
         codeVerifier: authorization.codeVerifier,
-        redirectUri: authorization.redirectUri
+        redirectUri: authorization.redirectUri,
+        requestedScopes
       },
       this.dependencies.fetchImpl
     )
@@ -127,13 +215,20 @@ export class GoogleConnectionService {
         'Googleから更新用トークンを取得できませんでした。権限を取り消して再接続してください。'
       )
     }
+    requireGrantedScopes(token, requestedScopes)
 
     const account = await fetchGoogleProfile(
       token.accessToken,
       this.dependencies.fetchImpl
     )
+    const credential: GoogleCredentialBundle = {
+      version: 1,
+      refreshToken: token.refreshToken,
+      grantedScopes: token.grantedScopes,
+      accountSub: account.sub
+    }
     try {
-      await this.dependencies.tokenStore.write(token.refreshToken)
+      await this.dependencies.tokenStore.write(JSON.stringify(credential))
       await writeJsonAtomic(this.accountPath, account)
     } catch (error) {
       await this.dependencies.tokenStore.clear().catch(() => undefined)
@@ -144,8 +239,71 @@ export class GoogleConnectionService {
     return {
       configured: true,
       connected: true,
-      account
+      account,
+      authorizedFeatures: authorizedFeatures(credential.grantedScopes)
     }
+  }
+
+  async authorizeCalendarRead(): Promise<GoogleConnectionStatus> {
+    const config = await this.requireConfig()
+    const account = await readJson<GoogleProfile>(this.accountPath)
+    const storedCredential = await this.dependencies.tokenStore.read()
+    if (!account || !storedCredential) {
+      throw new Error('Googleアカウントに接続してください。')
+    }
+    const currentCredential = parseCredential(storedCredential, account.sub)
+    if (currentCredential.grantedScopes.includes(GOOGLE_CALENDAR_READ_SCOPE)) {
+      return this.getStatus()
+    }
+
+    const requestedScopes = [
+      ...new Set([
+        ...currentCredential.grantedScopes,
+        GOOGLE_CALENDAR_READ_SCOPE
+      ])
+    ]
+    const authorization = await this.dependencies.authorize({
+      clientId: config.clientId,
+      scopes: requestedScopes,
+      loginHint: account.email
+    })
+    const token = await exchangeGoogleAuthorizationCode(
+      {
+        ...config,
+        code: authorization.code,
+        codeVerifier: authorization.codeVerifier,
+        redirectUri: authorization.redirectUri,
+        requestedScopes
+      },
+      this.dependencies.fetchImpl
+    )
+    if (!token.refreshToken) {
+      throw new Error(
+        'Googleから更新用トークンを取得できませんでした。既存の接続は変更していません。'
+      )
+    }
+    requireGrantedScopes(token, requestedScopes)
+
+    const nextAccount = await fetchGoogleProfile(
+      token.accessToken,
+      this.dependencies.fetchImpl
+    )
+    if (nextAccount.sub !== account.sub) {
+      throw new Error(
+        '接続中とは別のGoogleアカウントが選択されました。既存の接続は変更していません。'
+      )
+    }
+    const nextCredential: GoogleCredentialBundle = {
+      version: 1,
+      refreshToken: token.refreshToken,
+      grantedScopes: token.grantedScopes,
+      accountSub: nextAccount.sub
+    }
+
+    await writeJsonAtomic(this.accountPath, nextAccount)
+    await this.dependencies.tokenStore.write(JSON.stringify(nextCredential))
+    this.rememberAccessToken(token)
+    return this.getStatus()
   }
 
   async getAccessToken(): Promise<string> {
@@ -157,14 +315,19 @@ export class GoogleConnectionService {
     }
 
     const config = await this.requireConfig()
-    const refreshToken = await this.dependencies.tokenStore.read()
-    if (!refreshToken) {
+    const storedCredential = await this.dependencies.tokenStore.read()
+    if (!storedCredential) {
       throw new Error('Googleアカウントに接続してください。')
     }
+    const account = await readJson<GoogleProfile>(this.accountPath)
+    const credential = parseCredential(
+      storedCredential,
+      account?.sub ?? null
+    )
     const token = await refreshGoogleAccessToken(
       {
         ...config,
-        refreshToken
+        refreshToken: credential.refreshToken
       },
       this.dependencies.fetchImpl
     )
@@ -205,7 +368,8 @@ export class GoogleConnectionService {
     return bundledClientId
       ? {
           clientId: bundledClientId,
-          clientSecret: null
+          clientSecret:
+            this.dependencies.bundledClientSecret?.trim() || null
         }
       : null
   }

@@ -1,12 +1,21 @@
-import { useId } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { filterWikiGraph } from '../../core/graph'
 import type {
   WikiGraph,
-  WikiGraphNode
+  WikiGraphDepth,
+  WikiGraphNode,
+  WikiGraphScope
 } from '../../core/graph'
 
 interface WikiGraphViewProps {
   graph: WikiGraph
   currentPath: string
+  depth: WikiGraphDepth
+  scope: WikiGraphScope
+  includeOrphans: boolean
+  onDepthChange: (depth: WikiGraphDepth) => void
+  onScopeChange: (scope: WikiGraphScope) => void
+  onIncludeOrphansChange: (include: boolean) => void
   onOpen: (path: string) => void
 }
 
@@ -17,6 +26,18 @@ interface PositionedNode {
 }
 
 type NodeRelation = 'current' | 'outgoing' | 'incoming' | 'both' | 'related'
+
+interface GraphPan {
+  x: number
+  y: number
+}
+
+interface GraphDrag {
+  pointerId: number
+  startX: number
+  startY: number
+  pan: GraphPan
+}
 
 const canvasStyle: React.CSSProperties = {
   position: 'relative',
@@ -146,20 +167,95 @@ function nodeColors(relation: NodeRelation): {
 export default function WikiGraphView({
   graph,
   currentPath,
+  depth,
+  scope,
+  includeOrphans,
+  onDepthChange,
+  onScopeChange,
+  onIncludeOrphansChange,
   onOpen
 }: WikiGraphViewProps): React.JSX.Element {
   const markerId = `wiki-graph-arrow-${useId().replaceAll(':', '')}`
-  const positioned = positionNodes(graph.nodes, currentPath)
+  const [filterQuery, setFilterQuery] = useState('')
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState<GraphPan>({ x: 0, y: 0 })
+  const drag = useRef<GraphDrag | null>(null)
+  const visibleGraph = filterWikiGraph(graph, currentPath, filterQuery)
+  const positioned = positionNodes(visibleGraph.nodes, currentPath)
   const positions = new Map(
     positioned.map(({ node, x, y }) => [node.path, { x, y }])
   )
-  const current = graph.nodes.find((node) => node.path === currentPath)
+  const current = visibleGraph.nodes.find((node) => node.path === currentPath)
+
+  const fitGraph = (): void => {
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
+  }
+
+  useEffect(() => {
+    fitGraph()
+  }, [currentPath])
+
+  const changeZoom = (amount: number): void => {
+    setZoom((currentZoom) =>
+      Math.min(1.8, Math.max(0.6, Number((currentZoom + amount).toFixed(1))))
+    )
+  }
+
+  const panWithKeyboard = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+    const movement: Record<string, GraphPan> = {
+      ArrowLeft: { x: -32, y: 0 },
+      ArrowRight: { x: 32, y: 0 },
+      ArrowUp: { x: 0, y: -32 },
+      ArrowDown: { x: 0, y: 32 }
+    }
+    const delta = movement[event.key]
+    if (!delta) {
+      return
+    }
+    event.preventDefault()
+    setPan((currentPan) => ({
+      x: currentPan.x + delta.x,
+      y: currentPan.y + delta.y
+    }))
+  }
+
+  const startPan = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (event.button !== 0 || (event.target as HTMLElement).closest('button')) {
+      return
+    }
+    drag.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      pan
+    }
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+
+  const movePan = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (!drag.current || drag.current.pointerId !== event.pointerId) {
+      return
+    }
+    setPan({
+      x: drag.current.pan.x + event.clientX - drag.current.startX,
+      y: drag.current.pan.y + event.clientY - drag.current.startY
+    })
+  }
+
+  const stopPan = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (!drag.current || drag.current.pointerId !== event.pointerId) {
+      return
+    }
+    drag.current = null
+    event.currentTarget.releasePointerCapture?.(event.pointerId)
+  }
 
   return (
     <section
       className="wiki-graph-view"
       role="region"
-      aria-label="ローカルグラフ"
+      aria-label={scope === 'local' ? 'ローカルグラフ' : 'Vault全体グラフ'}
       style={{
         display: 'flex',
         minWidth: 0,
@@ -174,15 +270,160 @@ export default function WikiGraphView({
       <header
         style={{
           display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          gap: 12
+          flexDirection: 'column',
+          gap: 8
         }}
       >
-        <strong style={{ fontSize: 13, color: '#4f4b43' }}>ローカルグラフ</strong>
-        <span style={{ fontSize: 11, color: '#777167' }}>
-          矢印はWikiリンクの向き
-        </span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12
+          }}
+        >
+          <strong style={{ fontSize: 13, color: '#4f4b43' }}>
+            {scope === 'local' ? 'ローカルグラフ' : 'Vault全体グラフ'}
+          </strong>
+          <span style={{ fontSize: 11, color: '#777167' }}>
+            矢印はWikiリンクの向き
+          </span>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+            flexWrap: 'wrap'
+          }}
+        >
+          <div
+            role="group"
+            aria-label="グラフの範囲"
+            style={{ display: 'flex', gap: 3 }}
+          >
+            {(['local', 'vault'] as const).map((candidate) => (
+              <button
+                key={candidate}
+                type="button"
+                aria-pressed={scope === candidate}
+                onClick={() => onScopeChange(candidate)}
+                style={{
+                  minWidth: candidate === 'local' ? 72 : 78,
+                  padding: '4px 8px',
+                  color: scope === candidate ? '#fff' : '#4f4b43',
+                  font: 'inherit',
+                  fontSize: 11,
+                  background: scope === candidate ? '#365f59' : '#fffdf8',
+                  border: '1px solid #c9c1b3',
+                  borderRadius: 5,
+                  cursor: 'pointer'
+                }}
+              >
+                {candidate === 'local' ? 'ローカル' : 'Vault全体'}
+              </button>
+            ))}
+          </div>
+          {scope === 'local' ? (
+          <div
+            role="group"
+            aria-label="ローカルグラフの深度"
+            style={{ display: 'flex', gap: 3 }}
+          >
+            {([1, 2] as const).map((candidate) => (
+              <button
+                key={candidate}
+                type="button"
+                aria-label={`深度${candidate}`}
+                aria-pressed={depth === candidate}
+                onClick={() => onDepthChange(candidate)}
+                style={{
+                  minWidth: 34,
+                  padding: '3px 7px',
+                  color: depth === candidate ? '#fff' : '#4f4b43',
+                  font: 'inherit',
+                  fontSize: 11,
+                  background: depth === candidate ? '#365f59' : '#fffdf8',
+                  border: '1px solid #c9c1b3',
+                  borderRadius: 5,
+                  cursor: 'pointer'
+                }}
+              >
+                {candidate}段
+              </button>
+            ))}
+          </div>
+          ) : (
+            <label
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 11,
+                color: '#5d584f',
+                cursor: 'pointer'
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={includeOrphans}
+                onChange={(event) => onIncludeOrphansChange(event.target.checked)}
+              />
+              孤立ノートを表示
+            </label>
+          )}
+        </div>
+        <input
+          type="search"
+          aria-label="グラフを絞り込み"
+          placeholder="ノート名またはパス"
+          value={filterQuery}
+          onChange={(event) => setFilterQuery(event.target.value)}
+          style={{
+            width: '100%',
+            padding: '6px 9px',
+            color: '#4f4b43',
+            font: 'inherit',
+            fontSize: 12,
+            background: '#fffdf8',
+            border: '1px solid #c9c1b3',
+            borderRadius: 5
+          }}
+        />
+        <div
+          role="group"
+          aria-label="グラフ表示"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            flexWrap: 'wrap'
+          }}
+        >
+          <button
+            type="button"
+            aria-label="縮小"
+            disabled={zoom <= 0.6}
+            onClick={() => changeZoom(-0.2)}
+          >
+            −
+          </button>
+          <span aria-live="polite" style={{ minWidth: 82, fontSize: 11 }}>
+            表示倍率 {Math.round(zoom * 100)}%
+          </span>
+          <button
+            type="button"
+            aria-label="拡大"
+            disabled={zoom >= 1.8}
+            onClick={() => changeZoom(0.2)}
+          >
+            ＋
+          </button>
+          <button type="button" aria-label="全体表示" onClick={fitGraph}>
+            全体表示
+          </button>
+        </div>
       </header>
 
       {!current ? (
@@ -191,7 +432,27 @@ export default function WikiGraphView({
         </p>
       ) : (
         <>
-          <div className="wiki-graph-canvas" style={canvasStyle}>
+          <div
+            className="wiki-graph-canvas"
+            role="region"
+            aria-label="グラフキャンバス"
+            tabIndex={0}
+            onKeyDown={panWithKeyboard}
+            onPointerDown={startPan}
+            onPointerMove={movePan}
+            onPointerUp={stopPan}
+            onPointerCancel={stopPan}
+            style={{ ...canvasStyle, cursor: 'grab', touchAction: 'none' }}
+          >
+            <div
+              className="wiki-graph-stage"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                transformOrigin: 'center center'
+              }}
+            >
             <svg
               aria-hidden="true"
               viewBox="0 0 100 100"
@@ -217,7 +478,7 @@ export default function WikiGraphView({
                   <path d="M0,0 L5,2.5 L0,5 z" fill="#888276" />
                 </marker>
               </defs>
-              {graph.edges.map((edge) => {
+              {visibleGraph.edges.map((edge) => {
                 const source = positions.get(edge.sourcePath)
                 const target = positions.get(edge.targetPath)
                 if (!source || !target) {
@@ -242,7 +503,11 @@ export default function WikiGraphView({
             </svg>
 
             {positioned.map(({ node, x, y }) => {
-              const relation = nodeRelation(graph, currentPath, node.path)
+              const relation = nodeRelation(
+                visibleGraph,
+                currentPath,
+                node.path
+              )
               const colors = nodeColors(relation)
               const isCurrent = relation === 'current'
               const label = isCurrent
@@ -285,9 +550,10 @@ export default function WikiGraphView({
                 </button>
               )
             })}
+            </div>
           </div>
 
-          {graph.edges.length === 0 && (
+          {visibleGraph.edges.length === 0 && (
             <p
               className="wiki-graph-empty"
               style={{
@@ -297,7 +563,9 @@ export default function WikiGraphView({
                 textAlign: 'center'
               }}
             >
-              このノートには接続がありません。
+              {filterQuery.trim()
+                ? '絞り込み条件に一致する接続がありません。'
+                : 'このノートには接続がありません。'}
             </p>
           )}
         </>

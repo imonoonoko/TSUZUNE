@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  GOOGLE_CALENDAR_READ_SCOPE,
   GOOGLE_OAUTH_SCOPES,
   buildGoogleAuthorizationUrl,
   createPkcePair,
@@ -78,6 +79,27 @@ describe('Google OAuth request', () => {
       'profile',
       'https://www.googleapis.com/auth/drive.file'
     ])
+  })
+
+  it('requests the existing scopes together with Calendar when Calendar is enabled', () => {
+    const requestedScopes = [
+      ...GOOGLE_OAUTH_SCOPES,
+      GOOGLE_CALENDAR_READ_SCOPE
+    ]
+    const url = new URL(
+      buildGoogleAuthorizationUrl({
+        clientId: 'desktop.apps.googleusercontent.com',
+        redirectUri: 'http://127.0.0.1:54321/oauth2/callback',
+        state: 'expected-state',
+        codeChallenge: 'challenge',
+        scopes: requestedScopes
+      })
+    )
+
+    expect(url.searchParams.get('scope')?.split(' ')).toEqual(requestedScopes)
+    expect(url.searchParams.has('include_granted_scopes')).toBe(false)
+    expect(url.searchParams.get('scope')).not.toContain('tasks.readonly')
+    expect(url.searchParams.get('scope')).not.toContain('youtube.readonly')
   })
 })
 

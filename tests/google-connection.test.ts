@@ -6,6 +6,10 @@ import {
   GoogleConnectionService,
   type RefreshTokenStore
 } from '../src/main/google-connection'
+import {
+  GOOGLE_CALENDAR_READ_SCOPE,
+  GOOGLE_OAUTH_SCOPES
+} from '../src/main/google-auth'
 
 const directories: string[] = []
 
@@ -54,7 +58,7 @@ describe('GoogleConnectionService', () => {
       codeVerifier: 'verifier',
       redirectUri: 'http://127.0.0.1:54321/oauth2/callback'
     }))
-    const fetchImpl = vi.fn(async (input: string | URL) => {
+    const fetchImpl = vi.fn(async (input: string | URL, _init?: RequestInit) => {
       if (input.toString().includes('/token')) {
         return new Response(
           JSON.stringify({
@@ -78,6 +82,7 @@ describe('GoogleConnectionService', () => {
       stateDirectory: await stateDirectory(),
       tokenStore: memoryTokenStore(),
       bundledClientId: 'bundled.apps.googleusercontent.com',
+      bundledClientSecret: 'bundled-desktop-secret',
       authorize,
       fetchImpl
     })
@@ -89,9 +94,18 @@ describe('GoogleConnectionService', () => {
 
     await service.connect()
 
-    expect(authorize).toHaveBeenCalledWith(
-      'bundled.apps.googleusercontent.com'
+    expect(authorize).toHaveBeenCalledWith({
+      clientId: 'bundled.apps.googleusercontent.com',
+      scopes: GOOGLE_OAUTH_SCOPES
+    })
+    const tokenRequest = fetchImpl.mock.calls.find(([input]) =>
+      input.toString().includes('/token')
     )
+    expect(
+      new URLSearchParams(tokenRequest?.[1]?.body?.toString()).get(
+        'client_secret'
+      )
+    ).toBe('bundled-desktop-secret')
   })
 
   it('prefers a user-selected OAuth client over the bundled client', async () => {
@@ -131,9 +145,10 @@ describe('GoogleConnectionService', () => {
 
     await service.connect()
 
-    expect(authorize).toHaveBeenCalledWith(
-      'desktop.apps.googleusercontent.com'
-    )
+    expect(authorize).toHaveBeenCalledWith({
+      clientId: 'desktop.apps.googleusercontent.com',
+      scopes: GOOGLE_OAUTH_SCOPES
+    })
   })
 
   it('keeps OAuth configuration separate from connection state', async () => {
@@ -157,7 +172,7 @@ describe('GoogleConnectionService', () => {
     })
   })
 
-  it('connects, stores only the refresh token durably, and exposes the account', async () => {
+  it('connects, stores one credential bundle, and exposes the account', async () => {
     const tokenStore = memoryTokenStore()
     const fetchImpl = vi.fn(async (input: string | URL) => {
       if (input.toString().includes('/token')) {
@@ -193,7 +208,12 @@ describe('GoogleConnectionService', () => {
 
     const status = await service.connect()
 
-    expect(tokenStore.value).toBe('refresh-token')
+    expect(JSON.parse(tokenStore.value ?? '{}')).toEqual({
+      version: 1,
+      refreshToken: 'refresh-token',
+      grantedScopes: GOOGLE_OAUTH_SCOPES,
+      accountSub: 'google-sub'
+    })
     expect(status).toMatchObject({
       configured: true,
       connected: true,
@@ -254,5 +274,116 @@ describe('GoogleConnectionService', () => {
 
     await expect(service.connect()).rejects.toThrow(/OAuth設定/)
     expect(authorize).not.toHaveBeenCalled()
+  })
+
+  it('reconsents to the existing scopes plus Calendar and reports the granted features', async () => {
+    const tokenStore = memoryTokenStore()
+    const authorize = vi.fn(async () => ({
+      code: 'authorization-code',
+      codeVerifier: 'verifier',
+      redirectUri: 'http://127.0.0.1:54321/oauth2/callback'
+    }))
+    let tokenExchange = 0
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      if (input.toString().includes('/token')) {
+        tokenExchange += 1
+        const scopes =
+          tokenExchange === 1
+            ? GOOGLE_OAUTH_SCOPES
+            : [...GOOGLE_OAUTH_SCOPES, GOOGLE_CALENDAR_READ_SCOPE]
+        return new Response(
+          JSON.stringify({
+            access_token: `access-token-${tokenExchange}`,
+            refresh_token: `refresh-token-${tokenExchange}`,
+            expires_in: 3600,
+            scope: scopes.join(' ')
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      return new Response(
+        JSON.stringify({
+          sub: 'google-sub',
+          name: 'Humin',
+          email: 'humin@example.com'
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      )
+    })
+    const service = new GoogleConnectionService({
+      stateDirectory: await stateDirectory(),
+      tokenStore,
+      authorize,
+      fetchImpl
+    })
+    await service.configure(oauthJson)
+    await service.connect()
+
+    const status = await service.authorizeCalendarRead()
+
+    expect(authorize).toHaveBeenLastCalledWith({
+      clientId: 'desktop.apps.googleusercontent.com',
+      loginHint: 'humin@example.com',
+      scopes: [...GOOGLE_OAUTH_SCOPES, GOOGLE_CALENDAR_READ_SCOPE]
+    })
+    expect(status.authorizedFeatures).toEqual([
+      'drive_sync',
+      'calendar_read'
+    ])
+    expect(JSON.parse(tokenStore.value ?? '{}')).toMatchObject({
+      version: 1,
+      refreshToken: 'refresh-token-2',
+      grantedScopes: [...GOOGLE_OAUTH_SCOPES, GOOGLE_CALENDAR_READ_SCOPE],
+      accountSub: 'google-sub'
+    })
+  })
+
+  it('keeps the existing Drive credential when Calendar is not granted', async () => {
+    const tokenStore = memoryTokenStore()
+    let tokenExchange = 0
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      if (input.toString().includes('/token')) {
+        tokenExchange += 1
+        return new Response(
+          JSON.stringify({
+            access_token: `access-token-${tokenExchange}`,
+            refresh_token: `refresh-token-${tokenExchange}`,
+            expires_in: 3600,
+            scope: GOOGLE_OAUTH_SCOPES.join(' ')
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      return new Response(
+        JSON.stringify({
+          sub: 'google-sub',
+          name: 'Humin',
+          email: 'humin@example.com'
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      )
+    })
+    const service = new GoogleConnectionService({
+      stateDirectory: await stateDirectory(),
+      tokenStore,
+      authorize: vi.fn(async () => ({
+        code: 'authorization-code',
+        codeVerifier: 'verifier',
+        redirectUri: 'http://127.0.0.1:54321/oauth2/callback'
+      })),
+      fetchImpl
+    })
+    await service.configure(oauthJson)
+    await service.connect()
+    const previousCredential = tokenStore.value
+
+    await expect(service.authorizeCalendarRead()).rejects.toThrow(
+      /必要な権限/
+    )
+
+    expect(tokenStore.value).toBe(previousCredential)
+    expect((await service.getStatus()).authorizedFeatures).toEqual([
+      'drive_sync'
+    ])
   })
 })

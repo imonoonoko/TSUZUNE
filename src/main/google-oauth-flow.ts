@@ -9,6 +9,8 @@ import {
 
 export interface GoogleOAuthLoopbackInput {
   clientId: string
+  scopes?: readonly string[]
+  loginHint?: string
   openExternal(url: string): Promise<void>
   timeoutMs?: number
 }
@@ -23,6 +25,7 @@ export interface GoogleToken {
   accessToken: string
   refreshToken: string | null
   expiresAt: number
+  grantedScopes: string[]
 }
 
 export interface GoogleProfile {
@@ -41,6 +44,7 @@ export interface AuthorizationCodeExchangeInput extends GoogleClientCredentials 
   code: string
   codeVerifier: string
   redirectUri: string
+  requestedScopes?: readonly string[]
 }
 
 export interface RefreshTokenInput extends GoogleClientCredentials {
@@ -126,7 +130,9 @@ export async function runGoogleOAuthLoopback(
     clientId: input.clientId,
     redirectUri,
     state,
-    codeChallenge: pkce.challenge
+    codeChallenge: pkce.challenge,
+    scopes: input.scopes,
+    loginHint: input.loginHint
   })
 
   const timeout = setTimeout(() => {
@@ -165,7 +171,8 @@ async function readJsonResponse(
 
 function tokenFromPayload(
   payload: Record<string, unknown>,
-  refreshToken: string | null
+  refreshToken: string | null,
+  fallbackScopes: readonly string[] = []
 ): GoogleToken {
   if (
     typeof payload.access_token !== 'string' ||
@@ -176,7 +183,11 @@ function tokenFromPayload(
   return {
     accessToken: payload.access_token,
     refreshToken,
-    expiresAt: Date.now() + payload.expires_in * 1_000
+    expiresAt: Date.now() + payload.expires_in * 1_000,
+    grantedScopes:
+      typeof payload.scope === 'string'
+        ? payload.scope.split(/\s+/).filter(Boolean)
+        : [...fallbackScopes]
   }
 }
 
@@ -202,7 +213,8 @@ export async function exchangeGoogleAuthorizationCode(
   const payload = await readJsonResponse(response)
   return tokenFromPayload(
     payload,
-    typeof payload.refresh_token === 'string' ? payload.refresh_token : null
+    typeof payload.refresh_token === 'string' ? payload.refresh_token : null,
+    input.requestedScopes
   )
 }
 

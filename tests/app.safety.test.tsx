@@ -117,11 +117,13 @@ beforeEach(() => {
           email: 'user@example.com',
           picture: null
         },
+        authorizedFeatures: ['drive_sync'],
         lastSyncAt: null,
         vaultFolderUrl: null
       })
     ),
     connectGoogle: vi.fn(),
+    authorizeGoogleCalendar: vi.fn(),
     disconnectGoogle: vi.fn(),
     listDriveVaults: vi.fn(() =>
       ok([
@@ -142,6 +144,7 @@ beforeEach(() => {
           email: 'user@example.com',
           picture: null
         },
+        authorizedFeatures: ['drive_sync'],
         lastSyncAt: null,
         vaultFolderUrl: 'https://drive.google.com/drive/folders/remote-root'
       })
@@ -210,6 +213,96 @@ describe('App data-loss guards', () => {
     expect(api.setLastNote).toHaveBeenCalledWith('B.md')
   })
 
+  it('switches the local graph between one and two hops', async () => {
+    const noteD: NoteDocument = {
+      path: 'D.md',
+      name: 'D',
+      content: 'Dの本文',
+      modifiedAt: 400,
+      size: 10
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue({
+      ok: true,
+      value: {
+        ...snapshot,
+        notes: [
+          { ...noteA, content: '[[B]]' },
+          { ...noteB, content: '[[C]]' },
+          { ...noteC, content: '[[D]]' },
+          noteD
+        ]
+      }
+    })
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'グラフ' }))
+    expect(
+      screen.getByRole('button', { name: 'B（リンク先）を開く' })
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole('button', { name: 'C（関連ノート）を開く' })
+    ).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '深度2' }))
+
+    expect(
+      await screen.findByRole('button', { name: 'C（関連ノート）を開く' })
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole('button', { name: 'D（関連ノート）を開く' })
+    ).toBeNull()
+  })
+
+  it('switches between the local and Vault graph and reveals orphan notes explicitly', async () => {
+    const noteD: NoteDocument = {
+      path: 'D.md',
+      name: 'D',
+      content: 'Dの本文',
+      modifiedAt: 400,
+      size: 10
+    }
+    const orphan: NoteDocument = {
+      path: '孤立.md',
+      name: '孤立',
+      content: '接続なし',
+      modifiedAt: 500,
+      size: 10
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue({
+      ok: true,
+      value: {
+        ...snapshot,
+        notes: [
+          { ...noteA, content: '[[B]]' },
+          noteB,
+          { ...noteC, content: '[[D]]' },
+          noteD,
+          orphan
+        ]
+      }
+    })
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'グラフ' }))
+    expect(screen.queryByRole('button', { name: 'C（関連ノート）を開く' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vault全体' }))
+
+    expect(
+      await screen.findByRole('button', { name: 'C（関連ノート）を開く' })
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'D（関連ノート）を開く' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '孤立（関連ノート）を開く' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: '孤立ノートを表示' }))
+
+    expect(
+      await screen.findByRole('button', { name: '孤立（関連ノート）を開く' })
+    ).toBeTruthy()
+  })
+
   it('previews Google Drive changes before applying them', async () => {
     render(<App />)
 
@@ -223,11 +316,63 @@ describe('App data-loss guards', () => {
     expect(api.applyDriveSync).not.toHaveBeenCalled()
   })
 
+  it('shows Google feature grants and enables Calendar only after explicit consent', async () => {
+    api.getGoogleDriveStatus = vi.fn(() =>
+      ok({
+        configured: true,
+        connected: true,
+        account: {
+          sub: 'google-user',
+          name: 'TSUZUNE User',
+          email: 'user@example.com',
+          picture: null
+        },
+        authorizedFeatures: ['drive_sync'],
+        lastSyncAt: null,
+        vaultFolderUrl: null
+      })
+    )
+    const authorizeGoogleCalendar = vi.fn(() =>
+      ok({
+        configured: true,
+        connected: true,
+        account: {
+          sub: 'google-user',
+          name: 'TSUZUNE User',
+          email: 'user@example.com',
+          picture: null
+        },
+        authorizedFeatures: ['drive_sync', 'calendar_read'],
+        lastSyncAt: null,
+        vaultFolderUrl: null
+      })
+    )
+    Object.assign(api, { authorizeGoogleCalendar })
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Google / 同期' }))
+    expect(await screen.findByText('Drive同期: 許可済み')).toBeTruthy()
+    expect(screen.getByText('Calendar読取: 未許可')).toBeTruthy()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Calendar読取を有効にする' })
+    )
+
+    await waitFor(() => {
+      expect(authorizeGoogleCalendar).toHaveBeenCalledTimes(1)
+    })
+    expect(await screen.findByText('Calendar読取: 許可済み')).toBeTruthy()
+    expect(
+      screen.queryByRole('button', { name: 'Calendar読取を有効にする' })
+    ).toBeNull()
+  })
+
   it('keeps Google login primary and OAuth JSON configuration behind advanced settings', async () => {
     const disconnectedStatus = {
       configured: true,
       connected: false,
       account: null,
+      authorizedFeatures: [],
       lastSyncAt: null,
       vaultFolderUrl: null
     }
@@ -259,12 +404,47 @@ describe('App data-loss guards', () => {
     })
   })
 
+  it('shows Google connection errors inside the open dialog', async () => {
+    api.getGoogleDriveStatus = vi.fn(() =>
+      ok({
+        configured: true,
+        connected: false,
+        account: null,
+        authorizedFeatures: [],
+        lastSyncAt: null,
+        vaultFolderUrl: null
+      })
+    )
+    api.connectGoogle = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        error: {
+          code: 'UNKNOWN',
+          message: 'Googleへの接続に失敗しました。'
+        }
+      })
+    )
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Google / 同期' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Google Drive同期' })
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Googleでログイン' })
+    )
+
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toBe('Googleへの接続に失敗しました。')
+    expect(dialog.contains(alert)).toBe(true)
+  })
+
   it('offers OAuth JSON setup when no bundled client is available', async () => {
     api.getGoogleDriveStatus = vi.fn(() =>
       ok({
         configured: false,
         connected: false,
         account: null,
+        authorizedFeatures: [],
         lastSyncAt: null,
         vaultFolderUrl: null
       })

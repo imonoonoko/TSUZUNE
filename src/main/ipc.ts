@@ -335,6 +335,10 @@ export function registerIpc(
     await google.connection.connect()
     return getGoogleStatus()
   })
+  registerGoogleTrusted('google:authorizeCalendar', async () => {
+    await google.connection.authorizeCalendarRead()
+    return getGoogleStatus()
+  })
   registerGoogleTrusted('google:disconnect', async () => {
     await google.connection.disconnect()
     return getGoogleStatus()
