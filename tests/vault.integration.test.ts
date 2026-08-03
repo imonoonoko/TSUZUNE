@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { VaultService } from '../src/main/vault'
+import { isSupportedAttachmentPath } from '../src/shared/attachments'
 
 let rootPath: string
 let vault: VaultService
@@ -31,6 +32,13 @@ afterEach(async () => {
 })
 
 describe('VaultService path and scan boundaries', () => {
+  it('recognizes supported attachment extensions on either path separator', () => {
+    expect(isSupportedAttachmentPath('assets/image.PNG')).toBe(true)
+    expect(isSupportedAttachmentPath('media\\clip.webm')).toBe(true)
+    expect(isSupportedAttachmentPath('data/export.json')).toBe(false)
+    expect(isSupportedAttachmentPath('.png')).toBe(false)
+  })
+
   it('scans nested Markdown while excluding internal folders and non-Markdown files', async () => {
     await mkdir(absolute('開発'), { recursive: true })
     await mkdir(absolute('.trash'), { recursive: true })
@@ -43,6 +51,142 @@ describe('VaultService path and scan boundaries', () => {
     expect(snapshot.directories).toEqual(['', '開発'])
     expect(snapshot.notes.map((item) => item.path)).toEqual(['開発/方針.md'])
     expect(snapshot.notes[0].content).toBe('本文')
+    expect(snapshot.attachments).toEqual([])
+  })
+
+  it('scans supported attachments recursively with file metadata', async () => {
+    const supportedExtensions = [
+      'png',
+      'jpg',
+      'jpeg',
+      'gif',
+      'bmp',
+      'svg',
+      'webp',
+      'avif',
+      'pdf',
+      'mp3',
+      'wav',
+      'm4a',
+      'ogg',
+      'mp4',
+      'webm',
+      'mov',
+      'mkv'
+    ]
+    await mkdir(absolute('資料/深い'), { recursive: true })
+    await mkdir(absolute('.trash'), { recursive: true })
+    await mkdir(absolute('.obsidian'), { recursive: true })
+    await writeFile(absolute('資料/本文.md'), '# 本文', 'utf8')
+    await Promise.all(
+      supportedExtensions.map((extension, index) =>
+        writeFile(
+          absolute(`資料/深い/${String(index).padStart(2, '0')}.${extension}`),
+          `asset-${extension}`,
+          'utf8'
+        )
+      )
+    )
+    await writeFile(absolute('資料/深い/大文字.PNG'), 'upper-case', 'utf8')
+    await writeFile(absolute('資料/深い/対象外.txt'), 'text', 'utf8')
+    await writeFile(absolute('資料/深い/対象外.json'), '{}', 'utf8')
+    await writeFile(absolute('資料/深い/対象外.exe'), 'binary', 'utf8')
+    await writeFile(absolute('.trash/削除済み.png'), 'hidden', 'utf8')
+    await writeFile(absolute('.obsidian/キャッシュ.pdf'), 'hidden', 'utf8')
+
+    const snapshot = await vault.scan()
+
+    expect(snapshot.attachments?.map((item) => item.path)).toEqual([
+      ...supportedExtensions.map(
+        (extension, index) =>
+          `資料/深い/${String(index).padStart(2, '0')}.${extension}`
+      ),
+      '資料/深い/大文字.PNG'
+    ])
+    expect(snapshot.attachments?.[0]).toMatchObject({
+      name: `00.${supportedExtensions[0]}`,
+      size: Buffer.byteLength(`asset-${supportedExtensions[0]}`)
+    })
+    expect(snapshot.attachments?.[0].modifiedAt).toEqual(expect.any(Number))
+    expect(
+      typeof snapshot.attachments?.[0].createdAt === 'number' ||
+        snapshot.attachments?.[0].createdAt === null
+    ).toBe(true)
+    expect(snapshot.notes[0].createdAt).not.toBeUndefined()
+  })
+
+  it('excludes matching notes and attachments without discarding their creation times', async () => {
+    await mkdir(absolute('80_excluded'), { recursive: true })
+    await writeFile(absolute('Visible.md'), '# visible', 'utf8')
+    await writeFile(absolute('80_excluded/Hidden.md'), '# hidden', 'utf8')
+    await writeFile(absolute('80_excluded/Hidden.png'), 'image', 'utf8')
+
+    const filtered = await vault.scan(['80_excluded'])
+
+    expect(filtered.notes.map((item) => item.path)).toEqual(['Visible.md'])
+    expect(filtered.attachments).toEqual([])
+
+    const creationTimes = JSON.parse(
+      await readFile(absolute('.tsuzune/graph-file-times.json'), 'utf8')
+    ) as Record<string, number>
+    expect(Object.keys(creationTimes)).toEqual([
+      '80_excluded/Hidden.md',
+      '80_excluded/Hidden.png',
+      'Visible.md'
+    ])
+
+    const unfiltered = await vault.scan([])
+    expect(unfiltered.notes.map((item) => item.path)).toEqual([
+      '80_excluded/Hidden.md',
+      'Visible.md'
+    ])
+    expect(unfiltered.attachments?.map((item) => item.path)).toEqual([
+      '80_excluded/Hidden.png'
+    ])
+    expect(unfiltered.notes[0].createdAt).toBe(
+      creationTimes['80_excluded/Hidden.md']
+    )
+  })
+
+  it('resolves only file-backed graph entries for an external open', async () => {
+    await mkdir(absolute('assets'), { recursive: true })
+    await writeFile(absolute('ノート.md'), '# ノート', 'utf8')
+    await writeFile(absolute('assets/図.png'), 'image', 'utf8')
+    await writeFile(absolute('assets/対象外.txt'), 'text', 'utf8')
+
+    await expect(vault.resolveFileForOpen('ノート.md')).resolves.toBe(
+      absolute('ノート.md')
+    )
+    await expect(vault.resolveFileForOpen('assets/図.png')).resolves.toBe(
+      absolute('assets/図.png')
+    )
+    await expect(vault.resolveFileForOpen('assets/対象外.txt')).rejects.toMatchObject({
+      appError: { code: 'INVALID_PATH' }
+    })
+    await expect(vault.resolveFileForOpen('assets')).rejects.toMatchObject({
+      appError: { code: 'INVALID_PATH' }
+    })
+  })
+
+  it('reads a Vault image as a browser-safe data URL', async () => {
+    await mkdir(absolute('attachments'), { recursive: true })
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><circle r="4" /></svg>'
+    await writeFile(absolute('attachments/diagram.svg'), svg, 'utf8')
+
+    await expect(vault.readImageDataUrl('attachments/diagram.svg')).resolves.toBe(
+      `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`
+    )
+  })
+
+  it('does not expose non-image files through preview data URLs', async () => {
+    await writeFile(absolute('note.md'), '# private text', 'utf8')
+
+    await expect(vault.readImageDataUrl('note.md')).rejects.toMatchObject({
+      appError: { code: 'INVALID_PATH' }
+    })
+    await expect(vault.readImageDataUrl('../outside.png')).rejects.toMatchObject({
+      appError: { code: 'INVALID_PATH' }
+    })
   })
 
   it.each([

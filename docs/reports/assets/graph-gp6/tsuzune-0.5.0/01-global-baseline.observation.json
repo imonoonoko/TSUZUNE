@@ -1,0 +1,475 @@
+{
+  "capturedAt": "2026-08-02T14:18:10.918Z",
+  "title": "TSUZUNE",
+  "url": "file:///C:/Users/Humin/AppData/Local/Programs/tsuzune/resources/app.asar/out/renderer/index.html",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) tsuzune/0.5.0 Chrome/150.0.7871.129 Electron/43.2.0 Safari/537.36",
+  "renderedTheme": "light",
+  "visibilityState": "visible",
+  "dimensions": {
+    "inner": {
+      "width": 1265,
+      "height": 768
+    },
+    "outer": {
+      "width": 1280,
+      "height": 800
+    },
+    "devicePixelRatio": 1,
+    "graphView": {
+      "x": 260,
+      "y": 116,
+      "width": 765,
+      "height": 622
+    },
+    "graphCanvas": {
+      "x": 272,
+      "y": 293,
+      "width": 741,
+      "height": 433
+    },
+    "edgeSvg": {
+      "x": 273,
+      "y": 294,
+      "width": 739,
+      "height": 431
+    }
+  },
+  "installedSelectorContract": {
+    "noteActions": "header.note-header .note-actions",
+    "graphSurface": ".wiki-graph-view[aria-label=\"Vault全体グラフ\"]",
+    "scopeGroup": "[role=\"group\"][aria-label=\"グラフの範囲\"]",
+    "graphCanvas": ".wiki-graph-canvas[role=\"region\"][aria-label=\"グラフキャンバス\"]",
+    "nodes": "button.wiki-graph-node",
+    "edges": "svg[aria-hidden=\"true\"] line[data-source-path][data-target-path]"
+  },
+  "settings": {
+    "lastVaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\graph-gp6\\tsuzune-0.5.0\\vault",
+    "lastNotePath": "00_Home.md"
+  },
+  "graphControls": {
+    "filterQuery": "",
+    "includeOrphans": false,
+    "zoomStatus": "表示倍率 100%"
+  },
+  "scopeControls": [
+    {
+      "text": "ローカル",
+      "pressed": false,
+      "rect": {
+        "x": 272,
+        "y": 153,
+        "width": 72,
+        "height": 30
+      }
+    },
+    {
+      "text": "Vault全体",
+      "pressed": true,
+      "rect": {
+        "x": 347,
+        "y": 153,
+        "width": 78,
+        "height": 30
+      }
+    }
+  ],
+  "buttons": [
+    {
+      "text": "ローカル",
+      "ariaLabel": null,
+      "className": "",
+      "rect": {
+        "x": 272,
+        "y": 153,
+        "width": 72,
+        "height": 30
+      }
+    },
+    {
+      "text": "Vault全体",
+      "ariaLabel": null,
+      "className": "",
+      "rect": {
+        "x": 347,
+        "y": 153,
+        "width": 78,
+        "height": 30
+      }
+    },
+    {
+      "text": "−",
+      "ariaLabel": "縮小",
+      "className": "",
+      "rect": {
+        "x": 272,
+        "y": 229,
+        "width": 38,
+        "height": 33
+      }
+    },
+    {
+      "text": "＋",
+      "ariaLabel": "拡大",
+      "className": "",
+      "rect": {
+        "x": 402,
+        "y": 229,
+        "width": 38,
+        "height": 33
+      }
+    },
+    {
+      "text": "全体表示",
+      "ariaLabel": "全体表示",
+      "className": "",
+      "rect": {
+        "x": 445,
+        "y": 229,
+        "width": 86,
+        "height": 33
+      }
+    },
+    {
+      "text": "00_Home",
+      "ariaLabel": "00_Home（現在のノート）",
+      "className": "wiki-graph-node is-current",
+      "rect": {
+        "x": 605.84375,
+        "y": 493.5,
+        "width": 73.3125,
+        "height": 32
+      }
+    },
+    {
+      "text": "Project Alpha",
+      "ariaLabel": "Project Alpha（相互リンク）を開く",
+      "className": "wiki-graph-node is-both",
+      "rect": {
+        "x": 595.046875,
+        "y": 329.71875,
+        "width": 94.90625,
+        "height": 32
+      }
+    },
+    {
+      "text": "Project Beta",
+      "ariaLabel": "Project Beta（関連ノート）を開く",
+      "className": "wiki-graph-node is-related",
+      "rect": {
+        "x": 865.8359375,
+        "y": 442.875,
+        "width": 87.453125,
+        "height": 32
+      }
+    },
+    {
+      "text": "Distillation",
+      "ariaLabel": "Distillation（関連ノート）を開く",
+      "className": "wiki-graph-node is-related",
+      "rect": {
+        "x": 767.265625,
+        "y": 626,
+        "width": 80.5625,
+        "height": 32
+      }
+    },
+    {
+      "text": "Reference",
+      "ariaLabel": "Reference（相互リンク）を開く",
+      "className": "wiki-graph-node is-both",
+      "rect": {
+        "x": 439.3984375,
+        "y": 626,
+        "width": 76.078125,
+        "height": 32
+      }
+    },
+    {
+      "text": "Hidden",
+      "ariaLabel": "Hidden（バックリンク）を開く",
+      "className": "wiki-graph-node is-incoming",
+      "rect": {
+        "x": 344.5234375,
+        "y": 442.875,
+        "width": 61.796875,
+        "height": 32
+      }
+    }
+  ],
+  "renderer": {
+    "nodeCount": 6,
+    "directedEdgeCount": 11,
+    "stageTransform": "translate(0px, 0px) scale(1)",
+    "edgeSvg": {
+      "viewBox": "0 0 100 100",
+      "preserveAspectRatio": "none",
+      "clientWidth": 739,
+      "clientHeight": 431
+    },
+    "edges": [
+      {
+        "sourcePath": "00_Home.md",
+        "targetPath": "10_projects/Project Alpha.md",
+        "x1": "50",
+        "y1": "50",
+        "x2": "50",
+        "y2": "16.5",
+        "stroke": "#9c968a",
+        "markerEnd": "url(#wiki-graph-arrow-_r_0_)"
+      },
+      {
+        "sourcePath": "00_Home.md",
+        "targetPath": "20_knowledge/Reference.md",
+        "x1": "50",
+        "y1": "50",
+        "x2": "30.73712008672677",
+        "y2": "76.51307964883661",
+        "stroke": "#9c968a",
+        "markerEnd": "url(#wiki-graph-arrow-_r_0_)"
+      },
+      {
+        "sourcePath": "10_projects/Project Alpha.md",
+        "targetPath": "00_Home.md",
+        "x1": "50",
+        "y1": "12",
+        "x2": "50",
+        "y2": "45.5",
+        "stroke": "#9c968a",
+        "markerEnd": "url(#wiki-graph-arrow-_r_0_)"
+      },
+      {
+        "sourcePath": "20_knowledge/Reference.md",
+        "targetPath": "00_Home.md",
+        "x1": "27.664160412886027",
+        "y1": "80.742645786248",
+        "x2": "46.92704032615926",
+        "y2": "54.229566137411396",
+        "stroke": "#9c968a",
+        "markerEnd": "url(#wiki-graph-arrow-_r_0_)"
+      },
+      {
+        "sourcePath": "80_excluded/Hidden.md",
+        "targetPath": "00_Home.md",
+        "x1": "13.859852380784162",
+        "y1": "38.257354213752",
+        "x2": "42.453453672977325",
+        "y2": "47.547978459816235",
+        "stroke": "#9c968a",
+        "markerEnd": "url(#wiki-graph-arrow-_r_0_)"
+      },
+      {
+        "sourcePath": "10_projects/Project Alpha.md",
+        "targetPath": "10_projects/Project Beta.md",
+        "x1": "50",
+        "y1": "12",
+        "x2": "81.03791018307965",
+        "y2": "34.55036172841802",
+        "stroke": "#9c968a",
+        "markerEnd": "url(#wiki-graph-arrow-_r_0_)"
+      },
+      {
+        "sourcePath": "10_projects/Project Alpha.md",
+        "targetPath": "20_knowledge/Reference.md",
+        "x1": "50",
+        "y1": "12",
+        "x2": "29.10737752220438",
+        "y2": "76.30088024832925",
+        "stroke": "#9c968a",
+        "markerEnd": "url(#wiki-graph-arrow-_r_0_)"
+      },
+      {
+        "sourcePath": "10_projects/Project Beta.md",
+        "targetPath": "10_projects/Project Alpha.md",
+        "x1": "86.14014761921584",
+        "y1": "38.257354213751995",
+        "x2": "55.10223743613619",
+        "y2": "15.706992485333979",
+        "stroke": "#9c968a",
+        "markerEnd": "url(#wiki-graph-arrow-_r_0_)"
+      },
+      {
+        "sourcePath": "10_projects/Project Beta.md",
+        "targetPath": "20_knowledge/Distillation.md",
+        "x1": "86.14014761921584",
+        "y1": "38.257354213751995",
+        "x2": "73.77905669643233",
+        "y2": "76.30088024832925",
+        "stroke": "#9c968a",
+        "markerEnd": "url(#wiki-graph-arrow-_r_0_)"
+      },
+      {
+        "sourcePath": "20_knowledge/Distillation.md",
+        "targetPath": "10_projects/Project Beta.md",
+        "x1": "72.33583958711398",
+        "y1": "80.742645786248",
+        "x2": "84.69693050989748",
+        "y2": "42.69911975167075",
+        "stroke": "#9c968a",
+        "markerEnd": "url(#wiki-graph-arrow-_r_0_)"
+      },
+      {
+        "sourcePath": "20_knowledge/Reference.md",
+        "targetPath": "20_knowledge/Distillation.md",
+        "x1": "27.664160412886027",
+        "y1": "80.742645786248",
+        "x2": "63.33583958711398",
+        "y2": "80.742645786248",
+        "stroke": "#9c968a",
+        "markerEnd": "url(#wiki-graph-arrow-_r_0_)"
+      }
+    ],
+    "nodes": [
+      {
+        "path": "00_Home.md",
+        "label": "00_Home",
+        "ariaLabel": "00_Home（現在のノート）",
+        "className": "wiki-graph-node is-current",
+        "rect": {
+          "x": 605.84375,
+          "y": 493.5,
+          "width": 73.3125,
+          "height": 32
+        },
+        "position": {
+          "left": "50%",
+          "top": "50%"
+        }
+      },
+      {
+        "path": "10_projects/Project Alpha.md",
+        "label": "Project Alpha",
+        "ariaLabel": "Project Alpha（相互リンク）を開く",
+        "className": "wiki-graph-node is-both",
+        "rect": {
+          "x": 595.046875,
+          "y": 329.71875,
+          "width": 94.90625,
+          "height": 32
+        },
+        "position": {
+          "left": "50%",
+          "top": "12%"
+        }
+      },
+      {
+        "path": "10_projects/Project Beta.md",
+        "label": "Project Beta",
+        "ariaLabel": "Project Beta（関連ノート）を開く",
+        "className": "wiki-graph-node is-related",
+        "rect": {
+          "x": 865.8359375,
+          "y": 442.875,
+          "width": 87.453125,
+          "height": 32
+        },
+        "position": {
+          "left": "86.1401%",
+          "top": "38.2574%"
+        }
+      },
+      {
+        "path": "20_knowledge/Distillation.md",
+        "label": "Distillation",
+        "ariaLabel": "Distillation（関連ノート）を開く",
+        "className": "wiki-graph-node is-related",
+        "rect": {
+          "x": 767.265625,
+          "y": 626,
+          "width": 80.5625,
+          "height": 32
+        },
+        "position": {
+          "left": "72.3358%",
+          "top": "80.7426%"
+        }
+      },
+      {
+        "path": "20_knowledge/Reference.md",
+        "label": "Reference",
+        "ariaLabel": "Reference（相互リンク）を開く",
+        "className": "wiki-graph-node is-both",
+        "rect": {
+          "x": 439.3984375,
+          "y": 626,
+          "width": 76.078125,
+          "height": 32
+        },
+        "position": {
+          "left": "27.6642%",
+          "top": "80.7426%"
+        }
+      },
+      {
+        "path": "80_excluded/Hidden.md",
+        "label": "Hidden",
+        "ariaLabel": "Hidden（バックリンク）を開く",
+        "className": "wiki-graph-node is-incoming",
+        "rect": {
+          "x": 344.5234375,
+          "y": 442.875,
+          "width": 61.796875,
+          "height": 32
+        },
+        "position": {
+          "left": "13.8599%",
+          "top": "38.2574%"
+        }
+      }
+    ]
+  },
+  "vault": {
+    "activeVaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\graph-gp6\\tsuzune-0.5.0\\vault",
+    "activeVaultMatched": true,
+    "markdownFiles": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md"
+    ],
+    "attachmentFiles": [],
+    "settings": {
+      "lastVaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\graph-gp6\\tsuzune-0.5.0\\vault",
+      "lastNotePath": "00_Home.md"
+    }
+  },
+  "summary": {
+    "markdownCount": 7,
+    "renderedNodeCount": 6,
+    "renderedDirectedEdgeCount": 11,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp6/tsuzune-0.5.0/01-global-baseline.png",
+      "bytes": 115611,
+      "sha256": "ED0EE9E91FE95DDC2938C29068AF107019F4D437513C5E6A63F733F94D71EB85",
+      "width": 1265,
+      "height": 768
+    }
+  },
+  "expected": {
+    "version": "0.5.0",
+    "executableSha256": "A19F02E525CACE50361D4C20AB9FF861CE44BE65E12942974D532805082B95BA",
+    "applicationAsarSha256": "82FED31F359D2072AD3138F9D8106D8AD9AA2BBFED4A7DB741CCD43ACE02D7D3",
+    "markdownCount": 7,
+    "installedDefaultGraph": {
+      "renderedNodeCount": 6,
+      "renderedDirectedEdgeCount": 11
+    },
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1
+  },
+  "assertions": {
+    "viewportMatched": true,
+    "renderedThemeMatched": true,
+    "activeVaultMatched": true,
+    "markdownCountMatched": true,
+    "graphSurfaceCaptured": true,
+    "installedDefaultGraphMatched": true,
+    "installedDefaultOrphansMatched": true,
+    "installedDefaultScopeCaptured": true
+  }
+}

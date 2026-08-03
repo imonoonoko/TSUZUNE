@@ -1,5 +1,7 @@
 # TSUZUNE Product Plan
 
+現在の本番、working tree、検証済み範囲、次の一手は[PROJECT_STATUS.md](PROJECT_STATUS.md)を入口とする。このPLANは長期方向、Active Track、完了履歴、受入契約を保持する実行計画であり、現在値だけを読むDashboardではない。資料全体は[docs/INDEX.md](docs/INDEX.md)から辿る。
+
 ## Product Direction: Obsidian Parity + AI-Native Memory
 
 決定日: 2026-08-01
@@ -8,7 +10,7 @@
 
 TSUZUNEを、Obsidianの主要機能を可能な限り備えたローカルファーストの知識ワークスペースへ育て、その上でContext Compiler、時間付き記憶、出典管理、個人データ取込、AI向け文脈評価を統合する。
 
-目標は画面や内部実装を一字一句複製することではない。個人用Windowsアプリとして、Obsidianで日常的に行える仕事を同等以上に完了でき、Markdown Vaultを失わず移行できることを機能的な互換性とする。Obsidian固有の有料クラウドサービスは、Google Drive同期や静的サイト出力などTSUZUNE向けの代替で同じ利用目的を満たす。
+製品全体はMarkdown Vaultを失わず移行できる機能互換を基礎とする。ただしGraph viewだけは2026-08-02の追加決定により基準を引き上げ、Obsidian Desktop 1.13.4の公開画面、表示対象、設定、操作、状態遷移を同一fixtureで徹底的に再現する。「近い」「似ている」「同等用途」ではGraph parityを完了にしない。非公開の内部コードまで複製するのではなく、利用者が観測できる結果を一致させる。Local Graphの可変Depthを入れないことだけは、過去の明示指示による唯一の互換例外とする。Obsidian固有の有料クラウドサービスは、Google Drive同期や静的サイト出力などTSUZUNE向けの代替で同じ利用目的を満たす。
 
 以前の「MVPではグラフ、同期、プラグイン、独自DBへ広げない」という記述は、各マイルストーンの停止条件としては維持するが、製品全体の恒久的な除外方針としてはこの決定で置き換える。機能範囲は広げるが、一度に実装するのは常に1つの検証可能な縦切りだけとする。
 
@@ -25,10 +27,19 @@ TSUZUNEを、Obsidianの主要機能を可能な限り備えたローカルフ�
 - Markdownと添付原本を正本とし、SQLite、FTS、ベクトル索引、グラフ索引は削除して再構築できる補助データに限る。
 - 既存Vaultを独自形式へ強制移行しない。対応する公開形式がある場合はMarkdown、YAML、JSON Canvasなどを優先する。
 - 名前変更、移動、同期、変換、AI提案ではpreview、衝突検出、復元経路を持ち、黙って情報を失わせない。
-- AIは原本を無承認で統合、削除、現在事実化しない。自動処理は検索、候補生成、重複・矛盾検出を中心にする。
+- AIは通常の知識・プロジェクトノートをユーザー承認なしで作成・更新できる。原文・会話ログは不変とし、更新前の本文、出典、理由、改訂情報を`50_履歴/AI更新`へ保存する。削除・移動・強制上書きは別の明示操作とする。
 - 個人利用、ローカル動作、オフライン継続を既定にし、Google接続、同期、外部取込、公開は明示操作にする。
 - コア機能を先に安定させ、プラグイン機構は権限、Restricted Mode、障害分離を備えてから有効にする。
 - 「ある」だけで完了にせず、実Vault dogfood、アクセシビリティ、性能、データ非破壊を受入条件へ含める。
+- TSUZUNE自身の開発では、本番Vaultを開発記憶としてdogfoodする。開始時に登録済みMCPでプロジェクトノートを検索・取得・Context化し、検証済みの区切りごとに出典ノートとプロジェクト状態をrevision検査付きで書き戻す。fixtureや隔離profileは比較入力に限り、本番知識源とは扱わない。
+
+### AI Write Policy
+
+- AI自動更新を標準経路とし、人間の確認は毎回の承認ではなく、設定した保護対象・競合・高影響変更に限定する。
+- `autonomous_update_note`は、通常ノートをrevision検査付きで更新し、旧本文を`50_履歴/AI更新`へ保存する。
+- すべての自動更新にactor、reason、source_refs、previous_revisionを付与し、いつでも旧版へ戻せるようにする。
+- `40_情報源`などのraw sourceは自動更新せず、派生要約・リンク・メタデータだけを別ノートへ生成する。
+- フォルダまたはノート単位で`auto`、`review`、`immutable`を切り替えられるようにする。
 
 ### Parity Levels
 
@@ -81,15 +92,16 @@ TSUZUNEを、Obsidianの主要機能を可能な限り備えたローカルフ�
 | 移動・レイアウト | tabs、split panes、workspaces、quick switcher、commands、hotkeys | P0 | P2 |
 | 検索 | 本文検索、演算子、property/tag/task検索、履歴、埋込query | P1 | P2 |
 | Properties・Tags | 型付きYAML、properties view、tag view、rename、絞込 | P1 | P3 |
-| Graph | local/global、depth、filter、groups、display、forces、navigation | P1 | P3 |
+| Graph | local直接リンク／global全`.md`、filter、groups、display、forces、navigation、Canvas＋DOM描画 | P1 | P3 |
 | 日常運用 | templates、daily notes、unique note、bookmarks、random note | P0 | P2 |
+| 文脈内タスク・Capture | Markdown checkbox、Today／Upcoming／Inbox、元ノート更新、quick capture、自然言語期限 | P0 | P3 |
 | 構造化ビュー | Basesのtable/list/cards/map、sort、filter、group、formula | P0 | P3 |
 | Visual thinking | JSON Canvas、cards、groups、labels、media/web、embed | P0 | P3 |
 | Media | 添付paste/drop、画像、PDF、音声、動画、録音、slides、web viewer | P0 | P2 |
 | 復旧・履歴 | snapshots、file recovery、version history、監査ログ | P0 | P3 |
 | 同期 | Google Drive手動同期、選択同期、状態表示、競合、履歴 | P1 | P3 |
 | 取込・出力・公開 | Importer、Web Clipper、format converter、可搬Markdown/PDF・backup export、静的Publish | P0 | P3 |
-| 外観 | themes、CSS snippets、icons、表示密度、アクセシビリティ | P0 | P2 |
+| 外観 | themes、CSS snippets、icons、表示密度、アクセシビリティ | P1 | P2 |
 | 拡張 | core module toggle、plugin API、Restricted Mode、権限、更新 | P0 | P3 |
 | 自動化・アプリ間連携 | CLI、deep-link URI、commands、MCPによる同等操作 | P1 | P3 |
 | Mobile | 閲覧・編集・検索・quick capture・同期・mobile toolbar相当 | P0 | P2 |
@@ -98,17 +110,31 @@ TSUZUNEを、Obsidianの主要機能を可能な限り備えたローカルフ�
 
 ### Obsidian Parity Delivery Stages
 
-#### O0. Graph Explorer Completion（進行中）
+#### O0. Obsidian Graph Parity（最優先）
 
-- P0-3: グラフ固有の絞り込み、ズーム、パン、全体表示
-- P0-4: 表示上限、省略件数、矢印と凡例、hover強調、Starter Vault dogfood
-- 次段: groups、tag/attachment/unresolved filters、node/link表示調整、安定レイアウト、context menu
+P0-4までの安全な探索基盤は完了した。2026-08-02の優先指示により、Personal Google Intakeより先に、**Obsidian Desktop 1.13.4（Windows 11、Default theme）**を固定参照版として、公開UIから観測できる配置、操作、設定、表示を互換にする。「似た見た目」や静止画1枚の一致では完了にしない。同一Vault、同一入力、同一設定に対して、同じ力学的規則、表示対象、設定効果、操作結果になることを要求する。乱数、tick時刻、GPU描画に左右されるピクセル座標そのものは一致条件に含めない。
+
+過去の明示指示により、Local Graphの可変Depthだけは意図的な互換例外とする。TSUZUNEは現在ノートの直接リンクだけを表示し、Depth sliderを復活させない。それ以外のLocal Graph設定と操作は、固定参照版に合わせる。
+
+- GP0 Reference Contract: 参照版1.13.4、公式仕様、比較Vault、機能対応表、実機操作記録、スクリーンショット条件を固定する
+- GP1 Force Runtime Parity: Center／Repel／Link force／Link distance、継続simulation、再加熱と収束、node drag、設定保存を参照版と同じ観測可能な規則にする
+- GP2 Renderer And Display: 全辺を単一Canvas層へ描画し、操作可能なノートをDOMで重ねるハイブリッド描画、矢印、文字フェード、ノードサイズ、リンク太さ、被参照数によるノード径
+- GP3 Filters And Groups: Search files、Tags、Attachments、Existing files only、Orphans、Excluded files、複数色グループ
+- GP4 Interaction Parity: hover、click、right-click、wheel／`+`／`-`、背景drag／矢印／Shift+矢印、node drag、Local Graphの直接リンク固定例外
+- GP5 Time-Lapse And Scale: 作成日時順animation、大規模Vault、段階描画、必要な場合だけWebGLまたは再構築可能な索引を評価する
+- GP6 Parity Closure: 同一Vaultで構造比較、設定別画像、操作動画、性能値、Markdown不変条件をHTMLレポートへまとめる
+
+公式文書で範囲や優先順位が定義されていないスライダー数値、group重複時の色優先、node pin、zoom限界、設定保存単位などは参照版1.13.4の実機比較で決め、未確認の推測を互換要件へ混ぜない。2020年に公開された`d3-force`／PixiJSと位置非保存の説明は歴史的参考であり、1.13.4の内部実装保証として扱わない。
 
 Gate:
 
-1. 小規模Vaultでlocal/global探索を日常利用できる。
-2. 大規模fixtureで固まらず、表示上限と省略理由を説明する。
-3. pointer、keyboard、screen reader向けのノード操作を壊さない。
+1. 参照版1.13.4のFilters、Groups、Display、Forces、navigation、time-lapseを機能対応表で100%説明し、Local GraphのDepth撤廃だけを意図的な差異として記録できる。
+2. 比較Vaultに対するnode／directed edge包含結果が、同じ設定の参照版と一致する。
+3. Force slider、node追加・削除・drag、filter変更に対して、同じ再配置規則と収束方向を示す。固定リング、path順レーン、黄金角の静止配置、固定tick後の静止画を互換実装として認めない。
+4. hover、click、right-click、wheel／key zoom、背景drag／key pan、node drag、Restore defaultsの操作結果が参照版と一致する。
+5. pointer、keyboard、screen reader向けのノード操作を壊さず、色だけに依存しない。
+6. 大規模fixtureで操作不能にならず、参照版にない固定上限でnode／edgeを省略しない。
+7. グラフ操作前後でMarkdownと添付原本を変更しない。
 
 #### O1. Daily Writing And Navigation
 
@@ -120,11 +146,54 @@ Gate:
 - outline、footnotes view、page preview、word count
 - 画像と添付のpaste/drop、保存先規則、基本media preview
 
+##### O1-T. Contextual Tasks And Capture
+
+調査日: 2026-08-03
+
+根拠: [「大先輩のObsidianタスク管理術」](https://www.youtube.com/watch?v=Ld8_OM3Gwfo)、[Tasks User Guide](https://publish.obsidian.md/tasks/)
+
+動画の運用から採用する原則は、タスクを専用DBや中央ノートへ移すことではなく、発生したMarkdownノートへ残し、Today／Upcoming／Inboxを再構築可能な投影として生成することである。グラフ表示そのものではなく、低摩擦の記録、文脈を保つ原本、横断集約、AIによる検索と保守を日常利用の価値へつなげる。
+
+Design contract:
+
+- タスクの正本は、議事録、プロジェクトノート、デイリーノートなど発生元にあるMarkdown checkboxとする。タスク索引、期限別一覧、通知は削除して再構築できる派生データに限る。
+- `Today`は本日期限と期限超過、`Upcoming`は本日より後から7日以内、`Inbox`は未完了かつ期限なしを既定投影とする。プリセットは後から編集可能にするが、最初から汎用query languageを作らない。
+- 一覧上の完了、期限変更、優先度変更は、元ファイル、行または安定ID、revisionを示し、競合がなければ元Markdownへwrite-throughする。外部変更と競合した場合は黙って上書きしない。
+- 1行で済む作業はcheckboxのまま保持し、手順、資料、判断履歴が必要な作業はWikiリンク先の通常ノートへ展開する。1タスク1ファイルを必須にしない。
+- Daily Noteは日記、仕事、タスクを日々の入口とし、完了タスク、当日作成・更新ノートを再構築可能なactivity logとして表示する。
+- Capture Gatewayは既存MCP、CLI／global hotkey、将来のmobile adapterから同じappend契約を利用し、対象ノート、見出し、時刻、actor、sourceを記録する。Discordや常時起動PCを必須構成にしない。
+- 「今日」「明後日」などの自然言語期限はpreviewで正規化結果を確認でき、日付だけの期限に存在しない時刻を推測しない。
+- AIは初期分類を完璧にするためではなく、蓄積後のtag、folder、link、見出し、task metadataの一括保守へ使う。通常ノートはAI Write Policyに従って更新し、raw sourceは不変、変更前本文と差分、理由、出典、復元経路を残す。
+- Context Compilerはタスク本文だけでなく、発生元ノート、直接リンク、期限、状態、source、変更履歴を候補へ含め、動的一覧自体を知識の正本として重複投入しない。
+
+Delivery slices:
+
+1. `O1-T1 Task Core`: Markdown checkbox、状態、期限、優先度、source位置を純粋関数で解析し、Vault走査からメモリ上の再構築可能な索引を作る。性能測定で必要性が出るまで独自DBを追加しない。
+2. `O1-T2 Task Views`: Today／Upcoming／Inbox、元ノートへの移動、revision検査付きwrite-throughを実装する。
+3. `O1-T3 Daily Operations`: Daily Note template、日記／仕事／タスクの入口、完了タスクと作成・更新ノートのactivity logを実装する。
+4. `O1-T4 Capture Gateway`: 既存MCPへappend-to-heading契約を追加し、desktop quick captureから同じ経路を利用する。mobile／chat adapterはこの契約のdogfood後に1つずつ評価する。
+5. `O1-T5 AI Vault Operations`: Vault質問、task context bundle、batch reorganizationを既存のContext CompilerとAI Write Policyへ接続し、固定質問と変更fixtureで有効性を比較する。
+
+Gate:
+
+1. 任意のMarkdownノートにある対象checkboxが、重複せず元パス付きで正しい期限別投影へ現れる。
+2. 一覧からの変更が元Markdownへ反映され、外部変更またはrevision不一致時は本文を保持して競合を説明する。
+3. 詳細ノートへリンクしたタスクを開くと、タスク行、発生元ノート、詳細ノートを相互に辿れる。
+4. Desktop quick captureから3操作以内で既定見出しへ追記でき、時刻、actor、sourceを追跡できる。
+5. Context Compilerがタスク単独より発生元文脈を含む方が改善することを、同一モデル、質問、budgetの固定評価で確認する。
+6. 7日間の本番Vault dogfoodで、Today／Upcoming／Inboxの確認、capture、完了、再起動、外部編集を行い、Markdown損失と復元不能な変更が0件である。
+
+Non-goals for the first slice:
+
+- 1タスク1ファイルの強制、専用task DBを正本にすること、複雑なプロジェクト階層、汎用query言語、常時起動サーバー、Discord専用Bot、独自mobile app、通知・カレンダー・Google Tasksの同時実装。
+- TaskForge、Raycast、Discordは利用体験の参考に留め、初期依存または必須経路にしない。
+
 Gate:
 
 1. 既存Markdownを破壊せず、主要記法を編集・表示・移動できる。
 2. Obsidianを開かずに7日間の通常メモ運用を完了する。
 3. タブ、分割、キーボード操作を含む再起動復元が通る。
+4. O1-Tの各sliceは直前sliceのGateを満たしてから進み、Task Core、Views、Daily、Capture、AIを同時実装しない。
 
 #### O2. Organization And Retrieval
 
@@ -223,13 +292,14 @@ Gate:
 - token/文字数budget、重複除去、多様性、freshness、confidenceで順位付けする
 - `explain_retrieval`で採用・除外理由と原典を表示する
 - current-only、historical、as-of、project packを用途別に生成する
+- task contextではタスク行、発生元ノート、直接リンク、期限、状態、sourceを一つのbundleとして扱い、Today／Upcoming／Inboxの投影を原典として重複投入しない
 
 #### X2. Provenance-Backed Personalization
 
 - Google Tasks、Drive選択取込、YouTube、Data Portability、ChatGPT exportをsourceとして扱う
-- raw source、extraction candidate、confirmed noteを分離する
+- raw source、derived artifact、knowledge noteを分離し、knowledge noteは自動更新可能にする
 - 元ID、時刻、hash、role、取得方法を保持し、再取込で重複しない
-- 単発行動やAI回答を恒久的な本人プロフィールへ自動確定しない
+- 単発行動やAI回答を恒久的な本人プロフィールへ反映する場合は、ノートごとの書込ポリシーと履歴を適用する
 
 #### X3. Temporal Memory Lifecycle
 
@@ -240,9 +310,10 @@ Gate:
 
 #### X4. AI-Assisted Knowledge Maintenance
 
-- link、tag、property、要約、重複、矛盾、古い情報の候補を提示する
-- Inboxから既存ノートへの追記、新規ノート、保留、却下をpreviewする
-- 承認規則を明示できる単純処理だけ自動化し、削除と統合は確認を残す
+- link、tag、property、要約、重複、矛盾、古い情報を通常ノートへ自動反映する
+- Inboxから既存ノートへの追記、新規ノート、保留、却下をAIが実行し、変更履歴と出典を残す
+- 初期taxonomyは単純に保ち、蓄積後のtag、folder、link、heading、task metadata再編を履歴付きbatch operationとして実行する
+- `auto`、`review`、`immutable`の書込ポリシーを明示でき、削除・移動・強制上書きは別の明示操作とする
 - ユーザーへ日常的な分類、採点、重複整理を要求しない
 
 #### X5. Retrieval Quality Evaluation
@@ -255,9 +326,9 @@ Gate:
 #### Intelligence Gates
 
 1. X1はM5 dogfoodの固定質問4/4、出典追跡3/3を維持し、質問または単一起点から複数subjectの必要文脈を文字数budget内で再現する。
-2. X2は取込ノートからraw sourceへ100%戻れ、抽出候補を本人確認済みプロフィールへ自動昇格させない。
+2. X2は取込ノートからraw sourceへ100%戻れ、自動更新されたknowledge noteに出典・履歴・旧版への復元経路がある。
 3. X3はcurrent、historical、knowledge-timeのfixtureで未来情報漏えい0件を維持し、supersessionとconflictを説明する。
-4. X4は通常ノートへ事前の分類作業を要求せず、提案却下時とpreview時にVault本文を変更しない。
+4. X4は通常ノートへ事前の分類作業を要求せず、autoポリシーの更新を履歴付きで適用し、immutableポリシーと競合時は本文を変更しない。
 5. X5は同じ質問集合、モデル、時点、budgetで比較し、精度または根拠一致を改善しない複雑な方式を既定化しない。
 
 ### Execution Rules
@@ -277,46 +348,245 @@ Gate:
 
 Temporal Memory Liteは完了済みの基盤として保持する。以下のM0〜M5は履歴と回帰条件であり、上記の長期方向によって削除しない。`docs/v0.1-scope.md`も初期スコープの履歴として残す。
 
-## Active Track: v0.5 Graph Explorer + Personal Google Intake
+## Active Track: v0.6 Obsidian Graph Parity
 
-更新日: 2026-08-01
-状態: Graph P0-1／P0-2／P0-3完了。次はP0-4
+更新日: 2026-08-03
+状態: 継続Force runtime、円形ノード、Canvas辺、Display 4項目、Obsidian準拠の白いGraph surface、右上浮動設定パネル、Local／Globalの独立入口、未解決リンク、tag、attachment、Search filesの主要構文・配列property・入力途中の寛容な解釈・binary attachment境界、Files and links共通のExcluded files設定、順序付きGroups、論理createdAt、node右クリックと種別別open、Local／Global別のscale・panel・section状態、unique neighbor数とLocal root特別値を使うnode径、zoom連動のnode／label／line／arrow描画、Animate／time-lapse、選択ノートなしのGlobal Graphまで実装済み。Animate中は表示prefixだけをsimulationへ渡し、通常のlive topology更新でも生存node座標を保持してForceを再加熱する。狭いtestと隔離Electron captureで`0 → 1 → 7`件のMarkdown増分表示まで検証済み。これは実装状況であり、Obsidian 1.13.4固定参照版とのGP6比較を通過した`matched`判定ではない。固定版との操作比較、保存境界、性能値を引き続き検証する
 
 ### Current Transition Queue
 
-別の優先指示がない限り、現在着手済みのsliceと、すでに約束したPersonal Google Intakeを閉じてからObsidian Coverageを順に広げる。
+2026-08-02の最新指示によりGraph parityを先行する。一度に実装するのは常に1つの検証可能な縦切りとする。黄金角seed、固定tick、対称percent正規化は廃止し、継続する`d3-force` runtime、node drag、再加熱、camera分離へ置換した。これは実装基盤の完了であり、Obsidian 1.13.4実機との一致証拠ではない。今後は同一fixtureの実機観測を正本にし、未観測項目を「同じ」と判定しない。
 
-1. Graph Explorer P0-4を完了する
-2. Google Tasks読取
-3. Google Drive選択取込
-4. YouTube読取
-5. Google Data Portability
-6. O1 Daily Writing And NavigationからO7 Parity Closureまで、1 sliceずつ進める
-7. X1〜X5は対応するObsidian基盤が安定した時点で小さく接続し、比較評価を通して昇格する
+GP6-0として公式Obsidian Desktop 1.13.4のGlobal Graph既定画面を、固定fixture、1265×768、DPR 1、Default light theme、隔離profileで採取した。結果は7 Markdown、未解決1件を含む8 node、renderer上の有向link 12本、無向pair 8組で、fixture原本、隔離Vaultの保護対象、`obsidian://`登録がすべて不変である。証拠は`docs/reports/assets/graph-gp6/manifest.json`、同階層のenvironment／observation／PNGを正本とする。
 
-Google Calendarの追加認可基盤は残すが、Calendar APIの取込実装はこの列の1〜5が完了するまで保留する。Google Drive同期の往復確認は既存データ保護の確認として残すが、新機能開発の主トラックにはしない。この順序は長期の機能範囲を狭めるものではなく、未完了sliceを増やさないための実行順である。
+GP6-0Pではインストール済み本番TSUZUNE 0.5.0を同じfixture／viewport／themeで隔離採取し、公式1.13.4との差を`not-matched`として記録した。Markdown数は7対7、既存Markdown間の有向Wikiリンク11本は完全一致した一方、表示nodeは8対6、有向edgeは12対11、無向pairは8対7で、本番0.5.0には孤立ノート`90_orphan/Orphan.md`、未解決node`Missing Note`、`00_Home.md -> Missing Note`が表示されない。視覚面も公式の円形node／Force由来の不規則配置／既定矢印なし／右上浮動設定パネルに対して、本番0.5.0はpill node／規則配置／矢印あり／inline controlsで一致していない。fixture原本、隔離Vault、本番通常profileはすべて不変である。比較正本は`docs/reports/assets/graph-gp6/comparison.json`、人間向け証拠は`docs/reports/graph-gp6-production-comparison-2026-08-02.html`とする。この判定は配布済み0.5.0だけを評価したもので、より新しい未コミットworking treeの実装判定ではない。
+
+1. GP6-0Wとして現在のdirty working tree（Git HEAD `93a8502f103b86a92a1bf1f3af96f0192173b1f8`）を隔離buildし、同一fixture／1265×768／DPR 1／light themeで背景非フォーカス採取した。7 Markdown、8 node、12 directed edge、8 undirected pairは公式1.13.4と一致し、Canvas初回描画、8 node全件の有限geometry、fixture原本・隔離Markdown・製品source・capture中のbuild不変も確認した。製品source SHA-256は`CD0522CBADE425CE01C49197DAA52D354492D3524CA34995EB65F9AC260AE253`、build SHA-256は`65F943B538C521BA6009FB151338F46B41C46EF9ECC1FB5B9C1FBEDF0850F4E7`。構造一致だけで完全互換とは判定せず、製品chrome／canvas領域、色・強調、未解決nodeの内部ID、操作・保存境界は`not-matched`または未判定としてGP0-3b／GP1-7へ残す。正本は`docs/reports/assets/graph-gp6/tsuzune-working-tree/manifest.json`、同階層のenvironment／observation／PNGとする
+2. [x] GP0-3b-a: 固定fixtureで最初に観測できた公開差はGlobal Graph初回表示の設定パネルだった。Obsidian 1.13.4の`close: false`に合わせ、TSUZUNEは未保存のVault scope既定だけを`settingsOpen: true`へ変更した。Local既定と明示保存済み状態は維持する。公開UIのRED→GREEN、全362 tests、隔離captureの`settingsPanelVisibleByDefault: true`を確認し、この一項目だけを`matched`とする。比較レポートは`docs/reports/graph-gp7-global-settings-default-2026-08-03.html`。
+3. Obsidian Desktop 1.13.4固定参照版とGP6-0W buildを同じ条件で操作し、node drag、camera、context menu、Groups、Animate開始・途中・終了、Restore defaults、再起動後の保存境界を採取する
+4. 両者の画像、操作動画、node／directed edge／settings JSON、Markdown SHAを同じ比較表へ並べ、各項目を`matched`、`different`、`missing`、唯一の`intentional exception`へ分類する
+5. `different`または`missing`になった公開挙動だけを1件ずつ修正し、同一captureを再実行する
+6. GP6の計測で必要性が確認された場合だけ、大規模Vaultの性能改善とviewport cullingを追加する。未計測の推測だけではWebGL、独自DB、固定表示上限を導入しない
+
+Google Calendarの追加認可基盤とGoogle Tasks／Drive選択取込／YouTube／Data Portabilityの長期計画は残すが、Graph parityのCurrent Transition Queueを閉じて次の優先順位を再選択するまで保留する。Google Drive同期の往復確認は既存データ保護の確認として残すが、新機能開発の主トラックにはしない。この順序は長期の機能範囲を狭めるものではなく、未完了sliceを増やさないための実行順である。
+
+2026-08-03のObsidianタスク運用動画調査を`O1-T Contextual Tasks And Capture`へ反映した。これは現在のGP6比較へ割り込ませず、Graph parityのCurrent Transition Queueを閉じた後に、Google G1を含む候補と再比較して着手順を決める。着手する場合も`O1-T1`から1 sliceずつ進め、Task Views、Daily Note、Capture、AI batch maintenanceを同時に開始しない。
 
 ### Graph Explorer Goal
 
-Vault全体の構造と、選択ノートの近傍を同じ画面で行き来できるようにする。Obsidian Graph viewの主要操作を段階的に取り込み、UIの画素単位の複製ではなく、同じ探索目的を安全に完了できる機能的互換を目指す。
+Vault全体の構造と、選択ノートの直接近傍を行き来できるようにする。Obsidian Desktop 1.13.4の公開Graph UIを固定比較基準とし、同一Vault、入力、設定でnode／directed edge包含、力学的規則、設定効果、操作結果、表示更新を互換にする。ピクセル座標の完全一致は要求しないが、「視覚的傾向」だけの主観判定も認めない。Local Graphは過去の明示指示により直接リンクだけに固定し、可変Depthだけを採用しない。
 
-- ローカルグラフの深さを1段・2段から選択する
+- ローカルグラフは現在ノートと直接つながるリンク先・バックリンクだけを表示する
 - ローカルグラフとVault全体グラフを切り替える
+- Vault全体グラフは孤立ノートを含む全`.md`を既定で表示する
+- 辺はviewport固定の単一Canvas層へまとめ、ノートはworld stage上のクリック・フォーカス・キーボード操作できるDOM要素として重ねる
+- 各`.md`を円形ノードで表し、Wikiリンクの線をノードの円周間へ接続する
 - ノート名・パスで表示対象を絞り込む
 - ズーム、パン、全体表示への復帰
 - 選択ノート、リンク先、バックリンク、相互リンクを見分ける
 - ノードからノートを開き、開いたノートを新しい中心にする
 
-P0-3／P0-4では力学シミュレーション、グラフDB、GraphRAG、グラフ上でのノート編集、無制限な全Vault描画を入れない。Markdownと既存Wikiリンクresolverを原本とし、表示件数に安全な上限を置く。groups、表示調整、安定レイアウト、力学設定はP0-4のdogfood後にO0の独立sliceとして扱う。
+P0-3／P0-4当時は力学シミュレーション、グラフDB、GraphRAG、グラフ上でのノート編集、無制限な全Vault描画を入れず、表示件数に安全な上限を置いた。この上限はGP1-5で現在要件により撤廃した。Markdownと既存Wikiリンクresolverを原本にする境界は維持する。
 
 ### Graph Explorer Delivery Slices
 
-- [x] P0-1: ローカルグラフの1段・2段切替
+- [x] P0-1（履歴・現在は廃止）: ローカルグラフの1段・2段切替
 - [x] P0-2: Vault全体グラフとローカルグラフの切替、孤立ノート表示の選択
 - [x] P0-3: ノート絞り込み、ズーム、パン、全体表示
-- [ ] P0-4: Starter Vaultで操作性と表示上限をdogfood
+- [x] P0-4: Starter Vaultで操作性と表示上限をdogfood
+- [x] GP0-1: 公式Graph／Local Graph機能を互換契約へ反映
+- [x] GP0-2: Obsidian比較Vaultと設定別capture手順を追加
+- [x] GP0-3a: 公式1.13.4配布artifactのSHAを照合し、Graph色、設定箱寸法、公開設定の既定値とrangeを固定する
+- [x] GP6-0: 公式1.13.4 Global Graph既定画面を固定fixture／viewport／DPI／themeで採取し、artifact hash、node／directed edge、設定、Markdown不変、protocol復元を証拠化する
+- [x] GP6-0P: インストール済み本番TSUZUNE 0.5.0を同一fixtureで採取し、公式1.13.4との差を`not-matched`として証拠化する
+- [x] GP6-0W: 現在のdirty working treeを隔離build／同一captureし、構造8 node／12 directed edge／8 undirected pairの一致と、視覚・操作差が残る`not-matched`境界を証拠化する
+- [x] GP1-1: 4つのForce設定モデル、既定値、初期値復元を追加
+- [x] GP1-2: Force設定をアプリ設定へ保存し、再起動時に復元
+- [x] GP1-3: 固定リング配置を力学レイアウトへ置換
+- [x] GP1-4: 狭いcomponent test、App設定復元test、型検査、実Electron smokeを通す
+- [x] GP1-5: Vault全体で孤立ノートを既定表示し、固定描画上限による`.md`の欠落をなくす
+- [x] GP2-1: 全辺を単一Canvas層へ集約し、操作可能なDOMノートと同期する
+- [x] GP2-2: 円形ノード、円周間の接続線、表示中ノードの実寸に基づくfit-to-boundsを実装する
+- [ ] GP0-3b: Obsidian Desktop 1.13.4の実機操作を採取し、node drag、camera、context menu、Animate、保存境界を固定する
+- [x] GP1-6: path順、黄金角、固定tick、対称正規化を廃止し、継続Force runtimeへ置換する
+- [ ] GP1-7: slider、node drag、graph更新、再起動復元の観測可能な操作結果を参照版と一致させる（実装済み、実機一致証拠待ち）
+- [x] GP2-3: Arrows、Text fade threshold、Node size、Link thicknessと保存を追加する
+- [x] GP2-4実装: unique undirected neighbor数とLocal root特別値30を使うnode径、`sqrt(1 / zoom)`のnode／label scale、低zoomで強調labelを`1 / zoom`へ保つ規則、`lineSize / zoom`の線幅、`2 * sqrt(lineSize) / zoom`の矢印scale、相互edgeを1本へまとめた両方向arrowを実装（固定参照版の画像一致判定はGP6待ち）
+- [x] GP2-5: CanvasをCSS scaleされるworld stageの外へ移し、viewport固定Canvasへworld-to-screen camera transformを適用する。低倍率のbitmap clippingを解消し、同styleの辺を一つのpathへまとめる
+- [x] GP3-1: 右上浮動設定パネル、折り畳みFilters／Display／Forces、検索／Orphans統合、全体Resetを追加する
+- [x] GP3-2a: Markdown／unresolvedのkindと存在状態を持つGraph core入力モデル（既定互換を保つopt-in）
+- [x] GP3-2b: unresolvedをUIとExisting files onlyへ接続し、OrphansとLocalのOutgoing／Incoming／Neighbor linksを保存可能なFilter設定へ統合する
+- [x] GP3-2c: tag／attachment／createdAtを持つGraph入力モデル（論理createdAtの永続化はGP5前提）
+- [x] GP3-3実装: line／block／section／task、scalar・配列property、入力途中のquote／括弧／operator／regex／propertyを寛容に扱うSearch files、binary attachmentを通常termから除外し`file:`／`path:`では検索できる境界、Files and links共通のExcluded files設定を実装（固定fixture一致判定はGP6待ち）
+- [x] GP3-4実装: 複数Groups、query、色、順序、先に一致したグループの優先、保存、Reset、色スウォッチのdrag reorder（Windows実操作と固定参照版の一致判定はGP6待ち）
+- [x] GP4-1: Obsidian準拠のGraph surfaceとLocal／Globalの独立入口
+- [x] GP4-2実装: node右クリックメニュー、tag検索、attachment／file-backed nodeの種別別open、Local／Global別のscale・設定panel開閉・section折り畳み保存（pan／queryを含む正確な保存境界とmenu項目の固定参照版一致はGP6待ち）
+- [x] GP5-1実装: 論理createdAt順のAnimate／time-lapse UIと表示prefix
+- [x] GP5-2実装: Animateの増分graph feed、Force再加熱、通常のlive topology更新を狭いtestと隔離Electron captureで検証。固定参照版との開始・途中・終了の一致判定はGP6で行う
+- [ ] GP6: 実機比較closure
 
-P0-1の受入条件:
+旧GP1の受入条件（履歴。厳密互換要求により再オープン）:
+
+1. 既定設定で現在ノートを含む既存グラフが欠落せず、固定リングではないリンク依存の配置になる。
+2. Center force、Repel force、Link force、Link distanceをラベル付きsliderで変更でき、変更方向が公式説明と一致する。
+3. 「初期設定に戻す」で4項目が既定値へ戻る。
+4. 変更したForce設定を`settings.json`へ保存し、再起動時に同じ値を復元する。
+5. Force変更はMarkdown、リンク、選択ノート、保存状態を変更しない。
+6. 既存のhover、focus、click、pan、zoom、凡例を維持する。
+7. GP1-5では全Markdown表示だけを追加し、GraphRAG、グラフDB、Search構文、Groups、time-lapseを同時に追加しない。
+
+この旧GP1は固定リングを除去した中間成果であり、厳密互換の完了証拠ではない。GP1-6以降ではpath順の黄金角seed、固定180 tick、対称percent正規化、未確認のLocal中心pinを互換仕様から除外する。「初期設定に戻す」は最終的にFilters、Groups、Display、Forcesを含むGraph設定全体を参照版既定値へ戻す。比較Vaultとcapture手順は`fixtures/obsidian-graph-parity-vault`と`docs/obsidian-graph-parity-reference.md`を正本とする。
+
+GP1検証結果（2026-08-02）:
+
+- `npm test`: 29 files／220 tests PASS
+- `npm run typecheck`: PASS
+- `npm run check:mcp`: 4 read tools／3 write tools PASS
+- `npm run build`: PASS
+- 非表示の実Electron capture: 4 Force既定値50、Center 100で配置変化、設定保存、Markdown 7件の複合SHA-256前後一致
+- 証跡: `docs/reports/graph-explorer-gp1-2026-08-02.html`
+
+GP1-5の受入条件:
+
+1. Vault全体へ切り替えた直後から、リンクを持たないノートを含む全`.md`を表示する。
+2. 50ノート・200リンクを超えても、固定上限を理由にノードやリンクを省略しない。
+3. 「孤立ノートを表示」を外した場合と検索を入力した場合だけ、利用者の明示操作として絞り込む。
+4. ローカルグラフは現在ノートと直接つながるノートだけを表示し、深度切替を持たない。
+5. グラフ表示はMarkdown、リンク、選択ノート、保存状態を変更しない。
+
+GP1-5検証結果（2026-08-02）:
+
+- TDD RED: Vault全体の孤立ノート欠落と、52ノート中50件での切り捨てを再現
+- `npm test`: 29 files／218 tests PASS
+- `npm run typecheck`: PASS
+- `npm run check:mcp`: 4 read tools／3 write tools PASS
+- `npm run build`: PASS
+- UI test: Vault全体へ切り替えた直後から孤立ノートを表示
+- dense component test: 52ノート／51リンクを省略なしで描画
+
+GP2の現在描画契約:
+
+1. 可視範囲の全辺をviewport固定の1枚のCanvasへまとめ、リンク数に比例してDOMまたはSVG要素を増やさない。
+2. ノートはworld stage上のDOM要素のままCanvas上へ重ね、pointer、keyboard、screen readerから開ける操作性と現在ノートの状態を維持する。
+3. Canvas自体へCSS zoomを掛けず、world-to-screen変換をCanvas contextへ適用する。hover、focus、選択、ズーム、パンの状態はCanvasの辺とDOMノートで同期する。
+4. Vault全体では孤立ノートを含む全`.md`を入力とし、ローカルグラフでは現在ノートの直接リンクだけを入力とする。
+5. ハイブリッド描画への変更前後でMarkdown、添付、選択ノート、未保存の編集内容を変更しない。
+
+GP2-1検証結果（2026-08-02）:
+
+- `npm test`: 30 files／219 tests PASS
+- `npm run typecheck`: PASS
+- `npm run check:mcp`: 4 read tools／3 write tools PASS
+- `npm run build`: PASS
+- `git diff --check`: PASS
+- 実Electron captureでCanvas辺、矢印、DOMノート、hover強調を確認し、Markdown 7件の複合SHA-256前後一致
+- 証跡: `docs/reports/assets/graph-gp1/01-force-defaults.png`
+
+GP2-5検証結果（2026-08-03）:
+
+- 保存倍率13.17%、749×613 viewportで、旧CSS変換stageは98.63×80.72に縮小していた一方、修正後Canvasは749×613を維持
+- 78ノード／267辺の隔離Electron captureで、旧bitmap境界による線欠落がないことを確認
+- 同じ色・太さ・透明度の辺を一つのpathへまとめ、Canvas stroke回数を削減
+- `npm run test:production`: 44 files／360 tests PASS
+- `npm run production:update`: typecheck、MCP、installer、packaged／installed smoke、installed hash、profile不変を含めPASS
+- 証跡: `docs/reports/graph-edge-viewport-2026-08-03.html`
+
+### Completed Slice: GP2-2 円形ノード／実寸fit-to-bounds
+
+目的:
+
+Vault全体の全`.md`を表示しても、利用者がパンやズームで迷子になった後に「全体表示」1回で可視グラフへ戻れるようにする。現在の100%・原点リセットではなく、表示中ノードの実寸範囲をキャンバスへ収める。
+
+Scope:
+
+1. 全`.md`を円形ノードとして描画し、WikiリンクのCanvas線を円周から円周へ接続する。
+2. 現在の力学レイアウト結果とDOMノートの実寸から、表示中グラフの境界を求める。
+3. 表示中グラフをviewportへ収めるzoomとpanを計算する。余白、zoom範囲、単一ノートの扱いは参照版1.13.4の実機観測で上書きする。
+4. 「全体表示」はTSUZUNE拡張として残せるが、Obsidian互換のwheel／key zoomと背景panを妨げない。
+5. Canvas辺とDOMノートは同一のcamera状態を共有する。Canvasはviewport固定でcontextへcamera transformを適用し、DOMノートはworld stageへCSS transformを適用する。Force runtimeが持つworld座標をcamera操作で正規化し直さない。
+6. fitはMarkdown再解析やgraph topology変更を起こさない。Force simulationの継続・収束はcamera操作と独立させる。
+
+Non-goals:
+
+- node drag、右クリックメニュー、Groups、Filter構文
+- Text fade threshold、Node size、Link thicknessなど他のDisplay設定
+- WebGL、Worker、グラフDB、新しい依存パッケージ
+- 自動fitを検索文字の入力ごとに実行すること
+
+受入条件:
+
+1. パンとズーム後に「全体表示」を押すと表示中ノードがviewportへ収まる。固定24px余白や60〜180%をObsidian互換条件として要求しない。
+2. Local Graph、Vault全体、単一ノート、検索後の可視集合で同じ動作になる。
+3. fit前後でCanvas辺の端点とDOMノートの中心がずれない。
+4. fit操作によってworld座標、Markdown書込み、ノート選択、未保存編集の変更を起こさない。
+5. pointer、keyboard、screen reader向け操作を維持し、zoom入力と限界は参照版1.13.4の観測値でテストする。
+6. component test、型検査、全テスト、MCP検査、build、実Electron capture、Markdownハッシュ比較を通す。
+
+GP2-2検証結果（2026-08-02）:
+
+- TDD RED: 円形marker未描画、円周端点関数未実装、100%・原点へ戻すだけの全体表示を個別に再現
+- `npm test`: 31 files／224 tests PASS
+- `npm run typecheck`: PASS
+- `npm run check:mcp`: 4 read tools／3 write tools PASS
+- `npm run build`: PASS
+- `git diff --check`: PASS
+- 非表示の実Electron captureで円形DOMノード、円周間Canvas線、実寸fitを確認
+- 比較FixtureのMarkdown 7件は複合SHA-256が前後一致
+- 証跡: `docs/reports/assets/graph-gp1/03-vault-circular-fit.png`
+- HTMLレポート: `docs/reports/graph-explorer-gp2-2-2026-08-02.html`
+
+実装順:
+
+1. viewportとnode boundsからzoom／panを返す小さな純粋関数を作り、境界値を先にテストする。
+2. グラフキャンバスとノードの実寸を取得し、「全体表示」へ接続する。
+3. 現在ノート切替時の100%リセットを同じfit処理へ置換する。
+4. Local／Vault／単一ノートを実Electronで撮影し、Markdown不変を確認する。
+
+停止条件:
+
+上記受入条件を満たしたためGP2-2は完了した。厳密互換要求により、当時予定していたGP2-3への直行は停止し、GP0-3／GP1-6／GP1-7を先行する。
+
+### Completed Implementation Slice: GP2-3 Display Controls
+
+Arrows、Text fade threshold、Node size、Link thicknessを公式公開範囲の設定として追加し、App settings／IPC／preloadを通して保存する。被参照数に応じた円径、拡大率に応じたラベル透明度、可変円径に応じた線の両端をCanvasとDOMで同期した。狭いtestと実Electron captureは通過したが、既定値、色、寸法、slider操作のObsidian 1.13.4実機一致はGP0-3の比較証拠が揃うまで未証明とする。
+
+### Completed Implementation Slice: GP3-1 Floating Graph Settings
+
+歯車から右上へ重なる浮動設定パネルを開き、Filters、Display、Forcesを個別に折り畳めるようにした。既存のSearch files相当入力とOrphansをFiltersへ移し、Restore default settingsは検索、Orphans、Display、Forcesを一括で戻して保存する。このslice時点ではGroups、Tags、Attachments、Existing files only、Excluded files、Animateの空UIを置かず、Existing files onlyとLocal固有Filtersは後続GP3-2bで実装した。
+
+### Completed Implementation Slice: GP3-2a Unresolved Link Core Model
+
+全Markdownノードを`kind: note`／`exists: true`として明示し、`buildWikiGraph(notes, { includeUnresolved: true })`を選んだ場合だけ未解決Wikiリンクを`kind: unresolved`／`exists: false`として追加できるようにした。曖昧なbasename、無効なtarget、自己リンク、重複edgeは除外する。このslice時点ではUI未接続だったが、後続GP3-2bで`Existing files only`と同時に公開した。
+
+### Completed Implementation Slice: GP3-2b Filters And Unresolved UI
+
+未解決Wikiリンクを既定でGraphへ含め、参照版の`#ababab`・opacity 0.5で表示し、クリック時は既存の未作成リンク作成経路へ接続した。`存在するファイルのみ表示`を有効にすると未解決ノードを除外する。Vault全体の`オーファン`、Local Graphの`出ていくリンク`、`入ってくるリンク`、`ネイバーリンク`を同じFilter設定モデルへ統合し、参照版既定値（Existing off、Orphans on、Outgoing on、Incoming on、Neighbor off）をsettings／IPC／preload経由で保存・復元する。このslice時点のSearch filesはノート名・パスの単純部分一致であり、Tags、Attachments、Excluded filesも未実装だった。後続GP3-2cでSearch基盤、Tags、Attachmentsを追加した。
+
+### Completed Implementation Slice: GP3-2c Tags, Attachments And Graph Query Foundation
+
+Markdown本文とfrontmatterからtagを抽出し、Tags有効時に`#08b94e`のtag nodeとnote→tag edgeを追加する。Vault scanは画像、音声、動画、PDFの対応拡張子を添付として収集し、Attachments有効時に`#e0ac00`のattachment nodeと埋め込み／Wikiリンクedgeを追加する。`[[Note#Heading]]`と`[[Note#^block-id]]`は基底ノートへ解決する。Search filesはimplicit AND、OR、括弧、否定、phrase、regex、file／path／content／tag／case演算子へ置換した。このsliceで後続へ残したline／block／section／task／property演算子とFiles and links共通のExcluded filesはGP3-3、論理createdAtの永続化とAnimate接続はGP5-1で実装した。
+
+### Completed Implementation Slice: GP3-3 Search Boundaries And Excluded Files
+
+Search filesへline／block／section／task、scalar・配列property、入力途中のquote／括弧／operator／regex／propertyを寛容に扱う解釈を追加した。binary attachmentは通常termでは一致せず、`file:`／`path:`では検索できる。Files and links共通のExcluded filesをアプリ設定として追加し、保存後にVault snapshotを再取得する。固定参照版のManage UI、全機能共通効果、malformed query fixtureの一致判定はGP6へ残す。
+
+### Completed Implementation Slice: GP3-4 Ordered Groups
+
+複数Groups、query、色、順序、先に一致したグループの優先、保存、全体Reset、色スウォッチのdrag reorderを実装した。Windows版Electronでの実操作と固定参照版の優先規則・drag結果はGP6で確認する。
+
+### Completed Implementation Slice: GP4-1 Graph Surface And Separate Entries
+
+Graph内にあったTSUZUNE独自の見出し、scope切替bar、zoom button列、説明文を除去し、白いGraph canvasへ240pxの設定panelを上／右12pxで重ねるsurfaceへ変更した。設定名は固定参照版の日本語表記へ合わせ、Local Graphは現在ノートのaccent強調を維持し、Global Graphはhover／focusしていない時に全体をニュートラル表示する。hover／focus中だけ対象ノートと接続edgeを強調し、解除後はニュートラルへ戻す。編集画面には`ローカルグラフ`と`グラフビュー`の独立入口を置き、Local／Globalの選択をGraph canvas内へ重ねない。keyboard zoom／panは維持する。Global Graphは左ペインの専用入口から選択ノートなしでも開ける。このsliceで残したnode context menuとscope別view stateは後続GP4-2で実装した。
+
+### Completed Implementation Slice: GP4-2 Node Actions And Scope View State
+
+file-backed nodeの右クリックメニュー、tag検索、attachment／noteの種別別openを実装した。Local／Global別にscale、設定panelの開閉、Filters／Groups／Display／Forces sectionの折り畳みを保存・復元する。pan／query／node位置を含む正確な保存単位、menu項目・順序・無効状態はGP6の固定参照版比較で確定する。
+
+### Completed Implementation Slice: GP5-1 Animate Timeline
+
+Vault内sidecarの論理createdAtを作成日時順へ並べ、Animate／time-lapse UIから表示prefixを進める実行操作を実装した。Animateは永続設定に含めない。増分graphをForce simulationへ渡す挙動、再加熱、通常のlive topology更新はGP5-2の狭いtestと隔離Electron captureで検証済みであり、固定参照版との一致判定はGP6まで行わない。
+
+P0-1当時の受入条件（深度切替は現在仕様から廃止済み）:
 
 1. 既定値は現在互換の1段である。
 2. 2段を選ぶと、現在ノートから無向距離2以内のノートと、その集合内のリンクだけを表示する。
@@ -333,7 +603,7 @@ npm run build        PASS
 git diff --check     PASS
 ```
 
-P0-2の受入条件:
+P0-2当時の受入条件（3はGP1-5で置換済み）:
 
 1. 既定値はローカルグラフのままである。
 2. Vault全体表示は、解決済みリンクに参加する全ノートと、そのリンクを表示する。
@@ -354,7 +624,7 @@ real Electron smoke  PASS: 4 graph states / synthetic Vault
 
 機能別スクリーンショットと検証対応は[Graph Explorer P0-2 HTML Report](docs/reports/graph-explorer-p0-2-2026-08-01.html)に残す。
 
-P0-3の受入条件:
+P0-3当時の受入条件（3の100%・原点復帰はGP2-2で実寸fitへ置換予定）:
 
 1. ノート名またはパスの大文字小文字を区別しない部分一致で絞り込み、現在ノートは中心として維持する。
 2. 絞り込み後は、両端のノートが表示されるWikiリンクだけを描画する。
@@ -375,6 +645,142 @@ Markdown invariant   PASS: 42 files, capture前後の複合SHA-256一致
 ```
 
 機能別スクリーンショット、実測値、未受入の境界は[Graph Explorer P0-3 HTML Report](docs/reports/graph-explorer-p0-3-2026-08-01.html)に残す。
+
+P0-4の受入条件:
+
+1. 絞り込み後の表示を最大50ノート・200リンクに制限し、現在ノートを必ず残す。
+2. 現在ノート、直接接続、残りのパス順で表示対象を決定し、入力順やUnicode表記差に依存しない。
+3. 上限超過時は表示件数と省略件数を`role="status"`で説明し、絞り込み後に上限未満なら通知を消す。
+4. 現在、リンク先、バックリンク、相互リンク、関連ノートの凡例を表示する。
+5. pointer hoverまたはkeyboard focusで対象ノートと直接接続を強調し、見えていない古いhover状態はfocusを妨げない。
+6. パン、hover、focusだけでは全Vaultの絞り込み・sort・配置を再計算しない。
+7. Starter Vaultと高密度fixtureの実Electron確認前後で、元VaultのMarkdownを変更しない。
+
+2026-08-01 P0-4 verification:
+
+```text
+npm run typecheck    PASS
+npm test             PASS: 24 files / 200 tests
+npm run check:mcp    PASS: 4 read tools / 3 write tools
+npm run build        PASS
+git diff --check     PASS
+real Electron smoke  PASS: legend / hover / 50 nodes / 200 edges / filter
+Markdown invariant   PASS: final Starter Vaultのcapture前後で件数・複合SHA-256一致
+```
+
+実Electronの4画面、密集fixtureの省略数、検証境界は[Graph Explorer P0-4 HTML Report](docs/reports/graph-explorer-p0-4-2026-08-01.html)に残す。実OSのスクリーンリーダー、High Contrast、物理キーボード、複数DPIはこの自動確認だけでは受入済みにしない。
+
+### X4-0 AI Autonomous Write
+
+更新日: 2026-08-01
+状態: MCPサービスとsmoke testを実装。通常ノートの自動更新、旧本文保存、出典・理由記録まで完了。ノート単位の`auto`、`review`、`immutable`ポリシーUIは次slice。
+
+- [x] `autonomous_update_note`をMCPへ追加
+- [x] revision検査付きの自動更新
+- [x] 更新前本文を`50_履歴/AI更新`へ保存
+- [x] actor、reason、source_refs、previous_revisionを返す
+- [ ] ノート・フォルダ単位の書込ポリシーを追加
+- [ ] AI自動更新のElectron dogfood
+- [ ] NotebookLM Research Package取込と接続
+
+Gate:
+
+1. ユーザー承認なしで通常ノートを更新できる。
+2. raw sourceは自動更新せず、旧本文と更新理由へ戻れる。
+3. 外部変更時はrevision競合として本文を保持する。
+
+### X4-1 Windows Production Installer + Updater
+
+更新日: 2026-08-02
+
+状態: 0.5.0のCommonJS/ESM起動不具合を修正し、app.asar検査とrenderer ready smokeを追加してこのPCへ再インストール済み。次版Releaseを使う実更新dogfoodとコード署名は未完了。
+
+- [x] ポータブル配布からユーザー単位NSIS one-clickへ移行
+- [x] app ID `jp.tsuzune.app`とユーザーデータ非削除を固定
+- [x] 非公開GitHub Releases向け`latest.yml`、blockmap、更新providerを追加
+- [x] tokenを保存せず、環境変数または`gh auth token`から一時取得
+- [x] 更新確認、明示ダウンロード、進捗、再起動適用をヘッダーへ追加
+- [x] 適用前に編集中ノートを保存し、失敗・競合時は更新を中止
+- [x] `npm run check:installer`でversion、SHA-512、blockmap、feedを検査
+- [x] packaged `app.asar`で`electron-updater`のCommonJS互換importを検査
+- [x] renderer ready fileでpackaged / installed版の実起動を確認
+- [x] このPCへ修正版0.5.0を上書きインストール
+- [x] 同一版再インストールで既存状態58ファイルの変更0件を確認
+- [ ] 0.5.1以降を非公開Releaseへ公開し、二版間の実更新を受入
+- [ ] Windowsコード署名証明書とTSUZUNE用`.ico`を設定
+
+Gate:
+
+1. install / update / uninstallでVaultと`%APPDATA%\TSUZUNE`を失わない。
+2. 保存に成功した場合だけ`quitAndInstall`へ進む。
+3. Releaseのinstaller、blockmap、`latest.yml`が同じversionとSHA-512を指す。
+4. 一般配布完了とは、署名と二版間更新を通すまで表現しない。
+
+### X4-2 Product Optimization
+
+更新日: 2026-08-03
+
+状態: working treeで実装・隔離fixture検証を完了。Windows本番環境への反映結果は`docs/reports/production-update-latest.json`を正とする。500件／2000件のcontrolled sparse fixtureを各3回、隔離copy／fresh profileで実測して性能baselineを固定した。GP6-0Wでは現在のdirty working treeを同一fixture／viewport／themeで採取し、7 Markdown、8 node、12 directed edge、8 undirected pairの構造一致を確認した。これは性能基準の合格判定でもObsidian完全互換の証明でもなく、実OSアクセシビリティ確認も未完了。次はGP0-3b／GP1-7としてnode drag、camera、context menu、Groups、Animate、Restore defaults、再起動後保存境界を公式1.13.4と同条件で比較する。
+
+- [x] 100ms以内のVault外部変更をpath単位で集約し、20イベントを1回のsnapshot refreshへまとめる
+- [x] 外部エディタのunlink→add形式のファイル置換を選択中ノートへ再読込し、更新を取りこぼさない
+- [x] 編集中本文と保存済みVaultの派生計算を分離し、検索・バックリンク・グラフ向け全体計算を毎打鍵から外す
+- [x] TSUZUNE専用thread-and-node markと共通線アイコンをヘッダー、起動、空状態、主要操作へ適用
+- [x] 1120px／900pxを境に3列幅、操作折返し、表示密度を調整するcompact desktop shellを実装
+- [x] MoveDialogへdialog semantics、初期フォーカス、Tab trap、Escape、フォーカス復帰、背景inertを実装
+- [x] `prefers-reduced-motion`と保存状態のlive notificationへ対応
+- [x] Vault内の埋め込み画像を検証済みIPC経由でMarkdownプレビューへ表示し、添付を未作成ノートとして扱わない
+- [x] 通常のMarkdown画像URLは既存表示を保ち、Vault assetだけを検証済みIPCへ送る
+- [x] 隔離fixtureで編集画面、MoveDialog、プレビューのElectron証跡を保存
+- [x] Windows packageがElectron既定アイコンへ退行していないことを検査するinstaller gateを追加
+- [x] silent installで置換されたapp.asarの読取cacheを破棄してから、本番bundleのversionとhashを再検証する
+
+検証結果:
+
+```text
+npm run typecheck           PASS
+対象回帰                    PASS: 4 files / 60 tests
+npm run test:production     PASS: 44 files / 356 tests
+Watcher burst               PASS: 20 events / 1 snapshot refresh
+npm run build               PASS
+Electron capture            PASS: brand mark / 14 icons / focus / inert / embedded image
+```
+
+証跡: [Product Optimization HTML Report](docs/reports/tsuzune-product-optimization-2026-08-03.html)
+
+大規模Vault実測（aggregate median、各size 3 Electron trial）:
+
+| 観測項目 | 500件 | 2000件 |
+|---|---:|---:|
+| Global Graph first usable | 261.6 ms | 1147.5 ms |
+| synthetic inputからdouble rAF | 37.1 ms | 96.8 ms |
+| autosave完了 | 664.8 ms | 1022.9 ms |
+| 20 Markdown追加がGlobal Graphへ可視化 | 372.8606 ms | 2172.2159 ms |
+| 20 Markdown削除がGlobal Graphへ可視化 | 476.3172 ms | 2030.247 ms |
+| animation frame p95 | 25.0 ms | 164.4 ms |
+
+耐久する計測正本: `docs/reports/assets/large-vault-performance-2026-08-03/summary-public.json`。`work/large-vault-performance/summary.json`は再計測用のローカル作業出力。
+
+計測境界: fixtureは概ね次数4の疎グラフで、OS cacheはwarm。入力はforegroundを奪わないoff-screen Electron synthetic inputであり、物理キーボード遅延ではない。Watcher値は生のfilesystem event時刻ではなくGlobal Graph DOMが期待件数へ到達するまで、animation frame値はrenderer schedulingのproxyでGPU／Canvas描画時間ではない。したがって、この値は改善前後を比較するbaselineであり、性能thresholdの合格やObsidian parityを意味しない。
+
+残作業:
+
+- [x] 500件・2000件Vaultで入力遅延、外部変更burst、グラフ切替を実測し、aggregate medianと計測境界を固定する
+- [x] GP6-0Wで現在のdirty working treeを隔離buildし、公式Obsidian 1.13.4と同一fixture／viewport／themeで採取する
+- [ ] 次: GP0-3b／GP1-7でnode drag、camera、context menu、Groups、Animate、Restore defaults、再起動後保存境界を同条件で採取・比較する
+- [ ] 720px未満と200% zoomはsidebar・関連欄の折畳みを含めて別sliceで対応する
+- [ ] ファイルツリーへtreeitem semanticsと矢印キー操作を追加する
+- [ ] 標準prompt／confirmをアプリ内ダイアログへ段階的に置換する
+- [ ] 実Windows keyboard、screen reader、High Contrast、複数DPIを確認する
+- [ ] 検証後、このPCの本番TSUZUNEへ反映する
+
+Gate:
+
+1. 外部変更burstはpathごとの最新状態へ集約され、選択中ノートの更新を失わない。
+2. 編集中の毎打鍵でVault全体の検索・バックリンク・グラフ向け全体計算を再構築しない。
+3. MoveDialogをキーボードだけで操作・取消でき、終了後は元の操作へ戻る。
+4. Windows packageのアプリアイコンがElectron既定アイコンと異なる。
+5. Markdown原本、atomic save、revision競合契約を変更しない。
 
 ### Personal Google Intake Order
 
@@ -913,6 +1319,20 @@ npm run check:mcp
 npm run build
 git diff --check
 ```
+
+### Production Promotion Gate
+
+製品コードを変更した検証済みMilestoneは、上記の開発検査だけでは完了としない。最後に次の単一コマンドを通し、このPCのインストール済み本番TSUZUNEとCodex MCPを、検証したworking treeへ揃える。
+
+```powershell
+npm run production:update
+```
+
+このゲートは、起動中の本番TSUZUNEを強制終了せず中止し、型検査、全回帰、MCP、NSIS生成、installer契約、隔離profileでのpackaged／installed起動を順に確認する。インストール後はpackage version、実行ファイル、`app.asar`をbuild成果物と照合し、`%APPDATA%\TSUZUNE`の全ファイルが更新前後で同一であることを確認する。自動smokeはactive Vaultを開かない。
+
+dirty working treeは、現在検証した変更を即座にdogfoodできるよう許可する。ただし未解決merge、`git diff --check`違反、処理中のsource fingerprint変化は本番反映前に停止する。同一versionのローカル再インストールは`app.asar`の完全一致を正本とし、GitHub Releaseによる配信時だけSemVerを必ず上げる。結果は`docs/reports/production-update-latest.json`へ上書きし、秘密値は記録しない。
+
+Google OAuth build値は明示的な環境変数を優先する。未指定時は、既にこのPCへインストールされた個人用production bundleの値をbuild子プロセスへだけ引き継ぐ。値を標準出力、repo、receiptへ保存せず、安全に一意抽出できない場合はbuild前に停止する。
 
 追加で確認する不変条件:
 

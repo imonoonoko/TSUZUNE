@@ -33,6 +33,13 @@ const updateAnnotations = {
   openWorldHint: false
 } as const
 
+const autonomousUpdateAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: true,
+  idempotentHint: false,
+  openWorldHint: false
+} as const
+
 const writeOutputSchema = {
   id: z.string(),
   title: z.string(),
@@ -41,6 +48,17 @@ const writeOutputSchema = {
     modified_at: z.string(),
     revision: z.string(),
     size_bytes: z.number()
+  })
+}
+
+const autonomousUpdateOutputSchema = {
+  ...writeOutputSchema,
+  provenance: z.object({
+    actor: z.literal('ai'),
+    reason: z.string(),
+    source_refs: z.array(z.string()),
+    previous_revision: z.string(),
+    history_path: z.string()
   })
 }
 
@@ -92,7 +110,7 @@ async function main(): Promise<void> {
     },
     {
       instructions:
-        'TSUZUNEのローカルMarkdown Vaultを扱います。検索はsearch、取得はfetch、関連文脈はbuild_contextを使ってください。create_noteとupdate_noteは、ユーザーがノートの作成・変更を明示した場合だけ使います。更新前に必ずfetchし、editable=trueとrevisionを確認してください。削除・移動・強制上書きはできません。'
+        'TSUZUNEのローカルMarkdown Vaultを扱います。検索はsearch、取得はfetch、関連文脈はbuild_contextを使ってください。AIによる自動更新はautonomous_update_noteを使えます。自動更新はユーザー承認を待たずに実行されますが、旧本文を50_履歴/AI更新へ保存し、出典と理由を記録します。原文・会話ログは自動更新対象にせず、削除・移動・強制上書きはできません。'
     }
   )
 
@@ -199,6 +217,48 @@ async function main(): Promise<void> {
     },
     async ({ id, content, expected_revision }) =>
       textResult(await vault.updateNote(id, content, expected_revision))
+  )
+
+  server.registerTool(
+    'autonomous_update_note',
+    {
+      title: 'TSUZUNE AI自動ノート更新',
+      description:
+        'Update one existing Markdown note without waiting for human approval. The previous content is preserved in 50_履歴/AI更新 and the reason/source references are returned as provenance. Use for AI-assisted knowledge maintenance; never use for raw source notes.',
+      inputSchema: {
+        id: z.string().min(1).max(500).describe('Vault-relative note path'),
+        content: z
+          .string()
+          .max(MAX_EDITABLE_CHARACTERS)
+          .describe('Complete replacement Markdown content'),
+        expected_revision: z
+          .string()
+          .regex(/^sha256:[a-f0-9]{64}$/)
+          .optional()
+          .describe('Optional revision guard returned by fetch'),
+        reason: z
+          .string()
+          .max(2_000)
+          .optional()
+          .describe('Why the AI is applying this update'),
+        source_refs: z
+          .array(z.string().min(1).max(500))
+          .max(50)
+          .optional()
+          .default([])
+          .describe('Vault-relative source or research package references')
+      },
+      outputSchema: autonomousUpdateOutputSchema,
+      annotations: autonomousUpdateAnnotations
+    },
+    async ({ id, content, expected_revision, reason, source_refs }) =>
+      textResult(
+        await vault.autonomousUpdateNote(id, content, {
+          expectedRevision: expected_revision,
+          reason,
+          sourceRefs: source_refs
+        })
+      )
   )
 
   server.registerTool(
@@ -326,7 +386,7 @@ async function main(): Promise<void> {
   )
 
   await server.connect(new StdioServerTransport())
-  console.error('TSUZUNE MCP server is ready (4 read tools, 2 write tools).')
+  console.error('TSUZUNE MCP server is ready (4 read tools, 3 write tools).')
 }
 
 main().catch((error: unknown) => {

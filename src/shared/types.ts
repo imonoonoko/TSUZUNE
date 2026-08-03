@@ -29,6 +29,15 @@ export interface NoteDocument {
   name: string
   content: string
   modifiedAt: number
+  createdAt?: number | null
+  size: number
+}
+
+export interface VaultAttachment {
+  path: string
+  name: string
+  modifiedAt: number
+  createdAt: number | null
   size: number
 }
 
@@ -37,6 +46,7 @@ export interface VaultSnapshot {
   rootName: string
   directories: string[]
   notes: NoteDocument[]
+  attachments?: VaultAttachment[]
 }
 
 export interface SaveNoteInput {
@@ -86,6 +96,77 @@ export interface VaultChangeEvent {
 export interface AppSettings {
   lastVaultPath: string | null
   lastNotePath: string | null
+  userIgnoreFilters: string[]
+  graphForces: GraphForceSettings
+  graphDisplay: GraphDisplaySettings
+  graphFilters: GraphFilterSettings
+  graphGroups: GraphGroup[]
+  graphViewStates: GraphViewStates
+}
+
+export type GraphViewScope = 'local' | 'vault'
+
+export interface GraphSettingsSectionState {
+  filters: boolean
+  groups: boolean
+  display: boolean
+  forces: boolean
+}
+
+export interface GraphViewState {
+  scale: number
+  settingsOpen: boolean
+  settingsSections: GraphSettingsSectionState
+}
+
+export type GraphViewStates = Record<GraphViewScope, GraphViewState>
+
+export interface GraphGroup {
+  id: string
+  query: string
+  color: string
+}
+
+export interface GraphForceSettings {
+  centerForce: number
+  repelForce: number
+  linkForce: number
+  linkDistance: number
+}
+
+export interface GraphDisplaySettings {
+  arrows: boolean
+  textFade: number
+  nodeSize: number
+  lineSize: number
+}
+
+export interface GraphFilterSettings {
+  showTags: boolean
+  showAttachments: boolean
+  existingFilesOnly: boolean
+  showOrphans: boolean
+  outgoingLinks: boolean
+  incomingLinks: boolean
+  neighborLinks: boolean
+}
+
+export type AppUpdatePhase =
+  | 'disabled'
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'downloading'
+  | 'downloaded'
+  | 'up-to-date'
+  | 'error'
+
+export interface AppUpdateStatus {
+  phase: AppUpdatePhase
+  currentVersion: string
+  availableVersion: string | null
+  downloadPercent: number | null
+  message: string | null
 }
 
 export interface WikiLinkOccurrence {
@@ -189,6 +270,8 @@ export interface TsuzuneApi {
   getSettings(): Promise<Result<AppSettings>>
   getSnapshot(): Promise<Result<VaultSnapshot>>
   readNote(path: string): Promise<Result<NoteDocument>>
+  readVaultImage(path: string): Promise<Result<string>>
+  openVaultFile(path: string): Promise<Result<null>>
   saveNote(input: SaveNoteInput): Promise<Result<SaveNoteOutput>>
   createNote(input: CreateNoteInput): Promise<Result<EntryOperationOutput>>
   createDirectory(input: CreateDirectoryInput): Promise<Result<EntryOperationOutput>>
@@ -196,6 +279,15 @@ export interface TsuzuneApi {
   moveNote(input: MoveNoteInput): Promise<Result<EntryOperationOutput>>
   trashEntry(path: string): Promise<Result<EntryOperationOutput>>
   setLastNote(path: string | null): Promise<Result<null>>
+  setUserIgnoreFilters(filters: string[]): Promise<Result<null>>
+  setGraphForces(settings: GraphForceSettings): Promise<Result<null>>
+  setGraphDisplay(settings: GraphDisplaySettings): Promise<Result<null>>
+  setGraphFilters(settings: GraphFilterSettings): Promise<Result<null>>
+  setGraphGroups(groups: GraphGroup[]): Promise<Result<null>>
+  setGraphViewState(
+    scope: GraphViewScope,
+    state: GraphViewState
+  ): Promise<Result<null>>
   chooseGoogleOAuthConfig(): Promise<Result<GoogleDriveStatus | null>>
   getGoogleDriveStatus(): Promise<Result<GoogleDriveStatus>>
   connectGoogle(): Promise<Result<GoogleDriveStatus>>
@@ -205,8 +297,13 @@ export interface TsuzuneApi {
   pairDriveVault(input: PairDriveVaultInput): Promise<Result<GoogleDriveStatus>>
   previewDriveSync(): Promise<Result<DriveSyncPreview>>
   applyDriveSync(planId: string): Promise<Result<DriveSyncApplyResult>>
+  getUpdateStatus(): Promise<Result<AppUpdateStatus>>
+  checkForUpdates(): Promise<Result<AppUpdateStatus>>
+  downloadUpdate(): Promise<Result<AppUpdateStatus>>
+  installUpdate(): Promise<Result<null>>
   openExternal(url: string): Promise<Result<null>>
   confirmClose(allow: boolean): void
   onVaultChanged(callback: (event: VaultChangeEvent) => void): () => void
   onRequestClose(callback: () => void): () => void
+  onUpdateStatus(callback: (status: AppUpdateStatus) => void): () => void
 }

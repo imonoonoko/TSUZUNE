@@ -1,0 +1,82 @@
+{
+  "recordedAt": "2026-08-01T04:50:31.8566409+09:00",
+  "branch": "agent/tsuzune-mcp-integration",
+  "baseHead": "93a8502",
+  "automated": {
+    "typecheck": "PASS",
+    "tests": {
+      "status": "PASS",
+      "files": 24,
+      "tests": 200
+    },
+    "mcp": {
+      "status": "PASS",
+      "readTools": 4,
+      "writeTools": 2
+    },
+    "build": "PASS",
+    "diffCheck": "PASS"
+  },
+  "starterVaultInvariant": {
+    "beforeFiles": 43,
+    "afterFiles": 43,
+    "beforeCombinedSha256": "00AD91EC97A8E7C35EE5D02B88CBA836C56A6D18F79BD1213CE016986A18AAE7",
+    "afterCombinedSha256": "00AD91EC97A8E7C35EE5D02B88CBA836C56A6D18F79BD1213CE016986A18AAE7",
+    "unchanged": true
+  },
+  "denseCaptureVaultInvariant": {
+    "beforeFiles": 104,
+    "afterFiles": 104,
+    "beforeCombinedSha256": "8043B22FDED03CB5DFEF28BDAD1F71FBA88954B28433AF63A16A12750E9BE469",
+    "afterCombinedSha256": "8043B22FDED03CB5DFEF28BDAD1F71FBA88954B28433AF63A16A12750E9BE469",
+    "unchanged": true
+  },
+  "electronEvidence": {
+    "captureMethod": "Electron webContents.capturePage() on hidden windows",
+    "starterResult": "capture-starter-result.json",
+    "denseResult": "capture-dense-result.json",
+    "screenshots": [
+      "01-starter-legend.png",
+      "02-starter-hover.png",
+      "05-starter-focus.png",
+      "03-dense-limit.png",
+      "04-dense-filter.png"
+    ],
+    "starter": {
+      "nodes": 19,
+      "edges": 83,
+      "arrowEndpoints": 83,
+      "legendItems": 5,
+      "hoverHighlightedEdges": 8,
+      "hoverDimmedEdges": 75,
+      "focusNode": "TSUZUNE",
+      "focusHighlightedEdges": 9,
+      "focusDimmedEdges": 74,
+      "longLabelClipped": true,
+      "longLabelFullPathAvailableAsTitle": true
+    },
+    "dense": {
+      "inputNodes": 61,
+      "displayedNodes": 50,
+      "omittedNodes": 11,
+      "inputEdges": 720,
+      "displayedEdges": 200,
+      "omittedEdges": 520,
+      "arrowEndpoints": 200,
+      "filteredNodes": 2,
+      "filteredEdges": 2,
+      "filteredLimitStatusHidden": true
+    }
+  },
+  "acceptanceBoundary": {
+    "focusEvidence": "Hidden Electron automated Tab navigation plus native focusin event; not physical keyboard acceptance",
+    "notAccepted": [
+      "real OS screen reader",
+      "High Contrast",
+      "physical keyboard",
+      "multiple DPI settings"
+    ],
+    "denseFixture": "Disposable Starter Vault copy with a synthetic 61-node local graph",
+    "layout": "Fixed ring layout"
+  }
+}

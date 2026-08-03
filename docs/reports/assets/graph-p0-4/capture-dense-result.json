@@ -1,0 +1,78 @@
+{
+  "mode": "dense",
+  "vault": "Starter Vault copy with dense fixture",
+  "lastNotePath": "90_P0-4-fixture/密集グラフ.md",
+  "sourceBefore": {
+    "fileCount": 43,
+    "combinedSha256": "00AD91EC97A8E7C35EE5D02B88CBA836C56A6D18F79BD1213CE016986A18AAE7"
+  },
+  "sourceAfter": {
+    "fileCount": 43,
+    "combinedSha256": "00AD91EC97A8E7C35EE5D02B88CBA836C56A6D18F79BD1213CE016986A18AAE7"
+  },
+  "captureVaultBefore": {
+    "fileCount": 104,
+    "combinedSha256": "8043B22FDED03CB5DFEF28BDAD1F71FBA88954B28433AF63A16A12750E9BE469"
+  },
+  "captureVaultAfter": {
+    "fileCount": 104,
+    "combinedSha256": "8043B22FDED03CB5DFEF28BDAD1F71FBA88954B28433AF63A16A12750E9BE469"
+  },
+  "markdownUnchanged": true,
+  "states": {
+    "limited": {
+      "legend": [
+        "現在のノート",
+        "リンク先",
+        "バックリンク",
+        "相互リンク",
+        "関連ノート"
+      ],
+      "filter": "",
+      "limitStatus": "50/61ノート、200/720リンクを表示。上限のため11ノート・520リンクを省略しました。",
+      "nodeCount": 50,
+      "edgeCount": 200,
+      "arrowEndpoints": 200,
+      "highlightedEdges": 0,
+      "dimmedEdges": 0,
+      "focusedNode": "",
+      "longNode": null,
+      "nodes": [
+        "密集グラフ",
+        "密度ノート01",
+        "密度ノート02",
+        "密度ノート03",
+        "密度ノート04",
+        "密度ノート05",
+        "密度ノート06",
+        "密度ノート07",
+        "密度ノート08",
+        "密度ノート09",
+        "密度ノート10",
+        "密度ノート11"
+      ]
+    },
+    "filtered": {
+      "legend": [
+        "現在のノート",
+        "リンク先",
+        "バックリンク",
+        "相互リンク",
+        "関連ノート"
+      ],
+      "filter": "密度ノート59",
+      "limitStatus": "",
+      "nodeCount": 2,
+      "edgeCount": 2,
+      "arrowEndpoints": 2,
+      "highlightedEdges": 0,
+      "dimmedEdges": 0,
+      "focusedNode": "",
+      "longNode": null,
+      "nodes": [
+        "密集グラフ",
+        "密度ノート59"
+      ]
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "product": "Obsidian Desktop",
+  "obsidianVersion": "1.13.4",
+  "electronVersion": "43.1.1",
+  "chromeVersion": "150.0.7871.114",
+  "nodeVersion": "24.18.0",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) obsidian/1.13.4 Chrome/150.0.7871.114 Electron/43.1.1 Safari/537.36",
+  "navigatorLanguage": "ja",
+  "appLocale": "ja",
+  "systemLocale": "ja-JP",
+  "timeZone": "Asia/Tokyo",
+  "platform": "win32",
+  "architecture": "x64",
+  "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\graph-gp6\\obsidian-1.13.4\\userdata",
+  "windowVisible": true,
+  "themePreference": "system",
+  "cssTheme": "",
+  "accentColor": "",
+  "renderedTheme": "light",
+  "windows": {
+    "release": "10.0.26200",
+    "platform": "win32",
+    "architecture": "x64"
+  },
+  "artifacts": {
+    "installer": {
+      "path": "C:\\Users\\Humin\\AppData\\Local\\Temp\\tsuzune-obsidian-reference-1.13.4\\Obsidian-1.13.4.exe",
+      "bytes": 326879800,
+      "sha256": "8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0"
+    },
+    "executable": {
+      "path": "C:\\Users\\Humin\\AppData\\Local\\Temp\\tsuzune-obsidian-reference-1.13.4\\runtime-gp6-x64\\Obsidian.exe",
+      "bytes": 225514256,
+      "sha256": "C01BBD79583037639F5422396CDDB457EF48E89E159CA50A8492BBD1F1F10775"
+    },
+    "obsidianAsar": {
+      "path": "C:\\Users\\Humin\\AppData\\Local\\Temp\\tsuzune-obsidian-reference-1.13.4\\runtime-gp6-x64\\resources\\obsidian.asar",
+      "bytes": 25783388,
+      "sha256": "51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917"
+    }
+  },
+  "launch": {
+    "executable": "C:\\Users\\Humin\\AppData\\Local\\Temp\\tsuzune-obsidian-reference-1.13.4\\runtime-gp6-x64\\Obsidian.exe",
+    "arguments": [
+      "--start-minimized",
+      "--window-position=-32000,-32000",
+      "--remote-debugging-port=50857",
+      "--remote-debugging-address=127.0.0.1",
+      "--remote-allow-origins=*",
+      "--force-device-scale-factor=1",
+      "--window-size=1265,768",
+      "--disable-renderer-backgrounding",
+      "--disable-background-timer-throttling",
+      "--no-first-run",
+      "--host-resolver-rules=MAP * 0.0.0.0",
+      "--user-data-dir=C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\graph-gp6\\obsidian-1.13.4\\userdata"
+    ],
+    "pid": 9916,
+    "cdpPort": 50857,
+    "starterIsolation": {
+      "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\graph-gp6\\obsidian-1.13.4\\userdata",
+      "bounds": {
+        "x": -32000,
+        "y": -32000,
+        "width": 1265,
+        "height": 768
+      }
+    },
+    "networkIsolation": "host-resolver-rules=MAP * 0.0.0.0"
+  }
+}

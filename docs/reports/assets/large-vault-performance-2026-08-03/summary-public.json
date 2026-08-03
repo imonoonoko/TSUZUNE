@@ -1,0 +1,1348 @@
+{
+  "schemaVersion": 1,
+  "sourceSchemaVersion": 2,
+  "measuredAt": "2026-08-02T20:13:58.905Z",
+  "scope": "TSUZUNE generated large-Vault performance baseline",
+  "trialCount": 3,
+  "childTimeoutMs": 180000,
+  "revision": {
+    "gitHead": "93a8502f103b86a92a1bf1f3af96f0192173b1f8",
+    "gitDirty": true
+  },
+  "runtime": {
+    "node": "v22.17.1",
+    "electron": "43.2.0",
+    "chrome": "150.0.7871.129"
+  },
+  "host": {
+    "platform": "win32",
+    "release": "10.0.26200",
+    "arch": "x64",
+    "cpuModel": "13th Gen Intel(R) Core(TM) i7-13700F",
+    "logicalCpuCount": 24,
+    "totalMemoryBytes": 34055766016
+  },
+  "conditions": {
+    "fixture": "controlled sparse fixture, approximately degree 4",
+    "cache": "warm OS cache; this is not a power-cycle cold-start measurement",
+    "electron": "3 independent temporary-copy and fresh-profile trials per size"
+  },
+  "measurements": [
+    {
+      "size": 500,
+      "fixture": {
+        "schemaVersion": 1,
+        "noteCount": 500,
+        "directedLinkCount": 1000,
+        "renderedUndirectedPairCount": 1000,
+        "homePath": "00_Home.md",
+        "markdownSha256": "071c3b49bc778f2b121875ae6c5888f73addb3d031cdae6415ad6f5c7430b911"
+      },
+      "core": {
+        "schemaVersion": 1,
+        "measurementScope": "node-core-only",
+        "measuredAt": "2026-08-02T20:10:12.373Z",
+        "limitations": [
+          "Does not measure Electron startup, renderer work, DOM nodes, Canvas drawing, file watching, or input latency.",
+          "loadMarkdownMs measures this standalone Node reader, not the production Vault scanner."
+        ],
+        "input": {
+          "noteCount": 500,
+          "bytes": 164463,
+          "loadMarkdownMs": 55.1405
+        },
+        "graph": {
+          "nodeCount": 500,
+          "directedEdgeCount": 1000,
+          "positionCount": 500,
+          "finitePositionCount": 500
+        },
+        "configuration": {
+          "warmupRuns": 3,
+          "sampleRuns": 10,
+          "forceSettings": {
+            "centerForce": 0.5187132489703118,
+            "repelForce": 10,
+            "linkForce": 1,
+            "linkDistance": 250
+          }
+        },
+        "timingsMs": {
+          "buildWikiGraph": {
+            "warmupRuns": 3,
+            "sampleRuns": 10,
+            "min": 7.1694,
+            "p50": 8.8659,
+            "p95": 10.0299,
+            "max": 10.1342,
+            "samples": [
+              8.9131,
+              9.9025,
+              8.8187,
+              10.1342,
+              8.4027,
+              9.0818,
+              7.1694,
+              8.9145,
+              8.2806,
+              8.7917
+            ]
+          },
+          "createWikiGraphSimulation": {
+            "warmupRuns": 3,
+            "sampleRuns": 10,
+            "min": 0.4359,
+            "p50": 0.7625,
+            "p95": 1.7558,
+            "max": 1.9937,
+            "samples": [
+              1.465,
+              0.6885,
+              0.8006,
+              1.2979,
+              0.7243,
+              0.8654,
+              1.9937,
+              0.5297,
+              0.5517,
+              0.4359
+            ]
+          },
+          "tick1": {
+            "warmupRuns": 3,
+            "sampleRuns": 10,
+            "min": 2.6986,
+            "p50": 3.6738,
+            "p95": 6.838,
+            "max": 8.3887,
+            "samples": [
+              4.9426,
+              3.8642,
+              3.7969,
+              3.0995,
+              3.5363,
+              3.2207,
+              4.2626,
+              8.3887,
+              2.6986,
+              3.5506
+            ]
+          },
+          "tick180": {
+            "warmupRuns": 3,
+            "sampleRuns": 10,
+            "min": 441.3475,
+            "p50": 690.0412,
+            "p95": 760.7439,
+            "max": 764.6611,
+            "samples": [
+              441.3475,
+              461.0266,
+              580.8227,
+              680.3452,
+              655.1023,
+              764.6611,
+              755.9561,
+              735.7911,
+              714.9174,
+              699.7372
+            ]
+          },
+          "positions": {
+            "warmupRuns": 3,
+            "sampleRuns": 10,
+            "min": 0.1312,
+            "p50": 0.163,
+            "p95": 0.2288,
+            "max": 0.236,
+            "samples": [
+              0.236,
+              0.1637,
+              0.1556,
+              0.1965,
+              0.22,
+              0.1624,
+              0.206,
+              0.1485,
+              0.1341,
+              0.1312
+            ]
+          }
+        },
+        "runtime": {
+          "node": "v22.17.1",
+          "platform": "win32",
+          "arch": "x64"
+        }
+      },
+      "electronTrials": [
+        {
+          "schemaVersion": 2,
+          "trialNumber": 1,
+          "ok": true,
+          "measuredAt": "2026-08-02T20:10:26.983Z",
+          "runtime": {
+            "electron": "43.2.0",
+            "chrome": "150.0.7871.129",
+            "node": "24.18.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "isolation": {
+            "productionProfileTouched": false,
+            "browserWindow": {
+              "initialShow": false,
+              "visibleDuringMeasurement": true,
+              "skipTaskbar": true,
+              "focusable": false,
+              "offscreen": true,
+              "foregroundActivated": false,
+              "offscreenPosition": {
+                "x": -32000,
+                "y": -32000,
+                "width": 1280,
+                "height": 800
+              }
+            }
+          },
+          "sourceFixture": {
+            "manifest": ".tsuzune-performance-fixture.json",
+            "fileCount": 501,
+            "recursiveSha256": "d69a16bb5a0644566fd1a0a5cfff54e95eda215a357851be251be6d1a84bd1a8",
+            "unchanged": true
+          },
+          "measurementCopy": {
+            "noteCount": 500,
+            "initialMarkdownSha256": "071c3b49bc778f2b121875ae6c5888f73addb3d031cdae6415ad6f5c7430b911",
+            "finalMarkdownSha256": "071c3b49bc778f2b121875ae6c5888f73addb3d031cdae6415ad6f5c7430b911",
+            "homeContentRestored": true,
+            "markdownUnchanged": true,
+            "temporaryRootScheduledForDeletion": true
+          },
+          "expected": {
+            "notes": 500,
+            "renderedEdges": 1000
+          },
+          "freshProfileWarmCacheOpen": {
+            "scriptToAppReadyMs": 8000.1879,
+            "loadFileToAppReadyMs": 976.7692999999999,
+            "rendererWaitMs": 771.6000000014901,
+            "definition": "fresh temporary Electron userData profile; application files and OS filesystem cache may already be warm; graph entry, selected-note editor, and saved status are present"
+          },
+          "graph": {
+            "firstUsableMs": 261.6000000014901,
+            "nodeCount": 500,
+            "finiteNodeGeometryCount": 500,
+            "edgeCount": 1000,
+            "canvas": {
+              "cssWidth": 764,
+              "cssHeight": 620,
+              "pixelWidth": 764,
+              "pixelHeight": 620
+            },
+            "sampleNode": {
+              "path": "00_Home.md",
+              "width": 53.03125,
+              "height": 37
+            },
+            "canvasDrawCount": 6,
+            "definition": "global graph root + exact node/edge counts + non-zero canvas/node geometry + first clearRect + double requestAnimationFrame"
+          },
+          "editorInput": {
+            "insertedCharacter": "x",
+            "beforeLength": 209,
+            "afterLength": 210,
+            "doubleRafLatencyMs": 37.100000001490116,
+            "autosave": {
+              "completedMs": 664.8000000007451,
+              "sawPending": true,
+              "finalStatus": "保存済み",
+              "targetMs": 650,
+              "withinTarget": false
+            },
+            "restoration": {
+              "path": "00_Home.md",
+              "size": 332,
+              "exactContentRestored": true
+            }
+          },
+          "watcherBurst": {
+            "fileCount": 20,
+            "addVisibleMs": 536.6779000000006,
+            "removeVisibleMs": 645.0079999999998,
+            "added": {
+              "nodeCount": 520,
+              "edgeCount": 1020
+            },
+            "removed": {
+              "nodeCount": 500,
+              "edgeCount": 1000
+            },
+            "temporaryDirectoryRemoved": true
+          },
+          "animationFrameCadence": {
+            "sampleCount": 120,
+            "p50Ms": 32.09999999999991,
+            "p95Ms": 39.30000000000018,
+            "maxMs": 42.80000000000018,
+            "canvasDrawCountDuringSample": 121
+          },
+          "definitions": {
+            "editorInputDom": "off-screen non-focusable Electron webContents char input -> changed CodeMirror DOM -> double requestAnimationFrame",
+            "autosave": "same input start -> dirty/saving observed -> saved status; TSUZUNE currently uses a 600 ms debounce and 650 ms is the reporting target",
+            "watcherBurst": "create 20 explicit Markdown files inside the temporary measurement copy -> exact global graph node count + double requestAnimationFrame; then explicit removal -> original count + double requestAnimationFrame",
+            "animationFrameCadence": "120 requestAnimationFrame intervals while the global graph is displayed; this is a Canvas frame cadence proxy, not Canvas draw duration"
+          },
+          "limitations": [
+            "Canonical generated fixture is copied before launch; production profile, production Vault, and canonical fixture are not opened by TSUZUNE.",
+            "The input is a synthetic Electron webContents char event in a visible compositor window positioned off-screen, marked non-focusable, and never foreground-activated; it is not physical keyboard or foreground OS input latency.",
+            "Watcher completion means the React global graph DOM reached the expected node count, not the raw filesystem event timestamp.",
+            "requestAnimationFrame cadence reflects renderer scheduling and event-loop pressure; it is not GPU paint time or per-Canvas draw duration.",
+            "The visible off-screen compositor cadence may differ from an on-screen monitor refresh cadence.",
+            "This command records one fresh-profile warm-cache run rather than a repeated statistical distribution or a true machine-cold launch."
+          ],
+          "artifacts": {
+            "json": "docs/reports/assets/large-vault-performance-2026-08-03/electron-500-trial-1.json",
+            "screenshot": "docs/reports/assets/large-vault-performance-2026-08-03/electron-500-trial-1.png",
+            "screenshotSize": {
+              "width": 1264,
+              "height": 761
+            }
+          }
+        },
+        {
+          "schemaVersion": 2,
+          "trialNumber": 2,
+          "ok": true,
+          "measuredAt": "2026-08-02T20:10:35.418Z",
+          "runtime": {
+            "electron": "43.2.0",
+            "chrome": "150.0.7871.129",
+            "node": "24.18.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "isolation": {
+            "productionProfileTouched": false,
+            "browserWindow": {
+              "initialShow": false,
+              "visibleDuringMeasurement": true,
+              "skipTaskbar": true,
+              "focusable": false,
+              "offscreen": true,
+              "foregroundActivated": false,
+              "offscreenPosition": {
+                "x": -32000,
+                "y": -32000,
+                "width": 1280,
+                "height": 800
+              }
+            }
+          },
+          "sourceFixture": {
+            "manifest": ".tsuzune-performance-fixture.json",
+            "fileCount": 501,
+            "recursiveSha256": "d69a16bb5a0644566fd1a0a5cfff54e95eda215a357851be251be6d1a84bd1a8",
+            "unchanged": true
+          },
+          "measurementCopy": {
+            "noteCount": 500,
+            "initialMarkdownSha256": "071c3b49bc778f2b121875ae6c5888f73addb3d031cdae6415ad6f5c7430b911",
+            "finalMarkdownSha256": "071c3b49bc778f2b121875ae6c5888f73addb3d031cdae6415ad6f5c7430b911",
+            "homeContentRestored": true,
+            "markdownUnchanged": true,
+            "temporaryRootScheduledForDeletion": true
+          },
+          "expected": {
+            "notes": 500,
+            "renderedEdges": 1000
+          },
+          "freshProfileWarmCacheOpen": {
+            "scriptToAppReadyMs": 3362.7610999999997,
+            "loadFileToAppReadyMs": 775.4769000000001,
+            "rendererWaitMs": 597,
+            "definition": "fresh temporary Electron userData profile; application files and OS filesystem cache may already be warm; graph entry, selected-note editor, and saved status are present"
+          },
+          "graph": {
+            "firstUsableMs": 272.8999999985099,
+            "nodeCount": 500,
+            "finiteNodeGeometryCount": 500,
+            "edgeCount": 1000,
+            "canvas": {
+              "cssWidth": 764,
+              "cssHeight": 620,
+              "pixelWidth": 764,
+              "pixelHeight": 620
+            },
+            "sampleNode": {
+              "path": "00_Home.md",
+              "width": 53.03125,
+              "height": 37
+            },
+            "canvasDrawCount": 6,
+            "definition": "global graph root + exact node/edge counts + non-zero canvas/node geometry + first clearRect + double requestAnimationFrame"
+          },
+          "editorInput": {
+            "insertedCharacter": "x",
+            "beforeLength": 209,
+            "afterLength": 210,
+            "doubleRafLatencyMs": 39.5,
+            "autosave": {
+              "completedMs": 672.4000000022352,
+              "sawPending": true,
+              "finalStatus": "保存済み",
+              "targetMs": 650,
+              "withinTarget": false
+            },
+            "restoration": {
+              "path": "00_Home.md",
+              "size": 332,
+              "exactContentRestored": true
+            }
+          },
+          "watcherBurst": {
+            "fileCount": 20,
+            "addVisibleMs": 372.8606,
+            "removeVisibleMs": 476.3171999999995,
+            "added": {
+              "nodeCount": 520,
+              "edgeCount": 1020
+            },
+            "removed": {
+              "nodeCount": 500,
+              "edgeCount": 1000
+            },
+            "temporaryDirectoryRemoved": true
+          },
+          "animationFrameCadence": {
+            "sampleCount": 120,
+            "p50Ms": 17.899999999999636,
+            "p95Ms": 25,
+            "maxMs": 32.200000000000045,
+            "canvasDrawCountDuringSample": 121
+          },
+          "definitions": {
+            "editorInputDom": "off-screen non-focusable Electron webContents char input -> changed CodeMirror DOM -> double requestAnimationFrame",
+            "autosave": "same input start -> dirty/saving observed -> saved status; TSUZUNE currently uses a 600 ms debounce and 650 ms is the reporting target",
+            "watcherBurst": "create 20 explicit Markdown files inside the temporary measurement copy -> exact global graph node count + double requestAnimationFrame; then explicit removal -> original count + double requestAnimationFrame",
+            "animationFrameCadence": "120 requestAnimationFrame intervals while the global graph is displayed; this is a Canvas frame cadence proxy, not Canvas draw duration"
+          },
+          "limitations": [
+            "Canonical generated fixture is copied before launch; production profile, production Vault, and canonical fixture are not opened by TSUZUNE.",
+            "The input is a synthetic Electron webContents char event in a visible compositor window positioned off-screen, marked non-focusable, and never foreground-activated; it is not physical keyboard or foreground OS input latency.",
+            "Watcher completion means the React global graph DOM reached the expected node count, not the raw filesystem event timestamp.",
+            "requestAnimationFrame cadence reflects renderer scheduling and event-loop pressure; it is not GPU paint time or per-Canvas draw duration.",
+            "The visible off-screen compositor cadence may differ from an on-screen monitor refresh cadence.",
+            "This command records one fresh-profile warm-cache run rather than a repeated statistical distribution or a true machine-cold launch."
+          ],
+          "artifacts": {
+            "json": "docs/reports/assets/large-vault-performance-2026-08-03/electron-500-trial-2.json",
+            "screenshot": "docs/reports/assets/large-vault-performance-2026-08-03/electron-500-trial-2.png",
+            "screenshotSize": {
+              "width": 1264,
+              "height": 761
+            }
+          }
+        },
+        {
+          "schemaVersion": 2,
+          "trialNumber": 3,
+          "ok": true,
+          "measuredAt": "2026-08-02T20:10:43.666Z",
+          "runtime": {
+            "electron": "43.2.0",
+            "chrome": "150.0.7871.129",
+            "node": "24.18.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "isolation": {
+            "productionProfileTouched": false,
+            "browserWindow": {
+              "initialShow": false,
+              "visibleDuringMeasurement": true,
+              "skipTaskbar": true,
+              "focusable": false,
+              "offscreen": true,
+              "foregroundActivated": false,
+              "offscreenPosition": {
+                "x": -32000,
+                "y": -32000,
+                "width": 1280,
+                "height": 800
+              }
+            }
+          },
+          "sourceFixture": {
+            "manifest": ".tsuzune-performance-fixture.json",
+            "fileCount": 501,
+            "recursiveSha256": "d69a16bb5a0644566fd1a0a5cfff54e95eda215a357851be251be6d1a84bd1a8",
+            "unchanged": true
+          },
+          "measurementCopy": {
+            "noteCount": 500,
+            "initialMarkdownSha256": "071c3b49bc778f2b121875ae6c5888f73addb3d031cdae6415ad6f5c7430b911",
+            "finalMarkdownSha256": "071c3b49bc778f2b121875ae6c5888f73addb3d031cdae6415ad6f5c7430b911",
+            "homeContentRestored": true,
+            "markdownUnchanged": true,
+            "temporaryRootScheduledForDeletion": true
+          },
+          "expected": {
+            "notes": 500,
+            "renderedEdges": 1000
+          },
+          "freshProfileWarmCacheOpen": {
+            "scriptToAppReadyMs": 3306.8894,
+            "loadFileToAppReadyMs": 789.8018999999999,
+            "rendererWaitMs": 601.5,
+            "definition": "fresh temporary Electron userData profile; application files and OS filesystem cache may already be warm; graph entry, selected-note editor, and saved status are present"
+          },
+          "graph": {
+            "firstUsableMs": 245.70000000298023,
+            "nodeCount": 500,
+            "finiteNodeGeometryCount": 500,
+            "edgeCount": 1000,
+            "canvas": {
+              "cssWidth": 764,
+              "cssHeight": 620,
+              "pixelWidth": 764,
+              "pixelHeight": 620
+            },
+            "sampleNode": {
+              "path": "00_Home.md",
+              "width": 53.03125,
+              "height": 37
+            },
+            "canvasDrawCount": 6,
+            "definition": "global graph root + exact node/edge counts + non-zero canvas/node geometry + first clearRect + double requestAnimationFrame"
+          },
+          "editorInput": {
+            "insertedCharacter": "x",
+            "beforeLength": 209,
+            "afterLength": 210,
+            "doubleRafLatencyMs": 36,
+            "autosave": {
+              "completedMs": 658.8999999985099,
+              "sawPending": true,
+              "finalStatus": "保存済み",
+              "targetMs": 650,
+              "withinTarget": false
+            },
+            "restoration": {
+              "path": "00_Home.md",
+              "size": 332,
+              "exactContentRestored": true
+            }
+          },
+          "watcherBurst": {
+            "fileCount": 20,
+            "addVisibleMs": 319.1889000000001,
+            "removeVisibleMs": 463.71339999999964,
+            "added": {
+              "nodeCount": 520,
+              "edgeCount": 1020
+            },
+            "removed": {
+              "nodeCount": 500,
+              "edgeCount": 1000
+            },
+            "temporaryDirectoryRemoved": true
+          },
+          "animationFrameCadence": {
+            "sampleCount": 120,
+            "p50Ms": 17.90000000000009,
+            "p95Ms": 24.90000000000009,
+            "maxMs": 28.600000000000136,
+            "canvasDrawCountDuringSample": 121
+          },
+          "definitions": {
+            "editorInputDom": "off-screen non-focusable Electron webContents char input -> changed CodeMirror DOM -> double requestAnimationFrame",
+            "autosave": "same input start -> dirty/saving observed -> saved status; TSUZUNE currently uses a 600 ms debounce and 650 ms is the reporting target",
+            "watcherBurst": "create 20 explicit Markdown files inside the temporary measurement copy -> exact global graph node count + double requestAnimationFrame; then explicit removal -> original count + double requestAnimationFrame",
+            "animationFrameCadence": "120 requestAnimationFrame intervals while the global graph is displayed; this is a Canvas frame cadence proxy, not Canvas draw duration"
+          },
+          "limitations": [
+            "Canonical generated fixture is copied before launch; production profile, production Vault, and canonical fixture are not opened by TSUZUNE.",
+            "The input is a synthetic Electron webContents char event in a visible compositor window positioned off-screen, marked non-focusable, and never foreground-activated; it is not physical keyboard or foreground OS input latency.",
+            "Watcher completion means the React global graph DOM reached the expected node count, not the raw filesystem event timestamp.",
+            "requestAnimationFrame cadence reflects renderer scheduling and event-loop pressure; it is not GPU paint time or per-Canvas draw duration.",
+            "The visible off-screen compositor cadence may differ from an on-screen monitor refresh cadence.",
+            "This command records one fresh-profile warm-cache run rather than a repeated statistical distribution or a true machine-cold launch."
+          ],
+          "artifacts": {
+            "json": "docs/reports/assets/large-vault-performance-2026-08-03/electron-500-trial-3.json",
+            "screenshot": "docs/reports/assets/large-vault-performance-2026-08-03/electron-500-trial-3.png",
+            "screenshotSize": {
+              "width": 1264,
+              "height": 761
+            }
+          }
+        }
+      ],
+      "aggregate": {
+        "coreMs": {
+          "buildWikiGraph": {
+            "sampleCount": 10,
+            "min": 7.1694,
+            "median": 8.8659,
+            "max": 10.1342
+          },
+          "createWikiGraphSimulation": {
+            "sampleCount": 10,
+            "min": 0.4359,
+            "median": 0.7625,
+            "max": 1.9937
+          },
+          "tick1": {
+            "sampleCount": 10,
+            "min": 2.6986,
+            "median": 3.6738,
+            "max": 8.3887
+          },
+          "tick180": {
+            "sampleCount": 10,
+            "min": 441.3475,
+            "median": 690.0412,
+            "max": 764.6611
+          },
+          "positions": {
+            "sampleCount": 10,
+            "min": 0.1312,
+            "median": 0.163,
+            "max": 0.236
+          }
+        },
+        "electronMs": {
+          "freshProfileWarmCacheOpenMs": {
+            "sampleCount": 3,
+            "min": 775.4769,
+            "median": 789.8019,
+            "max": 976.7693
+          },
+          "graphFirstUsableMs": {
+            "sampleCount": 3,
+            "min": 245.7,
+            "median": 261.6,
+            "max": 272.9
+          },
+          "editorInputDoubleRafMs": {
+            "sampleCount": 3,
+            "min": 36,
+            "median": 37.1,
+            "max": 39.5
+          },
+          "autosaveCompleteMs": {
+            "sampleCount": 3,
+            "min": 658.9,
+            "median": 664.8,
+            "max": 672.4
+          },
+          "watcherAddVisibleMs": {
+            "sampleCount": 3,
+            "min": 319.1889,
+            "median": 372.8606,
+            "max": 536.6779
+          },
+          "watcherRemoveVisibleMs": {
+            "sampleCount": 3,
+            "min": 463.7134,
+            "median": 476.3172,
+            "max": 645.008
+          },
+          "animationFrameP50Ms": {
+            "sampleCount": 3,
+            "min": 17.9,
+            "median": 17.9,
+            "max": 32.1
+          },
+          "animationFrameP95Ms": {
+            "sampleCount": 3,
+            "min": 24.9,
+            "median": 25,
+            "max": 39.3
+          },
+          "animationFrameMaxMs": {
+            "sampleCount": 3,
+            "min": 28.6,
+            "median": 32.2,
+            "max": 42.8
+          }
+        }
+      }
+    },
+    {
+      "size": 2000,
+      "fixture": {
+        "schemaVersion": 1,
+        "noteCount": 2000,
+        "directedLinkCount": 4000,
+        "renderedUndirectedPairCount": 4000,
+        "homePath": "00_Home.md",
+        "markdownSha256": "285ec6b24d80044c749c2cc8fa3387329145b16cf3bcaed2d48885dbe14af0ed"
+      },
+      "core": {
+        "schemaVersion": 1,
+        "measurementScope": "node-core-only",
+        "measuredAt": "2026-08-02T20:11:34.845Z",
+        "limitations": [
+          "Does not measure Electron startup, renderer work, DOM nodes, Canvas drawing, file watching, or input latency.",
+          "loadMarkdownMs measures this standalone Node reader, not the production Vault scanner."
+        ],
+        "input": {
+          "noteCount": 2000,
+          "bytes": 657963,
+          "loadMarkdownMs": 187.4599
+        },
+        "graph": {
+          "nodeCount": 2000,
+          "directedEdgeCount": 4000,
+          "positionCount": 2000,
+          "finitePositionCount": 2000
+        },
+        "configuration": {
+          "warmupRuns": 3,
+          "sampleRuns": 10,
+          "forceSettings": {
+            "centerForce": 0.5187132489703118,
+            "repelForce": 10,
+            "linkForce": 1,
+            "linkDistance": 250
+          }
+        },
+        "timingsMs": {
+          "buildWikiGraph": {
+            "warmupRuns": 3,
+            "sampleRuns": 10,
+            "min": 31.2754,
+            "p50": 34.8071,
+            "p95": 39.8102,
+            "max": 41.1908,
+            "samples": [
+              37.6238,
+              37.1572,
+              38.1229,
+              41.1908,
+              31.8383,
+              31.3161,
+              35.7532,
+              33.8611,
+              31.2754,
+              33.7494
+            ]
+          },
+          "createWikiGraphSimulation": {
+            "warmupRuns": 3,
+            "sampleRuns": 10,
+            "min": 0.7342,
+            "p50": 1.1392,
+            "p95": 2.9359,
+            "max": 3.3155,
+            "samples": [
+              2.472,
+              1.7211,
+              1.1191,
+              0.9236,
+              0.7342,
+              1.1594,
+              0.8492,
+              0.8402,
+              3.3155,
+              1.5487
+            ]
+          },
+          "tick1": {
+            "warmupRuns": 3,
+            "sampleRuns": 10,
+            "min": 14.2104,
+            "p50": 16.4476,
+            "p95": 17.6158,
+            "max": 17.9525,
+            "samples": [
+              16.1305,
+              14.7851,
+              14.2104,
+              14.4797,
+              16.1605,
+              17.9525,
+              16.7348,
+              16.9863,
+              17.2042,
+              17.0448
+            ]
+          },
+          "tick180": {
+            "warmupRuns": 3,
+            "sampleRuns": 10,
+            "min": 3457.6741,
+            "p50": 3560.1535,
+            "p95": 3725.7227,
+            "max": 3812.3077,
+            "samples": [
+              3812.3077,
+              3553.8615,
+              3481.6983,
+              3522.0627,
+              3457.6741,
+              3610.5203,
+              3552.8926,
+              3619.8966,
+              3603.2262,
+              3566.4455
+            ]
+          },
+          "positions": {
+            "warmupRuns": 3,
+            "sampleRuns": 10,
+            "min": 0.1842,
+            "p50": 0.2101,
+            "p95": 0.3927,
+            "max": 0.4253,
+            "samples": [
+              0.4253,
+              0.1919,
+              0.1852,
+              0.1842,
+              0.3529,
+              0.1991,
+              0.2793,
+              0.2218,
+              0.2053,
+              0.2149
+            ]
+          }
+        },
+        "runtime": {
+          "node": "v22.17.1",
+          "platform": "win32",
+          "arch": "x64"
+        }
+      },
+      "electronTrials": [
+        {
+          "schemaVersion": 2,
+          "trialNumber": 1,
+          "ok": true,
+          "measuredAt": "2026-08-02T20:12:29.275Z",
+          "runtime": {
+            "electron": "43.2.0",
+            "chrome": "150.0.7871.129",
+            "node": "24.18.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "isolation": {
+            "productionProfileTouched": false,
+            "browserWindow": {
+              "initialShow": false,
+              "visibleDuringMeasurement": true,
+              "skipTaskbar": true,
+              "focusable": false,
+              "offscreen": true,
+              "foregroundActivated": false,
+              "offscreenPosition": {
+                "x": -32000,
+                "y": -32000,
+                "width": 1280,
+                "height": 800
+              }
+            }
+          },
+          "sourceFixture": {
+            "manifest": ".tsuzune-performance-fixture.json",
+            "fileCount": 2001,
+            "recursiveSha256": "394ca744018f380adeff423abcd1e871f264b25d02cead9d56be1a695a711003",
+            "unchanged": true
+          },
+          "measurementCopy": {
+            "noteCount": 2000,
+            "initialMarkdownSha256": "285ec6b24d80044c749c2cc8fa3387329145b16cf3bcaed2d48885dbe14af0ed",
+            "finalMarkdownSha256": "285ec6b24d80044c749c2cc8fa3387329145b16cf3bcaed2d48885dbe14af0ed",
+            "homeContentRestored": true,
+            "markdownUnchanged": true,
+            "temporaryRootScheduledForDeletion": true
+          },
+          "expected": {
+            "notes": 2000,
+            "renderedEdges": 4000
+          },
+          "freshProfileWarmCacheOpen": {
+            "scriptToAppReadyMs": 28973.9872,
+            "loadFileToAppReadyMs": 2662.7534000000014,
+            "rendererWaitMs": 2469.900000002235,
+            "definition": "fresh temporary Electron userData profile; application files and OS filesystem cache may already be warm; graph entry, selected-note editor, and saved status are present"
+          },
+          "graph": {
+            "firstUsableMs": 1147.5,
+            "nodeCount": 2000,
+            "finiteNodeGeometryCount": 2000,
+            "edgeCount": 4000,
+            "canvas": {
+              "cssWidth": 764,
+              "cssHeight": 620,
+              "pixelWidth": 764,
+              "pixelHeight": 620
+            },
+            "sampleNode": {
+              "path": "00_Home.md",
+              "width": 53.03125,
+              "height": 37
+            },
+            "canvasDrawCount": 6,
+            "definition": "global graph root + exact node/edge counts + non-zero canvas/node geometry + first clearRect + double requestAnimationFrame"
+          },
+          "editorInput": {
+            "insertedCharacter": "x",
+            "beforeLength": 209,
+            "afterLength": 210,
+            "doubleRafLatencyMs": 97.59999999776483,
+            "autosave": {
+              "completedMs": 1008.6999999992549,
+              "sawPending": true,
+              "finalStatus": "保存済み",
+              "targetMs": 650,
+              "withinTarget": false
+            },
+            "restoration": {
+              "path": "00_Home.md",
+              "size": 332,
+              "exactContentRestored": true
+            }
+          },
+          "watcherBurst": {
+            "fileCount": 20,
+            "addVisibleMs": 2172.215900000003,
+            "removeVisibleMs": 1897.3403000000035,
+            "added": {
+              "nodeCount": 2020,
+              "edgeCount": 4020
+            },
+            "removed": {
+              "nodeCount": 2000,
+              "edgeCount": 4000
+            },
+            "temporaryDirectoryRemoved": true
+          },
+          "animationFrameCadence": {
+            "sampleCount": 120,
+            "p50Ms": 139.10000000000036,
+            "p95Ms": 164.29999999999927,
+            "maxMs": 189.39999999999964,
+            "canvasDrawCountDuringSample": 121
+          },
+          "definitions": {
+            "editorInputDom": "off-screen non-focusable Electron webContents char input -> changed CodeMirror DOM -> double requestAnimationFrame",
+            "autosave": "same input start -> dirty/saving observed -> saved status; TSUZUNE currently uses a 600 ms debounce and 650 ms is the reporting target",
+            "watcherBurst": "create 20 explicit Markdown files inside the temporary measurement copy -> exact global graph node count + double requestAnimationFrame; then explicit removal -> original count + double requestAnimationFrame",
+            "animationFrameCadence": "120 requestAnimationFrame intervals while the global graph is displayed; this is a Canvas frame cadence proxy, not Canvas draw duration"
+          },
+          "limitations": [
+            "Canonical generated fixture is copied before launch; production profile, production Vault, and canonical fixture are not opened by TSUZUNE.",
+            "The input is a synthetic Electron webContents char event in a visible compositor window positioned off-screen, marked non-focusable, and never foreground-activated; it is not physical keyboard or foreground OS input latency.",
+            "Watcher completion means the React global graph DOM reached the expected node count, not the raw filesystem event timestamp.",
+            "requestAnimationFrame cadence reflects renderer scheduling and event-loop pressure; it is not GPU paint time or per-Canvas draw duration.",
+            "The visible off-screen compositor cadence may differ from an on-screen monitor refresh cadence.",
+            "This command records one fresh-profile warm-cache run rather than a repeated statistical distribution or a true machine-cold launch."
+          ],
+          "artifacts": {
+            "json": "docs/reports/assets/large-vault-performance-2026-08-03/electron-2000-trial-1.json",
+            "screenshot": "docs/reports/assets/large-vault-performance-2026-08-03/electron-2000-trial-1.png",
+            "screenshotSize": {
+              "width": 1264,
+              "height": 761
+            }
+          }
+        },
+        {
+          "schemaVersion": 2,
+          "trialNumber": 2,
+          "ok": true,
+          "measuredAt": "2026-08-02T20:13:13.528Z",
+          "runtime": {
+            "electron": "43.2.0",
+            "chrome": "150.0.7871.129",
+            "node": "24.18.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "isolation": {
+            "productionProfileTouched": false,
+            "browserWindow": {
+              "initialShow": false,
+              "visibleDuringMeasurement": true,
+              "skipTaskbar": true,
+              "focusable": false,
+              "offscreen": true,
+              "foregroundActivated": false,
+              "offscreenPosition": {
+                "x": -32000,
+                "y": -32000,
+                "width": 1280,
+                "height": 800
+              }
+            }
+          },
+          "sourceFixture": {
+            "manifest": ".tsuzune-performance-fixture.json",
+            "fileCount": 2001,
+            "recursiveSha256": "394ca744018f380adeff423abcd1e871f264b25d02cead9d56be1a695a711003",
+            "unchanged": true
+          },
+          "measurementCopy": {
+            "noteCount": 2000,
+            "initialMarkdownSha256": "285ec6b24d80044c749c2cc8fa3387329145b16cf3bcaed2d48885dbe14af0ed",
+            "finalMarkdownSha256": "285ec6b24d80044c749c2cc8fa3387329145b16cf3bcaed2d48885dbe14af0ed",
+            "homeContentRestored": true,
+            "markdownUnchanged": true,
+            "temporaryRootScheduledForDeletion": true
+          },
+          "expected": {
+            "notes": 2000,
+            "renderedEdges": 4000
+          },
+          "freshProfileWarmCacheOpen": {
+            "scriptToAppReadyMs": 17777.3243,
+            "loadFileToAppReadyMs": 2599.2093000000004,
+            "rendererWaitMs": 2427,
+            "definition": "fresh temporary Electron userData profile; application files and OS filesystem cache may already be warm; graph entry, selected-note editor, and saved status are present"
+          },
+          "graph": {
+            "firstUsableMs": 1145.9000000022352,
+            "nodeCount": 2000,
+            "finiteNodeGeometryCount": 2000,
+            "edgeCount": 4000,
+            "canvas": {
+              "cssWidth": 764,
+              "cssHeight": 620,
+              "pixelWidth": 764,
+              "pixelHeight": 620
+            },
+            "sampleNode": {
+              "path": "00_Home.md",
+              "width": 53.03125,
+              "height": 37
+            },
+            "canvasDrawCount": 6,
+            "definition": "global graph root + exact node/edge counts + non-zero canvas/node geometry + first clearRect + double requestAnimationFrame"
+          },
+          "editorInput": {
+            "insertedCharacter": "x",
+            "beforeLength": 209,
+            "afterLength": 210,
+            "doubleRafLatencyMs": 83.79999999701977,
+            "autosave": {
+              "completedMs": 1022.8999999985099,
+              "sawPending": true,
+              "finalStatus": "保存済み",
+              "targetMs": 650,
+              "withinTarget": false
+            },
+            "restoration": {
+              "path": "00_Home.md",
+              "size": 332,
+              "exactContentRestored": true
+            }
+          },
+          "watcherBurst": {
+            "fileCount": 20,
+            "addVisibleMs": 2252.765299999999,
+            "removeVisibleMs": 2030.247000000003,
+            "added": {
+              "nodeCount": 2020,
+              "edgeCount": 4020
+            },
+            "removed": {
+              "nodeCount": 2000,
+              "edgeCount": 4000
+            },
+            "temporaryDirectoryRemoved": true
+          },
+          "animationFrameCadence": {
+            "sampleCount": 120,
+            "p50Ms": 139.29999999999927,
+            "p95Ms": 164.40000000000146,
+            "maxMs": 175,
+            "canvasDrawCountDuringSample": 121
+          },
+          "definitions": {
+            "editorInputDom": "off-screen non-focusable Electron webContents char input -> changed CodeMirror DOM -> double requestAnimationFrame",
+            "autosave": "same input start -> dirty/saving observed -> saved status; TSUZUNE currently uses a 600 ms debounce and 650 ms is the reporting target",
+            "watcherBurst": "create 20 explicit Markdown files inside the temporary measurement copy -> exact global graph node count + double requestAnimationFrame; then explicit removal -> original count + double requestAnimationFrame",
+            "animationFrameCadence": "120 requestAnimationFrame intervals while the global graph is displayed; this is a Canvas frame cadence proxy, not Canvas draw duration"
+          },
+          "limitations": [
+            "Canonical generated fixture is copied before launch; production profile, production Vault, and canonical fixture are not opened by TSUZUNE.",
+            "The input is a synthetic Electron webContents char event in a visible compositor window positioned off-screen, marked non-focusable, and never foreground-activated; it is not physical keyboard or foreground OS input latency.",
+            "Watcher completion means the React global graph DOM reached the expected node count, not the raw filesystem event timestamp.",
+            "requestAnimationFrame cadence reflects renderer scheduling and event-loop pressure; it is not GPU paint time or per-Canvas draw duration.",
+            "The visible off-screen compositor cadence may differ from an on-screen monitor refresh cadence.",
+            "This command records one fresh-profile warm-cache run rather than a repeated statistical distribution or a true machine-cold launch."
+          ],
+          "artifacts": {
+            "json": "docs/reports/assets/large-vault-performance-2026-08-03/electron-2000-trial-2.json",
+            "screenshot": "docs/reports/assets/large-vault-performance-2026-08-03/electron-2000-trial-2.png",
+            "screenshotSize": {
+              "width": 1264,
+              "height": 761
+            }
+          }
+        },
+        {
+          "schemaVersion": 2,
+          "trialNumber": 3,
+          "ok": true,
+          "measuredAt": "2026-08-02T20:13:58.621Z",
+          "runtime": {
+            "electron": "43.2.0",
+            "chrome": "150.0.7871.129",
+            "node": "24.18.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "isolation": {
+            "productionProfileTouched": false,
+            "browserWindow": {
+              "initialShow": false,
+              "visibleDuringMeasurement": true,
+              "skipTaskbar": true,
+              "focusable": false,
+              "offscreen": true,
+              "foregroundActivated": false,
+              "offscreenPosition": {
+                "x": -32000,
+                "y": -32000,
+                "width": 1280,
+                "height": 800
+              }
+            }
+          },
+          "sourceFixture": {
+            "manifest": ".tsuzune-performance-fixture.json",
+            "fileCount": 2001,
+            "recursiveSha256": "394ca744018f380adeff423abcd1e871f264b25d02cead9d56be1a695a711003",
+            "unchanged": true
+          },
+          "measurementCopy": {
+            "noteCount": 2000,
+            "initialMarkdownSha256": "285ec6b24d80044c749c2cc8fa3387329145b16cf3bcaed2d48885dbe14af0ed",
+            "finalMarkdownSha256": "285ec6b24d80044c749c2cc8fa3387329145b16cf3bcaed2d48885dbe14af0ed",
+            "homeContentRestored": true,
+            "markdownUnchanged": true,
+            "temporaryRootScheduledForDeletion": true
+          },
+          "expected": {
+            "notes": 2000,
+            "renderedEdges": 4000
+          },
+          "freshProfileWarmCacheOpen": {
+            "scriptToAppReadyMs": 17844.4153,
+            "loadFileToAppReadyMs": 2640.919100000001,
+            "rendererWaitMs": 2425.2000000029802,
+            "definition": "fresh temporary Electron userData profile; application files and OS filesystem cache may already be warm; graph entry, selected-note editor, and saved status are present"
+          },
+          "graph": {
+            "firstUsableMs": 1186.8999999985099,
+            "nodeCount": 2000,
+            "finiteNodeGeometryCount": 2000,
+            "edgeCount": 4000,
+            "canvas": {
+              "cssWidth": 764,
+              "cssHeight": 620,
+              "pixelWidth": 764,
+              "pixelHeight": 620
+            },
+            "sampleNode": {
+              "path": "00_Home.md",
+              "width": 53.03125,
+              "height": 37
+            },
+            "canvasDrawCount": 6,
+            "definition": "global graph root + exact node/edge counts + non-zero canvas/node geometry + first clearRect + double requestAnimationFrame"
+          },
+          "editorInput": {
+            "insertedCharacter": "x",
+            "beforeLength": 209,
+            "afterLength": 210,
+            "doubleRafLatencyMs": 96.79999999701977,
+            "autosave": {
+              "completedMs": 1040.5999999977648,
+              "sawPending": true,
+              "finalStatus": "保存済み",
+              "targetMs": 650,
+              "withinTarget": false
+            },
+            "restoration": {
+              "path": "00_Home.md",
+              "size": 332,
+              "exactContentRestored": true
+            }
+          },
+          "watcherBurst": {
+            "fileCount": 20,
+            "addVisibleMs": 1792.7623999999996,
+            "removeVisibleMs": 2757.5051999999996,
+            "added": {
+              "nodeCount": 2020,
+              "edgeCount": 4020
+            },
+            "removed": {
+              "nodeCount": 2000,
+              "edgeCount": 4000
+            },
+            "temporaryDirectoryRemoved": true
+          },
+          "animationFrameCadence": {
+            "sampleCount": 120,
+            "p50Ms": 146.30000000000018,
+            "p95Ms": 164.39999999999964,
+            "maxMs": 178.70000000000073,
+            "canvasDrawCountDuringSample": 121
+          },
+          "definitions": {
+            "editorInputDom": "off-screen non-focusable Electron webContents char input -> changed CodeMirror DOM -> double requestAnimationFrame",
+            "autosave": "same input start -> dirty/saving observed -> saved status; TSUZUNE currently uses a 600 ms debounce and 650 ms is the reporting target",
+            "watcherBurst": "create 20 explicit Markdown files inside the temporary measurement copy -> exact global graph node count + double requestAnimationFrame; then explicit removal -> original count + double requestAnimationFrame",
+            "animationFrameCadence": "120 requestAnimationFrame intervals while the global graph is displayed; this is a Canvas frame cadence proxy, not Canvas draw duration"
+          },
+          "limitations": [
+            "Canonical generated fixture is copied before launch; production profile, production Vault, and canonical fixture are not opened by TSUZUNE.",
+            "The input is a synthetic Electron webContents char event in a visible compositor window positioned off-screen, marked non-focusable, and never foreground-activated; it is not physical keyboard or foreground OS input latency.",
+            "Watcher completion means the React global graph DOM reached the expected node count, not the raw filesystem event timestamp.",
+            "requestAnimationFrame cadence reflects renderer scheduling and event-loop pressure; it is not GPU paint time or per-Canvas draw duration.",
+            "The visible off-screen compositor cadence may differ from an on-screen monitor refresh cadence.",
+            "This command records one fresh-profile warm-cache run rather than a repeated statistical distribution or a true machine-cold launch."
+          ],
+          "artifacts": {
+            "json": "docs/reports/assets/large-vault-performance-2026-08-03/electron-2000-trial-3.json",
+            "screenshot": "docs/reports/assets/large-vault-performance-2026-08-03/electron-2000-trial-3.png",
+            "screenshotSize": {
+              "width": 1264,
+              "height": 761
+            }
+          }
+        }
+      ],
+      "aggregate": {
+        "coreMs": {
+          "buildWikiGraph": {
+            "sampleCount": 10,
+            "min": 31.2754,
+            "median": 34.8071,
+            "max": 41.1908
+          },
+          "createWikiGraphSimulation": {
+            "sampleCount": 10,
+            "min": 0.7342,
+            "median": 1.1392,
+            "max": 3.3155
+          },
+          "tick1": {
+            "sampleCount": 10,
+            "min": 14.2104,
+            "median": 16.4476,
+            "max": 17.9525
+          },
+          "tick180": {
+            "sampleCount": 10,
+            "min": 3457.6741,
+            "median": 3560.1535,
+            "max": 3812.3077
+          },
+          "positions": {
+            "sampleCount": 10,
+            "min": 0.1842,
+            "median": 0.2101,
+            "max": 0.4253
+          }
+        },
+        "electronMs": {
+          "freshProfileWarmCacheOpenMs": {
+            "sampleCount": 3,
+            "min": 2599.2093,
+            "median": 2640.9191,
+            "max": 2662.7534
+          },
+          "graphFirstUsableMs": {
+            "sampleCount": 3,
+            "min": 1145.9,
+            "median": 1147.5,
+            "max": 1186.9
+          },
+          "editorInputDoubleRafMs": {
+            "sampleCount": 3,
+            "min": 83.8,
+            "median": 96.8,
+            "max": 97.6
+          },
+          "autosaveCompleteMs": {
+            "sampleCount": 3,
+            "min": 1008.7,
+            "median": 1022.9,
+            "max": 1040.6
+          },
+          "watcherAddVisibleMs": {
+            "sampleCount": 3,
+            "min": 1792.7624,
+            "median": 2172.2159,
+            "max": 2252.7653
+          },
+          "watcherRemoveVisibleMs": {
+            "sampleCount": 3,
+            "min": 1897.3403,
+            "median": 2030.247,
+            "max": 2757.5052
+          },
+          "animationFrameP50Ms": {
+            "sampleCount": 3,
+            "min": 139.1,
+            "median": 139.3,
+            "max": 146.3
+          },
+          "animationFrameP95Ms": {
+            "sampleCount": 3,
+            "min": 164.3,
+            "median": 164.4,
+            "max": 164.4
+          },
+          "animationFrameMaxMs": {
+            "sampleCount": 3,
+            "min": 175,
+            "median": 178.7,
+            "max": 189.4
+          }
+        }
+      }
+    }
+  ],
+  "reportingNotes": {
+    "audience": "technical",
+    "deliveryMode": "html",
+    "requiredStructure": [
+      "Title",
+      "Technical summary",
+      "Key findings with visual evidence",
+      "Scope, data, and metric definitions",
+      "Methodology",
+      "Limitations, uncertainty, and robustness checks",
+      "Recommended next steps",
+      "Further questions"
+    ],
+    "chartMap": [
+      {
+        "section": "4倍規模で増える処理コスト",
+        "question": "500件から2000件へ増やしたとき、コア処理のp95は何倍になるか。",
+        "family": "Comparison & Ranking",
+        "type": "bar",
+        "fields": [
+          "metric",
+          "slowdownRatio"
+        ],
+        "claim": "4倍のノート規模でgraph build p95は3.97倍、180 ticks p95は4.90倍になった。",
+        "palettePolicy": "single-root preferred",
+        "delivery": "native artifact chart in portable HTML"
+      }
+    ],
+    "omittedVisuals": [
+      "Electron timingは各規模3試行だけなので、分布チャートではなくmin/median/maxの監査表を採用した。"
+    ]
+  }
+}

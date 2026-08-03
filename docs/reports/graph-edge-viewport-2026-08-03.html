@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TSUZUNE 低倍率グラフ線描画修正</title>
+    <style>
+      :root { color-scheme: light; font-family: "Segoe UI", "Yu Gothic UI", sans-serif; }
+      body { margin: 0; color: #24302e; background: #f3f0e8; }
+      main { max-width: 1120px; margin: 0 auto; padding: 40px 24px 64px; }
+      h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 46px); }
+      h2 { margin-top: 36px; }
+      p { line-height: 1.75; }
+      .lead { font-size: 18px; color: #40514e; }
+      .status { display: inline-block; padding: 6px 10px; border-radius: 999px; background: #d9ebe6; color: #214a43; font-weight: 700; }
+      .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 24px 0; }
+      .metric, section { border: 1px solid #d8d2c5; border-radius: 14px; background: #fff; box-shadow: 0 8px 24px rgba(34, 47, 44, .06); }
+      .metric { padding: 18px; }
+      .metric strong { display: block; font-size: 24px; color: #315f57; }
+      section { padding: 24px; margin-top: 20px; }
+      .comparison { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+      figure { margin: 0; }
+      img { width: 100%; height: auto; border: 1px solid #ded8cd; border-radius: 10px; background: #fff; }
+      figcaption { margin-top: 8px; color: #56625f; line-height: 1.5; }
+      code { background: #eeece6; padding: 2px 5px; border-radius: 4px; }
+      li { margin: 8px 0; line-height: 1.6; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span class="status">本番反映・検証済み</span>
+      <h1>低倍率で途切れるグラフ線を描画方式から修正</h1>
+      <p class="lead">Canvasを縮小stageから切り離し、画面固定Canvasへworld-to-viewport変換を適用しました。同じ13.17%表示でも線は全画面へ連続描画されます。</p>
+
+      <div class="metrics">
+        <div class="metric"><strong>1.73%</strong>旧方式で線を描けた画面面積</div>
+        <div class="metric"><strong>749×613</strong>修正後Canvasの表示サイズ</div>
+        <div class="metric"><strong>78 / 267</strong>実画面のノード / 辺</div>
+        <div class="metric"><strong>360 PASS</strong>全回帰テスト</div>
+      </div>
+
+      <section>
+        <h2>修正前後</h2>
+        <div class="comparison">
+          <figure>
+            <img src="assets/graph-edge-viewport-2026-08-03/00-before-user-report.png" alt="修正前。縮小グラフの中央付近で線が途切れている" />
+            <figcaption>修正前 — ノードは残るが、CSS縮小されたCanvas bitmapの境界で線が途切れる。</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/graph-edge-viewport-2026-08-03/01-unhovered.png" alt="修正後。低倍率でも全ノード間の線が連続している" />
+            <figcaption>修正後 — Canvasはviewport全体を維持し、world座標を描画時に変換する。</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section>
+        <h2>根本原因と新方式</h2>
+        <ul>
+          <li>旧方式は辺Canvasを<code>.wiki-graph-stage</code>の中へ置き、Canvas自体へCSS zoomを掛けていた。</li>
+          <li>倍率0.131687では749×613pxのCanvasが見かけ上98.63×80.72pxへ縮み、そのbitmap境界より外の線を描けなかった。</li>
+          <li>新方式はCanvasをviewportへ固定し、DPR、画面中心、pan、zoomをCanvas contextの変換行列へ適用する。</li>
+          <li>同じ色・太さ・透明度の辺を一つのpathへまとめ、線ごとのstrokeを減らした。</li>
+          <li>DOMノードは操作性のためworld stageに残し、Canvasと同じcamera状態を共有する。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>検証</h2>
+        <ul>
+          <li><code>npm run test:production</code>: 44 files / 360 tests passed</li>
+          <li>MCP: 4 read tools / 3 write tools passed</li>
+          <li>installer、packaged smoke、silent install、installed smoke、installed hash、MCP登録: passed</li>
+          <li>source fingerprint: <code>7f7dcf934b2b2a6e44b3135a640939d483e977c5e654f3769fb5f4a493ff565d</code></li>
+          <li>installed app.asar: <code>22cb73979cfd43e07221ee2ca365e7e73ba5131980c34a329608f33a35c64af1</code></li>
+          <li>本番profileは更新前後で同一digest。</li>
+        </ul>
+        <p>構造化された測定値は <code>assets/graph-edge-viewport-2026-08-03/runtime-summary.json</code> を正本とします。この修正は線のクリッピングを閉じるもので、Obsidian 1.13.4とのGP6全体closureは別途継続します。</p>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,252 @@
+{
+  "capturedAt": "2026-08-02T13:48:15.054Z",
+  "stage": "GP6-0P installed production baseline comparison",
+  "status": "comparison-recorded",
+  "comparisonStatus": "not-matched",
+  "reference": {
+    "product": "Obsidian Desktop",
+    "version": "1.13.4",
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "workVault": "work/graph-gp6/obsidian-1.13.4/vault",
+    "screenshot": "docs/reports/assets/graph-gp6/obsidian-1.13.4/01-global-baseline.png",
+    "environment": "docs/reports/assets/graph-gp6/obsidian-1.13.4/environment.json",
+    "observation": "docs/reports/assets/graph-gp6/obsidian-1.13.4/01-global-baseline.observation.json"
+  },
+  "candidate": {
+    "product": "TSUZUNE",
+    "version": "0.5.0",
+    "executableSha256": "A19F02E525CACE50361D4C20AB9FF861CE44BE65E12942974D532805082B95BA",
+    "asarSha256": "82FED31F359D2072AD3138F9D8106D8AD9AA2BBFED4A7DB741CCD43ACE02D7D3",
+    "screenshot": "docs/reports/assets/graph-gp6/tsuzune-0.5.0/01-global-baseline.png",
+    "environment": "docs/reports/assets/graph-gp6/tsuzune-0.5.0/environment.json",
+    "observation": "docs/reports/assets/graph-gp6/tsuzune-0.5.0/01-global-baseline.observation.json"
+  },
+  "comparison": {
+    "result": "not-matched",
+    "details": "docs/reports/assets/graph-gp6/comparison.json",
+    "report": "docs/reports/graph-gp6-production-comparison-2026-08-02.html",
+    "matchedExistingMarkdownDirectedEdges": 11,
+    "referenceOnlyNodes": [
+      "90_orphan/Orphan.md",
+      "Missing Note"
+    ],
+    "referenceOnlyDirectedEdges": [
+      "00_Home.md -> Missing Note"
+    ],
+    "workingTreeNotEvaluated": true
+  },
+  "protection": {
+    "sourceBefore": {
+      "fileCount": 9,
+      "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3",
+      "files": [
+        {
+          "path": ".tsuzune/graph-file-times.json",
+          "bytes": 389,
+          "sha256": "A0BD3AAB7EAB2E0A7EAF7B567986FD93257342CABA97B8AD966DC1D9D19675A8"
+        },
+        {
+          "path": "00_Home.md",
+          "bytes": 139,
+          "sha256": "6427EC7102182E41BFC3E01257DF47974411E6142E74DAF043EE0D83275E8245"
+        },
+        {
+          "path": "10_projects/Project Alpha.md",
+          "bytes": 126,
+          "sha256": "EA436466218EC04E5FE3FB980C0C461BD1BF88A040539352F386F3AEB271F151"
+        },
+        {
+          "path": "10_projects/Project Beta.md",
+          "bytes": 85,
+          "sha256": "3C64509F2D6BEEC2D671808300C0B74F2F1D013D34D771F6C95481A7BC4C5006"
+        },
+        {
+          "path": "20_knowledge/Distillation.md",
+          "bytes": 103,
+          "sha256": "0DAF1774CBED1CC3538294B379F13E8ADE4EBDDA39F240887D1ADF76866CFBAE"
+        },
+        {
+          "path": "20_knowledge/Reference.md",
+          "bytes": 58,
+          "sha256": "36A49D5209013A7B47841A3BCB51AD8EB5CF47589FE71BAE2A7064EDF6A46CB8"
+        },
+        {
+          "path": "80_excluded/Hidden.md",
+          "bytes": 35,
+          "sha256": "D939F2F96B1CC7D6AD7BA6148791DC1B3A1E9C2591570468718471C494F4470F"
+        },
+        {
+          "path": "90_orphan/Orphan.md",
+          "bytes": 71,
+          "sha256": "84BA3D8EC90330596B6DA14D61C15205D2A95ECE20A8C051626188CD1F010BAC"
+        },
+        {
+          "path": "attachments/diagram.svg",
+          "bytes": 442,
+          "sha256": "4D0C9C3B4080FB4FF53B7E327A81E65718AD7629DD1462A7815C06D8A6B322EA"
+        }
+      ]
+    },
+    "sourceAfter": {
+      "fileCount": 9,
+      "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3",
+      "files": [
+        {
+          "path": ".tsuzune/graph-file-times.json",
+          "bytes": 389,
+          "sha256": "A0BD3AAB7EAB2E0A7EAF7B567986FD93257342CABA97B8AD966DC1D9D19675A8"
+        },
+        {
+          "path": "00_Home.md",
+          "bytes": 139,
+          "sha256": "6427EC7102182E41BFC3E01257DF47974411E6142E74DAF043EE0D83275E8245"
+        },
+        {
+          "path": "10_projects/Project Alpha.md",
+          "bytes": 126,
+          "sha256": "EA436466218EC04E5FE3FB980C0C461BD1BF88A040539352F386F3AEB271F151"
+        },
+        {
+          "path": "10_projects/Project Beta.md",
+          "bytes": 85,
+          "sha256": "3C64509F2D6BEEC2D671808300C0B74F2F1D013D34D771F6C95481A7BC4C5006"
+        },
+        {
+          "path": "20_knowledge/Distillation.md",
+          "bytes": 103,
+          "sha256": "0DAF1774CBED1CC3538294B379F13E8ADE4EBDDA39F240887D1ADF76866CFBAE"
+        },
+        {
+          "path": "20_knowledge/Reference.md",
+          "bytes": 58,
+          "sha256": "36A49D5209013A7B47841A3BCB51AD8EB5CF47589FE71BAE2A7064EDF6A46CB8"
+        },
+        {
+          "path": "80_excluded/Hidden.md",
+          "bytes": 35,
+          "sha256": "D939F2F96B1CC7D6AD7BA6148791DC1B3A1E9C2591570468718471C494F4470F"
+        },
+        {
+          "path": "90_orphan/Orphan.md",
+          "bytes": 71,
+          "sha256": "84BA3D8EC90330596B6DA14D61C15205D2A95ECE20A8C051626188CD1F010BAC"
+        },
+        {
+          "path": "attachments/diagram.svg",
+          "bytes": 442,
+          "sha256": "4D0C9C3B4080FB4FF53B7E327A81E65718AD7629DD1462A7815C06D8A6B322EA"
+        }
+      ]
+    },
+    "sourceUnchanged": true,
+    "isolatedVaultBefore": {
+      "fileCount": 9,
+      "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3",
+      "files": [
+        {
+          "path": ".tsuzune/graph-file-times.json",
+          "bytes": 389,
+          "sha256": "A0BD3AAB7EAB2E0A7EAF7B567986FD93257342CABA97B8AD966DC1D9D19675A8"
+        },
+        {
+          "path": "00_Home.md",
+          "bytes": 139,
+          "sha256": "6427EC7102182E41BFC3E01257DF47974411E6142E74DAF043EE0D83275E8245"
+        },
+        {
+          "path": "10_projects/Project Alpha.md",
+          "bytes": 126,
+          "sha256": "EA436466218EC04E5FE3FB980C0C461BD1BF88A040539352F386F3AEB271F151"
+        },
+        {
+          "path": "10_projects/Project Beta.md",
+          "bytes": 85,
+          "sha256": "3C64509F2D6BEEC2D671808300C0B74F2F1D013D34D771F6C95481A7BC4C5006"
+        },
+        {
+          "path": "20_knowledge/Distillation.md",
+          "bytes": 103,
+          "sha256": "0DAF1774CBED1CC3538294B379F13E8ADE4EBDDA39F240887D1ADF76866CFBAE"
+        },
+        {
+          "path": "20_knowledge/Reference.md",
+          "bytes": 58,
+          "sha256": "36A49D5209013A7B47841A3BCB51AD8EB5CF47589FE71BAE2A7064EDF6A46CB8"
+        },
+        {
+          "path": "80_excluded/Hidden.md",
+          "bytes": 35,
+          "sha256": "D939F2F96B1CC7D6AD7BA6148791DC1B3A1E9C2591570468718471C494F4470F"
+        },
+        {
+          "path": "90_orphan/Orphan.md",
+          "bytes": 71,
+          "sha256": "84BA3D8EC90330596B6DA14D61C15205D2A95ECE20A8C051626188CD1F010BAC"
+        },
+        {
+          "path": "attachments/diagram.svg",
+          "bytes": 442,
+          "sha256": "4D0C9C3B4080FB4FF53B7E327A81E65718AD7629DD1462A7815C06D8A6B322EA"
+        }
+      ]
+    },
+    "isolatedVaultAfter": {
+      "fileCount": 9,
+      "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3",
+      "files": [
+        {
+          "path": ".tsuzune/graph-file-times.json",
+          "bytes": 389,
+          "sha256": "A0BD3AAB7EAB2E0A7EAF7B567986FD93257342CABA97B8AD966DC1D9D19675A8"
+        },
+        {
+          "path": "00_Home.md",
+          "bytes": 139,
+          "sha256": "6427EC7102182E41BFC3E01257DF47974411E6142E74DAF043EE0D83275E8245"
+        },
+        {
+          "path": "10_projects/Project Alpha.md",
+          "bytes": 126,
+          "sha256": "EA436466218EC04E5FE3FB980C0C461BD1BF88A040539352F386F3AEB271F151"
+        },
+        {
+          "path": "10_projects/Project Beta.md",
+          "bytes": 85,
+          "sha256": "3C64509F2D6BEEC2D671808300C0B74F2F1D013D34D771F6C95481A7BC4C5006"
+        },
+        {
+          "path": "20_knowledge/Distillation.md",
+          "bytes": 103,
+          "sha256": "0DAF1774CBED1CC3538294B379F13E8ADE4EBDDA39F240887D1ADF76866CFBAE"
+        },
+        {
+          "path": "20_knowledge/Reference.md",
+          "bytes": 58,
+          "sha256": "36A49D5209013A7B47841A3BCB51AD8EB5CF47589FE71BAE2A7064EDF6A46CB8"
+        },
+        {
+          "path": "80_excluded/Hidden.md",
+          "bytes": 35,
+          "sha256": "D939F2F96B1CC7D6AD7BA6148791DC1B3A1E9C2591570468718471C494F4470F"
+        },
+        {
+          "path": "90_orphan/Orphan.md",
+          "bytes": 71,
+          "sha256": "84BA3D8EC90330596B6DA14D61C15205D2A95ECE20A8C051626188CD1F010BAC"
+        },
+        {
+          "path": "attachments/diagram.svg",
+          "bytes": 442,
+          "sha256": "4D0C9C3B4080FB4FF53B7E327A81E65718AD7629DD1462A7815C06D8A6B322EA"
+        }
+      ]
+    },
+    "isolatedVaultProtectedFilesUnchanged": true,
+    "protocolBefore": {
+      "exists": true,
+      "text": "HKEY_CURRENT_USER\\Software\\Classes\\obsidian\n    URL Protocol    REG_SZ    \n    (Default)    REG_SZ    URL:obsidian\n\nHKEY_CURRENT_USER\\Software\\Classes\\obsidian\\shell\n\nHKEY_CURRENT_USER\\Software\\Classes\\obsidian\\shell\\open\n\nHKEY_CURRENT_USER\\Software\\Classes\\obsidian\\shell\\open\\command\n    (Default)    REG_SZ    \"C:\\Users\\Humin\\AppData\\Local\\Programs\\Obsidian\\Obsidian.exe\" \"%1\""
+    },
+    "protocolRestored": true
+  },
+  "next": "GP6-0W: capture the current working-tree build with the same fixture before changing product behavior."
+}

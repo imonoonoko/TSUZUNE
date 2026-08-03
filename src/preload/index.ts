@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppSettings,
+  AppUpdateStatus,
   CreateDirectoryInput,
   CreateNoteInput,
   DriveRemoteVault,
@@ -8,6 +9,12 @@ import type {
   DriveSyncPreview,
   EntryOperationOutput,
   GoogleDriveStatus,
+  GraphDisplaySettings,
+  GraphFilterSettings,
+  GraphGroup,
+  GraphForceSettings,
+  GraphViewScope,
+  GraphViewState,
   MoveNoteInput,
   NoteDocument,
   PairDriveVaultInput,
@@ -29,6 +36,8 @@ const api: TsuzuneApi = {
   getSettings: () => invoke<AppSettings>('settings:get'),
   getSnapshot: () => invoke<VaultSnapshot>('vault:snapshot'),
   readNote: (path: string) => invoke<NoteDocument>('vault:readNote', path),
+  readVaultImage: (path: string) => invoke<string>('vault:readImage', path),
+  openVaultFile: (path: string) => invoke<null>('system:openVaultFile', path),
   saveNote: (input: SaveNoteInput) => invoke<SaveNoteOutput>('note:save', input),
   createNote: (input: CreateNoteInput) =>
     invoke<EntryOperationOutput>('entry:createNote', input),
@@ -41,6 +50,18 @@ const api: TsuzuneApi = {
   trashEntry: (path: string) => invoke<EntryOperationOutput>('entry:trash', path),
   setLastNote: (path: string | null) =>
     invoke<null>('settings:setLastNote', path),
+  setUserIgnoreFilters: (filters: string[]) =>
+    invoke<null>('settings:setUserIgnoreFilters', filters),
+  setGraphForces: (settings: GraphForceSettings) =>
+    invoke<null>('settings:setGraphForces', settings),
+  setGraphDisplay: (settings: GraphDisplaySettings) =>
+    invoke<null>('settings:setGraphDisplay', settings),
+  setGraphFilters: (settings: GraphFilterSettings) =>
+    invoke<null>('settings:setGraphFilters', settings),
+  setGraphGroups: (groups: GraphGroup[]) =>
+    invoke<null>('settings:setGraphGroups', groups),
+  setGraphViewState: (scope: GraphViewScope, state: GraphViewState) =>
+    invoke<null>('settings:setGraphViewState', scope, state),
   chooseGoogleOAuthConfig: () =>
     invoke<GoogleDriveStatus | null>('google:chooseConfig'),
   getGoogleDriveStatus: () =>
@@ -59,6 +80,10 @@ const api: TsuzuneApi = {
     invoke<DriveSyncPreview>('drive:preview'),
   applyDriveSync: (planId: string) =>
     invoke<DriveSyncApplyResult>('drive:apply', planId),
+  getUpdateStatus: () => invoke<AppUpdateStatus>('app:updateStatus'),
+  checkForUpdates: () => invoke<AppUpdateStatus>('app:updateCheck'),
+  downloadUpdate: () => invoke<AppUpdateStatus>('app:updateDownload'),
+  installUpdate: () => invoke<null>('app:updateInstall'),
   openExternal: (url: string) => invoke<null>('system:openExternal', url),
   confirmClose: (allow: boolean) => ipcRenderer.send('app:confirmClose', allow),
   onVaultChanged: (callback: (event: VaultChangeEvent) => void) => {
@@ -71,6 +96,14 @@ const api: TsuzuneApi = {
     const listener = (): void => callback()
     ipcRenderer.on('app:requestClose', listener)
     return () => ipcRenderer.removeListener('app:requestClose', listener)
+  },
+  onUpdateStatus: (callback: (status: AppUpdateStatus) => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      status: AppUpdateStatus
+    ): void => callback(status)
+    ipcRenderer.on('app:updateStatusChanged', listener)
+    return () => ipcRenderer.removeListener('app:updateStatusChanged', listener)
   }
 }
 

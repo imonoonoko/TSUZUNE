@@ -51,4 +51,17 @@ describe('note search', () => {
     expect(searchNotes(notes, '   ')).toEqual([])
     expect(searchNotes(notes, '見つからない')).toEqual([])
   })
+
+  it('resolves graph tag searches against Markdown tags', () => {
+    const tagged = [
+      note('設計.md', 'UI方針 #design', 20),
+      note('実装.md', 'タグなし'),
+      note('資料.md', '---\ntags: [design, research]\n---\n資料', 10)
+    ]
+
+    expect(searchNotes(tagged, 'tag:#design').map((result) => result.path)).toEqual([
+      '設計.md',
+      '資料.md'
+    ])
+  })
 })

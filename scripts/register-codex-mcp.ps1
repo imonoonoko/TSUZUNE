@@ -56,7 +56,7 @@ $block = @(
   'required = false'
   'startup_timeout_sec = 10'
   'tool_timeout_sec = 60'
-  'enabled_tools = ["search", "fetch", "get_backlinks", "build_context", "create_note", "update_note"]'
+  'enabled_tools = ["search", "fetch", "get_backlinks", "build_context", "create_note", "update_note", "autonomous_update_note"]'
   'default_tools_approval_mode = "auto"'
   ''
   '[mcp_servers.tsuzune.tools.create_note]'
@@ -64,6 +64,9 @@ $block = @(
   ''
   '[mcp_servers.tsuzune.tools.update_note]'
   'approval_mode = "prompt"'
+  ''
+  '[mcp_servers.tsuzune.tools.autonomous_update_note]'
+  'approval_mode = "auto"'
   $endMarker
 ) -join [Environment]::NewLine
 $block += [Environment]::NewLine

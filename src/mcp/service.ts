@@ -92,6 +92,22 @@ export interface WriteOutput {
   }
 }
 
+export interface AutonomousUpdateOptions {
+  expectedRevision?: string
+  reason?: string
+  sourceRefs?: string[]
+}
+
+export interface AutonomousUpdateOutput extends WriteOutput {
+  provenance: {
+    actor: 'ai'
+    reason: string
+    source_refs: string[]
+    previous_revision: string
+    history_path: string
+  }
+}
+
 export const MAX_EDITABLE_CHARACTERS = 100_000
 
 function assertEditableLength(content: string): void {
@@ -135,6 +151,66 @@ function canonicalNote(snapshot: VaultSnapshot, rawId: string): NoteDocument {
     throw new Error(`ノートが見つかりません: ${validation.normalized}`)
   }
   return note
+}
+
+async function ensureDirectory(
+  vault: VaultService,
+  relativeDirectory: string
+): Promise<void> {
+  let current = ''
+  for (const segment of relativeDirectory.split('/').filter(Boolean)) {
+    current = current ? `${current}/${segment}` : segment
+    try {
+      await vault.createDirectory({
+        parent: dirnameRelative(current),
+        name: basenameRelative(current)
+      })
+    } catch (error) {
+      if (
+        !(error instanceof VaultError) ||
+        error.appError.code !== 'ALREADY_EXISTS'
+      ) {
+        throw error
+      }
+    }
+  }
+}
+
+function historyPathFor(targetPath: string, previousRevision: string): string {
+  const timestamp = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-')
+  const target = targetPath
+    .replace(/\.md$/i, '')
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80)
+  return `50_履歴/AI更新/${timestamp}-${target || 'note'}-${previousRevision.slice(-12)}.md`
+}
+
+function renderAutonomousRevision(
+  targetPath: string,
+  previousRevision: string,
+  previousContent: string,
+  reason: string,
+  sourceRefs: string[]
+): string {
+  return [
+    '---',
+    'kind: ai_revision',
+    `target: ${targetPath}`,
+    'actor: ai',
+    `reason: ${JSON.stringify(reason)}`,
+    'source_refs:',
+    ...(sourceRefs.length > 0
+      ? sourceRefs.map((sourceRef) => `  - ${JSON.stringify(sourceRef)}`)
+      : ['  - none']),
+    `previous_revision: ${previousRevision}`,
+    `recorded_at: ${new Date().toISOString()}`,
+    '---',
+    '',
+    '# Previous content',
+    '',
+    previousContent
+  ].join('\n')
 }
 
 export class VaultMcpService {
@@ -255,6 +331,74 @@ export class VaultMcpService {
         modified_at: new Date(note.modifiedAt).toISOString(),
         revision: revisionFor(snapshot.rootPath, note),
         size_bytes: note.size
+      }
+    }
+  }
+
+  async autonomousUpdateNote(
+    id: string,
+    content: string,
+    options: AutonomousUpdateOptions = {}
+  ): Promise<AutonomousUpdateOutput> {
+    assertEditableLength(content)
+    const { vault, snapshot } = await this.snapshot()
+    const canonical = canonicalNote(snapshot, id)
+    const current = await vault.readNote(canonical.path)
+    assertEditableLength(current.content)
+    const previousRevision = revisionFor(snapshot.rootPath, current)
+
+    if (
+      options.expectedRevision &&
+      options.expectedRevision !== previousRevision
+    ) {
+      throw new VaultError({
+        code: 'FILE_CHANGED',
+        message:
+          'このノートは取得後に変更されたか、別のVaultへ切り替わりました。再取得してから自動更新してください。',
+        currentModifiedAt: current.modifiedAt
+      })
+    }
+
+    const reason = options.reason?.trim() || 'AIによる自動更新'
+    const sourceRefs = (options.sourceRefs ?? [])
+      .map((sourceRef) => sourceRef.trim())
+      .filter(Boolean)
+    const historyPath = historyPathFor(canonical.path, previousRevision)
+    await ensureDirectory(vault, '50_履歴/AI更新')
+    await vault.createNote({
+      directory: dirnameRelative(historyPath),
+      name: basenameRelative(historyPath),
+      content: renderAutonomousRevision(
+        canonical.path,
+        previousRevision,
+        current.content,
+        reason,
+        sourceRefs
+      )
+    })
+
+    await vault.saveNote({
+      path: canonical.path,
+      content,
+      expectedModifiedAt: current.modifiedAt
+    })
+    const note = await vault.readNote(canonical.path)
+
+    return {
+      id: note.path,
+      title: note.name,
+      metadata: {
+        path: note.path,
+        modified_at: new Date(note.modifiedAt).toISOString(),
+        revision: revisionFor(snapshot.rootPath, note),
+        size_bytes: note.size
+      },
+      provenance: {
+        actor: 'ai',
+        reason,
+        source_refs: sourceRefs,
+        previous_revision: previousRevision,
+        history_path: historyPath
       }
     }
   }

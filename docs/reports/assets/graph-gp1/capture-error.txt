@@ -1,0 +1,2 @@
+Error: タイムラプス開始時にノートが残っています: {"start":7,"middle":7,"end":7}
+    at runCapture (file:///C:/Users/Humin/Documents/Codex/TSUZUNE/scripts/capture-graph-gp1.mjs:340:11)

@@ -2,18 +2,31 @@ import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from '
 import { readFile } from 'node:fs/promises'
 import type {
   AppError,
+  AppUpdateStatus,
   CreateDirectoryInput,
   CreateNoteInput,
   DriveRemoteVault,
   DriveSyncApplyResult,
   DriveSyncPreview,
   GoogleDriveStatus,
+  GraphDisplaySettings,
+  GraphFilterSettings,
+  GraphGroup,
+  GraphForceSettings,
+  GraphViewScope,
+  GraphViewState,
   MoveNoteInput,
   PairDriveVaultInput,
   RenameEntryInput,
   Result,
   SaveNoteInput
 } from '../shared/types'
+import { parseGraphForceSettings } from '../shared/graph-settings'
+import { parseGraphDisplaySettings } from '../shared/graph-display'
+import { parseGraphFilterSettings } from '../shared/graph-filters'
+import { parseGraphGroups } from '../shared/graph-groups'
+import { parseGraphViewState } from '../shared/graph-view-state'
+import { parseUserIgnoreFilters } from '../shared/excluded-files'
 import { updateSettings, readSettings } from './settings'
 import { VaultError, VaultService } from './vault'
 import { VaultWatcher } from './watcher'
@@ -155,10 +168,18 @@ export interface GoogleIpcServices {
   driveSync: DriveSyncIpcService
 }
 
+export interface AppUpdateIpcService {
+  getStatus(): AppUpdateStatus
+  checkForUpdates(): Promise<AppUpdateStatus>
+  downloadUpdate(): Promise<AppUpdateStatus>
+  installUpdate(): void
+}
+
 export function registerIpc(
   vault: VaultService,
   watcher: VaultWatcher,
   google: GoogleIpcServices,
+  updates: AppUpdateIpcService,
   getWindow: () => BrowserWindow | null,
   approveClose: () => void
 ): void {
@@ -204,7 +225,7 @@ export function registerIpc(
       watcherSwitchAttempted = true
       await watcher.stop()
       await vault.setRootPath(rootPath)
-      const snapshot = await vault.scan()
+      const snapshot = await vault.scan(previousSettings.userIgnoreFilters)
       await watcher.start(rootPath)
       settingsAttempted = true
       await updateSettings({
@@ -249,7 +270,7 @@ export function registerIpc(
     try {
       await vault.setRootPath(settings.lastVaultPath)
       await watcher.start(settings.lastVaultPath)
-      return await vault.scan()
+      return await vault.scan(settings.userIgnoreFilters)
     } catch {
       vault.clearRootPath()
       await watcher.stop()
@@ -261,8 +282,12 @@ export function registerIpc(
     }
   })
 
-  registerTrusted('vault:snapshot', () => vault.scan())
+  registerTrusted('vault:snapshot', async () => {
+    const settings = await readSettings()
+    return vault.scan(settings.userIgnoreFilters)
+  })
   registerTrusted('vault:readNote', (path: string) => vault.readNote(path))
+  registerTrusted('vault:readImage', (path: string) => vault.readImageDataUrl(path))
   registerTrusted('settings:get', () => readSettings())
 
   registerTrusted('note:save', async (input: SaveNoteInput) => {
@@ -300,6 +325,58 @@ export function registerIpc(
     await updateSettings({ lastNotePath: path })
     return null
   })
+
+  registerTrusted('settings:setUserIgnoreFilters', async (filters: string[]) => {
+    await updateSettings({ userIgnoreFilters: parseUserIgnoreFilters(filters) })
+    return null
+  })
+
+  registerTrusted('settings:setGraphForces', async (settings: GraphForceSettings) => {
+    await updateSettings({ graphForces: parseGraphForceSettings(settings) })
+    return null
+  })
+
+  registerTrusted(
+    'settings:setGraphDisplay',
+    async (settings: GraphDisplaySettings) => {
+      await updateSettings({
+        graphDisplay: parseGraphDisplaySettings(settings)
+      })
+      return null
+    }
+  )
+
+  registerTrusted(
+    'settings:setGraphFilters',
+    async (settings: GraphFilterSettings) => {
+      await updateSettings({
+        graphFilters: parseGraphFilterSettings(settings)
+      })
+      return null
+    }
+  )
+
+  registerTrusted('settings:setGraphGroups', async (groups: GraphGroup[]) => {
+    await updateSettings({ graphGroups: parseGraphGroups(groups) })
+    return null
+  })
+
+  registerTrusted(
+    'settings:setGraphViewState',
+    async (scope: GraphViewScope, state: GraphViewState) => {
+      if (scope !== 'local' && scope !== 'vault') {
+        throw new Error('不明なグラフ表示範囲です。')
+      }
+      const current = await readSettings()
+      await updateSettings({
+        graphViewStates: {
+          ...current.graphViewStates,
+          [scope]: parseGraphViewState(state)
+        }
+      })
+      return null
+    }
+  )
 
   const getGoogleStatus = async (): Promise<GoogleDriveStatus> => {
     const connection = await google.connection.getStatus()
@@ -355,6 +432,14 @@ export function registerIpc(
   registerTrusted('drive:preview', () => google.driveSync.preview())
   registerTrusted('drive:apply', (planId: string) => google.driveSync.apply(planId))
 
+  registerConcurrentTrusted('app:updateStatus', async () => updates.getStatus())
+  registerConcurrentTrusted('app:updateCheck', () => updates.checkForUpdates())
+  registerConcurrentTrusted('app:updateDownload', () => updates.downloadUpdate())
+  registerConcurrentTrusted('app:updateInstall', async () => {
+    updates.installUpdate()
+    return null
+  })
+
   registerTrusted('system:openExternal', async (url: string) => {
     const parsed = new URL(url)
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
@@ -364,6 +449,18 @@ export function registerIpc(
       })
     }
     await shell.openExternal(parsed.toString())
+    return null
+  })
+
+  registerTrusted('system:openVaultFile', async (path: string) => {
+    const absolutePath = await vault.resolveFileForOpen(path)
+    const error = await shell.openPath(absolutePath)
+    if (error) {
+      throw new VaultError({
+        code: 'UNKNOWN',
+        message: error
+      })
+    }
     return null
   })
 

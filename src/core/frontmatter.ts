@@ -14,6 +14,8 @@ export interface FrontmatterParseResult {
 
 const FRONTMATTER_PATTERN =
   /^(?:\uFEFF)?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/
+const NESTED_YAML_LINE =
+  /^\s+(?:-\s+.+|[A-Za-z_][A-Za-z0-9_-]*:(?:\s*.*)?)$/
 
 function parseScalar(value: string): string | null {
   if (value === '' || value === 'null' || value === '~') {
@@ -65,14 +67,17 @@ export function parseFrontmatter(markdown: string): FrontmatterParseResult {
   const attributes: Record<string, string | null> = {}
   const warnings: FrontmatterWarning[] = []
   const lines = match[1].split(/\r?\n/)
+  let nestedBlockOpen = false
 
   for (const [index, line] of lines.entries()) {
     if (line.trim() === '' || line.trimStart().startsWith('#')) {
       continue
     }
 
-    const field = /^([A-Za-z_][A-Za-z0-9_-]*):(?:\s*(.*))?$/.exec(line)
-    if (!field) {
+    if (/^\s/.test(line)) {
+      if (nestedBlockOpen && NESTED_YAML_LINE.test(line)) {
+        continue
+      }
       warnings.push({
         code: 'MALFORMED_FRONTMATTER',
         message: 'Top-level key and scalar value are required.',
@@ -81,7 +86,20 @@ export function parseFrontmatter(markdown: string): FrontmatterParseResult {
       continue
     }
 
-    attributes[field[1]] = parseScalar(field[2] ?? '')
+    const field = /^([A-Za-z_][A-Za-z0-9_-]*):(?:\s*(.*))?$/.exec(line)
+    if (!field) {
+      nestedBlockOpen = false
+      warnings.push({
+        code: 'MALFORMED_FRONTMATTER',
+        message: 'Top-level key and scalar value are required.',
+        line: index + 2
+      })
+      continue
+    }
+
+    const rawValue = field[2] ?? ''
+    attributes[field[1]] = parseScalar(rawValue)
+    nestedBlockOpen = rawValue.trim() === ''
   }
 
   return {

@@ -1,4 +1,5 @@
 import type { NoteDocument, SearchResult } from '../shared/types'
+import { extractMarkdownTags } from './tags'
 
 function normalized(value: string): string {
   return value.toLocaleLowerCase()
@@ -24,6 +25,10 @@ export function searchNotes(notes: NoteDocument[], rawQuery: string): SearchResu
   }
 
   const lowerQuery = normalized(query)
+  const tagQuery = /^tag:(#?[^\s]+)$/i.exec(query)?.[1]
+  const normalizedTagQuery = tagQuery
+    ? normalized(tagQuery.startsWith('#') ? tagQuery : `#${tagQuery}`)
+    : null
 
   return notes
     .map((note): SearchResult | null => {
@@ -32,20 +37,30 @@ export function searchNotes(notes: NoteDocument[], rawQuery: string): SearchResu
       const lowerContent = normalized(note.content)
       let score = 0
 
-      if (lowerName === lowerQuery) {
-        score += 100
-      } else if (lowerName.startsWith(lowerQuery)) {
-        score += 60
-      } else if (lowerName.includes(lowerQuery)) {
-        score += 40
-      }
+      if (normalizedTagQuery) {
+        if (
+          extractMarkdownTags(note.content).some(
+            (tag) => normalized(tag) === normalizedTagQuery
+          )
+        ) {
+          score = 80
+        }
+      } else {
+        if (lowerName === lowerQuery) {
+          score += 100
+        } else if (lowerName.startsWith(lowerQuery)) {
+          score += 60
+        } else if (lowerName.includes(lowerQuery)) {
+          score += 40
+        }
 
-      if (lowerPath.includes(lowerQuery)) {
-        score += 20
-      }
+        if (lowerPath.includes(lowerQuery)) {
+          score += 20
+        }
 
-      if (lowerContent.includes(lowerQuery)) {
-        score += 10
+        if (lowerContent.includes(lowerQuery)) {
+          score += 10
+        }
       }
 
       if (score === 0) {

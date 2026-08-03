@@ -83,6 +83,39 @@ const DEFAULT_MAX_BACKLINKS = 3
 const DEFAULT_MAX_TEMPORAL = 5
 const TRUNCATION_MARKER = '\n\n[このノートは文字数上限で省略されました]\n'
 
+function allocateSectionBudgets(
+  sectionLengths: number[],
+  totalBudget: number
+): number[] {
+  const budgets = sectionLengths.map(() => 0)
+  let remaining = sectionLengths.map((_, index) => index)
+  let available = Math.max(0, totalBudget)
+
+  while (remaining.length > 0) {
+    const equalShare = Math.floor(available / remaining.length)
+    const complete = remaining.filter(
+      (index) => sectionLengths[index] <= equalShare
+    )
+
+    if (complete.length === 0) {
+      const remainder = available - equalShare * remaining.length
+      for (const [position, index] of remaining.entries()) {
+        budgets[index] = equalShare + (position < remainder ? 1 : 0)
+      }
+      break
+    }
+
+    const completed = new Set(complete)
+    for (const index of complete) {
+      budgets[index] = sectionLengths[index]
+      available -= sectionLengths[index]
+    }
+    remaining = remaining.filter((index) => !completed.has(index))
+  }
+
+  return budgets
+}
+
 function sourceSectionParts(
   note: NoteDocument,
   source: Omit<ContextSource, 'truncated'>
@@ -148,6 +181,7 @@ export function buildContextBundle(
   const seedTemporal = parseContextTemporalNote(seed, warnings)
   const historicalRequest = isHistoricalRequest(asOf, generatedAt)
   const omittedNormalPaths = new Set<string>()
+  const selectionOmittedPaths = new Set<string>()
   const seedEvaluation = seedTemporal.metadata
     ? evaluateTemporal(seedTemporal.metadata, asOf)
     : undefined
@@ -245,10 +279,11 @@ export function buildContextBundle(
       const note = notes.find((item) => item.path === link.resolvedPath)
       return note && isSafeNormalContextNote(note, warnings) ? [note] : []
     })
-  const rankedOutgoing = rankByQuery(outgoingNotes, query).slice(
-    0,
-    maxOutgoing
-  )
+  const allRankedOutgoing = rankByQuery(outgoingNotes, query)
+  const rankedOutgoing = allRankedOutgoing.slice(0, maxOutgoing)
+  for (const note of allRankedOutgoing.slice(maxOutgoing)) {
+    selectionOmittedPaths.add(note.path)
+  }
   for (const note of rankedOutgoing) {
     if (historicalRequest) {
       omittedNormalPaths.add(note.path)
@@ -277,10 +312,11 @@ export function buildContextBundle(
         isSafeNormalContextNote(note, warnings)
       )
     : []
-  const rankedBacklinks = rankByQuery(backlinkNotes, query).slice(
-    0,
-    maxBacklinks
-  )
+  const allRankedBacklinks = rankByQuery(backlinkNotes, query)
+  const rankedBacklinks = allRankedBacklinks.slice(0, maxBacklinks)
+  for (const note of allRankedBacklinks.slice(maxBacklinks)) {
+    selectionOmittedPaths.add(note.path)
+  }
   for (const note of rankedBacklinks) {
     if (historicalRequest) {
       omittedNormalPaths.add(note.path)
@@ -460,16 +496,30 @@ export function buildContextBundle(
 
   let markdown = header.slice(0, maxCharacters)
   const included: ContextSource[] = []
-  const omittedPaths: string[] = []
-  let truncated = header.length > maxCharacters
-
-  for (const [index, candidate] of candidates.entries()) {
-    const separator = markdown.endsWith('\n\n') ? '' : '\n'
+  const omittedPaths = [...selectionOmittedPaths].filter(
+    (path) => !selected.has(path)
+  )
+  let truncated = header.length > maxCharacters || omittedPaths.length > 0
+  const renderedCandidates = candidates.map((candidate) => {
     const parts = sourceSectionParts(candidate.note, candidate.source)
-    const prefix = `${separator}${parts.prefix}`
-    const section = `${prefix}${parts.body}${parts.suffix}`
+    const prefix = `\n${parts.prefix}`
+    return {
+      candidate,
+      parts,
+      prefix,
+      section: `${prefix}${parts.body}${parts.suffix}`
+    }
+  })
+  const sectionBudgets = allocateSectionBudgets(
+    renderedCandidates.map((candidate) => candidate.section.length),
+    maxCharacters - markdown.length
+  )
 
-    if (markdown.length + section.length <= maxCharacters) {
+  for (const [index, rendered] of renderedCandidates.entries()) {
+    const { candidate, parts, prefix, section } = rendered
+    const sectionBudget = sectionBudgets[index]
+
+    if (section.length <= sectionBudget) {
       markdown += section
       included.push({
         ...candidate.source,
@@ -479,8 +529,7 @@ export function buildContextBundle(
     }
 
     const visibleLength =
-      maxCharacters -
-      markdown.length -
+      sectionBudget -
       prefix.length -
       TRUNCATION_MARKER.length -
       parts.suffix.length
@@ -495,14 +544,12 @@ export function buildContextBundle(
         truncated: true
       })
     } else {
-      omittedPaths.push(candidate.note.path)
+      if (!omittedPaths.includes(candidate.note.path)) {
+        omittedPaths.push(candidate.note.path)
+      }
     }
 
-    for (const omitted of candidates.slice(index + 1)) {
-      omittedPaths.push(omitted.note.path)
-    }
     truncated = true
-    break
   }
 
   return {
@@ -553,6 +600,9 @@ function isSafeNormalContextNote(
   note: NoteDocument,
   warnings: ContextWarning[]
 ): boolean {
+  if (note.path.startsWith('50_履歴/AI更新/')) {
+    return false
+  }
   const parsed = parseContextTemporalNote(note, warnings)
   return parsed.warnings.length === 0 && parsed.kind === 'normal'
 }

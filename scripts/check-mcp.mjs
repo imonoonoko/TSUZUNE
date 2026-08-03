@@ -80,6 +80,7 @@ try {
   const listed = await client.listTools()
   const toolNames = listed.tools.map((tool) => tool.name).sort()
   const expected = [
+    'autonomous_update_note',
     'build_context',
     'create_note',
     'fetch',
@@ -102,7 +103,7 @@ try {
       throw new Error(`${name} has incorrect read-only annotations.`)
     }
   }
-  for (const name of ['create_note', 'update_note']) {
+  for (const name of ['create_note', 'update_note', 'autonomous_update_note']) {
     const annotations = toolsByName.get(name)?.annotations
     if (
       annotations?.readOnlyHint !== false ||
@@ -117,6 +118,14 @@ try {
   }
   if (toolsByName.get('update_note')?.annotations?.destructiveHint !== true) {
     throw new Error('update_note must disclose full-content replacement.')
+  }
+  if (
+    toolsByName.get('autonomous_update_note')?.annotations?.destructiveHint !==
+    true
+  ) {
+    throw new Error(
+      'autonomous_update_note must disclose full-content replacement.'
+    )
   }
 
   const search = await client.callTool({
@@ -288,6 +297,26 @@ try {
   if (typeof updatedRevision !== 'string') {
     throw new Error('update_note did not return a new revision token.')
   }
+
+  const autonomous = await client.callTool({
+    name: 'autonomous_update_note',
+    arguments: {
+      id: 'Projects/AI-created.md',
+      content: '# AI-created\n\nUpdated autonomously through MCP.',
+      reason: 'MCP smoke test',
+      source_refs: ['NotebookLM/smoke-test.md']
+    }
+  })
+  if (
+    autonomous.isError ||
+    autonomous.structuredContent?.provenance?.actor !== 'ai' ||
+    autonomous.structuredContent?.provenance?.history_path === undefined ||
+    !(await readFile(join(vaultPath, 'Projects', 'AI-created.md'), 'utf8')).includes(
+      'Updated autonomously through MCP'
+    )
+  ) {
+    throw new Error('autonomous_update_note did not apply the AI update.')
+  }
   const updatedPath = join(vaultPath, 'Projects', 'AI-created.md')
   await writeFile(updatedPath, 'External change', 'utf8')
   const currentInfo = await stat(updatedPath)
@@ -308,7 +337,7 @@ try {
     throw new Error('update_note did not preserve an external change.')
   }
 
-  console.log('TSUZUNE MCP smoke check passed: 4 read tools and 2 write tools.')
+  console.log('TSUZUNE MCP smoke check passed: 4 read tools and 3 write tools.')
 } catch (error) {
   if (stderr.trim()) {
     console.error(stderr.trim())

@@ -1,0 +1,30 @@
+{
+  "date": "2026-08-02",
+  "slice": "GP1 Force Foundation",
+  "checks": {
+    "typecheck": "PASS",
+    "tests": {
+      "status": "PASS",
+      "files": 29,
+      "tests": 220
+    },
+    "mcpSmoke": {
+      "status": "PASS",
+      "readTools": 4,
+      "writeTools": 3
+    },
+    "productionBuild": "PASS",
+    "electronCapture": "PASS",
+    "markdownUnchanged": true
+  },
+  "evidence": [
+    "capture-result.json",
+    "01-force-defaults.png",
+    "02-center-force-100.png"
+  ],
+  "remaining": [
+    "Obsidian side-by-side capture",
+    "true fit-to-bounds",
+    "Display settings and Canvas renderer"
+  ]
+}

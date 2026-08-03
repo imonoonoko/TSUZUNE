@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>TSUZUNE Graph Explorer P0-4 機能レポート</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172522;
+        --muted: #66736f;
+        --paper: #f7f4ec;
+        --card: #fffdf8;
+        --line: #d8d3c7;
+        --green: #245c52;
+        --green-soft: #dcebe7;
+        --amber: #9a6616;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font-family: "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif;
+        line-height: 1.65;
+      }
+
+      header {
+        padding: 56px max(24px, calc((100vw - 1120px) / 2));
+        color: #fff;
+        background: linear-gradient(135deg, #173e37, #2c675c);
+      }
+
+      header p { max-width: 850px; margin: 12px 0 0; color: #e8f3f0; }
+      h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.15; }
+      h2 { margin: 0 0 16px; font-size: 1.55rem; }
+      h3 { margin: 0; font-size: 1.22rem; }
+
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 32px auto 64px;
+      }
+
+      .summary,
+      .feature,
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--card);
+        box-shadow: 0 8px 24px rgba(25, 45, 40, 0.07);
+      }
+
+      .summary { padding: 28px; }
+
+      .badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 11px;
+        border-radius: 999px;
+        color: var(--green);
+        background: var(--green-soft);
+        font-weight: 700;
+        font-size: 0.88rem;
+      }
+
+      .badge::before { content: "✓"; }
+
+      .meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      .meta div {
+        padding: 14px;
+        border-radius: 10px;
+        background: #f2efe6;
+      }
+
+      .meta strong { display: block; color: var(--muted); font-size: 0.8rem; }
+      .section-title { margin: 42px 0 16px; }
+      .features { display: grid; gap: 24px; }
+      .feature { overflow: hidden; }
+      .feature-copy { padding: 22px 24px 18px; }
+      .feature-copy p { margin: 8px 0 0; color: var(--muted); }
+
+      figure { margin: 0; border-top: 1px solid var(--line); background: #e9e5db; }
+      figure img { display: block; width: 100%; height: auto; }
+      figcaption { padding: 10px 16px; color: #53615d; background: #f2efe6; font-size: 0.86rem; }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+        gap: 20px;
+      }
+
+      .panel { padding: 24px; }
+      .panel ul { margin: 12px 0 0; padding-left: 1.25rem; }
+      .panel li + li { margin-top: 7px; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+      th, td { padding: 12px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { color: var(--muted); font-size: 0.82rem; }
+      .pass { color: var(--green); font-weight: 800; }
+      code { padding: 2px 5px; border-radius: 4px; background: #efebe1; font-family: Consolas, monospace; }
+      .next { border-left: 5px solid var(--amber); background: #fff9ec; }
+      footer { margin-top: 40px; color: var(--muted); font-size: 0.86rem; text-align: center; }
+
+      @media (max-width: 640px) {
+        header { padding-top: 36px; padding-bottom: 36px; }
+        .summary, .panel { padding: 20px; }
+        .feature-copy { padding: 18px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Graph Explorer P0-4</h1>
+      <p>大きなVaultでも現在のノートを見失わず、接続方向と関係を読み取り、表示上限を把握しながら探索できるようにした区切りの機能レポートです。</p>
+    </header>
+
+    <main>
+      <section class="summary" aria-labelledby="outcome-title">
+        <div class="badge-row">
+          <span class="badge">P0-4 完了</span>
+          <span class="badge">200 tests</span>
+          <span class="badge">Real Electron</span>
+          <span class="badge">Vault unchanged</span>
+        </div>
+        <h2 id="outcome-title">結果: 読みやすさと大規模表示の安全弁を実装</h2>
+        <p>表示を最大50ノート・200リンクへ制限し、現在ノートと直接接続を優先して残します。省略数を明示し、5種類の凡例、矢印、ホバー／キーボードフォーカスによる接続強調を追加しました。表示計算はメモ化し、画面移動や強調のたびにVault全体を並べ直しません。</p>
+        <div class="meta">
+          <div><strong>ノート上限</strong>50</div>
+          <div><strong>リンク上限</strong>200</div>
+          <div><strong>凡例</strong>5種類</div>
+          <div><strong>記録日時</strong>2026-08-01 04:50 JST</div>
+          <div><strong>Branch</strong>agent/tsuzune-mcp-integration</div>
+          <div><strong>Base HEAD</strong>93a8502 + uncommitted P0-4</div>
+        </div>
+      </section>
+
+      <h2 class="section-title">機能別スクリーンショット</h2>
+      <section class="features" aria-label="機能別スクリーンショット">
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>1. 凡例・方向矢印・長い名前</h3>
+            <p>現在、リンク先、バックリンク、相互リンク、関連ノートを5種類の凡例で説明します。矢印はノート中央ではなく境界で止まり、長い名前は切り詰めつつ完全パスをtitle属性に保持します。</p>
+          </div>
+          <figure>
+            <img src="assets/graph-p0-4/01-starter-legend.png" alt="TSUZUNEのグラフに5種類の凡例と方向矢印が表示された画面">
+            <figcaption>実測: 19ノート・83リンク・83矢印終点。長いラベルは148px枠で切り詰め。</figcaption>
+          </figure>
+        </article>
+
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>2. マウスホバーで接続を強調</h3>
+            <p>ONOKOノートへポインターを合わせると、接続するノートと線だけを濃くし、それ以外を薄くします。</p>
+          </div>
+          <figure>
+            <img src="assets/graph-p0-4/02-starter-hover.png" alt="ONOKOノートの接続だけが強調されたTSUZUNEグラフ">
+            <figcaption>実測: 8リンクを強調、75リンクを減光。</figcaption>
+          </figure>
+        </article>
+
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>3. キーボードフォーカスでも接続を強調</h3>
+            <p>ノートはフォーカス可能で、TSUZUNEへフォーカスした状態でもホバーと同じ接続強調が働きます。画面外へ消えた古いホバー状態はフォーカスを妨げません。</p>
+          </div>
+          <figure>
+            <img src="assets/graph-p0-4/05-starter-focus.png" alt="TSUZUNEノートへキーボードフォーカスして接続を強調した画面">
+            <figcaption>実測: TSUZUNEへフォーカス、9リンクを強調、74リンクを減光。</figcaption>
+          </figure>
+        </article>
+
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>4. 密集グラフの表示上限と省略通知</h3>
+            <p>61ノート・720リンクの入力でも、現在ノートと近接関係を優先しながら50ノート・200リンクで止め、何件を省略したか表示します。</p>
+          </div>
+          <figure>
+            <img src="assets/graph-p0-4/03-dense-limit.png" alt="密集グラフを50ノート200リンクに制限し省略数を表示した画面">
+            <figcaption>実測: 11ノート・520リンクを省略、200矢印終点を描画。</figcaption>
+          </figure>
+        </article>
+
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>5. 絞り込み後は上限通知を自動解除</h3>
+            <p>密集グラフを「密度ノート59」で絞ると対象2ノート・2リンクだけになり、不要になった省略通知は消えます。</p>
+          </div>
+          <figure>
+            <img src="assets/graph-p0-4/04-dense-filter.png" alt="密集グラフを密度ノート59で2ノートへ絞り込んだ画面">
+            <figcaption>実測: 2ノート・2リンク・2矢印終点、省略通知なし。</figcaption>
+          </figure>
+        </article>
+      </section>
+
+      <h2 class="section-title">検証</h2>
+      <section class="grid">
+        <article class="panel">
+          <h3>自動検証</h3>
+          <table>
+            <thead><tr><th>検証</th><th>結果</th></tr></thead>
+            <tbody>
+              <tr><td><code>npm run typecheck</code></td><td class="pass">PASS</td></tr>
+              <tr><td><code>npm test</code></td><td class="pass">24 files / 200 tests</td></tr>
+              <tr><td><code>npm run check:mcp</code></td><td class="pass">4 read / 2 write</td></tr>
+              <tr><td><code>npm run build</code></td><td class="pass">PASS</td></tr>
+              <tr><td><code>git diff --check</code></td><td class="pass">PASS</td></tr>
+            </tbody>
+          </table>
+        </article>
+
+        <article class="panel">
+          <h3>実Electron確認</h3>
+          <ul>
+            <li>Starter Vaultを非表示の実Electronウィンドウで開き、5枚とも<code>webContents.capturePage()</code>で取得した。</li>
+            <li>Starterの83リンクすべてに、対象ノート中央からずらした矢印終点を確認した。</li>
+            <li>Starter Vaultは前後43件、複合SHA-256 <code>00AD91EC…AAE7</code>で一致した。</li>
+            <li>密集fixtureの使い捨てVaultも前後104件、複合SHA-256 <code>8043B22F…469</code>で一致した。</li>
+            <li>機械可読な実測値は<code>capture-starter-result.json</code>、<code>capture-dense-result.json</code>、<code>verification-result.json</code>へ保存した。</li>
+          </ul>
+        </article>
+
+        <article class="panel">
+          <h3>P0-4の境界</h3>
+          <ul>
+            <li>フォーカス証跡は非表示Electron上の自動Tab移動とnative focus eventであり、物理キーボード受入ではない。</li>
+            <li>実OSのスクリーンリーダー、High Contrast、物理キーボード、複数DPIは未受入。</li>
+            <li>密集テストはStarter Vaultの使い捨てコピーに作った合成61ノートのローカルグラフ。</li>
+            <li>配置は固定リング。力学配置、安定座標、グループ、タグ／添付／未解決リンクfilter、右クリック操作は未実装。</li>
+            <li>グラフ原本はMarkdownとWikiリンクのまま。独自DB、GraphRAG、グラフからの本文編集は追加していない。</li>
+          </ul>
+        </article>
+
+        <article class="panel next">
+          <h3>次の区切り: Google Tasks読取</h3>
+          <p>Graph Explorerの基礎はP0-4で一旦閉じます。次は接続済みGoogleアカウントからTasksを読み取り、原典・取得日時・同期元を失わない形でTSUZUNEへ選択取り込みできる最小sliceを開始します。</p>
+        </article>
+      </section>
+
+      <footer>
+        TSUZUNE — 書いて、つないで、あとで尋ねる。／ このレポートはローカル開発作業ツリーの証跡です。
+      </footer>
+    </main>
+  </body>
+</html>

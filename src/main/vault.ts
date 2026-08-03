@@ -19,6 +19,8 @@ import {
   sep
 } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { isSupportedAttachmentPath } from '../shared/attachments'
+import { createExcludedFileMatcher } from '../shared/excluded-files'
 import {
   basenameRelative,
   dirnameRelative,
@@ -38,6 +40,7 @@ import type {
   RenameEntryInput,
   SaveNoteInput,
   SaveNoteOutput,
+  VaultAttachment,
   VaultSnapshot
 } from '../shared/types'
 
@@ -78,6 +81,42 @@ function isMarkdownFile(path: string): boolean {
   return extname(path).toLocaleLowerCase() === '.md'
 }
 
+const IMAGE_MIME_TYPES = new Map([
+  ['.png', 'image/png'],
+  ['.jpg', 'image/jpeg'],
+  ['.jpeg', 'image/jpeg'],
+  ['.gif', 'image/gif'],
+  ['.bmp', 'image/bmp'],
+  ['.svg', 'image/svg+xml'],
+  ['.webp', 'image/webp'],
+  ['.avif', 'image/avif']
+])
+
+function validBirthtime(birthtimeMs: number): number | null {
+  return Number.isFinite(birthtimeMs) && birthtimeMs > 0 ? birthtimeMs : null
+}
+
+type CreationTimeRegistry = Record<string, number>
+
+function validCreationTime(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+}
+
+function normalizeCreationTimes(value: unknown): CreationTimeRegistry {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
+
+  const normalized: CreationTimeRegistry = {}
+  for (const [path, timestamp] of Object.entries(value)) {
+    const validation = validateRelativePath(path)
+    if (validation.valid && validation.normalized && validCreationTime(timestamp)) {
+      normalized[validation.normalized] = timestamp
+    }
+  }
+  return normalized
+}
+
 function timestampSuffix(date = new Date()): string {
   const pad = (value: number, width = 2): string => String(value).padStart(width, '0')
   return [
@@ -96,6 +135,7 @@ function timestampSuffix(date = new Date()): string {
 export class VaultService {
   private rootPath: string | null = null
   private rootRevision = 0
+  private creationTimeQueue: Promise<void> = Promise.resolve()
 
   getRootPath(): string | null {
     return this.rootPath
@@ -220,11 +260,138 @@ export class VaultService {
     })
   }
 
-  async scan(): Promise<VaultSnapshot> {
+  private isCurrentRoot(rootPath: string, revision: number): boolean {
+    return this.rootPath === rootPath && this.rootRevision === revision
+  }
+
+  private async readCreationTimes(rootPath: string): Promise<CreationTimeRegistry> {
+    const metadataDirectory = join(rootPath, '.tsuzune')
+    const registryPath = join(metadataDirectory, 'graph-file-times.json')
+
+    try {
+      const [directoryInfo, registryInfo] = await Promise.all([
+        lstat(metadataDirectory),
+        lstat(registryPath)
+      ])
+      if (
+        !directoryInfo.isDirectory() ||
+        directoryInfo.isSymbolicLink() ||
+        !registryInfo.isFile() ||
+        registryInfo.isSymbolicLink()
+      ) {
+        return {}
+      }
+      return normalizeCreationTimes(JSON.parse(await readFile(registryPath, 'utf8')))
+    } catch {
+      return {}
+    }
+  }
+
+  private async writeCreationTimes(
+    rootPath: string,
+    revision: number,
+    creationTimes: CreationTimeRegistry
+  ): Promise<void> {
+    if (!this.isCurrentRoot(rootPath, revision)) {
+      return
+    }
+
+    const metadataDirectory = join(rootPath, '.tsuzune')
+    const registryPath = join(metadataDirectory, 'graph-file-times.json')
+    const temporaryPath = join(
+      metadataDirectory,
+      `.graph-file-times-${randomUUID()}.tmp`
+    )
+
+    try {
+      await mkdir(metadataDirectory, { recursive: true })
+      const directoryInfo = await lstat(metadataDirectory)
+      if (!directoryInfo.isDirectory() || directoryInfo.isSymbolicLink()) {
+        return
+      }
+
+      const sorted = Object.fromEntries(
+        Object.entries(normalizeCreationTimes(creationTimes)).sort(([left], [right]) =>
+          left.localeCompare(right, 'ja')
+        )
+      )
+      await writeFile(temporaryPath, `${JSON.stringify(sorted, null, 2)}\n`, {
+        encoding: 'utf8',
+        flag: 'wx'
+      })
+      if (!this.isCurrentRoot(rootPath, revision)) {
+        await rm(temporaryPath, { force: true })
+        return
+      }
+      await rename(temporaryPath, registryPath)
+    } catch {
+      await rm(temporaryPath, { force: true }).catch(() => undefined)
+    }
+  }
+
+  private async updateCreationTimes(
+    rootPath: string,
+    revision: number,
+    update: (current: CreationTimeRegistry) => CreationTimeRegistry
+  ): Promise<CreationTimeRegistry> {
+    let result: CreationTimeRegistry = {}
+    const operation = this.creationTimeQueue.then(async () => {
+      if (!this.isCurrentRoot(rootPath, revision)) {
+        return
+      }
+      const current = await this.readCreationTimes(rootPath)
+      if (!this.isCurrentRoot(rootPath, revision)) {
+        return
+      }
+      result = normalizeCreationTimes(update(current))
+      await this.writeCreationTimes(rootPath, revision, result)
+    })
+    this.creationTimeQueue = operation.catch(() => undefined)
+    await operation.catch(() => undefined)
+    return result
+  }
+
+  private async moveCreationTimes(
+    rootPath: string,
+    revision: number,
+    oldPath: string,
+    newPath: string,
+    directory: boolean
+  ): Promise<void> {
+    await this.updateCreationTimes(rootPath, revision, (current) => {
+      const next = { ...current }
+      for (const [path, timestamp] of Object.entries(current)) {
+        if (path !== oldPath && (!directory || !path.startsWith(`${oldPath}/`))) {
+          continue
+        }
+        const suffix = path.slice(oldPath.length)
+        delete next[path]
+        next[`${newPath}${suffix}`] = timestamp
+      }
+      return next
+    })
+  }
+
+  private async removeCreationTimes(
+    rootPath: string,
+    revision: number,
+    removedPath: string
+  ): Promise<void> {
+    await this.updateCreationTimes(rootPath, revision, (current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(
+          ([path]) => path !== removedPath && !path.startsWith(`${removedPath}/`)
+        )
+      )
+    )
+  }
+
+  async scan(userIgnoreFilters: readonly string[] = []): Promise<VaultSnapshot> {
     const root = this.requireRoot()
     const revision = this.rootRevision
     const directories: string[] = ['']
     const notePaths: string[] = []
+    const attachmentPaths: string[] = []
 
     const walk = async (absoluteDirectory: string): Promise<void> => {
       let entries
@@ -245,6 +412,8 @@ export class VaultService {
           await walk(absolute)
         } else if (entry.isFile() && isMarkdownFile(entry.name)) {
           notePaths.push(absolute)
+        } else if (entry.isFile() && isSupportedAttachmentPath(entry.name)) {
+          attachmentPaths.push(absolute)
         }
       }
     }
@@ -263,6 +432,21 @@ export class VaultService {
           name: withoutMarkdownExtension(basenameRelative(relativePath)),
           content,
           modifiedAt: info.mtimeMs,
+          createdAt: validBirthtime(info.birthtimeMs),
+          size: info.size
+        }
+      })
+    )
+
+    const attachments = await Promise.all(
+      attachmentPaths.map(async (absolutePath): Promise<VaultAttachment> => {
+        const info = await stat(absolutePath)
+        const relativePath = this.relativePathFrom(root, absolutePath)
+        return {
+          path: relativePath,
+          name: basenameRelative(relativePath),
+          modifiedAt: info.mtimeMs,
+          createdAt: validBirthtime(info.birthtimeMs),
           size: info.size
         }
       })
@@ -275,14 +459,46 @@ export class VaultService {
       })
     }
 
+    const creationTimes = await this.updateCreationTimes(
+      root,
+      revision,
+      (current) => {
+        const next: CreationTimeRegistry = {}
+        for (const item of [...notes, ...attachments]) {
+          const timestamp = current[item.path] ?? item.createdAt
+          if (validCreationTime(timestamp)) {
+            next[item.path] = timestamp
+          }
+        }
+        return next
+      }
+    )
+
+    if (this.rootRevision !== revision || this.rootPath !== root) {
+      throw new VaultError({
+        code: 'NO_VAULT',
+        message: 'Vaultが切り替わったため、古い読み込み結果を破棄しました。'
+      })
+    }
+
+    for (const item of [...notes, ...attachments]) {
+      item.createdAt = creationTimes[item.path] ?? item.createdAt
+    }
+
+    const isExcluded = createExcludedFileMatcher(userIgnoreFilters)
+    const visibleNotes = notes.filter((item) => !isExcluded(item.path))
+    const visibleAttachments = attachments.filter((item) => !isExcluded(item.path))
+
     directories.sort((left, right) => left.localeCompare(right, 'ja'))
-    notes.sort((left, right) => left.path.localeCompare(right.path, 'ja'))
+    visibleNotes.sort((left, right) => left.path.localeCompare(right.path, 'ja'))
+    visibleAttachments.sort((left, right) => left.path.localeCompare(right.path, 'ja'))
 
     return {
       rootPath: root,
       rootName: basename(root),
       directories,
-      notes
+      notes: visibleNotes,
+      attachments: visibleAttachments
     }
   }
 
@@ -294,6 +510,7 @@ export class VaultService {
       })
     }
 
+    const root = this.requireRoot()
     const absolute = this.absolutePath(relativePath)
     try {
       await this.assertNoSymlinkTraversal(absolute)
@@ -301,15 +518,59 @@ export class VaultService {
         readFile(absolute, 'utf8'),
         stat(absolute)
       ])
+      const normalizedPath = this.relativePathFrom(root, absolute)
+      const creationTimes = await this.readCreationTimes(root)
       return {
-        path: relativePath.replaceAll('\\', '/'),
+        path: normalizedPath,
         name: withoutMarkdownExtension(basenameRelative(relativePath)),
         content,
         modifiedAt: info.mtimeMs,
+        createdAt: creationTimes[normalizedPath] ?? validBirthtime(info.birthtimeMs),
         size: info.size
       }
     } catch (error) {
       throw fromNodeError(error, 'UNKNOWN', 'ノートを読み込めませんでした。')
+    }
+  }
+
+  async resolveFileForOpen(relativePath: string): Promise<string> {
+    if (!isMarkdownFile(relativePath) && !isSupportedAttachmentPath(relativePath)) {
+      throw new VaultError({
+        code: 'INVALID_PATH',
+        message: 'Markdownノートまたは対応する添付書類だけを開けます。'
+      })
+    }
+
+    const absolute = this.absolutePath(relativePath)
+    try {
+      await this.assertNoSymlinkTraversal(absolute)
+      const info = await stat(absolute)
+      if (!info.isFile()) {
+        throw new VaultError({
+          code: 'INVALID_PATH',
+          message: 'ファイルだけを開けます。'
+        })
+      }
+      return absolute
+    } catch (error) {
+      throw fromNodeError(error, 'UNKNOWN', 'ファイルを開けませんでした。')
+    }
+  }
+
+  async readImageDataUrl(relativePath: string): Promise<string> {
+    const mimeType = IMAGE_MIME_TYPES.get(extname(relativePath).toLocaleLowerCase())
+    if (!mimeType) {
+      throw new VaultError({
+        code: 'INVALID_PATH',
+        message: '対応する画像ファイルだけをプレビューできます。'
+      })
+    }
+
+    const absolutePath = await this.resolveFileForOpen(relativePath)
+    try {
+      return `data:${mimeType};base64,${(await readFile(absolutePath)).toString('base64')}`
+    } catch (error) {
+      throw fromNodeError(error, 'UNKNOWN', '画像を読み込めませんでした。')
     }
   }
 
@@ -321,10 +582,13 @@ export class VaultService {
       })
     }
 
+    const root = this.requireRoot()
+    const revision = this.rootRevision
     const absolute = this.absolutePath(input.path)
     try {
       await this.assertNoSymlinkTraversal(absolute)
       const currentInfo = await stat(absolute)
+      const normalizedPath = this.relativePathFrom(root, absolute)
       if (!input.force && Math.abs(currentInfo.mtimeMs - input.expectedModifiedAt) > 0.5) {
         const currentContent = await readFile(absolute, 'utf8')
         throw new VaultError({
@@ -334,6 +598,13 @@ export class VaultService {
           currentModifiedAt: currentInfo.mtimeMs
         })
       }
+
+      await this.updateCreationTimes(root, revision, (current) => {
+        const timestamp = current[normalizedPath] ?? validBirthtime(currentInfo.birthtimeMs)
+        return validCreationTime(timestamp)
+          ? { ...current, [normalizedPath]: timestamp }
+          : current
+      })
 
       const temporaryPath = join(
         dirname(absolute),
@@ -434,6 +705,8 @@ export class VaultService {
   }
 
   async renameEntry(input: RenameEntryInput): Promise<EntryOperationOutput> {
+    const root = this.requireRoot()
+    const revision = this.rootRevision
     const source = this.absolutePath(input.path)
     let info
     try {
@@ -467,9 +740,18 @@ export class VaultService {
     try {
       await this.ensureDestinationAvailable(source, destination)
       await rename(source, destination)
+      const oldPath = this.relativePathFrom(root, source)
+      const newPath = this.relativePathFrom(root, destination)
+      await this.moveCreationTimes(
+        root,
+        revision,
+        oldPath,
+        newPath,
+        info.isDirectory()
+      )
       return {
-        oldPath: input.path,
-        path: this.relativePath(destination)
+        oldPath,
+        path: newPath
       }
     } catch (error) {
       throw fromNodeError(error, 'UNKNOWN', '名前を変更できませんでした。')
@@ -484,6 +766,8 @@ export class VaultService {
       })
     }
 
+    const root = this.requireRoot()
+    const revision = this.rootRevision
     const source = this.absolutePath(input.path)
     const destinationDirectory = this.absolutePath(input.destinationDirectory, true)
     const destination = join(destinationDirectory, basename(source))
@@ -500,9 +784,12 @@ export class VaultService {
       }
       await this.ensureDestinationAvailable(source, destination)
       await rename(source, destination)
+      const oldPath = this.relativePathFrom(root, source)
+      const newPath = this.relativePathFrom(root, destination)
+      await this.moveCreationTimes(root, revision, oldPath, newPath, false)
       return {
-        oldPath: input.path,
-        path: this.relativePath(destination)
+        oldPath,
+        path: newPath
       }
     } catch (error) {
       throw fromNodeError(error, 'UNKNOWN', 'ノートを移動できませんでした。')
@@ -517,8 +804,11 @@ export class VaultService {
       })
     }
 
+    const root = this.requireRoot()
+    const revision = this.rootRevision
     const source = this.absolutePath(relativePath)
-    const trashRoot = join(this.requireRoot(), '.trash')
+    const normalizedPath = this.relativePathFrom(root, source)
+    const trashRoot = join(root, '.trash')
     const batchRoot = join(trashRoot, `${timestampSuffix()}-${randomUUID()}`)
     const destination = join(batchRoot, ...relativePath.split('/'))
     let batchCreated = false
@@ -534,9 +824,10 @@ export class VaultService {
       await mkdir(dirname(destination), { recursive: true })
       await this.assertNoSymlinkTraversal(dirname(destination))
       await rename(source, destination)
+      await this.removeCreationTimes(root, revision, normalizedPath)
       return {
-        oldPath: relativePath,
-        path: this.relativePath(destination)
+        oldPath: normalizedPath,
+        path: this.relativePathFrom(root, destination)
       }
     } catch (error) {
       if (batchCreated) {

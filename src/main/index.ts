@@ -1,12 +1,19 @@
 import { app, BrowserWindow, Menu, safeStorage, shell } from 'electron'
+import electronUpdater from 'electron-updater'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DriveSyncService } from './drive-sync-service'
 import { GoogleConnectionService } from './google-connection'
 import { runGoogleOAuthLoopback } from './google-oauth-flow'
 import { registerIpc } from './ipc'
 import { SecureTokenStore } from './secure-token-store'
+import { resolveGitHubUpdateToken, UpdateService } from './update-service'
 import { VaultService } from './vault'
 import { VaultWatcher } from './watcher'
+
+const { autoUpdater } = electronUpdater
+
+app.setAppUserModelId('jp.tsuzune.app')
 
 let mainWindow: BrowserWindow | null = null
 let closeApproved = false
@@ -20,21 +27,31 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    minWidth: 900,
-    minHeight: 640,
+    minWidth: 760,
+    minHeight: 560,
     show: false,
     title: 'TSUZUNE',
     webPreferences: {
       preload: join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      sandbox: true,
+      backgroundThrottling: process.env.TSUZUNE_HEADLESS_SMOKE !== '1'
     }
   })
 
   mainWindow.once('ready-to-show', () => {
     if (process.env.TSUZUNE_HEADLESS_SMOKE !== '1') {
       mainWindow?.show()
+    }
+  })
+
+  mainWindow.webContents.once('did-finish-load', () => {
+    const readyFile = process.env.TSUZUNE_HEADLESS_SMOKE_READY_FILE
+    if (process.env.TSUZUNE_HEADLESS_SMOKE === '1' && readyFile) {
+      writeFileSync(readyFile, 'ready', 'utf8')
+      closeApproved = true
+      app.quit()
     }
   })
 
@@ -112,6 +129,19 @@ app.whenReady().then(() => {
     vault,
     connection: googleConnection
   })
+  autoUpdater.logger = null
+  const updates = new UpdateService({
+    isPackaged: app.isPackaged,
+    currentVersion: app.getVersion(),
+    client: autoUpdater,
+    tokenProvider: resolveGitHubUpdateToken,
+    approveInstall: () => {
+      closeApproved = true
+    }
+  })
+  updates.subscribe((status) => {
+    mainWindow?.webContents.send('app:updateStatusChanged', status)
+  })
   registerIpc(
     vault,
     watcher,
@@ -119,6 +149,7 @@ app.whenReady().then(() => {
       connection: googleConnection,
       driveSync
     },
+    updates,
     () => mainWindow,
     () => {
       closeApproved = true
@@ -126,6 +157,12 @@ app.whenReady().then(() => {
     }
   )
   createWindow()
+  if (app.isPackaged) {
+    const updateCheckTimer = setTimeout(() => {
+      void updates.checkForUpdates()
+    }, 5_000)
+    updateCheckTimer.unref()
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

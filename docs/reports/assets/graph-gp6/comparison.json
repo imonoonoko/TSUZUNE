@@ -1,0 +1,151 @@
+{
+  "comparedAt": "2026-08-02T23:25:54.4358731+09:00",
+  "stage": "GP6-0P installed production baseline comparison",
+  "comparisonStatus": "not-matched",
+  "scope": {
+    "surface": "Global Graph default view",
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "viewport": {
+      "width": 1265,
+      "height": 768,
+      "deviceScaleFactor": 1
+    },
+    "theme": "light"
+  },
+  "reference": {
+    "product": "Obsidian Desktop",
+    "version": "1.13.4",
+    "installerSha256": "8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0",
+    "asarSha256": "51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917",
+    "observation": "docs/reports/assets/graph-gp6/obsidian-1.13.4/01-global-baseline.observation.json",
+    "screenshot": "docs/reports/assets/graph-gp6/obsidian-1.13.4/01-global-baseline.png"
+  },
+  "candidate": {
+    "product": "TSUZUNE",
+    "version": "0.5.0",
+    "executableSha256": "A19F02E525CACE50361D4C20AB9FF861CE44BE65E12942974D532805082B95BA",
+    "asarSha256": "82FED31F359D2072AD3138F9D8106D8AD9AA2BBFED4A7DB741CCD43ACE02D7D3",
+    "observation": "docs/reports/assets/graph-gp6/tsuzune-0.5.0/01-global-baseline.observation.json",
+    "screenshot": "docs/reports/assets/graph-gp6/tsuzune-0.5.0/01-global-baseline.png"
+  },
+  "counts": {
+    "markdownFiles": {
+      "reference": 7,
+      "candidate": 7,
+      "status": "matched"
+    },
+    "renderedNodes": {
+      "reference": 8,
+      "candidate": 6,
+      "delta": -2,
+      "status": "different"
+    },
+    "directedEdges": {
+      "reference": 12,
+      "candidate": 11,
+      "delta": -1,
+      "status": "different"
+    },
+    "undirectedPairs": {
+      "reference": 8,
+      "candidate": 7,
+      "delta": -1,
+      "status": "different"
+    },
+    "commonMarkdownDirectedEdges": {
+      "reference": 11,
+      "candidate": 11,
+      "status": "matched"
+    }
+  },
+  "setDifference": {
+    "referenceOnlyNodes": [
+      "90_orphan/Orphan.md",
+      "Missing Note"
+    ],
+    "candidateOnlyNodes": [],
+    "referenceOnlyDirectedEdges": [
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note"
+      }
+    ],
+    "candidateOnlyDirectedEdges": []
+  },
+  "publicBehavior": [
+    {
+      "area": "Existing Markdown link extraction",
+      "reference": "11 directed edges among existing Markdown files",
+      "candidate": "The same 11 directed edges",
+      "status": "matched",
+      "implication": "Do not change the existing-note Wiki-link extraction while closing parity gaps."
+    },
+    {
+      "area": "Orphan default",
+      "reference": "showOrphans=true and Orphan is rendered",
+      "candidate": "includeOrphans=false and Orphan is hidden",
+      "status": "different",
+      "implication": "The installed 0.5.0 default node set is incomplete relative to Obsidian."
+    },
+    {
+      "area": "Unresolved Wiki links",
+      "reference": "hideUnresolved=false; Missing Note and its edge are rendered",
+      "candidate": "Missing Note and its edge are omitted",
+      "status": "missing",
+      "implication": "The installed 0.5.0 graph omits a public Obsidian default behavior."
+    },
+    {
+      "area": "Node and edge presentation",
+      "reference": "Small circular nodes, no arrows by default, irregular force-directed placement",
+      "candidate": "Pill-shaped buttons, arrows enabled, geometric percentage placement",
+      "status": "different",
+      "implication": "Visual and interaction parity is not established."
+    },
+    {
+      "area": "Graph settings surface",
+      "reference": "Floating upper-right panel with Filter, Groups, Display, and Forces sections",
+      "candidate": "Inline scope, search, zoom, and fit controls; no equivalent floating panel",
+      "status": "missing",
+      "implication": "The installed production UI predates the current graph-parity work."
+    }
+  ],
+  "protection": {
+    "referenceFixtureSourceUnchanged": true,
+    "referenceIsolatedVaultProtectedFilesUnchanged": true,
+    "referenceProtocolRestored": true,
+    "candidateFixtureSourceUnchanged": true,
+    "candidateIsolatedVaultProtectedFilesUnchanged": true,
+    "candidateRemainingIsolatedProcesses": 0,
+    "normalProductionProfile": {
+      "fileCountBefore": 58,
+      "fileCountAfter": 58,
+      "combinedSha256Before": "D97849BFD63980956E4719ED24399BDF38A1A5F0471D37190EA77A80F313F959",
+      "combinedSha256After": "D97849BFD63980956E4719ED24399BDF38A1A5F0471D37190EA77A80F313F959",
+      "unchanged": true
+    }
+  },
+  "workingTreeBoundary": {
+    "head": "93a8502",
+    "installedAsarLastWrite": "2026-08-02T01:05:48.0000000+09:00",
+    "currentWikiGraphViewLastWrite": "2026-08-02T21:43:19.6690577+09:00",
+    "currentWorkingTreeHasNewerGraphImplementation": true,
+    "meaning": "This comparison evaluates installed TSUZUNE 0.5.0, not the newer uncommitted working-tree implementation."
+  },
+  "intentionalExceptions": [
+    {
+      "area": "Local Graph depth selector",
+      "status": "not-applicable-to-this-global-baseline",
+      "reason": "TSUZUNE intentionally removed variable depth, but GP6-0P compares the Global Graph default view."
+    }
+  ],
+  "limitations": [
+    "Only the default Global Graph frame was compared in this slice.",
+    "Drag, camera, context menu, settings persistence, groups, animation, reset, and restart boundaries remain untested against the fixed reference.",
+    "The installed production package is older than the current working-tree graph implementation."
+  ],
+  "next": {
+    "id": "GP6-0W",
+    "action": "Build the current working tree in isolation and run the same fixed fixture capture before changing product behavior.",
+    "acceptance": "First establish 8 nodes, 12 directed edges, and 8 undirected pairs, then identify the first remaining public behavior difference."
+  }
+}

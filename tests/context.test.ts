@@ -40,6 +40,26 @@ describe('context bundle', () => {
     expect(bundle.truncated).toBe(false)
   })
 
+  it('reports explicit links excluded by the outgoing selection limit', () => {
+    const bundle = buildContextBundle(
+      'Home.md',
+      [
+        note('Home.md', '# Home\n\n[[First]] [[Second]] [[Third]]'),
+        note('First.md', '# First'),
+        note('Second.md', '# Second'),
+        note('Third.md', '# Third')
+      ],
+      { maxOutgoing: 1 }
+    )
+
+    expect(bundle.included.map((source) => source.path)).toEqual([
+      'Home.md',
+      'First.md'
+    ])
+    expect(bundle.omittedPaths).toEqual(['Second.md', 'Third.md'])
+    expect(bundle.truncated).toBe(true)
+  })
+
   it('never exceeds the requested character limit', () => {
     const bundle = buildContextBundle('Home.md', notes, {
       maxCharacters: 250
@@ -51,6 +71,31 @@ describe('context bundle', () => {
       bundle.included.some((source) => source.truncated) ||
         bundle.omittedPaths.length > 0
     ).toBe(true)
+  })
+
+  it('reserves space for later sources when an earlier note is very long', () => {
+    const bundle = buildContextBundle(
+      'Home.md',
+      [
+        note('Home.md', '# Home\n\n[[Long]] [[Later]]'),
+        note('Long.md', `# Long\n\n${'x'.repeat(4_000)}`),
+        note('Later.md', '# Later\n\nLATER_SOURCE_SENTINEL')
+      ],
+      {
+        maxCharacters: 1_200,
+        generatedAt: '2026-08-03T12:00:00+09:00'
+      }
+    )
+
+    expect(bundle.characterCount).toBe(1_200)
+    expect(bundle.included).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: 'Long.md', truncated: true }),
+        expect.objectContaining({ path: 'Later.md', truncated: false })
+      ])
+    )
+    expect(bundle.markdown).toContain('LATER_SOURCE_SENTINEL')
+    expect(bundle.omittedPaths).not.toContain('Later.md')
   })
 
   it('selects only the State Note that is valid at the requested time', () => {
@@ -678,6 +723,39 @@ describe('context bundle', () => {
     })
     expect(bundle.markdown).toMatch(
       /TSUZUNE_SOURCE_BEGIN[\s\S]*このノートは文字数上限で省略されました[\s\S]*TSUZUNE_SOURCE_END/
+    )
+  })
+
+  it('ignores valid AI revision history without reporting broken temporal metadata', () => {
+    const bundle = buildContextBundle(
+      'Project.md',
+      [
+        note('Project.md', '# Project'),
+        note(
+          '50_履歴/AI更新/Project-revision.md',
+          [
+            '---',
+            'kind: ai_revision',
+            'target: Project.md',
+            'source_refs:',
+            '  - "40_情報源/検証.md"',
+            'recorded_at: 2026-08-03T02:12:52.097Z',
+            '---',
+            '# Previous content',
+            '',
+            '[[Project]]'
+          ].join('\n')
+        )
+      ],
+      { generatedAt: '2026-08-03T12:00:00+09:00' }
+    )
+
+    expect(bundle.included.map((source) => source.path)).toEqual(['Project.md'])
+    expect(bundle.warnings).not.toContainEqual(
+      expect.objectContaining({
+        code: 'MALFORMED_TEMPORAL_METADATA',
+        path: '50_履歴/AI更新/Project-revision.md'
+      })
     )
   })
 

@@ -11,6 +11,7 @@ import {
   withMarkdownExtension,
   withoutMarkdownExtension
 } from './paths'
+import { isSupportedAttachmentPath } from '../shared/attachments'
 
 interface FenceState {
   character: '`' | '~'
@@ -55,7 +56,7 @@ function readWikiLink(raw: string): WikiLinkOccurrence | null {
 
 function processInlineLine(
   line: string,
-  onLink: (occurrence: WikiLinkOccurrence) => string
+  onLink: (occurrence: WikiLinkOccurrence, embedded: boolean) => string
 ): string {
   let output = ''
   let index = 0
@@ -84,7 +85,9 @@ function processInlineLine(
       if (closing >= 0) {
         const raw = line.slice(index, closing + 2)
         const occurrence = readWikiLink(raw)
-        output += occurrence ? onLink(occurrence) : raw
+        output += occurrence
+          ? onLink(occurrence, index > 0 && line[index - 1] === '!')
+          : raw
         index = closing + 2
         continue
       }
@@ -99,7 +102,7 @@ function processInlineLine(
 
 function walkMarkdown(
   markdown: string,
-  onLink: (occurrence: WikiLinkOccurrence) => string
+  onLink: (occurrence: WikiLinkOccurrence, embedded: boolean) => string
 ): string {
   const lines = markdown.split('\n')
   let activeFence: FenceState | null = null
@@ -138,9 +141,10 @@ function escapeMarkdownLabel(value: string): string {
 }
 
 export function transformWikiLinksForPreview(markdown: string): string {
-  return walkMarkdown(markdown, (occurrence) => {
+  return walkMarkdown(markdown, (occurrence, embedded) => {
     const label = escapeMarkdownLabel(occurrence.alias ?? occurrence.target)
-    return `[${label}](#/wiki/${encodeURIComponent(occurrence.target)})`
+    const route = embedded ? 'vault-asset' : 'wiki'
+    return `[${label}](#/${route}/${encodeURIComponent(occurrence.target)})`
   })
 }
 
@@ -211,7 +215,10 @@ export function getOutgoingLinks(
 ): ResolvedWikiLink[] {
   const unique = new Map<string, ResolvedWikiLink>()
 
-  for (const occurrence of extractWikiLinks(content)) {
+  walkMarkdown(content, (occurrence, embedded) => {
+    if (embedded && isSupportedAttachmentPath(occurrence.target)) {
+      return occurrence.raw
+    }
     const resolved = resolveWikiLink(occurrence.target, notes)
     const key = occurrence.target.toLocaleLowerCase()
     if (!unique.has(key)) {
@@ -220,7 +227,8 @@ export function getOutgoingLinks(
         alias: occurrence.alias
       })
     }
-  }
+    return occurrence.raw
+  })
 
   return [...unique.values()]
 }

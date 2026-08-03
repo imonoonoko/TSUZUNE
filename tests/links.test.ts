@@ -47,6 +47,12 @@ describe('Wiki link parsing', () => {
       '[表示名](#/wiki/%E6%96%B9%E9%87%9D) と `[[コード]]`'
     )
   })
+
+  it('marks embedded Wiki links as Vault assets for preview', () => {
+    expect(transformWikiLinksForPreview('![[attachments/diagram.svg|構成図]]')).toBe(
+      '![構成図](#/vault-asset/attachments%2Fdiagram.svg)'
+    )
+  })
 })
 
 describe('Wiki link resolution', () => {
@@ -101,5 +107,11 @@ describe('Wiki link resolution', () => {
     expect(getBacklinks('方針.md', linkedNotes).map((item) => item.path)).toEqual([
       '概要.md'
     ])
+  })
+
+  it('does not report embedded attachments as missing note links', () => {
+    expect(
+      getOutgoingLinks('![[attachments/diagram.svg]]', [note('Home.md')])
+    ).toEqual([])
   })
 })

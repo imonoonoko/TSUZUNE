@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "measurementScope": "node-core-only",
+  "measuredAt": "2026-08-02T20:10:12.373Z",
+  "limitations": [
+    "Does not measure Electron startup, renderer work, DOM nodes, Canvas drawing, file watching, or input latency.",
+    "loadMarkdownMs measures this standalone Node reader, not the production Vault scanner."
+  ],
+  "input": {
+    "noteCount": 500,
+    "bytes": 164463,
+    "loadMarkdownMs": 55.1405
+  },
+  "graph": {
+    "nodeCount": 500,
+    "directedEdgeCount": 1000,
+    "positionCount": 500,
+    "finitePositionCount": 500
+  },
+  "configuration": {
+    "warmupRuns": 3,
+    "sampleRuns": 10,
+    "forceSettings": {
+      "centerForce": 0.5187132489703118,
+      "repelForce": 10,
+      "linkForce": 1,
+      "linkDistance": 250
+    }
+  },
+  "timingsMs": {
+    "buildWikiGraph": {
+      "warmupRuns": 3,
+      "sampleRuns": 10,
+      "min": 7.1694,
+      "p50": 8.8659,
+      "p95": 10.0299,
+      "max": 10.1342,
+      "samples": [
+        8.9131,
+        9.9025,
+        8.8187,
+        10.1342,
+        8.4027,
+        9.0818,
+        7.1694,
+        8.9145,
+        8.2806,
+        8.7917
+      ]
+    },
+    "createWikiGraphSimulation": {
+      "warmupRuns": 3,
+      "sampleRuns": 10,
+      "min": 0.4359,
+      "p50": 0.7625,
+      "p95": 1.7558,
+      "max": 1.9937,
+      "samples": [
+        1.465,
+        0.6885,
+        0.8006,
+        1.2979,
+        0.7243,
+        0.8654,
+        1.9937,
+        0.5297,
+        0.5517,
+        0.4359
+      ]
+    },
+    "tick1": {
+      "warmupRuns": 3,
+      "sampleRuns": 10,
+      "min": 2.6986,
+      "p50": 3.6738,
+      "p95": 6.838,
+      "max": 8.3887,
+      "samples": [
+        4.9426,
+        3.8642,
+        3.7969,
+        3.0995,
+        3.5363,
+        3.2207,
+        4.2626,
+        8.3887,
+        2.6986,
+        3.5506
+      ]
+    },
+    "tick180": {
+      "warmupRuns": 3,
+      "sampleRuns": 10,
+      "min": 441.3475,
+      "p50": 690.0412,
+      "p95": 760.7439,
+      "max": 764.6611,
+      "samples": [
+        441.3475,
+        461.0266,
+        580.8227,
+        680.3452,
+        655.1023,
+        764.6611,
+        755.9561,
+        735.7911,
+        714.9174,
+        699.7372
+      ]
+    },
+    "positions": {
+      "warmupRuns": 3,
+      "sampleRuns": 10,
+      "min": 0.1312,
+      "p50": 0.163,
+      "p95": 0.2288,
+      "max": 0.236,
+      "samples": [
+        0.236,
+        0.1637,
+        0.1556,
+        0.1965,
+        0.22,
+        0.1624,
+        0.206,
+        0.1485,
+        0.1341,
+        0.1312
+      ]
+    }
+  },
+  "runtime": {
+    "node": "v22.17.1",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

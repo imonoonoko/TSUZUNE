@@ -1,0 +1,81 @@
+{
+  "product": "TSUZUNE",
+  "version": "0.5.0",
+  "electronUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) tsuzune/0.5.0 Chrome/150.0.7871.129 Electron/43.2.0 Safari/537.36",
+  "windows": {
+    "release": "10.0.26200",
+    "platform": "win32",
+    "architecture": "x64"
+  },
+  "artifacts": {
+    "executable": {
+      "path": "C:\\Users\\Humin\\AppData\\Local\\Programs\\tsuzune\\TSUZUNE.exe",
+      "bytes": 225613824,
+      "sha256": "A19F02E525CACE50361D4C20AB9FF861CE44BE65E12942974D532805082B95BA"
+    },
+    "applicationAsar": {
+      "path": "C:\\Users\\Humin\\AppData\\Local\\Programs\\tsuzune\\resources\\app.asar",
+      "bytes": 31852785,
+      "sha256": "82FED31F359D2072AD3138F9D8106D8AD9AA2BBFED4A7DB741CCD43ACE02D7D3"
+    }
+  },
+  "launch": {
+    "executable": "C:\\Users\\Humin\\AppData\\Local\\Programs\\tsuzune\\TSUZUNE.exe",
+    "arguments": [
+      "--start-minimized",
+      "--window-position=-32000,-32000",
+      "--remote-debugging-port=62715",
+      "--inspect=127.0.0.1:62716",
+      "--remote-debugging-address=127.0.0.1",
+      "--remote-allow-origins=*",
+      "--force-device-scale-factor=1",
+      "--window-size=1265,768",
+      "--disable-renderer-backgrounding",
+      "--disable-background-timer-throttling",
+      "--disable-backgrounding-occluded-windows",
+      "--disable-features=CalculateNativeWinOcclusion",
+      "--no-first-run",
+      "--host-resolver-rules=MAP * 0.0.0.0, EXCLUDE localhost, EXCLUDE 127.0.0.1",
+      "--user-data-dir=C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\graph-gp6\\tsuzune-0.5.0\\userdata"
+    ],
+    "pid": 6364,
+    "cdpAddress": "127.0.0.1",
+    "cdpPort": 62715,
+    "mainInspectorPort": 62716,
+    "chromiumHeadless": false,
+    "applicationHiddenWindowMode": true,
+    "readyFileConfigured": false,
+    "requestedWindowBounds": {
+      "left": -32000,
+      "top": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "observedWindowSize": {
+      "width": 1280,
+      "height": 800
+    },
+    "nativeCapture": {
+      "method": "BrowserWindow.webContents.capturePage",
+      "imageSize": {
+        "width": 1265,
+        "height": 768
+      },
+      "windowVisible": false,
+      "windowBounds": {
+        "x": -32000,
+        "y": -32000,
+        "width": 1281,
+        "height": 807
+      },
+      "contentBounds": {
+        "x": -32000,
+        "y": -32000,
+        "width": 1281,
+        "height": 807
+      }
+    },
+    "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\graph-gp6\\tsuzune-0.5.0\\userdata",
+    "networkIsolation": "host resolver blocked; updater token sources removed"
+  }
+}

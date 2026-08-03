@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TSUZUNE Graph GP2-2 Report</title>
+  <style>
+    :root { color-scheme: light; font-family: "Segoe UI", "Yu Gothic UI", sans-serif; color: #2f3d3a; background: #ece8df; }
+    body { margin: 0; }
+    main { width: min(1180px, calc(100% - 32px)); margin: 32px auto 64px; }
+    header, section { background: #fffdf8; border: 1px solid #d8d0c3; border-radius: 14px; box-shadow: 0 8px 28px #3a4a4614; }
+    header { padding: 28px; background: #294b46; color: #fff; }
+    header p { margin-bottom: 0; color: #dcebe8; }
+    section { margin-top: 18px; padding: 24px; }
+    h1, h2 { margin-top: 0; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .badge { padding: 6px 10px; border-radius: 999px; background: #dcebe8; color: #244e48; font-weight: 700; }
+    figure { margin: 0; border: 1px solid #ded8cb; border-radius: 10px; overflow: hidden; background: #f6f2e9; }
+    img { display: block; width: 100%; height: auto; }
+    figcaption { padding: 12px 14px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid #e4ddd1; text-align: left; }
+    .pass { color: #246b4b; font-weight: 800; }
+    code { background: #f0ece3; padding: 2px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Graph Explorer GP2-2 — Circular Nodes &amp; Fit</h1>
+    <p>Vault内の全Markdownを円形ノードとして描画し、Wikiリンクを円周間へ接続。表示中グラフを実寸で画面内へ収めた。</p>
+    <div class="badges">
+      <span class="badge">224 tests PASS</span>
+      <span class="badge">7 / 7 Markdown nodes</span>
+      <span class="badge">Markdown unchanged</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>実Electron画面</h2>
+    <figure>
+      <img src="assets/graph-gp1/03-vault-circular-fit.png" alt="Vault内の全Markdownを円形ノードで表示し、Wikiリンクで接続したTSUZUNEグラフ">
+      <figcaption>Vault全体表示。孤立ノートを含む7件すべてを円で描画し、11本のWikiリンクをCanvas上で円周間へ接続。「全体表示」で実寸範囲へ自動フィットしている。</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>実装した契約</h2>
+    <table>
+      <tr><th>項目</th><th>結果</th></tr>
+      <tr><td>ノート形状</td><td class="pass">14 × 14px、border-radius 50%の円形marker</td></tr>
+      <tr><td>接続線</td><td class="pass">単一Canvas上で円周から円周へ描画</td></tr>
+      <tr><td>Vault全体</td><td class="pass">孤立ノートを含む7 / 7 Markdownを表示</td></tr>
+      <tr><td>全体表示</td><td class="pass">ノードとラベルの実寸境界からzoom / panを算出</td></tr>
+      <tr><td>操作性</td><td class="pass">DOM button、pointer、keyboard、screen reader向け名前を維持</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>検証結果</h2>
+    <table>
+      <tr><th>項目</th><th>結果</th></tr>
+      <tr><td>TypeScript</td><td class="pass">PASS</td></tr>
+      <tr><td>全自動テスト</td><td class="pass">31 files / 224 tests PASS</td></tr>
+      <tr><td>MCP smoke</td><td class="pass">4 read / 3 write tools PASS</td></tr>
+      <tr><td>Production build</td><td class="pass">PASS</td></tr>
+      <tr><td>実Electron capture</td><td class="pass">7 circular nodes / 11 edges PASS</td></tr>
+      <tr><td>Markdown invariant</td><td class="pass">7 files、SHA-256 <code>54B472FF…BC59B</code> 前後一致</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>次の1 slice</h2>
+    <p>GP2-3ではText fade thresholdだけを追加する。円と接続線は常に残し、密集時のラベルだけを段階的に薄くして可読性を上げる。Node size、Link thickness、Groups、Filtersは別sliceに分ける。</p>
+  </section>
+</main>
+</body>
+</html>

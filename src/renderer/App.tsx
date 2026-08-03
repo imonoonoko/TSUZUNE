@@ -7,10 +7,9 @@ import {
   resolveWikiLink
 } from '../core/links'
 import {
-  buildWikiGraph,
+  buildWikiGraphForView,
   getLocalWikiGraph,
   getVaultWikiGraph,
-  type WikiGraphDepth,
   type WikiGraphScope
 } from '../core/graph'
 import {
@@ -24,20 +23,34 @@ import {
 import { searchNotes } from '../core/search'
 import type {
   AppError,
+  AppUpdateStatus,
   DriveRemoteVault,
   DriveSyncPreview,
   GoogleDriveStatus,
+  GraphDisplaySettings,
+  GraphFilterSettings,
+  GraphForceSettings,
+  GraphGroup,
+  GraphViewState,
+  GraphViewStates,
   NoteDocument,
   VaultChangeEvent,
   VaultSnapshot
 } from '../shared/types'
+import { DEFAULT_GRAPH_FORCE_SETTINGS } from '../shared/graph-settings'
+import { DEFAULT_GRAPH_DISPLAY_SETTINGS } from '../shared/graph-display'
+import { DEFAULT_GRAPH_FILTER_SETTINGS } from '../shared/graph-filters'
+import { DEFAULT_GRAPH_GROUPS } from '../shared/graph-groups'
+import { DEFAULT_GRAPH_VIEW_STATES } from '../shared/graph-view-state'
 import FileTree, { type TreeSelection } from './components/FileTree'
+import Icon from './components/Icon'
 import MarkdownEditor from './components/MarkdownEditor'
 import MarkdownPreview from './components/MarkdownPreview'
 import MoveDialog from './components/MoveDialog'
 import RelatedNotes from './components/RelatedNotes'
 import TemporalDetails from './components/TemporalDetails'
 import WikiGraphView from './components/WikiGraphView'
+import tsuzuneMark from './assets/tsuzune-woven-loop.png'
 
 type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict'
 
@@ -54,6 +67,7 @@ type ConflictState =
     }
 
 const SAVE_DELAY_MS = 600
+const EXTERNAL_CHANGE_DELAY_MS = 100
 
 function saveStatusLabel(status: SaveStatus): string {
   switch (status) {
@@ -99,15 +113,40 @@ export default function App(): React.JSX.Element {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveQueueRef = useRef<Promise<boolean>>(Promise.resolve(true))
   const [viewMode, setViewMode] = useState<'edit' | 'preview' | 'graph'>('edit')
-  const [graphDepth, setGraphDepth] = useState<WikiGraphDepth>(1)
   const [graphScope, setGraphScope] = useState<WikiGraphScope>('local')
-  const [graphIncludesOrphans, setGraphIncludesOrphans] = useState(false)
+  const [graphFilters, setGraphFilters] = useState<GraphFilterSettings>(
+    DEFAULT_GRAPH_FILTER_SETTINGS
+  )
+  const [graphForces, setGraphForces] = useState<GraphForceSettings>(
+    DEFAULT_GRAPH_FORCE_SETTINGS
+  )
+  const [graphDisplay, setGraphDisplay] = useState<GraphDisplaySettings>(
+    DEFAULT_GRAPH_DISPLAY_SETTINGS
+  )
+  const [graphGroups, setGraphGroups] = useState<GraphGroup[]>(
+    DEFAULT_GRAPH_GROUPS
+  )
+  const [graphViewStates, setGraphViewStates] = useState<GraphViewStates>(
+    DEFAULT_GRAPH_VIEW_STATES
+  )
+  const [userIgnoreFilters, setUserIgnoreFilters] = useState<string[]>([])
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
+  const [settingsBusy, setSettingsBusy] = useState(false)
+  const [excludedFilesDraft, setExcludedFilesDraft] = useState('')
   const [query, setQuery] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
   const conflictRef = useRef<ConflictState | null>(null)
   const [movePath, setMovePath] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [updateBusy, setUpdateBusy] = useState(false)
+  const [updateStatus, setUpdateStatus] = useState<AppUpdateStatus>({
+    phase: 'disabled',
+    currentVersion: '',
+    availableVersion: null,
+    downloadPercent: null,
+    message: null
+  })
   const [googleDialogOpen, setGoogleDialogOpen] = useState(false)
   const [googleBusy, setGoogleBusy] = useState(false)
   const [googleError, setGoogleError] = useState<string | null>(null)
@@ -116,6 +155,8 @@ export default function App(): React.JSX.Element {
   const [drivePreview, setDrivePreview] = useState<DriveSyncPreview | null>(null)
   const [driveVaults, setDriveVaults] = useState<DriveRemoteVault[]>([])
   const [selectedDriveVaultId, setSelectedDriveVaultId] = useState('')
+  const settingsDialogRef = useRef<HTMLElement | null>(null)
+  const settingsDialogPreviousFocusRef = useRef<HTMLElement | null>(null)
   const googleDialogRef = useRef<HTMLElement | null>(null)
   const googleDialogPreviousFocusRef = useRef<HTMLElement | null>(null)
   const busyRef = useRef(false)
@@ -124,9 +165,12 @@ export default function App(): React.JSX.Element {
   const snapshotRequestRef = useRef(0)
   const committedSnapshotRequestRef = useRef(0)
   const pendingExternalEventsRef = useRef<VaultChangeEvent[]>([])
-  const externalChangeHandlerRef = useRef<(event: VaultChangeEvent) => Promise<void>>(
+  const queuedExternalEventsRef = useRef<Map<string, VaultChangeEvent>>(new Map())
+  const externalChangeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const externalChangeHandlerRef = useRef<(events: VaultChangeEvent[]) => Promise<void>>(
     async () => undefined
   )
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
 
   const setCurrentSnapshot = (next: VaultSnapshot | null): void => {
     snapshotRef.current = next
@@ -145,6 +189,49 @@ export default function App(): React.JSX.Element {
     setConflict(next)
   }
 
+  const persistGraphForces = async (next: GraphForceSettings): Promise<void> => {
+    const result = await window.tsuzune.setGraphForces(next)
+    if (!result.ok) {
+      setMessage(errorMessage(result.error))
+    }
+  }
+
+  const persistGraphDisplay = async (
+    next: GraphDisplaySettings
+  ): Promise<void> => {
+    const result = await window.tsuzune.setGraphDisplay(next)
+    if (!result.ok) {
+      setMessage(errorMessage(result.error))
+    }
+  }
+
+  const persistGraphFilters = async (
+    next: GraphFilterSettings
+  ): Promise<void> => {
+    const result = await window.tsuzune.setGraphFilters(next)
+    if (!result.ok) {
+      setMessage(errorMessage(result.error))
+    }
+  }
+
+  const persistGraphGroups = async (next: GraphGroup[]): Promise<void> => {
+    const result = await window.tsuzune.setGraphGroups(next)
+    if (!result.ok) {
+      setMessage(errorMessage(result.error))
+    }
+  }
+
+  const persistGraphViewState = async (
+    scope: WikiGraphScope,
+    next: GraphViewState
+  ): Promise<void> => {
+    setGraphViewStates((current) => ({ ...current, [scope]: next }))
+    const result = await window.tsuzune.setGraphViewState(scope, next)
+    if (!result.ok) {
+      setMessage(errorMessage(result.error))
+    }
+  }
+
   const beginOperation = (): boolean => {
     if (busyRef.current) {
       return false
@@ -161,11 +248,11 @@ export default function App(): React.JSX.Element {
     busyRef.current = false
     setBusy(false)
     const pending = pendingExternalEventsRef.current.splice(0)
-    queueMicrotask(() => {
-      for (const event of pending) {
-        void externalChangeHandlerRef.current(event)
-      }
-    })
+    if (pending.length > 0) {
+      queueMicrotask(() => {
+        void externalChangeHandlerRef.current(pending)
+      })
+    }
   }
 
   const loadNoteState = (note: NoteDocument | null): void => {
@@ -371,12 +458,17 @@ export default function App(): React.JSX.Element {
     }
   }
 
-  const handleExternalChange = async (event: VaultChangeEvent): Promise<void> => {
+  const handleExternalChanges = async (
+    events: VaultChangeEvent[]
+  ): Promise<void> => {
+    if (events.length === 0) {
+      return
+    }
     if (vaultSwitchingRef.current) {
       return
     }
     if (busyRef.current) {
-      pendingExternalEventsRef.current.push(event)
+      pendingExternalEventsRef.current.push(...events)
       return
     }
 
@@ -384,6 +476,9 @@ export default function App(): React.JSX.Element {
     const currentPath = selectedPathRef.current
     const wasDirty = dirtyRef.current || savingRef.current
     const refreshed = await refreshSnapshot(generation)
+    const selectedEvent = currentPath
+      ? [...events].reverse().find((event) => event.path === currentPath)
+      : undefined
 
     if (
       !refreshed ||
@@ -391,7 +486,7 @@ export default function App(): React.JSX.Element {
       vaultSwitchingRef.current ||
       busyRef.current ||
       !currentPath ||
-      event.path !== currentPath ||
+      !selectedEvent ||
       selectedPathRef.current !== currentPath
     ) {
       if (
@@ -399,12 +494,12 @@ export default function App(): React.JSX.Element {
         generation === vaultGenerationRef.current &&
         !vaultSwitchingRef.current
       ) {
-        pendingExternalEventsRef.current.push(event)
+        pendingExternalEventsRef.current.push(...events)
       }
       return
     }
 
-    if (event.type === 'change') {
+    if (selectedEvent.type === 'change' || selectedEvent.type === 'add') {
       const result = await window.tsuzune.readNote(currentPath)
       if (
         generation !== vaultGenerationRef.current ||
@@ -417,7 +512,7 @@ export default function App(): React.JSX.Element {
           generation === vaultGenerationRef.current &&
           !vaultSwitchingRef.current
         ) {
-          pendingExternalEventsRef.current.push(event)
+          pendingExternalEventsRef.current.push(...events)
         }
         return
       }
@@ -454,7 +549,7 @@ export default function App(): React.JSX.Element {
       return
     }
 
-    if (event.type === 'unlink') {
+    if (selectedEvent.type === 'unlink') {
       clearSaveTimer()
       if (wasDirty || dirtyRef.current || savingRef.current) {
         setCurrentConflict({ kind: 'missing' })
@@ -466,19 +561,43 @@ export default function App(): React.JSX.Element {
       }
     }
   }
-  externalChangeHandlerRef.current = handleExternalChange
+  externalChangeHandlerRef.current = handleExternalChanges
+
+  const queueExternalChange = (event: VaultChangeEvent): void => {
+    queuedExternalEventsRef.current.set(event.path, event)
+    if (externalChangeTimerRef.current) {
+      clearTimeout(externalChangeTimerRef.current)
+    }
+    externalChangeTimerRef.current = setTimeout(() => {
+      externalChangeTimerRef.current = null
+      const events = [...queuedExternalEventsRef.current.values()]
+      queuedExternalEventsRef.current.clear()
+      void externalChangeHandlerRef.current(events)
+    }, EXTERNAL_CHANGE_DELAY_MS)
+  }
 
   useEffect(() => {
     let disposed = false
 
     const initialize = async (): Promise<void> => {
-      const [settingsResult, vaultResult] = await Promise.all([
+      const [settingsResult, vaultResult, updateResult] = await Promise.all([
         window.tsuzune.getSettings(),
-        window.tsuzune.openLastVault()
+        window.tsuzune.openLastVault(),
+        window.tsuzune.getUpdateStatus()
       ])
 
       if (disposed) {
         return
+      }
+
+      if (settingsResult.ok) {
+        setUserIgnoreFilters(settingsResult.value.userIgnoreFilters)
+        setExcludedFilesDraft(settingsResult.value.userIgnoreFilters.join('\n'))
+        setGraphForces(settingsResult.value.graphForces)
+        setGraphDisplay(settingsResult.value.graphDisplay)
+        setGraphFilters(settingsResult.value.graphFilters)
+        setGraphGroups(settingsResult.value.graphGroups)
+        setGraphViewStates(settingsResult.value.graphViewStates)
       }
 
       if (!vaultResult.ok) {
@@ -494,14 +613,15 @@ export default function App(): React.JSX.Element {
           }
         }
       }
+      if (updateResult.ok) {
+        setUpdateStatus(updateResult.value)
+      }
       setLoading(false)
     }
 
     void initialize()
 
-    const unsubscribeVault = window.tsuzune.onVaultChanged((event) => {
-      void handleExternalChange(event)
-    })
+    const unsubscribeVault = window.tsuzune.onVaultChanged(queueExternalChange)
     const unsubscribeClose = window.tsuzune.onRequestClose(() => {
       if (busyRef.current) {
         setMessage('処理が終わってからアプリを閉じてください。')
@@ -512,14 +632,37 @@ export default function App(): React.JSX.Element {
         window.tsuzune.confirmClose(saved)
       })
     })
+    const unsubscribeUpdate = window.tsuzune.onUpdateStatus((status) => {
+      setUpdateStatus(status)
+    })
 
     return () => {
       disposed = true
       unsubscribeVault()
       unsubscribeClose()
+      unsubscribeUpdate()
       clearSaveTimer()
+      if (externalChangeTimerRef.current) {
+        clearTimeout(externalChangeTimerRef.current)
+        externalChangeTimerRef.current = null
+      }
+      queuedExternalEventsRef.current.clear()
     }
   }, [])
+
+  useEffect(() => {
+    if (!settingsDialogOpen) {
+      return
+    }
+
+    settingsDialogRef.current?.focus()
+    return () => {
+      const previousFocus = settingsDialogPreviousFocusRef.current
+      if (previousFocus?.isConnected) {
+        previousFocus.focus()
+      }
+    }
+  }, [settingsDialogOpen])
 
   useEffect(() => {
     if (!googleDialogOpen) {
@@ -535,43 +678,76 @@ export default function App(): React.JSX.Element {
     }
   }, [googleDialogOpen])
 
-  const effectiveNotes = useMemo(() => {
-    if (!snapshot || !selectedPath) {
-      return snapshot?.notes ?? []
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent): void => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
+      }
     }
-    return snapshot.notes.map((note) =>
+    window.addEventListener('keydown', handleShortcut)
+    return () => window.removeEventListener('keydown', handleShortcut)
+  }, [])
+
+  const savedNotes = snapshot?.notes ?? []
+  const graphNotes = useMemo(() => {
+    if (viewMode !== 'graph' || !selectedPath) {
+      return savedNotes
+    }
+    return savedNotes.map((note) =>
       note.path === selectedPath ? { ...note, content } : note
     )
-  }, [snapshot, selectedPath, content])
+  }, [savedNotes, selectedPath, content, viewMode])
 
   const outgoing = useMemo(
-    () => (selectedPath ? getOutgoingLinks(content, effectiveNotes) : []),
-    [selectedPath, content, effectiveNotes]
+    () => (selectedPath ? getOutgoingLinks(content, savedNotes) : []),
+    [selectedPath, content, savedNotes]
   )
   const backlinks = useMemo(
-    () => (selectedPath ? getBacklinks(selectedPath, effectiveNotes) : []),
-    [selectedPath, effectiveNotes]
+    () => (selectedPath ? getBacklinks(selectedPath, savedNotes) : []),
+    [selectedPath, savedNotes]
   )
   const searchResults = useMemo(
-    () => searchNotes(effectiveNotes, query),
-    [effectiveNotes, query]
+    () => searchNotes(savedNotes, query),
+    [savedNotes, query]
   )
   const selectedNote = useMemo(
     () =>
       selectedPath
-        ? effectiveNotes.find((note) => note.path === selectedPath) ?? null
+        ? savedNotes.find((note) => note.path === selectedPath) ?? null
         : null,
-    [effectiveNotes, selectedPath]
+    [savedNotes, selectedPath]
+  )
+  const wikiGraph = useMemo(
+    () =>
+      buildWikiGraphForView(graphNotes, viewMode, {
+        includeUnresolved: !graphFilters.existingFilesOnly,
+        includeTags: graphFilters.showTags,
+        includeAttachments: graphFilters.showAttachments,
+        attachments: snapshot?.attachments ?? []
+      }),
+    [
+      graphNotes,
+      graphFilters.existingFilesOnly,
+      graphFilters.showAttachments,
+      graphFilters.showTags,
+      snapshot?.attachments,
+      viewMode
+    ]
   )
   const visibleGraph = useMemo(() => {
-    if (!selectedPath) {
-      return { nodes: [], edges: [] }
+    if (graphScope === 'local') {
+      return selectedPath
+      ? getLocalWikiGraph(wikiGraph, selectedPath, graphFilters)
+        : { nodes: [], edges: [] }
     }
-    const graph = buildWikiGraph(effectiveNotes)
-    return graphScope === 'local'
-      ? getLocalWikiGraph(graph, selectedPath, graphDepth)
-      : getVaultWikiGraph(graph, selectedPath, graphIncludesOrphans)
-  }, [effectiveNotes, selectedPath, graphDepth, graphScope, graphIncludesOrphans])
+    return getVaultWikiGraph(
+      wikiGraph,
+      selectedPath,
+      graphFilters.showOrphans
+    )
+  }, [wikiGraph, selectedPath, graphScope, graphFilters])
   const temporalAsOf = useMemo(() => localCalendarDate(new Date()), [])
 
   const targetDirectory = (): string => {
@@ -591,6 +767,12 @@ export default function App(): React.JSX.Element {
 
     vaultGenerationRef.current += 1
     vaultSwitchingRef.current = true
+    if (externalChangeTimerRef.current) {
+      clearTimeout(externalChangeTimerRef.current)
+      externalChangeTimerRef.current = null
+    }
+    queuedExternalEventsRef.current.clear()
+    pendingExternalEventsRef.current.length = 0
     try {
       if (!(await flushSave())) {
         vaultSwitchingRef.current = false
@@ -695,7 +877,7 @@ export default function App(): React.JSX.Element {
       return changes
     }
 
-    for (const note of effectiveNotes) {
+    for (const note of savedNotes) {
       if (isPathInsideOrEqual(note.path, selection.path)) {
         changes.set(note.path, `${newPath}${note.path.slice(selection.path.length)}`)
       }
@@ -704,7 +886,7 @@ export default function App(): React.JSX.Element {
   }
 
   const confirmLinkImpact = (changes: ReadonlyMap<string, string>): boolean => {
-    const impact = findLinkImpact(effectiveNotes, changes)
+    const impact = findLinkImpact(savedNotes, changes)
     if (impact.affectedCount === 0) {
       return true
     }
@@ -824,15 +1006,11 @@ export default function App(): React.JSX.Element {
     }
   }
 
-  const trashSelected = async (): Promise<void> => {
-    if (!treeSelection || treeSelection.path === '') {
-      return
-    }
-
-    const path = treeSelection.path
-    const affected =
+  const trashPath = async (path: string): Promise<void> => {
+    const affected = Boolean(
       selectedPathRef.current &&
-      isPathInsideOrEqual(selectedPathRef.current, path)
+        isPathInsideOrEqual(selectedPathRef.current, path)
+    )
 
     if (
       !window.confirm(
@@ -860,10 +1038,19 @@ export default function App(): React.JSX.Element {
       if (affected) {
         loadNoteState(null)
       }
-      setTreeSelection({ kind: 'directory', path: '' })
+      if (treeSelection && isPathInsideOrEqual(treeSelection.path, path)) {
+        setTreeSelection({ kind: 'directory', path: '' })
+      }
     } finally {
       finishOperation()
     }
+  }
+
+  const trashSelected = async (): Promise<void> => {
+    if (!treeSelection || treeSelection.path === '') {
+      return
+    }
+    await trashPath(treeSelection.path)
   }
 
   const createMissingLink = async (target: string): Promise<void> => {
@@ -913,7 +1100,7 @@ export default function App(): React.JSX.Element {
   }
 
   const handleWikiLink = (target: string): void => {
-    const resolved = resolveWikiLink(target, effectiveNotes)
+    const resolved = resolveWikiLink(target, savedNotes)
     if (resolved.status === 'resolved' && resolved.resolvedPath) {
       void openNote(resolved.resolvedPath)
     } else if (resolved.status === 'missing') {
@@ -922,6 +1109,58 @@ export default function App(): React.JSX.Element {
       setMessage('同名ノートが複数あります。右側の候補から選んでください。')
     } else {
       setMessage(resolved.reason ?? 'このWikiリンクは無効です。')
+    }
+  }
+
+  const openGraphNode = (path: string): void => {
+    const node = visibleGraph.nodes.find((candidate) => candidate.path === path)
+    if (!node || node.kind === 'tag') {
+      return
+    }
+    if (node.exists === false) {
+      void createMissingLink(withoutMarkdownExtension(path))
+      return
+    }
+    if (node.kind === 'attachment') {
+      void window.tsuzune.openVaultFile(path).then((result) => {
+        if (!result.ok) {
+          setMessage(errorMessage(result.error))
+        }
+      })
+      return
+    }
+    void openNote(path)
+  }
+
+  const searchGraphTag = (tag: string): void => {
+    setQuery(`tag:${tag}`)
+  }
+
+  const openSettingsDialog = (): void => {
+    settingsDialogPreviousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setExcludedFilesDraft(userIgnoreFilters.join('\n'))
+    setSettingsDialogOpen(true)
+  }
+
+  const saveExcludedFiles = async (): Promise<void> => {
+    const nextFilters = excludedFilesDraft
+      .split(/\r?\n/)
+      .map((filter) => filter.trim())
+      .filter(Boolean)
+
+    setSettingsBusy(true)
+    try {
+      const result = await window.tsuzune.setUserIgnoreFilters(nextFilters)
+      if (!result.ok) {
+        setMessage(errorMessage(result.error))
+        return
+      }
+      setUserIgnoreFilters(nextFilters)
+      await refreshSnapshot()
+      setSettingsDialogOpen(false)
+    } finally {
+      setSettingsBusy(false)
     }
   }
 
@@ -1263,39 +1502,128 @@ export default function App(): React.JSX.Element {
     loadNoteState(null)
   }
 
-  if (loading) {
-    return <div className="app-loading">TSUZUNEを準備しています…</div>
+  const updateActionLabel = (): string => {
+    const version = updateStatus.availableVersion
+    switch (updateStatus.phase) {
+      case 'available':
+        return version ? `TSUZUNE ${version}を取得` : '更新を取得'
+      case 'downloading':
+        return `更新 ${Math.round(updateStatus.downloadPercent ?? 0)}%`
+      case 'downloaded':
+        return version ? `TSUZUNE ${version}を適用` : '更新を適用'
+      case 'checking':
+        return '確認中…'
+      default:
+        return '更新を確認'
+    }
   }
+
+  const handleUpdateAction = async (): Promise<void> => {
+    if (updateBusy || updateStatus.phase === 'disabled') {
+      return
+    }
+
+    setUpdateBusy(true)
+    try {
+      if (updateStatus.phase === 'downloaded') {
+        if (!(await flushSave())) {
+          setMessage('編集中のノートを保存できなかったため、更新を中止しました。')
+          return
+        }
+        const result = await window.tsuzune.installUpdate()
+        if (!result.ok) {
+          setMessage(errorMessage(result.error))
+        }
+        return
+      }
+
+      const result =
+        updateStatus.phase === 'available'
+          ? await window.tsuzune.downloadUpdate()
+          : await window.tsuzune.checkForUpdates()
+      if (!result.ok) {
+        setMessage(errorMessage(result.error))
+        return
+      }
+      setUpdateStatus(result.value)
+      if (result.value.message) {
+        setMessage(result.value.message)
+      }
+    } finally {
+      setUpdateBusy(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="app-loading" role="status" aria-live="polite">
+        <img src={tsuzuneMark} alt="TSUZUNE" />
+        <span>Vaultを整えています…</span>
+      </div>
+    )
+  }
+
+  const modalOpen = settingsDialogOpen || googleDialogOpen || Boolean(movePath)
 
   return (
     <div className={`app-shell${busy ? ' is-busy' : ''}`} aria-busy={busy}>
       {busy && (
         <div className="operation-overlay" role="status" aria-live="polite">
-          処理中…
+          <img src={tsuzuneMark} alt="" aria-hidden="true" />
+          <span>処理中…</span>
         </div>
       )}
-      <header className="app-header" inert={busy || googleDialogOpen}>
+      <header className="app-header" inert={busy || modalOpen}>
         <div className="brand">
-          <strong>TSUZUNE</strong>
-          <span>書いて、つないで、あとで尋ねる。</span>
+          <img className="brand-mark" src={tsuzuneMark} alt="" aria-hidden="true" />
+          <div className="brand-copy">
+            <strong>TSUZUNE</strong>
+            <span>書いて、つないで、あとで尋ねる。</span>
+          </div>
         </div>
         <div className="vault-summary">
           <span>{snapshot ? `Vault: ${snapshot.rootName}` : 'Vault未選択'}</span>
+          {updateStatus.phase !== 'disabled' && (
+            <button
+              type="button"
+              className="secondary-button update-button"
+              title={updateStatus.message ?? undefined}
+              disabled={
+                updateBusy ||
+                updateStatus.phase === 'checking' ||
+                updateStatus.phase === 'downloading'
+              }
+              onClick={() => void handleUpdateAction()}
+            >
+              <Icon name="refresh" />
+              {updateActionLabel()}
+            </button>
+          )}
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={openSettingsDialog}
+          >
+            <Icon name="settings" />
+            設定
+          </button>
           <button
             type="button"
             className="secondary-button"
             onClick={() => void openGoogleDialog()}
           >
+            <Icon name="cloud" />
             Google / 同期
           </button>
           <button type="button" className="secondary-button" onClick={() => void chooseVault()}>
+            <Icon name="folder-open" />
             Vaultを開く
           </button>
         </div>
       </header>
 
       {message && (
-        <div className="message-banner" role="status" inert={busy || googleDialogOpen}>
+        <div className="message-banner" role="status" inert={busy || modalOpen}>
           <span>{message}</span>
           {saveStatus === 'error' && (
             <button type="button" onClick={() => void flushSave()}>
@@ -1303,13 +1631,13 @@ export default function App(): React.JSX.Element {
             </button>
           )}
           <button type="button" aria-label="通知を閉じる" onClick={() => setMessage(null)}>
-            ×
+            <Icon name="x" />
           </button>
         </div>
       )}
 
       {conflict?.kind === 'changed' && (
-        <div className="conflict-banner" role="alert" inert={busy || googleDialogOpen}>
+        <div className="conflict-banner" role="alert" inert={busy || modalOpen}>
           <strong>このノートは別のアプリでも変更されました。</strong>
           {!conflict.localHeld ? (
             <div>
@@ -1329,7 +1657,7 @@ export default function App(): React.JSX.Element {
       )}
 
       {conflict?.kind === 'missing' && (
-        <div className="conflict-banner" role="alert" inert={busy || googleDialogOpen}>
+        <div className="conflict-banner" role="alert" inert={busy || modalOpen}>
           <strong>このノートは外部で削除または移動されました。</strong>
           <div>
             <button type="button" onClick={() => void saveMissingAsNew()}>
@@ -1343,36 +1671,54 @@ export default function App(): React.JSX.Element {
       )}
 
       {!snapshot ? (
-        <main className="welcome" inert={busy || googleDialogOpen}>
+        <main className="welcome" inert={busy || modalOpen}>
           <div>
+            <img className="welcome-mark" src={tsuzuneMark} alt="" aria-hidden="true" />
             <p className="eyebrow">LOCAL MARKDOWN NOTEBOOK</p>
             <h1>最初のVaultを開きましょう</h1>
             <p>
               ローカルフォルダを選ぶと、Markdownノートを作成してWikiリンクでつなげられます。
             </p>
             <button type="button" className="primary-button" onClick={() => void chooseVault()}>
+              <Icon name="folder-open" />
               Vaultを開く
             </button>
           </div>
         </main>
       ) : (
-        <main className="workspace" inert={busy || googleDialogOpen}>
+        <main className="workspace" inert={busy || modalOpen}>
           <aside className="left-panel">
             <label className="search-field">
               <span className="sr-only">Vaultを検索</span>
+              <Icon name="search" />
               <input
+                ref={searchInputRef}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Vaultを検索"
+                title="Vaultを検索（Ctrl+K）"
               />
             </label>
 
             <div className="tree-toolbar">
               <button type="button" onClick={() => void createNote()}>
-                ＋ ノート
+                <Icon name="note" />
+                ノート
               </button>
               <button type="button" onClick={() => void createDirectory()}>
-                ＋ フォルダ
+                <Icon name="folder" />
+                フォルダ
+              </button>
+              <button
+                type="button"
+                className="graph-view-entry"
+                onClick={() => {
+                  setGraphScope('vault')
+                  setViewMode('graph')
+                }}
+              >
+                <Icon name="graph" />
+                グラフビュー
               </button>
             </div>
 
@@ -1392,6 +1738,7 @@ export default function App(): React.JSX.Element {
                 disabled={!treeSelection || treeSelection.path === ''}
                 onClick={() => void renameSelected()}
               >
+                <Icon name="rename" />
                 名前変更
               </button>
               <button
@@ -1401,6 +1748,7 @@ export default function App(): React.JSX.Element {
                   treeSelection?.kind === 'note' && setMovePath(treeSelection.path)
                 }
               >
+                <Icon name="move" />
                 移動
               </button>
               <button
@@ -1408,13 +1756,52 @@ export default function App(): React.JSX.Element {
                 disabled={!treeSelection || treeSelection.path === ''}
                 onClick={() => void trashSelected()}
               >
-                .trashへ
+                <Icon name="trash" />
+                ごみ箱
               </button>
             </div>
           </aside>
 
           <section className="note-panel">
-            {selectedPath ? (
+            {!selectedPath && viewMode === 'graph' && graphScope === 'vault' ? (
+              <WikiGraphView
+                graph={visibleGraph}
+                notes={graphNotes}
+                currentPath={null}
+                scope="vault"
+                includeOrphans={graphFilters.showOrphans}
+                filterSettings={graphFilters}
+                forceSettings={graphForces}
+                displaySettings={graphDisplay}
+                groups={graphGroups}
+                viewState={graphViewStates.vault}
+                onScopeChange={setGraphScope}
+                onIncludeOrphansChange={(showOrphans) =>
+                  setGraphFilters((current) => ({
+                    ...current,
+                    showOrphans
+                  }))
+                }
+                onFilterSettingsChange={setGraphFilters}
+                onFilterSettingsCommit={(next) =>
+                  void persistGraphFilters(next)
+                }
+                onForceSettingsChange={setGraphForces}
+                onForceSettingsCommit={(next) => void persistGraphForces(next)}
+                onDisplaySettingsChange={setGraphDisplay}
+                onDisplaySettingsCommit={(next) =>
+                  void persistGraphDisplay(next)
+                }
+                onGroupsChange={setGraphGroups}
+                onGroupsCommit={(next) => void persistGraphGroups(next)}
+                onViewStateCommit={(next) =>
+                  void persistGraphViewState('vault', next)
+                }
+                onSearchTag={searchGraphTag}
+                onTrash={(path) => void trashPath(path)}
+                onOpen={openGraphNode}
+              />
+            ) : selectedPath ? (
               <>
                 <header className="note-header">
                   <div>
@@ -1422,29 +1809,63 @@ export default function App(): React.JSX.Element {
                     <span>{selectedPath}</span>
                   </div>
                   <div className="note-actions">
-                    <span className={`save-status is-${saveStatus}`}>
+                    <span
+                      className={`save-status is-${saveStatus}`}
+                      role="status"
+                      aria-live="polite"
+                    >
+                      <span className="save-status-dot" aria-hidden="true" />
                       {saveStatusLabel(saveStatus)}
                     </span>
                     <button
                       type="button"
                       className={viewMode === 'edit' ? 'is-active' : ''}
+                      aria-pressed={viewMode === 'edit'}
                       onClick={() => setViewMode('edit')}
                     >
+                      <Icon name="edit" />
                       編集
                     </button>
                     <button
                       type="button"
                       className={viewMode === 'preview' ? 'is-active' : ''}
+                      aria-pressed={viewMode === 'preview'}
                       onClick={() => setViewMode('preview')}
                     >
+                      <Icon name="preview" />
                       プレビュー
                     </button>
                     <button
                       type="button"
-                      className={viewMode === 'graph' ? 'is-active' : ''}
-                      onClick={() => setViewMode('graph')}
+                      className={
+                        viewMode === 'graph' && graphScope === 'local'
+                          ? 'is-active'
+                          : ''
+                      }
+                      aria-pressed={viewMode === 'graph' && graphScope === 'local'}
+                      onClick={() => {
+                        setGraphScope('local')
+                        setViewMode('graph')
+                      }}
                     >
-                      グラフ
+                      <Icon name="graph" />
+                      ローカルグラフ
+                    </button>
+                    <button
+                      type="button"
+                      className={
+                        viewMode === 'graph' && graphScope === 'vault'
+                          ? 'is-active'
+                          : ''
+                      }
+                      aria-pressed={viewMode === 'graph' && graphScope === 'vault'}
+                      onClick={() => {
+                        setGraphScope('vault')
+                        setViewMode('graph')
+                      }}
+                    >
+                      <Icon name="graph" />
+                      グラフビュー
                     </button>
                   </div>
                 </header>
@@ -1455,18 +1876,49 @@ export default function App(): React.JSX.Element {
                     readOnly={busy}
                   />
                 ) : viewMode === 'preview' ? (
-                  <MarkdownPreview content={content} onWikiLink={handleWikiLink} />
+                  <MarkdownPreview
+                    content={content}
+                    notePath={selectedPath}
+                    attachments={snapshot.attachments ?? []}
+                    onWikiLink={handleWikiLink}
+                  />
                 ) : (
                   <WikiGraphView
                     graph={visibleGraph}
+                    notes={graphNotes}
                     currentPath={selectedPath}
-                    depth={graphDepth}
                     scope={graphScope}
-                    includeOrphans={graphIncludesOrphans}
-                    onDepthChange={setGraphDepth}
+                    includeOrphans={graphFilters.showOrphans}
+                    filterSettings={graphFilters}
+                    forceSettings={graphForces}
+                    displaySettings={graphDisplay}
+                    groups={graphGroups}
+                    viewState={graphViewStates[graphScope]}
                     onScopeChange={setGraphScope}
-                    onIncludeOrphansChange={setGraphIncludesOrphans}
-                    onOpen={(path) => void openNote(path)}
+                    onIncludeOrphansChange={(showOrphans) =>
+                      setGraphFilters((current) => ({
+                        ...current,
+                        showOrphans
+                      }))
+                    }
+                    onFilterSettingsChange={setGraphFilters}
+                    onFilterSettingsCommit={(next) =>
+                      void persistGraphFilters(next)
+                    }
+                    onForceSettingsChange={setGraphForces}
+                    onForceSettingsCommit={(next) => void persistGraphForces(next)}
+                    onDisplaySettingsChange={setGraphDisplay}
+                    onDisplaySettingsCommit={(next) =>
+                      void persistGraphDisplay(next)
+                    }
+                    onGroupsChange={setGraphGroups}
+                    onGroupsCommit={(next) => void persistGraphGroups(next)}
+                    onViewStateCommit={(next) =>
+                      void persistGraphViewState(graphScope, next)
+                    }
+                    onSearchTag={searchGraphTag}
+                    onTrash={(path) => void trashPath(path)}
+                    onOpen={openGraphNode}
                   />
                 )}
                 <footer className="note-footer">
@@ -1478,8 +1930,10 @@ export default function App(): React.JSX.Element {
               </>
             ) : (
               <div className="note-empty">
+                <img src={tsuzuneMark} alt="" aria-hidden="true" />
                 <p>左の一覧からノートを選ぶか、新しいノートを作成してください。</p>
                 <button type="button" className="primary-button" onClick={() => void createNote()}>
+                  <Icon name="note" />
                   最初のノートを作る
                 </button>
               </div>
@@ -1494,7 +1948,7 @@ export default function App(): React.JSX.Element {
                 selectedNote ? (
                   <TemporalDetails
                     selectedNote={selectedNote}
-                    notes={effectiveNotes}
+                    notes={savedNotes}
                     asOf={temporalAsOf}
                   />
                 ) : null
@@ -1509,14 +1963,82 @@ export default function App(): React.JSX.Element {
       )}
 
       {movePath && snapshot && (
-        <div inert={busy || googleDialogOpen}>
-          <MoveDialog
-            notePath={movePath}
-            directories={snapshot.directories}
-            currentDirectory={dirnameRelative(movePath)}
-            onCancel={() => setMovePath(null)}
-            onConfirm={(directory) => void moveSelectedNote(directory)}
-          />
+        <MoveDialog
+          notePath={movePath}
+          directories={snapshot.directories}
+          currentDirectory={dirnameRelative(movePath)}
+          onCancel={() => setMovePath(null)}
+          onConfirm={(directory) => void moveSelectedNote(directory)}
+        />
+      )}
+
+      {settingsDialogOpen && (
+        <div className="modal-backdrop" role="presentation">
+          <section
+            ref={settingsDialogRef}
+            className="modal app-settings-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="app-settings-title"
+            aria-busy={settingsBusy}
+            tabIndex={-1}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && !settingsBusy) {
+                event.preventDefault()
+                setSettingsDialogOpen(false)
+              }
+            }}
+          >
+            <div className="google-sync-heading">
+              <div>
+                <h2 id="app-settings-title">設定</h2>
+                <p>Vault全体に適用する設定です。</p>
+              </div>
+              <button
+                type="button"
+                aria-label="設定を閉じる"
+                disabled={settingsBusy}
+                onClick={() => setSettingsDialogOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <section className="app-settings-section" aria-labelledby="files-links-title">
+              <h3 id="files-links-title">ファイルとリンク</h3>
+              <label>
+                <span>除外するファイル</span>
+                <textarea
+                  aria-label="除外するファイル"
+                  value={excludedFilesDraft}
+                  disabled={settingsBusy}
+                  placeholder={'例: 90_Archive\n/\\.private\\.md$/'}
+                  onChange={(event) => setExcludedFilesDraft(event.target.value)}
+                />
+              </label>
+              <p>
+                1行に1つ、パスの一部または /正規表現/ を指定します。対象は一覧・検索・リンク・グラフから除外されます。
+              </p>
+            </section>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                disabled={settingsBusy}
+                onClick={() => setSettingsDialogOpen(false)}
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                disabled={settingsBusy}
+                onClick={() => void saveExcludedFiles()}
+              >
+                設定を保存
+              </button>
+            </div>
+          </section>
         </div>
       )}
 

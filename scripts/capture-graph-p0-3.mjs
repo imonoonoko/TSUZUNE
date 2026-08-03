@@ -44,11 +44,32 @@ async function clickButton(window, label) {
   await waitForRender(window)
 }
 
+async function pressGraphKey(window, key) {
+  const pressed = await evaluate(
+    window,
+    `(() => {
+      const canvas = document.querySelector('[aria-label="グラフキャンバス"]')
+      if (!canvas) return false
+      canvas.focus()
+      canvas.dispatchEvent(new KeyboardEvent('keydown', {
+        key: ${JSON.stringify(key)},
+        bubbles: true,
+        cancelable: true
+      }))
+      return true
+    })()`
+  )
+  if (!pressed) {
+    throw new Error(`グラフキャンバスへキー「${key}」を送れませんでした。`)
+  }
+  await waitForRender(window)
+}
+
 async function fillSearch(window, value) {
   const appliedValue = await evaluate(
     window,
     `(() => {
-      const input = document.querySelector('[aria-label="グラフを絞り込み"]')
+      const input = document.querySelector('[aria-label="ファイルを検索…"]')
       if (!input) return null
       const setter = Object.getOwnPropertyDescriptor(
         window.HTMLInputElement.prototype,
@@ -79,20 +100,31 @@ async function capture(window, name) {
 async function graphState(window) {
   return evaluate(
     window,
-    `(() => ({
-      filter: document.querySelector('[aria-label="グラフを絞り込み"]')?.value || '',
-      zoom: [...document.querySelectorAll('[aria-live="polite"]')]
-        .map((element) => element.textContent.trim())
-        .find((text) => text.startsWith('表示倍率')) || '',
-      transform: document.querySelector('.wiki-graph-stage')?.style.transform || '',
-      nodes: [...document.querySelectorAll('.wiki-graph-node')]
-        .map((node) => node.textContent.trim()),
-      edges: [...document.querySelectorAll('[data-source-path][data-target-path]')]
-        .map((edge) => ({
-          sourcePath: edge.getAttribute('data-source-path'),
-          targetPath: edge.getAttribute('data-target-path')
-        }))
-    }))()`
+    `(() => {
+      const canvas = document.querySelector('[aria-label="グラフキャンバス"]')
+      const bounds = canvas?.getBoundingClientRect()
+      const transform = document.querySelector('.wiki-graph-stage')?.style.transform || ''
+      const zoomMatch = transform.match(/scale\\(([^)]+)\\)/)
+      const nodeRects = [...document.querySelectorAll('.wiki-graph-node')]
+        .map((node) => node.getBoundingClientRect())
+      return {
+        filter: document.querySelector('[aria-label="ファイルを検索…"]')?.value || '',
+        zoom: zoomMatch ? Number(zoomMatch[1]) : null,
+        transform,
+        nodes: [...document.querySelectorAll('.wiki-graph-node')]
+          .map((node) => node.textContent.trim()),
+        edgeCount: Number(
+          document.querySelector('canvas.wiki-graph-edges')?.dataset.edgeCount || 0
+        ),
+        allNodesInViewport: Boolean(bounds) && nodeRects.every(
+          (nodeBounds) =>
+            nodeBounds.left >= bounds.left &&
+            nodeBounds.right <= bounds.right &&
+            nodeBounds.top >= bounds.top &&
+            nodeBounds.bottom <= bounds.bottom
+        )
+      }
+    })()`
   )
 }
 
@@ -104,7 +136,7 @@ async function captureGraphReport(window) {
       const deadline = Date.now() + 10000
       const timer = setInterval(() => {
         const graphButton = [...document.querySelectorAll('button')]
-          .find((button) => button.textContent.trim() === 'グラフ')
+          .find((button) => button.textContent.trim() === 'ローカルグラフ')
         if (graphButton) {
           clearInterval(timer)
           resolve()
@@ -117,15 +149,18 @@ async function captureGraphReport(window) {
   )
 
   await clickButton(window, '編集')
-  await clickButton(window, 'グラフ')
+  await clickButton(window, 'ローカルグラフ')
+  await clickButton(window, 'グラフ設定を開く')
+  await clickButton(window, 'フィルタを開く')
 
   await fillSearch(window, 'ONOKO')
   await capture(window, '01-filter-onoko.png')
   const filtered = await graphState(window)
 
   await fillSearch(window, '')
-  await clickButton(window, '拡大')
-  await clickButton(window, '拡大')
+  await clickButton(window, 'グラフ設定を閉じる')
+  await pressGraphKey(window, '+')
+  await pressGraphKey(window, '+')
   await capture(window, '02-zoom-140.png')
   const zoomed = await graphState(window)
 
@@ -159,24 +194,21 @@ async function captureGraphReport(window) {
   await capture(window, '03-pan.png')
   const panned = await graphState(window)
 
-  await clickButton(window, '全体表示')
+  await pressGraphKey(window, '0')
   await capture(window, '04-fit.png')
   const fitted = await graphState(window)
 
   if (filtered.filter !== 'ONOKO' || filtered.nodes.length !== 2) {
     throw new Error('名前・パス絞り込みの実画面結果が期待値と一致しません。')
   }
-  if (zoomed.zoom !== '表示倍率 140%' || !zoomed.transform.includes('scale(1.4)')) {
+  if (zoomed.zoom !== 2.25 || !zoomed.transform.includes('scale(2.25)')) {
     throw new Error('ズームの実画面結果が期待値と一致しません。')
   }
   if (panned.transform === zoomed.transform) {
     throw new Error('背景ドラッグでグラフが移動しませんでした。')
   }
-  if (
-    fitted.zoom !== '表示倍率 100%' ||
-    fitted.transform !== 'translate(0px, 0px) scale(1)'
-  ) {
-    throw new Error('全体表示で表示状態を復帰できませんでした。')
+  if (!fitted.allNodesInViewport || fitted.transform === panned.transform) {
+    throw new Error('0キーの全体表示で表示状態を復帰できませんでした。')
   }
 
   const result = { filtered, zoomed, panned, fitted }

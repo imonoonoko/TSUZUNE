@@ -253,6 +253,37 @@ describe('MCP vault service', () => {
     )
   })
 
+  it('lets AI update a note without human approval and records a reversible provenance snapshot', async () => {
+    const updated = await service.autonomousUpdateNote(
+      'Projects/TSUZUNE.md',
+      '# TSUZUNE\n\nNotebookLMで確認した連携方針。',
+      {
+        reason: '調査結果を知識ノートへ反映',
+        sourceRefs: ['NotebookLM/research-package-001.md']
+      }
+    )
+
+    expect(updated.provenance.actor).toBe('ai')
+    expect(updated.provenance.reason).toBe('調査結果を知識ノートへ反映')
+    expect(updated.provenance.source_refs).toEqual([
+      'NotebookLM/research-package-001.md'
+    ])
+    expect(updated.provenance.previous_revision).toMatch(/^sha256:[a-f0-9]{64}$/)
+    expect(updated.provenance.history_path).toMatch(
+      /^50_履歴\/AI更新\/.*\.md$/
+    )
+    expect(await readFile(join(root, 'Projects/TSUZUNE.md'), 'utf8')).toContain(
+      'NotebookLMで確認した連携方針'
+    )
+
+    const history = await readFile(join(root, updated.provenance.history_path), 'utf8')
+    expect(history).toContain('kind: ai_revision')
+    expect(history).toContain('target: Projects/TSUZUNE.md')
+    expect(history).toContain('調査結果を知識ノートへ反映')
+    expect(history).toContain('NotebookLM/research-package-001.md')
+    expect(history).toContain('AI連携を試す。')
+  })
+
   it('never applies a revision token after the active Vault changes', async () => {
     const otherRoot = await mkdtemp(join(tmpdir(), 'tsuzune-other-vault-'))
     const settingsPath = join(root, 'settings.json')

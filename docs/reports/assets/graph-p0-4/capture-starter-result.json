@@ -1,0 +1,135 @@
+{
+  "mode": "starter",
+  "vault": "Starter Vault",
+  "lastNotePath": "00_入口/プロジェクト地図.md",
+  "sourceBefore": {
+    "fileCount": 43,
+    "combinedSha256": "00AD91EC97A8E7C35EE5D02B88CBA836C56A6D18F79BD1213CE016986A18AAE7"
+  },
+  "sourceAfter": {
+    "fileCount": 43,
+    "combinedSha256": "00AD91EC97A8E7C35EE5D02B88CBA836C56A6D18F79BD1213CE016986A18AAE7"
+  },
+  "captureVaultBefore": {
+    "fileCount": 43,
+    "combinedSha256": "00AD91EC97A8E7C35EE5D02B88CBA836C56A6D18F79BD1213CE016986A18AAE7"
+  },
+  "captureVaultAfter": {
+    "fileCount": 43,
+    "combinedSha256": "00AD91EC97A8E7C35EE5D02B88CBA836C56A6D18F79BD1213CE016986A18AAE7"
+  },
+  "markdownUnchanged": true,
+  "states": {
+    "legend": {
+      "legend": [
+        "現在のノート",
+        "リンク先",
+        "バックリンク",
+        "相互リンク",
+        "関連ノート"
+      ],
+      "filter": "",
+      "limitStatus": "",
+      "nodeCount": 19,
+      "edgeCount": 83,
+      "arrowEndpoints": 83,
+      "highlightedEdges": 0,
+      "dimmedEdges": 0,
+      "focusedNode": "",
+      "longNode": {
+        "text": "Bit-TTT-Engine・BitLlama",
+        "title": "10_プロジェクト/Bit-TTT-Engine・BitLlama.md",
+        "clientWidth": 148,
+        "scrollWidth": 151
+      },
+      "nodes": [
+        "プロジェクト地図",
+        "ホーム",
+        "Bit-TTT-Engine・BitLlama",
+        "BloodLedger",
+        "NKキーボード",
+        "ONOKO・CodexAtelier・Forest Room",
+        "TSUZUNE",
+        "Yoitomoshi",
+        "となり町再生記",
+        "若年無業アトラス",
+        "宵灯工房",
+        "個人用ソフト開発"
+      ]
+    },
+    "hover": {
+      "legend": [
+        "現在のノート",
+        "リンク先",
+        "バックリンク",
+        "相互リンク",
+        "関連ノート"
+      ],
+      "filter": "",
+      "limitStatus": "",
+      "nodeCount": 19,
+      "edgeCount": 83,
+      "arrowEndpoints": 83,
+      "highlightedEdges": 8,
+      "dimmedEdges": 75,
+      "focusedNode": "",
+      "longNode": {
+        "text": "Bit-TTT-Engine・BitLlama",
+        "title": "10_プロジェクト/Bit-TTT-Engine・BitLlama.md",
+        "clientWidth": 148,
+        "scrollWidth": 151
+      },
+      "nodes": [
+        "プロジェクト地図",
+        "ホーム",
+        "Bit-TTT-Engine・BitLlama",
+        "BloodLedger",
+        "NKキーボード",
+        "ONOKO・CodexAtelier・Forest Room",
+        "TSUZUNE",
+        "Yoitomoshi",
+        "となり町再生記",
+        "若年無業アトラス",
+        "宵灯工房",
+        "個人用ソフト開発"
+      ]
+    },
+    "focus": {
+      "legend": [
+        "現在のノート",
+        "リンク先",
+        "バックリンク",
+        "相互リンク",
+        "関連ノート"
+      ],
+      "filter": "",
+      "limitStatus": "",
+      "nodeCount": 19,
+      "edgeCount": 83,
+      "arrowEndpoints": 83,
+      "highlightedEdges": 9,
+      "dimmedEdges": 74,
+      "focusedNode": "TSUZUNE",
+      "longNode": {
+        "text": "Bit-TTT-Engine・BitLlama",
+        "title": "10_プロジェクト/Bit-TTT-Engine・BitLlama.md",
+        "clientWidth": 148,
+        "scrollWidth": 151
+      },
+      "nodes": [
+        "プロジェクト地図",
+        "ホーム",
+        "Bit-TTT-Engine・BitLlama",
+        "BloodLedger",
+        "NKキーボード",
+        "ONOKO・CodexAtelier・Forest Room",
+        "TSUZUNE",
+        "Yoitomoshi",
+        "となり町再生記",
+        "若年無業アトラス",
+        "宵灯工房",
+        "個人用ソフト開発"
+      ]
+    }
+  }
+}

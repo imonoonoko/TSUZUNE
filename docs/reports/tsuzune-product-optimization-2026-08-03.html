@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TSUZUNE Product Optimization Report — 2026-08-03</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Segoe UI", "Yu Gothic UI", sans-serif;
+      color: #263936;
+      background: #ece8df;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; line-height: 1.65; }
+    main { width: min(1180px, calc(100% - 32px)); margin: 32px auto 64px; }
+    header, section {
+      background: #fffdf8;
+      border: 1px solid #d8d0c3;
+      border-radius: 14px;
+      box-shadow: 0 8px 28px #3a4a4614;
+    }
+    header {
+      padding: 30px;
+      color: #fffdf8;
+      background: #283b38;
+    }
+    header h1 { margin: 0; letter-spacing: .025em; }
+    header p { max-width: 760px; margin: 8px 0 0; color: #dcebe8; }
+    section { margin-top: 18px; padding: 24px; }
+    h2, h3 { margin-top: 0; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+    .badge {
+      padding: 6px 11px;
+      border-radius: 999px;
+      color: #244e48;
+      background: #dcebe8;
+      font-weight: 700;
+    }
+    .verdict {
+      margin: 0;
+      padding: 16px 18px;
+      border-left: 5px solid #2f655f;
+      background: #edf6f3;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 18px;
+    }
+    .card {
+      padding: 18px;
+      border: 1px solid #ded8cb;
+      border-radius: 10px;
+      background: #faf7f0;
+    }
+    .card h3 { margin-bottom: 7px; color: #2f655f; }
+    .card p { margin: 0; }
+    figure {
+      margin: 0;
+      overflow: hidden;
+      border: 1px solid #ded8cb;
+      border-radius: 10px;
+      background: #f6f2e9;
+    }
+    img { display: block; width: 100%; height: auto; }
+    figcaption { padding: 12px 14px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid #e4ddd1; text-align: left; vertical-align: top; }
+    th { width: 26%; }
+    code { padding: 2px 5px; border-radius: 4px; background: #f0ece3; }
+    .pass { color: #246b4b; font-weight: 800; }
+    .next { color: #835a1e; font-weight: 800; }
+    ul { padding-left: 22px; }
+    li { margin: 7px 0; }
+    footer { margin-top: 20px; color: #66716e; font-size: .9rem; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>TSUZUNE Product Optimization</h1>
+    <p>静かな知識工房として、入力・保存・移動・検索を軽くし、Windowsアプリとしての顔と操作規則を揃えた最適化記録。</p>
+    <div class="badges">
+      <span class="badge">Version 0.5.0</span>
+      <span class="badge">Windows / local-first</span>
+      <span class="badge">Markdown is the source of truth</span>
+      <span class="badge">356 tests PASS</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>判定</h2>
+    <p class="verdict"><strong>日常利用の中心動線を、見た目と動作の両面から改善した。</strong> 外部変更の連続通知は一度にまとめ、入力中はVault全体の検索・バックリンク・時間情報を毎キー再計算しない。専用マーク、線アイコン、保存状態、レスポンシブ表示、移動ダイアログのキーボード操作も同じ区切りで整えた。</p>
+  </section>
+
+  <section>
+    <h2>動作の最適化</h2>
+    <div class="grid">
+      <article class="card">
+        <h3>外部変更をバッチ処理</h3>
+        <p>Drive同期や一括取込でファイルイベントが連続しても、100msのバーストごとにVaultを一度だけ再走査する。同じパスの通知は最新状態へまとめ、編集中ノートの競合確認と、外部エディタによるunlink→add形式のファイル置換も維持する。</p>
+      </article>
+      <article class="card">
+        <h3>入力中の全Vault再計算を分離</h3>
+        <p>編集中のリンク先は即時表示する一方、検索・バックリンク・時間情報は保存済みsnapshotを参照する。自動保存後に確定状態が更新されるため、打鍵のたびに全Markdownを解析しない。</p>
+      </article>
+      <article class="card">
+        <h3>検索ショートカット</h3>
+        <p><code>Ctrl+K</code>でVault検索へ直接移動する。既存データ構造や保存形式は変えず、毎日の移動距離だけを短くした。</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>GUIとブランド</h2>
+    <div class="grid">
+      <article class="card">
+        <h3>TSUZUNE専用マーク</h3>
+        <p>3つのノートを一本の糸で結ぶthread-and-node markを、ヘッダー、起動、空状態、Windowsビルドで共用する。色はWorkshop Night、Thread Teal、Paperに固定した。</p>
+      </article>
+      <article class="card">
+        <h3>静かな線アイコン</h3>
+        <p>検索、作成、同期、表示切替、移動、ごみ箱などを同じ線幅のアイコンへ統一。ラベルは残し、意味をアイコンだけに依存させない。</p>
+      </article>
+      <article class="card">
+        <h3>狭い画面への追従</h3>
+        <p>固定3列の破綻を減らし、1120pxと900pxを境に右情報欄とファイル欄を調整する。Electronの最小ウィンドウ寸法も現実的な値へ下げた。</p>
+      </article>
+      <article class="card">
+        <h3>Vault画像をその場で確認</h3>
+        <p><code>![[attachments/diagram.svg]]</code>のような埋め込み画像をプレビューへ表示する。Rendererはファイルへ直接触れず、Main側がVault内の対応画像だけを検証して読み込む。通常のMarkdown画像URLは既存の表示経路を保つ。</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>画面証跡</h2>
+    <div class="grid">
+      <figure>
+        <img src="assets/optimization-2026-08-03/01-editor-shell.png" alt="専用マークと線アイコンを備えたTSUZUNE編集画面">
+        <figcaption><strong>編集画面:</strong> 新しいマーク、ヘッダー操作、検索、保存状態、編集・プレビュー・グラフの切替を一つの視覚言語へ揃えた。</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/optimization-2026-08-03/02-move-dialog.png" alt="背景を操作不能にしたTSUZUNEのノート移動ダイアログ">
+        <figcaption><strong>移動:</strong> ダイアログへ初期フォーカスを移し、Tabを内部に保持する。Escapeで閉じ、終了後は元の操作へフォーカスを戻す。</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/optimization-2026-08-03/03-preview.png" alt="TSUZUNEのMarkdownプレビュー画面">
+        <figcaption><strong>プレビュー:</strong> 本文を主役にしたまま周辺操作の密度を抑え、Vault内の埋め込み画像も安全な読取経路で表示する。</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>アクセシビリティと安全性</h2>
+    <table>
+      <tr><th>移動ダイアログ</th><td><code>role="dialog"</code>、<code>aria-modal</code>、説明関連付け、Escape、フォーカストラップ、フォーカス復帰を実装。</td></tr>
+      <tr><th>背景操作</th><td>移動・設定・Googleのモーダル表示中はworkspaceを<code>inert</code>にする。</td></tr>
+      <tr><th>状態通知</th><td>保存状態へ<code>role="status"</code>と<code>aria-live</code>を付与し、表示切替へ<code>aria-pressed</code>を付与。</td></tr>
+      <tr><th>動きを減らす設定</th><td><code>prefers-reduced-motion</code>で不要なトランジションとアニメーションを止める。</td></tr>
+      <tr><th>検索ヒントのコントラスト</th><td>Paper背景に対するplaceholderを<code>#777267</code>へ変更し、コントラスト比4.71:1を確保。</td></tr>
+      <tr><th>添付画像</th><td>Vault asset経路だけを専用readerへ送り、画像拡張子、Vault境界、シンボリックリンク境界をMain側で検証する。通常のMarkdown画像URLは専用readerへ送らない。</td></tr>
+      <tr><th>データ境界</th><td>保存形式、Vaultパス、Markdown原本、競合確認、atomic saveの既存契約を変更していない。</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>検証</h2>
+    <table>
+      <tr><th>型検査</th><td class="pass">PASS — npm run typecheck</td></tr>
+      <tr><th>対象回帰</th><td class="pass">PASS — 4 files / 60 tests</td></tr>
+      <tr><th>全体回帰</th><td class="pass">PASS — 44 files / 356 tests</td></tr>
+      <tr><th>本番更新</th><td class="pass">PASS — silent install後にapp.asar cacheを破棄して、置換後bundleを再検証</td></tr>
+      <tr><th>Watcher負荷</th><td class="pass">PASS — 20 events / 1 snapshot refresh / selected note updated</td></tr>
+      <tr><th>ビルド</th><td class="pass">PASS — npm run build</td></tr>
+      <tr><th>Electron capture</th><td class="pass">PASS — mark detected / 14 icons / focus SELECT / background inert / embedded image ready</td></tr>
+      <tr><th>使用Vault</th><td>隔離fixture <code>fixtures/obsidian-graph-parity-vault</code>。本番VaultのMarkdownは画面取得で変更していない。</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>次の最小改善</h2>
+    <ul>
+      <li><span class="next">作成・名前変更・削除の標準prompt/confirmを、順にアプリ内ダイアログへ置換する。</span></li>
+      <li>ファイルツリーへtreeitem semanticsと矢印キー移動を追加する。</li>
+      <li>大規模グラフのTab順とreduced-motion時のForce挙動を調整する。</li>
+      <li>500件・2000件の実測を取り、DB導入ではなく観測されたボトルネックだけを直す。</li>
+    </ul>
+  </section>
+
+  <footer>Generated for the TSUZUNE local production workflow on 2026-08-03.</footer>
+</main>
+</body>
+</html>

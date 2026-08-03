@@ -1,9 +1,21 @@
-import type { NoteDocument } from '../shared/types'
-import { getOutgoingLinks } from './links'
+import { isSupportedAttachmentPath } from '../shared/attachments'
+import type { NoteDocument, VaultAttachment } from '../shared/types'
+import { matchesGraphQuery } from './graph-query'
+import { extractWikiLinks } from './links'
+import {
+  basenameRelative,
+  validateRelativePath,
+  withMarkdownExtension,
+  withoutMarkdownExtension
+} from './paths'
+import { extractMarkdownTags } from './tags'
 
 export interface WikiGraphNode {
   path: string
   name: string
+  kind?: 'note' | 'unresolved' | 'tag' | 'attachment'
+  exists?: boolean
+  createdAt?: number | null
 }
 
 export interface WikiGraphEdge {
@@ -16,43 +28,255 @@ export interface WikiGraph {
   edges: WikiGraphEdge[]
 }
 
-export type WikiGraphDepth = 1 | 2
-export type WikiGraphScope = 'local' | 'vault'
-
-function comparePath(left: string, right: string): number {
-  return left.localeCompare(right, 'ja')
+export interface BuildWikiGraphOptions {
+  includeUnresolved?: boolean
+  includeTags?: boolean
+  includeAttachments?: boolean
+  attachments?: readonly VaultAttachment[]
 }
 
-export function buildWikiGraph(notes: NoteDocument[]): WikiGraph {
+export interface LocalWikiGraphOptions {
+  outgoingLinks: boolean
+  incomingLinks: boolean
+  neighborLinks: boolean
+}
+
+const DEFAULT_LOCAL_GRAPH_OPTIONS: LocalWikiGraphOptions = {
+  outgoingLinks: true,
+  incomingLinks: true,
+  neighborLinks: false
+}
+
+export type WikiGraphScope = 'local' | 'vault'
+export type WikiGraphViewMode = 'edit' | 'preview' | 'graph'
+
+interface WikiLinkIndex {
+  exactPaths: Map<string, string>
+  uniqueBasenames: Map<string, string | null>
+}
+
+interface AttachmentLinkIndex {
+  exactPaths: Map<string, string>
+  uniqueBasenames: Map<string, string | null>
+}
+
+type IndexedWikiLinkResolution =
+  | { status: 'resolved'; path: string }
+  | { status: 'missing'; path: string }
+  | { status: 'ambiguous' }
+  | { status: 'invalid' }
+
+function comparePath(left: string, right: string): number {
+  const localized = left.localeCompare(right, 'ja')
+  if (localized !== 0) {
+    return localized
+  }
+  return left < right ? -1 : left > right ? 1 : 0
+}
+
+function buildWikiLinkIndex(notes: NoteDocument[]): WikiLinkIndex {
+  const exactPaths = new Map<string, string>()
+  const uniqueBasenames = new Map<string, string | null>()
+
+  for (const note of notes) {
+    const lowerPath = note.path.toLocaleLowerCase()
+    if (!exactPaths.has(lowerPath)) {
+      exactPaths.set(lowerPath, note.path)
+    }
+
+    const basename = withoutMarkdownExtension(
+      basenameRelative(note.path)
+    ).toLocaleLowerCase()
+    uniqueBasenames.set(
+      basename,
+      uniqueBasenames.has(basename) ? null : note.path
+    )
+  }
+
+  return { exactPaths, uniqueBasenames }
+}
+
+function buildAttachmentLinkIndex(
+  attachments: readonly VaultAttachment[]
+): AttachmentLinkIndex {
+  const exactPaths = new Map<string, string>()
+  const uniqueBasenames = new Map<string, string | null>()
+
+  for (const attachment of attachments) {
+    exactPaths.set(attachment.path.toLocaleLowerCase(), attachment.path)
+    const basename = basenameRelative(attachment.path).toLocaleLowerCase()
+    uniqueBasenames.set(
+      basename,
+      uniqueBasenames.has(basename) ? null : attachment.path
+    )
+  }
+  return { exactPaths, uniqueBasenames }
+}
+
+function resolveIndexedAttachmentLink(
+  target: string,
+  index: AttachmentLinkIndex
+): string | null {
+  const noteTarget = target.trim().split('#', 1)[0].replaceAll('\\', '/')
+  const validation = validateRelativePath(noteTarget)
+  if (!validation.valid || !validation.normalized) {
+    return null
+  }
+  if (validation.normalized.includes('/')) {
+    return (
+      index.exactPaths.get(validation.normalized.toLocaleLowerCase()) ?? null
+    )
+  }
+  return (
+    index.uniqueBasenames.get(validation.normalized.toLocaleLowerCase()) ?? null
+  )
+}
+
+function resolveIndexedWikiLink(
+  target: string,
+  index: WikiLinkIndex
+): IndexedWikiLinkResolution {
+  const noteTarget = target.trim().split('#', 1)[0]
+  const normalizedTarget = withoutMarkdownExtension(noteTarget).replaceAll(
+    '\\',
+    '/'
+  )
+  const validation = validateRelativePath(normalizedTarget)
+  if (!validation.valid || !validation.normalized) {
+    return { status: 'invalid' }
+  }
+
+  const normalized = validation.normalized
+  if (normalized.includes('/')) {
+    const intendedPath = withMarkdownExtension(normalized)
+    const resolvedPath = index.exactPaths.get(intendedPath.toLocaleLowerCase())
+    return resolvedPath
+      ? { status: 'resolved', path: resolvedPath }
+      : { status: 'missing', path: intendedPath }
+  }
+
+  const candidate = index.uniqueBasenames.get(normalized.toLocaleLowerCase())
+  if (candidate === null) {
+    return { status: 'ambiguous' }
+  }
+  return candidate
+    ? { status: 'resolved', path: candidate }
+    : { status: 'missing', path: withMarkdownExtension(normalized) }
+}
+
+export function buildWikiGraph(
+  notes: NoteDocument[],
+  options: BuildWikiGraphOptions = {}
+): WikiGraph {
   const nodes = notes
     .map((note) => ({
       path: note.path,
-      name: note.name
+      name: note.name,
+      kind: 'note' as const,
+      exists: true,
+      ...(note.createdAt !== undefined ? { createdAt: note.createdAt } : {})
     }))
     .sort((left, right) => comparePath(left.path, right.path))
 
   const edges = new Map<string, WikiGraphEdge>()
+  const unresolvedNodes = new Map<string, WikiGraphNode>()
+  const tagNodes = new Map<string, WikiGraphNode>()
+  const linkIndex = buildWikiLinkIndex(notes)
+  const attachments = options.attachments ?? []
+  const attachmentIndex = buildAttachmentLinkIndex(attachments)
+  const attachmentNodes = options.includeAttachments
+    ? attachments.map(
+        (attachment): WikiGraphNode => ({
+          path: attachment.path,
+          name: attachment.name,
+          kind: 'attachment',
+          exists: true,
+          createdAt: attachment.createdAt
+        })
+      )
+    : []
 
   for (const source of notes) {
-    for (const link of getOutgoingLinks(source.content, notes)) {
+    for (const link of extractWikiLinks(source.content)) {
+      const linkTarget = link.target.trim().split('#', 1)[0]
+      if (isSupportedAttachmentPath(linkTarget)) {
+        const targetPath = resolveIndexedAttachmentLink(
+          link.target,
+          attachmentIndex
+        )
+        if (targetPath && options.includeAttachments) {
+          const edge: WikiGraphEdge = {
+            sourcePath: source.path,
+            targetPath
+          }
+          edges.set(`${edge.sourcePath}\0${edge.targetPath}`, edge)
+        }
+        continue
+      }
+
+      const resolution = resolveIndexedWikiLink(link.target, linkIndex)
       if (
-        link.status !== 'resolved' ||
-        !link.resolvedPath ||
-        link.resolvedPath === source.path
+        resolution.status === 'invalid' ||
+        resolution.status === 'ambiguous'
       ) {
+        continue
+      }
+      if (resolution.status === 'missing' && !options.includeUnresolved) {
+        continue
+      }
+
+      let targetPath = resolution.path
+      if (resolution.status === 'missing') {
+        const unresolvedKey = targetPath.toLocaleLowerCase()
+        const existing = unresolvedNodes.get(unresolvedKey)
+        if (existing) {
+          targetPath = existing.path
+        } else {
+          unresolvedNodes.set(unresolvedKey, {
+            path: targetPath,
+            name: withoutMarkdownExtension(basenameRelative(targetPath)),
+            kind: 'unresolved',
+            exists: false
+          })
+        }
+      }
+
+      if (targetPath === source.path) {
         continue
       }
 
       const edge: WikiGraphEdge = {
         sourcePath: source.path,
-        targetPath: link.resolvedPath
+        targetPath
       }
       edges.set(`${edge.sourcePath}\0${edge.targetPath}`, edge)
+    }
+
+    if (options.includeTags) {
+      for (const tag of extractMarkdownTags(source.content)) {
+        const targetPath = `tag:${tag}`
+        tagNodes.set(targetPath, {
+          path: targetPath,
+          name: tag,
+          kind: 'tag',
+          exists: true
+        })
+        const edge: WikiGraphEdge = {
+          sourcePath: source.path,
+          targetPath
+        }
+        edges.set(`${edge.sourcePath}\0${edge.targetPath}`, edge)
+      }
     }
   }
 
   return {
-    nodes,
+    nodes: [
+      ...nodes,
+      ...unresolvedNodes.values(),
+      ...tagNodes.values(),
+      ...attachmentNodes
+    ].sort((left, right) => comparePath(left.path, right.path)),
     edges: [...edges.values()].sort(
       (left, right) =>
         comparePath(left.sourcePath, right.sourcePath) ||
@@ -61,32 +285,33 @@ export function buildWikiGraph(notes: NoteDocument[]): WikiGraph {
   }
 }
 
+export function buildWikiGraphForView(
+  notes: NoteDocument[],
+  viewMode: WikiGraphViewMode,
+  options: BuildWikiGraphOptions = {}
+): WikiGraph {
+  return viewMode === 'graph'
+    ? buildWikiGraph(notes, options)
+    : { nodes: [], edges: [] }
+}
+
 export function getLocalWikiGraph(
   graph: WikiGraph,
   currentPath: string,
-  depth: WikiGraphDepth = 1
+  options: LocalWikiGraphOptions = DEFAULT_LOCAL_GRAPH_OPTIONS
 ): WikiGraph {
   if (!graph.nodes.some((node) => node.path === currentPath)) {
     return { nodes: [], edges: [] }
   }
 
   const localPaths = new Set<string>([currentPath])
-  let frontier = new Set<string>([currentPath])
-
-  for (let level = 0; level < depth; level += 1) {
-    const next = new Set<string>()
-    for (const edge of graph.edges) {
-      if (frontier.has(edge.sourcePath) && !localPaths.has(edge.targetPath)) {
-        next.add(edge.targetPath)
-      }
-      if (frontier.has(edge.targetPath) && !localPaths.has(edge.sourcePath)) {
-        next.add(edge.sourcePath)
-      }
+  for (const edge of graph.edges) {
+    if (options.outgoingLinks && edge.sourcePath === currentPath) {
+      localPaths.add(edge.targetPath)
     }
-    for (const path of next) {
-      localPaths.add(path)
+    if (options.incomingLinks && edge.targetPath === currentPath) {
+      localPaths.add(edge.sourcePath)
     }
-    frontier = next
   }
 
   return {
@@ -94,10 +319,18 @@ export function getLocalWikiGraph(
       .filter((node) => localPaths.has(node.path))
       .sort((left, right) => comparePath(left.path, right.path)),
     edges: graph.edges
-      .filter(
-        (edge) =>
-          localPaths.has(edge.sourcePath) && localPaths.has(edge.targetPath)
-      )
+      .filter((edge) => {
+        if (!localPaths.has(edge.sourcePath) || !localPaths.has(edge.targetPath)) {
+          return false
+        }
+        if (edge.sourcePath === currentPath) {
+          return options.outgoingLinks
+        }
+        if (edge.targetPath === currentPath) {
+          return options.incomingLinks
+        }
+        return options.neighborLinks
+      })
       .sort(
         (left, right) =>
           comparePath(left.sourcePath, right.sourcePath) ||
@@ -108,7 +341,7 @@ export function getLocalWikiGraph(
 
 export function getVaultWikiGraph(
   graph: WikiGraph,
-  currentPath: string,
+  currentPath: string | null,
   includeOrphans: boolean
 ): WikiGraph {
   if (includeOrphans) {
@@ -120,7 +353,9 @@ export function getVaultWikiGraph(
     connectedPaths.add(edge.sourcePath)
     connectedPaths.add(edge.targetPath)
   }
-  connectedPaths.add(currentPath)
+  if (currentPath) {
+    connectedPaths.add(currentPath)
+  }
 
   return {
     nodes: graph.nodes.filter((node) => connectedPaths.has(node.path)),
@@ -130,22 +365,39 @@ export function getVaultWikiGraph(
 
 export function filterWikiGraph(
   graph: WikiGraph,
-  currentPath: string,
-  query: string
+  currentPath: string | null,
+  query: string,
+  notes: NoteDocument[] = []
 ): WikiGraph {
-  const normalizedQuery = query.trim().toLocaleLowerCase()
-  if (!normalizedQuery) {
+  if (!query.trim()) {
     return graph
   }
 
+  const notesByPath = new Map(notes.map((note) => [note.path, note]))
+
   const visiblePaths = new Set(
     graph.nodes
-      .filter(
-        (node) =>
-          node.path === currentPath ||
-          node.name.toLocaleLowerCase().includes(normalizedQuery) ||
-          node.path.toLocaleLowerCase().includes(normalizedQuery)
-      )
+      .filter((node) => {
+        if (currentPath !== null && node.path === currentPath) {
+          return true
+        }
+        const note = notesByPath.get(node.path)
+        return matchesGraphQuery(
+          {
+            path: node.path,
+            name: node.name,
+            kind: node.kind,
+            content: note?.content,
+            tags:
+              node.kind === 'tag'
+                ? [node.name]
+                : note
+                  ? extractMarkdownTags(note.content)
+                  : []
+          },
+          query
+        )
+      })
       .map((node) => node.path)
   )
 

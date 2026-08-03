@@ -75,4 +75,42 @@ describe('frontmatter parsing', () => {
     )
     expect(parsed.body).toBe('# 再開\r\n')
   })
+
+  it('accepts nested YAML blocks while keeping only top-level scalar metadata', () => {
+    const markdown = [
+      '---',
+      'kind: ai_revision',
+      'source_refs:',
+      '  - "40_情報源/検証.md"',
+      'theme:',
+      '  colors:',
+      '    primary: "#2F655F"',
+      '---',
+      '# Previous content'
+    ].join('\n')
+
+    expect(parseFrontmatter(markdown)).toMatchObject({
+      attributes: {
+        kind: 'ai_revision',
+        source_refs: null,
+        theme: null
+      },
+      body: '# Previous content',
+      warnings: []
+    })
+  })
+
+  it('still warns when an indented block line is not YAML-like', () => {
+    const parsed = parseFrontmatter(
+      ['---', 'source_refs:', '  definitely-not-yaml', '---', '# Note'].join(
+        '\n'
+      )
+    )
+
+    expect(parsed.warnings).toContainEqual({
+      code: 'MALFORMED_FRONTMATTER',
+      message: 'Top-level key and scalar value are required.',
+      line: 3
+    })
+  })
 })

@@ -1,0 +1,88 @@
+{
+  "status": "installed-and-verified",
+  "verifiedAt": "2026-08-03T02:48:19.831Z",
+  "packageVersion": "0.5.0",
+  "git": {
+    "commit": "93a8502f103b86a92a1bf1f3af96f0192173b1f8",
+    "dirty": true
+  },
+  "sourceFingerprint": {
+    "fileCount": 249,
+    "digest": "4a2fb6595c0eea7177445ad7d7607397f09e10d59bed958c34bbdf40701e30c1",
+    "excludedPaths": [
+      "docs/reports/production-update-latest.json"
+    ]
+  },
+  "oauthBuildSource": "installed-bundle",
+  "installer": {
+    "path": "dist/TSUZUNE-Setup-0.5.0.exe",
+    "sha256": "130c8e4f920a8f76f553ae5fc3a20fffc289618138e927e911a7952057ab213c"
+  },
+  "built": {
+    "executableSha256": "9af746bab217bc7e81e308958a119e8060e23c8fd6630a4ee04f3c327c89f062",
+    "appAsarSha256": "a4931d21fe6a898d4b9df81494a9e040156d50a0438ce3bb12255603d2b4e0c2"
+  },
+  "installed": {
+    "executable": "C:\\Users\\Humin\\AppData\\Local\\Programs\\tsuzune\\TSUZUNE.exe",
+    "version": "0.5.0",
+    "executableSha256": "9af746bab217bc7e81e308958a119e8060e23c8fd6630a4ee04f3c327c89f062",
+    "appAsarSha256": "a4931d21fe6a898d4b9df81494a9e040156d50a0438ce3bb12255603d2b4e0c2",
+    "rendererReady": true
+  },
+  "productionProfile": {
+    "path": "C:\\Users\\Humin\\AppData\\Roaming\\TSUZUNE",
+    "before": {
+      "exists": true,
+      "fileCount": 57,
+      "digest": "ac1c824aea94747057240e339f1068da93a6df4b99a147b5294cf5e586932564"
+    },
+    "after": {
+      "exists": true,
+      "fileCount": 57,
+      "digest": "ac1c824aea94747057240e339f1068da93a6df4b99a147b5294cf5e586932564"
+    },
+    "unchanged": true
+  },
+  "checks": [
+    {
+      "id": "typecheck",
+      "status": "passed"
+    },
+    {
+      "id": "tests",
+      "status": "passed"
+    },
+    {
+      "id": "mcp",
+      "status": "passed"
+    },
+    {
+      "id": "package",
+      "status": "passed"
+    },
+    {
+      "id": "installer-contract",
+      "status": "passed"
+    },
+    {
+      "id": "packaged-smoke",
+      "status": "passed"
+    },
+    {
+      "id": "silent-install",
+      "status": "passed"
+    },
+    {
+      "id": "installed-smoke",
+      "status": "passed"
+    },
+    {
+      "id": "installed-hash",
+      "status": "passed"
+    },
+    {
+      "id": "mcp-register",
+      "status": "passed"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "capturedAt": "2026-08-03T02:01:16.092Z",
+  "artifacts": [
+    "docs/reports/assets/graph-gp6/tsuzune-working-tree/01-global-baseline.png",
+    "docs/reports/assets/graph-gp6/tsuzune-working-tree/01-global-baseline.observation.json",
+    "docs/reports/assets/graph-gp6/tsuzune-working-tree/environment.json"
+  ],
+  "summary": {
+    "markdownCount": 7,
+    "nodeCount": 8,
+    "directedLinkCount": 12,
+    "undirectedPairCount": 8,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp6/tsuzune-working-tree/01-global-baseline.png",
+      "bytes": 103451,
+      "sha256": "D7E77EBEDB364E0BD37FBBC59097E40EFAC35BBA03746F48F3F060935B7BADE6",
+      "width": 1265,
+      "height": 768
+    }
+  },
+  "assertions": {
+    "viewportMatched": true,
+    "lightThemeMatched": true,
+    "backgroundSafe": true,
+    "structureMatched": true,
+    "renderedNodeSetMatched": true,
+    "canvasFirstDrawObserved": true,
+    "canvasGeometryPairsMatched": true,
+    "settingsPanelVisibleByDefault": true,
+    "sourceFixtureUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "isolatedProtectedFilesUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtAppUnchangedDuringCapture": true
+  }
+}

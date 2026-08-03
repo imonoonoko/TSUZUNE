@@ -15,6 +15,9 @@
   --warning: #9b5d2d;
   --danger: #9a3f3b;
   --shadow: 0 12px 32px rgb(67 58 41 / 9%);
+  --radius-sm: 6px;
+  --radius-md: 9px;
+  --motion-fast: 140ms;
 }
 
 * {
@@ -25,7 +28,7 @@ html,
 body,
 #root {
   width: 100%;
-  min-width: 860px;
+  min-width: 720px;
   height: 100%;
   margin: 0;
   overflow: hidden;
@@ -39,6 +42,10 @@ select {
 
 button {
   color: inherit;
+}
+
+.ui-icon {
+  flex: 0 0 auto;
 }
 
 button:focus-visible,
@@ -82,14 +89,23 @@ button:disabled {
   position: absolute;
   inset: 0;
   z-index: 100;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
   color: #31544d;
   font-size: 0.88rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   background: rgb(244 240 231 / 54%);
   cursor: wait;
+}
+
+.operation-overlay img {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
 }
 
 .app-header {
@@ -112,14 +128,27 @@ button:disabled {
 }
 
 .brand {
-  gap: 14px;
+  gap: 10px;
 }
 
-.brand strong {
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 7px;
+}
+
+.brand-copy {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+}
+
+.brand-copy strong {
   letter-spacing: 0.16em;
 }
 
-.brand span,
+.brand-copy span,
 .vault-summary span {
   overflow: hidden;
   font-size: 12px;
@@ -162,6 +191,9 @@ button:hover:not(:disabled) {
 }
 
 .app-header .secondary-button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
   color: #f7f3e9;
   background: rgb(255 255 255 / 8%);
   border-color: rgb(255 255 255 / 22%);
@@ -230,10 +262,24 @@ button:hover:not(:disabled) {
   border-right: 1px solid var(--line);
 }
 
+.search-field {
+  position: relative;
+  display: block;
+}
+
+.search-field > .ui-icon {
+  position: absolute;
+  top: 10px;
+  left: 11px;
+  z-index: 1;
+  color: #7d786e;
+  pointer-events: none;
+}
+
 .search-field input {
   width: 100%;
   height: 36px;
-  padding: 7px 11px;
+  padding: 7px 11px 7px 34px;
   color: var(--ink);
   background: rgb(255 253 248 / 75%);
   border: 1px solid #d4cdbf;
@@ -241,7 +287,7 @@ button:hover:not(:disabled) {
 }
 
 .search-field input::placeholder {
-  color: #969084;
+  color: #777267;
 }
 
 .tree-toolbar,
@@ -255,6 +301,10 @@ button:hover:not(:disabled) {
   grid-template-columns: 1fr 1fr;
 }
 
+.tree-toolbar .graph-view-entry {
+  grid-column: 1 / -1;
+}
+
 .entry-toolbar {
   grid-template-columns: repeat(3, 1fr);
   padding-bottom: 0;
@@ -263,12 +313,20 @@ button:hover:not(:disabled) {
 
 .tree-toolbar button,
 .entry-toolbar button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
   background: rgb(255 253 248 / 57%);
   border-color: #d5cebf;
+}
+
+.entry-toolbar button:last-child:not(:disabled) {
+  color: var(--danger);
 }
 
 .file-tree,
@@ -347,9 +405,8 @@ button:hover:not(:disabled) {
 
 .note-panel {
   display: grid;
-  grid-template-rows: 58px minmax(0, 1fr) 30px;
+  grid-template-rows: auto minmax(0, 1fr) 30px;
   background: var(--paper);
-  box-shadow: var(--shadow);
 }
 
 .note-header {
@@ -383,9 +440,14 @@ button:hover:not(:disabled) {
 .note-actions {
   gap: 2px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .note-actions button {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
   min-height: 28px;
   font-size: 12px;
 }
@@ -396,9 +458,20 @@ button:hover:not(:disabled) {
 }
 
 .save-status {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
   margin-right: 8px;
   font-size: 11px;
   color: var(--muted);
+}
+
+.save-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  background: currentcolor;
+  border-radius: 50%;
 }
 
 .save-status.is-dirty,
@@ -492,6 +565,18 @@ button:hover:not(:disabled) {
   text-underline-offset: 3px;
 }
 
+.markdown-preview img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 18px auto;
+  border-radius: 6px;
+}
+
+.vault-image-status {
+  color: var(--muted);
+}
+
 .inactive-link {
   color: var(--muted);
   text-decoration: line-through;
@@ -524,6 +609,22 @@ button:hover:not(:disabled) {
   text-align: center;
 }
 
+.note-empty > img {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 2px;
+  border-radius: 10px;
+  opacity: 0.82;
+}
+
+.note-empty .primary-button,
+.welcome .primary-button {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+}
+
 .welcome {
   flex: 1 1 auto;
   padding: 36px;
@@ -536,6 +637,13 @@ button:hover:not(:disabled) {
   border: 1px solid var(--line);
   border-radius: 16px;
   box-shadow: var(--shadow);
+}
+
+.welcome-mark {
+  width: 58px;
+  height: 58px;
+  margin-bottom: 18px;
+  border-radius: 13px;
 }
 
 .welcome h1 {
@@ -561,9 +669,22 @@ button:hover:not(:disabled) {
 }
 
 .app-loading {
+  gap: 14px;
   height: 100%;
   color: var(--muted);
   background: #f4f0e7;
+}
+
+.app-loading img {
+  width: 64px;
+  height: 64px;
+  border-radius: 15px;
+  box-shadow: var(--shadow);
+}
+
+.app-loading span {
+  font-size: 13px;
+  letter-spacing: 0.04em;
 }
 
 .related-panel {
@@ -778,6 +899,44 @@ button:hover:not(:disabled) {
   margin-top: 22px;
 }
 
+.app-settings-modal {
+  width: min(620px, 100%);
+}
+
+.app-settings-modal:focus {
+  outline: 2px solid #3e7e76;
+  outline-offset: 3px;
+}
+
+.app-settings-section {
+  padding: 16px;
+  margin-top: 16px;
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+.app-settings-section h3 {
+  margin: 0 0 14px;
+}
+
+.app-settings-section textarea {
+  min-height: 140px;
+  padding: 9px;
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.app-settings-section p {
+  margin: 10px 0 0;
+  word-break: normal;
+}
+
 .google-sync-modal {
   width: min(680px, 100%);
   max-height: min(760px, calc(100vh - 48px));
@@ -961,12 +1120,114 @@ button:hover:not(:disabled) {
   border-top: 1px solid var(--line);
 }
 
-@media (max-width: 1040px) {
+.wiki-graph-context-menu {
+  display: grid;
+  min-width: 190px;
+  padding: 6px;
+  color: #222;
+  background: #fff;
+  border: 1px solid #dadada;
+  border-radius: 6px;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 18%);
+}
+
+.wiki-graph-context-title {
+  padding: 5px 8px 7px;
+  overflow: hidden;
+  color: #888;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wiki-graph-context-menu button {
+  padding: 7px 8px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+}
+
+.wiki-graph-context-menu button:not(:disabled):hover,
+.wiki-graph-context-menu button:not(:disabled):focus-visible {
+  background: #f0f0f0;
+}
+
+.wiki-graph-context-menu button.is-danger {
+  color: #c33;
+}
+
+.wiki-graph-context-menu button:disabled {
+  color: #aaa;
+}
+
+@media (max-width: 1120px) {
   .workspace {
-    grid-template-columns: 220px minmax(400px, 1fr) 190px;
+    grid-template-columns: minmax(184px, 220px) minmax(330px, 1fr) minmax(166px, 190px);
   }
 
-  .brand span {
+  .brand-copy span {
     display: none;
+  }
+
+  .vault-summary {
+    gap: 6px;
+  }
+
+  .app-header .secondary-button {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .note-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .note-actions {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-header {
+    gap: 8px;
+    padding-right: 10px;
+    padding-left: 12px;
+  }
+
+  .vault-summary > span {
+    display: none;
+  }
+
+  .workspace {
+    grid-template-columns: 176px minmax(300px, 1fr) 160px;
+  }
+
+  .left-panel,
+  .related-panel {
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+
+  .note-header {
+    padding-right: 10px;
+    padding-left: 12px;
+  }
+
+  .note-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
