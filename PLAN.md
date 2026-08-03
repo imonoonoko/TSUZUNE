@@ -364,8 +364,8 @@ GP6-0Pではインストール済み本番TSUZUNE 0.5.0を同じfixture／viewpo
 1. GP6-0Wとして採取時のdirty working tree（Git HEAD `93a8502f103b86a92a1bf1f3af96f0192173b1f8`）を隔離buildし、同一fixture／1265×768／DPR 1／light themeで背景非フォーカス採取した。7 Markdown、8 node、12 directed edge、8 undirected pairは公式1.13.4と一致し、Canvas初回描画、8 node全件の有限geometry、fixture原本・隔離Markdown・製品source・capture中のbuild不変も確認した。製品source SHA-256は`CD0522CBADE425CE01C49197DAA52D354492D3524CA34995EB65F9AC260AE253`、build SHA-256は`65F943B538C521BA6009FB151338F46B41C46EF9ECC1FB5B9C1FBEDF0850F4E7`。構造一致だけで完全互換とは判定せず、製品chrome／canvas領域、色・強調、未解決nodeの内部ID、操作・保存境界は`not-matched`または未判定としてGP0-3b／GP1-7へ残す。正本は`docs/reports/assets/graph-gp6/tsuzune-working-tree/manifest.json`、同階層のenvironment／observation／PNGとする
 2. [x] GP0-3b-a: 固定fixtureで最初に観測できた公開差はGlobal Graph初回表示の設定パネルだった。Obsidian 1.13.4の`close: false`に合わせ、TSUZUNEは未保存のVault scope既定だけを`settingsOpen: true`へ変更した。Local既定と明示保存済み状態は維持する。公開UIのRED→GREEN、全362 tests、隔離captureの`settingsPanelVisibleByDefault: true`を確認し、この一項目だけを`matched`とする。比較レポートは`docs/reports/graph-gp7-global-settings-default-2026-08-03.html`。
 3. [x] GP0-3b-b: Global GraphのSearch filesへ`path:"10_projects"`を入力し、Graphを閉じて再表示した後と、別プロセスによるアプリ完全再起動後に同じ検索条件が復元される公開挙動を比較した。Obsidian 1.13.4とTSUZUNEはいずれも3観測点で2 node／1 unique visible edgeを維持し、この検索条件保持だけを`matched`とする。TSUZUNEは`GraphViewState.query`をLocal／Global別に保存し、旧設定では空文字へ補完する。全368 tests、build、MCP smoke、隔離capture 11/11を通し、比較レポートは`docs/reports/graph-gp0-search-persistence-2026-08-03.html`とする。ピクセル一致、他query、起動時のGraph workspace自動復元は未証明。
-4. 次の一項目として、Obsidian Desktop 1.13.4とTSUZUNEを同条件で操作し、Global Graphのcamera zoom／panがGraph再表示とアプリ再起動のどこまで保存されるかを採取する
-5. その後、node drag、context menu、Groups、Animate開始・途中・終了、Restore defaultsの保存境界を一項目ずつ採取する
+4. [x] GP0-3b-c: 空query、8 node、1265×768、DPR 1、light theme、隔離profileを固定し、Global Graphへ制御された論理wheel `deltaY=-120`と背景drag `+96,+64 CSS px`を与えた。Obsidian側はCDPマウス入力、TSUZUNE側は隔離オフスクリーンのDOM合成入力である。Obsidian 1.13.4とTSUZUNEはいずれもzoom `1.5`をGraph再表示後・別プロセスのアプリ完全再起動後まで保持し、panは両時点で中央へ戻った。比較6項目がすべて`matched`であり、panを永続化すると参照版から乖離するため製品コードは変更していない。証拠は`docs/reports/assets/graph-gp0-camera-persistence/comparison.json`、人間向けレポートは`docs/reports/graph-gp0-camera-persistence-2026-08-03.html`とする。物理マウス／trusted event、ピクセル一致、zoom easing、Local Graph、fit／reset、zoom限界、workspace leaf自動復元は未証明。
+5. 次の一項目はGP0-3b-dとして、node drag直後・Graph再表示後・アプリ再起動後のnode位置／固定状態を同条件で採取する。その後、context menu、Groups、Animate開始・途中・終了、Restore defaultsの保存境界を一項目ずつ採取する
 6. 両者の画像、操作結果、node／directed edge／settings JSON、Markdown SHAを同じ比較表へ並べ、各項目を`matched`、`different`、`missing`、唯一の`intentional exception`へ分類する
 7. `different`または`missing`になった公開挙動だけを1件ずつ修正し、同一captureを再実行する
 8. GP6の計測で必要性が確認された場合だけ、大規模Vaultの性能改善とviewport cullingを追加する。未計測の推測だけではWebGL、独自DB、固定表示上限を導入しない
@@ -409,7 +409,7 @@ P0-3／P0-4当時は力学シミュレーション、グラフDB、GraphRAG、�
 - [x] GP1-5: Vault全体で孤立ノートを既定表示し、固定描画上限による`.md`の欠落をなくす
 - [x] GP2-1: 全辺を単一Canvas層へ集約し、操作可能なDOMノートと同期する
 - [x] GP2-2: 円形ノード、円周間の接続線、表示中ノードの実寸に基づくfit-to-boundsを実装する
-- [ ] GP0-3b: Obsidian Desktop 1.13.4の実機操作を採取し、node drag、camera、context menu、Animate、保存境界を固定する（初回設定パネルとGlobal検索条件保持は完了）
+- [ ] GP0-3b: Obsidian Desktop 1.13.4の実機操作を採取し、node drag、camera、context menu、Animate、保存境界を固定する（初回設定パネル、Global検索条件保持、Global camera zoom／pan保持境界は完了）
 - [x] GP1-6: path順、黄金角、固定tick、対称正規化を廃止し、継続Force runtimeへ置換する
 - [ ] GP1-7: slider、node drag、graph更新、再起動復元の観測可能な操作結果を参照版と一致させる（実装済み、実機一致証拠待ち）
 - [x] GP2-3: Arrows、Text fade threshold、Node size、Link thicknessと保存を追加する
@@ -422,7 +422,7 @@ P0-3／P0-4当時は力学シミュレーション、グラフDB、GraphRAG、�
 - [x] GP3-3実装: line／block／section／task、scalar・配列property、入力途中のquote／括弧／operator／regex／propertyを寛容に扱うSearch files、binary attachmentを通常termから除外し`file:`／`path:`では検索できる境界、Files and links共通のExcluded files設定を実装（固定fixture一致判定はGP6待ち）
 - [x] GP3-4実装: 複数Groups、query、色、順序、先に一致したグループの優先、保存、Reset、色スウォッチのdrag reorder（Windows実操作と固定参照版の一致判定はGP6待ち）
 - [x] GP4-1: Obsidian準拠のGraph surfaceとLocal／Globalの独立入口
-- [x] GP4-2実装: node右クリックメニュー、tag検索、attachment／file-backed nodeの種別別open、Local／Global別のscale・設定panel開閉・section折り畳み保存（pan／queryを含む正確な保存境界とmenu項目の固定参照版一致はGP6待ち）
+- [x] GP4-2実装: node右クリックメニュー、tag検索、attachment／file-backed nodeの種別別open、Local／Global別のscale・設定panel開閉・section折り畳み保存。Globalの非空queryとcameraは固定参照版比較を終え、zoom保持／pan非保持を`matched`とした。Local、他query、menu項目はGP6待ち
 - [x] GP5-1実装: 論理createdAt順のAnimate／time-lapse UIと表示prefix
 - [x] GP5-2実装: Animateの増分graph feed、Force再加熱、通常のlive topology更新を狭いtestと隔離Electron captureで検証。固定参照版との開始・途中・終了の一致判定はGP6で行う
 - [ ] GP6: 実機比較closure
@@ -722,7 +722,7 @@ Gate:
 
 更新日: 2026-08-03
 
-状態: 実装・隔離fixture検証・このPCの本番反映を完了した。Graph検索条件保持は`ad26532`へ収録して同名originへpushし、2026-08-03 20:11 JSTに同コミットのclean sourceから本番へ導入した。Windows本番環境への反映結果は`docs/reports/production-update-latest.json`を正とする。500件／2000件のcontrolled sparse fixtureを各3回、隔離copy／fresh profileで実測して性能baselineを固定した。GP6-0Wでは採取時のdirty working treeを同一fixture／viewport／themeで採取し、7 Markdown、8 node、12 directed edge、8 undirected pairの構造一致を確認した。Global Graph検索条件`path:"10_projects"`は入力直後、Graph再表示、アプリ完全再起動後の3点でObsidian 1.13.4と同じ保持結果になった。ただし性能基準の合格、Obsidian完全互換、実OSアクセシビリティは未完了。次はcamera zoom／panの保存境界を同条件で比較する。
+状態: 実装・隔離fixture検証・このPCの本番反映を完了した。Graph検索条件保持は`ad26532`へ収録して同名originへpushし、2026-08-03 20:11 JSTに同コミットのclean sourceから本番へ導入した。Windows本番環境への反映結果は`docs/reports/production-update-latest.json`を正とする。500件／2000件のcontrolled sparse fixtureを各3回、隔離copy／fresh profileで実測して性能baselineを固定した。GP6-0Wでは採取時のdirty working treeを同一fixture／viewport／themeで採取し、7 Markdown、8 node、12 directed edge、8 undirected pairの構造一致を確認した。Global Graph検索条件`path:"10_projects"`は入力直後、Graph再表示、アプリ完全再起動後の3点でObsidian 1.13.4と同じ保持結果になった。GP0-3b-cではGlobal cameraへ同じ制御論理wheel／背景dragを与え、両製品ともzoomをGraph再表示・アプリ再起動後まで保持し、panを中央へ戻すことを6/6比較で確認したため製品修正は不要だった。ただし物理マウス／trusted event、性能基準の合格、Obsidian完全互換、実OSアクセシビリティは未完了。次はnode dragの保存境界を同条件で比較する。
 
 - [x] 100ms以内のVault外部変更をpath単位で集約し、20イベントを1回のsnapshot refreshへまとめる
 - [x] 外部エディタのunlink→add形式のファイル置換を選択中ノートへ再読込し、更新を取りこぼさない
@@ -770,7 +770,8 @@ Electron capture            PASS: brand mark / 14 icons / focus / inert / embedd
 - [x] 500件・2000件Vaultで入力遅延、外部変更burst、グラフ切替を実測し、aggregate medianと計測境界を固定する
 - [x] GP6-0Wで採取時のdirty working treeを隔離buildし、公式Obsidian 1.13.4と同一fixture／viewport／themeで採取する
 - [x] GP0-3b-bでGlobal Graph検索条件のGraph再表示／アプリ再起動後保持を同条件で採取し、狭い`matched`判定を固定する
-- [ ] 次: GP0-3b-cでcamera zoom／panのGraph再表示／アプリ再起動後の保存境界を同条件で採取・比較する
+- [x] GP0-3b-cでcamera zoom／panのGraph再表示／アプリ再起動後の保存境界を同条件で採取し、zoom保持／pan中央復帰の6/6比較を`matched`として固定する
+- [ ] 次: GP0-3b-dでnode drag直後／Graph再表示後／アプリ再起動後のnode位置・固定状態を同条件で採取・比較する
 - [ ] 720px未満と200% zoomはsidebar・関連欄の折畳みを含めて別sliceで対応する
 - [ ] ファイルツリーへtreeitem semanticsと矢印キー操作を追加する
 - [ ] 標準prompt／confirmをアプリ内ダイアログへ段階的に置換する

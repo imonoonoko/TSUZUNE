@@ -5,17 +5,36 @@ import { extname, relative, resolve, sep } from 'node:path'
 
 const repoRoot = resolve(import.meta.dirname, '..')
 const scriptPath = resolve(import.meta.filename)
+const cameraProbe =
+  process.argv.includes('--camera') || process.env.TSUZUNE_GRAPH_CAMERA_PROBE === '1'
 const sourceFixture = resolve(repoRoot, 'fixtures/obsidian-graph-parity-vault')
-const workRoot = resolve(repoRoot, 'work/graph-gp0-3b-search-restart-working-tree')
+const workRoot = resolve(
+  repoRoot,
+  cameraProbe
+    ? 'work/graph-gp0-camera-restart-working-tree'
+    : 'work/graph-gp0-3b-search-restart-working-tree'
+)
 const vault = resolve(workRoot, 'vault')
 const userData = resolve(workRoot, 'userdata')
 const outputRoot = resolve(
   repoRoot,
-  'docs/reports/assets/graph-gp0-3b-search-restart-working-tree'
+  cameraProbe
+    ? 'docs/reports/assets/graph-gp0-camera-persistence/tsuzune-working-tree'
+    : 'docs/reports/assets/graph-gp0-3b-search-restart-working-tree'
 )
 const settingsPath = resolve(userData, 'settings.json')
-const query = 'path:"10_projects"'
-const viewport = { width: 1280, height: 800 }
+const query = cameraProbe ? '' : 'path:"10_projects"'
+const viewport = cameraProbe ? { width: 1265, height: 768 } : { width: 1280, height: 800 }
+const expectedCameraNodePaths = [
+  '00_Home.md',
+  '10_projects/Project Alpha.md',
+  '10_projects/Project Beta.md',
+  '20_knowledge/Distillation.md',
+  '20_knowledge/Reference.md',
+  '80_excluded/Hidden.md',
+  '90_orphan/Orphan.md',
+  'Missing Note.md'
+]
 const workerPhase = process.env.TSUZUNE_GRAPH_SEARCH_RESTART_PHASE
 
 function stage(message) {
@@ -282,6 +301,12 @@ async function graphState(window) {
         .sort(),
       edgeCount: Number(document.querySelector('canvas.wiki-graph-edges')?.dataset.edgeCount ?? 0),
       stageTransform: document.querySelector('.wiki-graph-stage')?.style.transform ?? '',
+      canvasRect: (() => {
+        const canvas = document.querySelector('[aria-label="グラフキャンバス"]')
+        if (!canvas) return null
+        const bounds = canvas.getBoundingClientRect()
+        return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+      })(),
       dimensions: {
         innerWidth,
         innerHeight,
@@ -320,6 +345,81 @@ async function waitForSavedQuery(expectedQuery) {
     await delay(100)
   }
   throw new Error('Graph検索queryが隔離settingsへ保存されませんでした。')
+}
+
+async function waitForSavedScale(expectedScale) {
+  const deadline = Date.now() + 10_000
+  while (Date.now() < deadline) {
+    const settings = JSON.parse(await readFile(settingsPath, 'utf8'))
+    if (Math.abs((settings.graphViewStates?.vault?.scale ?? 0) - expectedScale) < 1e-9) {
+      return settings
+    }
+    await delay(100)
+  }
+  throw new Error('Graph zoomが隔離settingsへ保存されませんでした。')
+}
+
+async function applyCameraInput(window) {
+  const result = await evaluate(
+    window,
+    `(() => {
+      const canvas = document.querySelector('[aria-label="グラフキャンバス"]')
+      if (!(canvas instanceof HTMLElement)) throw new Error('Graph canvasが見つかりません。')
+      const bounds = canvas.getBoundingClientRect()
+      const centerX = bounds.left + bounds.width / 2
+      const centerY = bounds.top + bounds.height / 2
+      canvas.dispatchEvent(new WheelEvent('wheel', {
+        bubbles: true,
+        cancelable: true,
+        deltaY: -120,
+        clientX: centerX,
+        clientY: centerY
+      }))
+      canvas.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 42,
+        button: 0,
+        buttons: 1,
+        clientX: centerX,
+        clientY: centerY
+      }))
+      canvas.dispatchEvent(new PointerEvent('pointermove', {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 42,
+        button: 0,
+        buttons: 1,
+        clientX: centerX + 96,
+        clientY: centerY + 64
+      }))
+      canvas.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 42,
+        button: 0,
+        buttons: 0,
+        clientX: centerX + 96,
+        clientY: centerY + 64
+      }))
+      return { centerX, centerY, drag: { x: 96, y: 64 }, wheelDeltaY: -120 }
+    })()`
+  )
+  await delay(500)
+  await waitForPaint(window)
+  return result
+}
+
+function cameraFromState(state) {
+  const match = state.stageTransform.match(
+    /translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([-\d.]+)\)/
+  )
+  if (!match) throw new Error(`Graph camera transformを解析できません: ${state.stageTransform}`)
+  return {
+    panX: Number(match[1]),
+    panY: Number(match[2]),
+    scale: Number(match[3])
+  }
 }
 
 async function capture(window, filename) {
@@ -374,13 +474,51 @@ async function runWorker(phase) {
     window.setBounds({ x: -32_000, y: -32_000, ...viewport }, false)
     window.showInactive()
     await waitForEditor(window)
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const rendererViewport = await evaluate(
+        window,
+        '({ width: window.innerWidth, height: window.innerHeight })'
+      )
+      if (rendererViewport.width === viewport.width && rendererViewport.height === viewport.height) {
+        break
+      }
+      const frame = window.getBounds()
+      window.setBounds(
+        {
+          x: -32_000,
+          y: -32_000,
+          width: frame.width + viewport.width - rendererViewport.width,
+          height: frame.height + viewport.height - rendererViewport.height
+        },
+        false
+      )
+      await delay(200)
+    }
+    const windowGeometry = {
+      frame: window.getBounds(),
+      electronContentBounds: window.getContentBounds(),
+      rendererViewport: await evaluate(
+        window,
+        '({ width: window.innerWidth, height: window.innerHeight, devicePixelRatio: window.devicePixelRatio })'
+      )
+    }
 
     if (phase === 'initial') {
       await ensureGlobalGraphControls(window)
       await fillSearch(window, query)
-      const entered = await waitForStableGraph(window, query)
-      const enteredScreenshot = await capture(window, '01-query-entered.png')
-      const settingsAfterInput = await waitForSavedQuery(query)
+      const baseline = await waitForStableGraph(window, query)
+      const baselineScreenshot = cameraProbe
+        ? await capture(window, '00-baseline.png')
+        : null
+      const input = cameraProbe ? await applyCameraInput(window) : null
+      const entered = cameraProbe ? await graphState(window) : baseline
+      const enteredScreenshot = await capture(
+        window,
+        cameraProbe ? '01-after-camera-input.png' : '01-query-entered.png'
+      )
+      const settingsAfterInput = cameraProbe
+        ? await waitForSavedScale(cameraFromState(entered).scale)
+        : await waitForSavedQuery(query)
 
       await clickButton(window, '編集')
       const graphClosed = await evaluate(
@@ -391,9 +529,14 @@ async function runWorker(phase) {
 
       await ensureGlobalGraphControls(window)
       const reopened = await waitForStableGraph(window, query)
-      const reopenedScreenshot = await capture(window, '02-graph-reopened.png')
-      assertFilteredState(entered, 'query入力直後')
-      assertFilteredState(reopened, 'Graph再表示後')
+      const reopenedScreenshot = await capture(
+        window,
+        cameraProbe ? '02-after-graph-reopen.png' : '02-graph-reopened.png'
+      )
+      if (!cameraProbe) {
+        assertFilteredState(entered, 'query入力直後')
+        assertFilteredState(reopened, 'Graph再表示後')
+      }
       if (JSON.stringify(entered.nodePaths) !== JSON.stringify(reopened.nodePaths)) {
         throw new Error('Graph再表示後に検索node集合が変化しました。')
       }
@@ -402,25 +545,34 @@ async function runWorker(phase) {
         `${JSON.stringify({
           phase,
           processId: process.pid,
+          windowGeometry,
           graphClosed,
+          baseline,
+          input,
           entered,
           reopened,
           settingsGraphViewState: settingsAfterInput.graphViewStates.vault,
-          screenshots: [enteredScreenshot, reopenedScreenshot]
+          screenshots: [baselineScreenshot, enteredScreenshot, reopenedScreenshot].filter(Boolean)
         }, null, 2)}\n`,
         'utf8'
       )
     } else if (phase === 'restarted') {
       await ensureGlobalGraphControls(window)
       const restarted = await waitForStableGraph(window, query)
-      const restartedScreenshot = await capture(window, '03-app-restarted.png')
-      const settingsAfterRestart = await waitForSavedQuery(query)
-      assertFilteredState(restarted, 'アプリ再起動後')
+      const restartedScreenshot = await capture(
+        window,
+        cameraProbe ? '03-after-app-restart.png' : '03-app-restarted.png'
+      )
+      const settingsAfterRestart = cameraProbe
+        ? await waitForSavedScale(cameraFromState(restarted).scale)
+        : await waitForSavedQuery(query)
+      if (!cameraProbe) assertFilteredState(restarted, 'アプリ再起動後')
       await writeFile(
         resolve(outputRoot, 'phase-restarted.json'),
         `${JSON.stringify({
           phase,
           processId: process.pid,
+          windowGeometry,
           restarted,
           settingsGraphViewState: settingsAfterRestart.graphViewStates.vault,
           screenshots: [restartedScreenshot]
@@ -474,6 +626,7 @@ function runWorkerProcess(phase) {
       timeout: 90_000,
       env: {
         ...process.env,
+        TSUZUNE_GRAPH_CAMERA_PROBE: cameraProbe ? '1' : '',
         TSUZUNE_GRAPH_SEARCH_RESTART_PHASE: phase
       }
     }
@@ -526,7 +679,11 @@ async function runController() {
   const repository = gitIdentity()
 
   try {
-    stage('query入力とGraph再表示をcaptureします。')
+    stage(
+      cameraProbe
+        ? 'camera入力とGraph再表示をcaptureします。'
+        : 'query入力とGraph再表示をcaptureします。'
+    )
     runWorkerProcess('initial')
     stage('別processでアプリ再起動後をcaptureします。')
     runWorkerProcess('restarted')
@@ -544,15 +701,28 @@ async function runController() {
   const initial = JSON.parse(await readFile(resolve(outputRoot, 'phase-initial.json'), 'utf8'))
   const restarted = JSON.parse(await readFile(resolve(outputRoot, 'phase-restarted.json'), 'utf8'))
   const settings = JSON.parse(await readFile(settingsPath, 'utf8'))
+  const cameraContract = cameraProbe
+    ? {
+        baseline: cameraFromState(initial.baseline),
+        afterInput: cameraFromState(initial.entered),
+        afterGraphReopen: cameraFromState(initial.reopened),
+        afterAppRestart: cameraFromState(restarted.restarted)
+      }
+    : null
 
-  const assertions = {
-    queryEntered: initial.entered.query === query,
-    queryRestoredAfterGraphReopen: initial.reopened.query === query,
-    queryRestoredAfterAppRestart: restarted.restarted.query === query,
+  const sharedAssertions = {
+    contentViewportStable: [
+      initial.windowGeometry.rendererViewport,
+      restarted.windowGeometry.rendererViewport
+    ].every(
+      (bounds) =>
+        bounds.width === viewport.width &&
+        bounds.height === viewport.height &&
+        bounds.devicePixelRatio === 1
+    ),
     filteredNodeSetStable:
       JSON.stringify(initial.entered.nodePaths) === JSON.stringify(initial.reopened.nodePaths) &&
       JSON.stringify(initial.reopened.nodePaths) === JSON.stringify(restarted.restarted.nodePaths),
-    settingsPersisted: settings.graphViewStates?.vault?.query === query,
     separateApplicationProcesses: initial.processId !== restarted.processId,
     sourceFixtureUnchanged:
       protectionBefore.sourceFixture.combinedSha256 ===
@@ -568,10 +738,47 @@ async function runController() {
       protectionAfter.isolatedMarkdown.combinedSha256,
     noIsolatedProcessesRemaining: processesUsingCommandLineFragment(userData).length === 0
   }
+  const assertions = cameraProbe
+    ? {
+        exactNodeSetAtEveryCheckpoint: [
+          initial.baseline,
+          initial.entered,
+          initial.reopened,
+          restarted.restarted
+        ].every(
+          (state) => JSON.stringify(state.nodePaths) === JSON.stringify(expectedCameraNodePaths)
+        ),
+        cameraInputApplied:
+          Math.abs(cameraContract.afterInput.scale - 1.5) < 1e-9 &&
+          Math.abs(cameraContract.afterInput.panX - 96) < 1 &&
+          Math.abs(cameraContract.afterInput.panY - 64) < 1,
+        zoomRestoredAfterGraphReopen:
+          Math.abs(cameraContract.afterGraphReopen.scale - cameraContract.afterInput.scale) < 1e-9,
+        panResetAfterGraphReopen:
+          Math.abs(cameraContract.afterGraphReopen.panX) < 1 &&
+          Math.abs(cameraContract.afterGraphReopen.panY) < 1,
+        zoomRestoredAfterAppRestart:
+          Math.abs(cameraContract.afterAppRestart.scale - cameraContract.afterInput.scale) < 1e-9,
+        panResetAfterAppRestart:
+          Math.abs(cameraContract.afterAppRestart.panX) < 1 &&
+          Math.abs(cameraContract.afterAppRestart.panY) < 1,
+        settingsPersisted:
+          Math.abs((settings.graphViewStates?.vault?.scale ?? 0) - cameraContract.afterInput.scale) < 1e-9,
+        ...sharedAssertions
+      }
+    : {
+        queryEntered: initial.entered.query === query,
+        queryRestoredAfterGraphReopen: initial.reopened.query === query,
+        queryRestoredAfterAppRestart: restarted.restarted.query === query,
+        settingsPersisted: settings.graphViewStates?.vault?.query === query,
+        ...sharedAssertions
+      }
   const completed = Object.values(assertions).every(Boolean)
   const observation = {
     capturedAt: new Date().toISOString(),
     query,
+    cameraProbe,
+    cameraContract,
     repository,
     initial,
     restarted,
@@ -586,31 +793,48 @@ async function runController() {
   )
 
   const artifactPaths = [
-    '01-query-entered.png',
-    '02-graph-reopened.png',
-    '03-app-restarted.png',
+    ...(cameraProbe
+      ? [
+          '00-baseline.png',
+          '01-after-camera-input.png',
+          '02-after-graph-reopen.png',
+          '03-after-app-restart.png'
+        ]
+      : ['01-query-entered.png', '02-graph-reopened.png', '03-app-restarted.png']),
     'phase-initial.json',
     'phase-restarted.json',
     'observation.json'
   ].map((name) => resolve(outputRoot, name))
   const manifest = {
     capturedAt: observation.capturedAt,
-    stage: 'GP0-3b Global Graph search persistence working-tree evidence',
+    stage: cameraProbe
+      ? 'GP0-3b-c Global Graph camera persistence working-tree evidence'
+      : 'GP0-3b Global Graph search persistence working-tree evidence',
     status: completed ? 'captured' : 'failed',
-    comparisonStatus:
-      'Compare with docs/reports/assets/graph-gp0-search-persistence/comparison.json',
-    command: 'npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs',
+    comparisonStatus: cameraProbe
+      ? 'Compare with docs/reports/assets/graph-gp0-camera-persistence/comparison.json'
+      : 'Compare with docs/reports/assets/graph-gp0-search-persistence/comparison.json',
+    command: cameraProbe
+      ? '$env:TSUZUNE_GRAPH_CAMERA_PROBE=1; npm run build; node scripts/capture-graph-gp0-3b-search-restart.mjs'
+      : 'npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs',
     isolation: {
       sourceFixture: relative(repoRoot, sourceFixture).replaceAll('\\', '/'),
       copiedVault: relative(repoRoot, vault).replaceAll('\\', '/'),
       userData: relative(repoRoot, userData).replaceAll('\\', '/'),
-      windowBounds: { x: -32_000, y: -32_000, ...viewport },
+      requestedContentViewport: viewport,
+      offscreenOrigin: { x: -32_000, y: -32_000 },
+      observedWindowGeometry: {
+        initial: initial.windowGeometry,
+        restarted: restarted.windowGeometry
+      },
       network: 'host resolver blocked except localhost'
     },
     processIds: [initial.processId, restarted.processId],
     assertions,
     artifacts: await Promise.all(artifactPaths.map(artifactSummary)),
-    next: 'Continue GP0-3b with the remaining camera, drag, menu, animation, and reset behaviors.'
+    next: cameraProbe
+      ? 'Document the observed Obsidian/TSUZUNE camera persistence contract before the next parity slice.'
+      : 'Continue GP0-3b with the remaining camera, drag, menu, animation, and reset behaviors.'
   }
   await writeFile(
     resolve(outputRoot, 'manifest.json'),

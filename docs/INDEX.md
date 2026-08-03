@@ -25,6 +25,8 @@
 - [GP7 Global settings default](reports/graph-gp7-global-settings-default-2026-08-03.html) — 固定fixtureでGlobal Graph初回設定パネル表示を一致させた狭い比較。
 - [GP0 Global search persistence](reports/graph-gp0-search-persistence-2026-08-03.html) — `path:"10_projects"`の入力、Graph再表示、アプリ再起動後保持をObsidian 1.13.4と比較した狭い一致証拠。
 - [GP0 search comparison JSON](reports/assets/graph-gp0-search-persistence/comparison.json) — 3観測点、2 node／1 unique visible edge、未証明範囲を固定した機械可読比較。
+- [GP0 Global camera persistence](reports/graph-gp0-camera-persistence-2026-08-03.html) — 制御された論理wheel／背景drag後、Graph再表示、アプリ再起動までのzoom保持／pan中央復帰を比較した6/6一致証拠。
+- [GP0 camera comparison JSON](reports/assets/graph-gp0-camera-persistence/comparison.json) — 固定条件、正規化、4観測点、safeguard、未証明範囲を固定した機械可読比較。
 - [Large Vault performance](reports/tsuzune-large-vault-performance-2026-08-03.html) — 500件／2000件baseline。
 - [Large Vault public summary](reports/assets/large-vault-performance-2026-08-03/summary-public.json) — 性能値の耐久する機械可読版。
 - [Product optimization](reports/tsuzune-product-optimization-2026-08-03.html) — GUI、icon、画像preview、watcher、更新gate。

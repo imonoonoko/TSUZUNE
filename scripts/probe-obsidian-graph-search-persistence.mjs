@@ -6,12 +6,19 @@ import { tmpdir } from 'node:os'
 import { relative, resolve, sep } from 'node:path'
 
 const repoRoot = resolve(import.meta.dirname, '..')
+const cameraProbe =
+  process.argv.includes('--camera') || process.env.TSUZUNE_GRAPH_CAMERA_PROBE === '1'
 const fixtureDirectory = resolve(repoRoot, 'fixtures/obsidian-graph-parity-vault')
-const workRoot = resolve(repoRoot, 'work/gp0-search')
+const workRoot = resolve(repoRoot, cameraProbe ? 'work/gp0-camera' : 'work/gp0-search')
 const referenceWorkDirectory = resolve(workRoot, 'obsidian-1.13.4')
 const vaultDirectory = resolve(referenceWorkDirectory, 'vault')
 const userDataDirectory = resolve(referenceWorkDirectory, 'userdata')
-const outputRoot = resolve(repoRoot, 'docs/reports/assets/graph-gp0-search-persistence')
+const outputRoot = resolve(
+  repoRoot,
+  cameraProbe
+    ? 'docs/reports/assets/graph-gp0-camera-persistence'
+    : 'docs/reports/assets/graph-gp0-search-persistence'
+)
 const outputDirectory = resolve(outputRoot, 'obsidian-1.13.4')
 const observationPath = resolve(outputDirectory, 'observation.json')
 const manifestPath = resolve(outputRoot, 'manifest.json')
@@ -30,8 +37,19 @@ const expected = {
   installerSha256: '8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0',
   asarSha256: '51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917',
   markdownCount: 7,
-  search: 'path:"10_projects"',
-  filteredNodeIds: ['10_projects/Project Alpha.md', '10_projects/Project Beta.md'],
+  search: cameraProbe ? '' : 'path:"10_projects"',
+  filteredNodeIds: cameraProbe
+    ? [
+        '00_Home.md',
+        '10_projects/Project Alpha.md',
+        '10_projects/Project Beta.md',
+        '20_knowledge/Distillation.md',
+        '20_knowledge/Reference.md',
+        '80_excluded/Hidden.md',
+        '90_orphan/Orphan.md',
+        'Missing Note'
+      ]
+    : ['10_projects/Project Alpha.md', '10_projects/Project Beta.md'],
   viewport: { width: 1265, height: 768 },
   deviceScaleFactor: 1
 }
@@ -245,6 +263,18 @@ async function observeGraph(cdp, label) {
       graphLeafCount: app.workspace.getLeavesOfType('graph').length,
       searchInputValue: input?.value ?? null,
       graphOptionsSearch: view.dataEngine.getOptions().search,
+      camera: {
+        targetScale: view.renderer.targetScale,
+        scale: view.renderer.scale,
+        panX: view.renderer.panX,
+        panY: view.renderer.panY,
+        width: view.renderer.width,
+        height: view.renderer.height,
+        devicePixelRatio,
+        panOffsetX: view.renderer.panX - view.renderer.width * devicePixelRatio / 2,
+        panOffsetY: view.renderer.panY - view.renderer.height * devicePixelRatio / 2,
+        graphOptionsScale: view.dataEngine.getOptions().scale
+      },
       renderedNodeIds: view.renderer.nodes.map(nodeId).filter(Boolean).sort(),
       renderedNodeCount: view.renderer.nodes.length,
       renderedLinkCount: view.renderer.links.length,
@@ -303,6 +333,58 @@ async function setGraphSearch(cdp, query) {
   await waitForRenderer(
     cdp,
     `JSON.stringify(app.workspace.getLeavesOfType('graph')[0]?.view.renderer.nodes.map(${nodeIdExpression()}).filter(Boolean).sort()) === ${JSON.stringify(JSON.stringify(expected.filteredNodeIds))}`
+  )
+  await delay(500)
+}
+
+async function applyCameraInput(cdp) {
+  const canvas = await cdp.evaluate(`(() => {
+    const element = app.workspace.getLeavesOfType('graph')[0]?.view.renderer.interactiveEl
+    if (!element) throw new Error('Graph canvasが見つかりません。')
+    const bounds = element.getBoundingClientRect()
+    return {
+      centerX: bounds.left + bounds.width / 2,
+      centerY: bounds.top + bounds.height / 2
+    }
+  })()`)
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseWheel',
+    x: canvas.centerX,
+    y: canvas.centerY,
+    deltaX: 0,
+    deltaY: -120
+  })
+  await delay(350)
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mousePressed',
+    x: canvas.centerX,
+    y: canvas.centerY,
+    button: 'left',
+    buttons: 1,
+    clickCount: 1
+  })
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved',
+    x: canvas.centerX + 96,
+    y: canvas.centerY + 64,
+    button: 'left',
+    buttons: 1
+  })
+  await delay(150)
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseReleased',
+    x: canvas.centerX + 96,
+    y: canvas.centerY + 64,
+    button: 'left',
+    buttons: 0,
+    clickCount: 1
+  })
+  const targetScale = await cdp.evaluate(
+    `app.workspace.getLeavesOfType('graph')[0].view.renderer.targetScale`
+  )
+  await waitForRenderer(
+    cdp,
+    `Math.abs(app.internalPlugins.getPluginById('graph').instance.options.scale - ${targetScale}) < 0.000001`
   )
   await delay(500)
 }
@@ -498,7 +580,9 @@ async function main() {
   }
 
   await rm(referenceWorkDirectory, { recursive: true, force: true })
-  await rm(outputRoot, { recursive: true, force: true })
+  await rm(outputDirectory, { recursive: true, force: true })
+  await rm(manifestPath, { force: true })
+  await rm(resolve(outputRoot, 'comparison.json'), { force: true })
   await mkdir(vaultDirectory, { recursive: true })
   await mkdir(userDataDirectory, { recursive: true })
   await mkdir(outputDirectory, { recursive: true })
@@ -538,9 +622,21 @@ async function main() {
       await first.whileChildAlive(openGlobalGraph(first.cdp))
     }
     await first.whileChildAlive(setGraphSearch(first.cdp, expected.search))
+    if (cameraProbe) {
+      observations.beforeEntry = await first.whileChildAlive(
+        observeGraph(first.cdp, 'before-camera-input')
+      )
+      observations.beforeEntry.screenshot = await first.whileChildAlive(
+        captureScreenshot(first.cdp, resolve(outputDirectory, '00-baseline.png'))
+      )
+      await first.whileChildAlive(applyCameraInput(first.cdp))
+    }
     observations.afterEntry = await first.whileChildAlive(observeGraph(first.cdp, 'after-entry'))
     observations.afterEntry.screenshot = await first.whileChildAlive(
-      captureScreenshot(first.cdp, resolve(outputDirectory, '01-after-entry.png'))
+      captureScreenshot(
+        first.cdp,
+        resolve(outputDirectory, cameraProbe ? '01-after-camera-input.png' : '01-after-entry.png')
+      )
     )
 
     await first.whileChildAlive(first.cdp.evaluate(`(() => {
@@ -614,6 +710,34 @@ async function main() {
 
   const sourceAfter = await treeDigest(fixtureDirectory)
   const protectedAfter = await treeDigest(vaultDirectory, '.obsidian')
+  const cameraChanged = cameraProbe
+    ? observations.beforeEntry.camera.targetScale !== observations.afterEntry.camera.targetScale ||
+      observations.beforeEntry.camera.panOffsetX !== observations.afterEntry.camera.panOffsetX ||
+      observations.beforeEntry.camera.panOffsetY !== observations.afterEntry.camera.panOffsetY
+    : null
+  const cameraContract = cameraProbe
+    ? {
+        afterInput: observations.afterEntry.camera,
+        afterGraphReopen: observations.afterGraphReopen.camera,
+        afterAppRestart: observations.afterAppRestart.camera,
+        zoomPersistedAfterGraphReopen:
+          Math.abs(
+            observations.afterEntry.camera.targetScale -
+              observations.afterGraphReopen.camera.targetScale
+          ) < 0.000001,
+        panResetAfterGraphReopen:
+          Math.abs(observations.afterGraphReopen.camera.panOffsetX) < 1 &&
+          Math.abs(observations.afterGraphReopen.camera.panOffsetY) < 1,
+        zoomPersistedAfterAppRestart:
+          Math.abs(
+            observations.afterEntry.camera.targetScale -
+              observations.afterAppRestart.camera.targetScale
+          ) < 0.000001,
+        panResetAfterAppRestart:
+          Math.abs(observations.afterAppRestart.camera.panOffsetX) < 1 &&
+          Math.abs(observations.afterAppRestart.camera.panOffsetY) < 1
+      }
+    : null
   const exactNodeIds = (observation) =>
     JSON.stringify(observation.renderedNodeIds) === JSON.stringify(expected.filteredNodeIds)
   const assertions = {
@@ -630,6 +754,15 @@ async function main() {
       observations.afterAppRestart.graphOptionsSearch === expected.search &&
       observations.afterAppRestart.searchInputValue === expected.search,
     filteredNodesAfterAppRestart: exactNodeIds(observations.afterAppRestart),
+    ...(cameraProbe
+      ? {
+          cameraInputChanged: cameraChanged,
+          zoomPersistedAfterGraphReopen: cameraContract.zoomPersistedAfterGraphReopen,
+          panResetAfterGraphReopen: cameraContract.panResetAfterGraphReopen,
+          zoomPersistedAfterAppRestart: cameraContract.zoomPersistedAfterAppRestart,
+          panResetAfterAppRestart: cameraContract.panResetAfterAppRestart
+        }
+      : {}),
     lightThemeEveryObservation: [
       observations.afterEntry,
       observations.afterGraphReopen,
@@ -651,12 +784,15 @@ async function main() {
   }
   const manifest = {
     capturedAt: new Date().toISOString(),
-    stage: 'GP0-3b Obsidian Global Graph search persistence probe',
+    stage: cameraProbe
+      ? 'GP0-3b-c Obsidian Global Graph camera persistence probe'
+      : 'GP0-3b Obsidian Global Graph search persistence probe',
     status: Object.values(assertions).every(Boolean) ? 'reference-captured' : 'failed',
     scope: {
       product: 'Obsidian Desktop',
       version: expected.version,
       query: expected.search,
+      cameraProbe,
       lifecycle: ['entry', 'graph-close-reopen', 'full-app-restart'],
       fixture: relative(repoRoot, fixtureDirectory).replaceAll('\\', '/'),
       isolatedVault: relative(repoRoot, vaultDirectory).replaceAll('\\', '/'),
@@ -680,6 +816,7 @@ async function main() {
       }
     },
     assertions,
+    cameraContract,
     protection: {
       sourceBefore,
       sourceAfter,
@@ -704,6 +841,7 @@ async function main() {
         afterGraphReopen: observations.afterGraphReopen.graphOptionsSearch,
         afterAppRestart: observations.afterAppRestart.graphOptionsSearch,
         filteredNodeIds: observations.afterAppRestart.renderedNodeIds,
+        cameraContract,
         observation: manifest.scope.observation,
         sourceUnchanged: assertions.sourceUnchanged,
         isolatedVaultProtectedFilesUnchanged: assertions.isolatedVaultProtectedFilesUnchanged,

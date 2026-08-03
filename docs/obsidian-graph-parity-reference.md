@@ -170,6 +170,7 @@ Local Graphの可変Depthは、過去の明示指示により撤廃したまま�
 - 現行TSUZUNEは未解決Wikiリンク、tag、attachment、Tags、Attachments、Existing files only、Orphans、Outgoing／Incoming／Neighbor linksに加え、Files and links共通のExcluded files設定まで実装済みとする。Graph、Searchなど全対象での効果とManage UIの固定参照版一致はGP6で判定する。
 - 現行Global Graphは左ペインから選択ノートなしでも開ける。
 - 現行Search files入力はimplicit AND、OR、括弧、否定、phrase、regex、file／path／content／tag／case、line／block／section／task、scalar・配列propertyのpresence／value／null／数値比較、入力途中のquote／括弧／operator／regex／propertyを寛容に扱う解釈まで実装済みである。binary attachmentは通常termでは一致せず、`file:`／`path:`では一致する。malformed queryを含む同一fixtureで固定参照版と比較していないため、Search全体を`matched`とはしない。
+- GP0-3b-cではGlobal Graph、空query、8 node、1265×768、DPR 1、light theme、隔離profileを固定し、制御された論理wheel `deltaY=-120`と背景drag `+96,+64 CSS px`を入力した。Obsidian側はCDPマウス入力、TSUZUNE側は隔離オフスクリーンのDOM合成入力であり、物理マウス／trusted event parityは未証明である。Obsidian 1.13.4とTSUZUNEはいずれもzoom `1.5`をGraph再表示後・アプリ完全再起動後まで保持し、panは両時点で中央へ戻った。これは6比較項目を`matched`にする狭い証拠であり、pan永続化を互換仕様にしてはならない。正本は`docs/reports/assets/graph-gp0-camera-persistence/comparison.json`とする。
 
 ## Current gap and reopened boundary
 
@@ -181,7 +182,7 @@ Surface／Filter／Unresolved／tag／attachment／Local・Global独立入口／
 2. 隔離したuserDataと比較fixtureでForce既定値・最大値・fit・time-lapse開始／途中／終了の観測証拠を固定した。node drag解放後、通常のlive更新、収束方向は固定参照版との同条件captureが未完了である。
 3. Excluded filesのManage UIと全機能共通効果、Searchのmalformed query境界、context menuの項目・順序・無効状態・種別別openを固定参照版と比較する。
 4. unique neighbor数、Local root特別値、zoom連動のnode／label／line／arrow式、相互edge、色、dim、fade、arrow alpha、余白、sliderを同一viewport／DPI／themeの画像で比較する。
-5. Global Graphの未保存初回状態で設定パネルが開く点は固定fixtureで`matched`にした。Local／Global別のscale・panel・sectionの明示保存、pan／query／node位置、再起動後状態は固定参照版で引き続き判定する。非空queryの再起動復元は固定版で未観測のため、推測実装しない。
+5. Global Graphの未保存初回状態で設定パネルが開く点、非空queryのGraph再表示／再起動保持、Global cameraのzoom保持／pan中央復帰は固定fixtureで`matched`にした。Localのcamera、他query、panel／section、node位置、fit／reset、zoom限界、workspace leaf自動復元は固定参照版で引き続き判定する。
 6. Windows版ElectronでGroup色スウォッチdragを実操作確認する。
 7. 同一fixtureの画像、操作動画、node／edge／settings JSON、性能値、Markdown SHAをGP6 HTML比較レポートへまとめる。大規模Vaultの性能改善とviewport cullingは、計測で必要性が確認された場合だけ追加する。
 

@@ -7,6 +7,8 @@ coverage/
 .env.*.local
 *.tsbuildinfo
 work/
+.playwright-cli/
+output/playwright/
 *.log
 .DS_Store
 Thumbs.db
