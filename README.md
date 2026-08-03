@@ -147,6 +147,8 @@ Starter Vaultを使った比較では、時間対応Contextが固定4問で4/4�
 
 v0.6開発版では固定リングを継続するForce simulationによる不規則配置へ置き換え、中心力、反発力、リンク力、リンク距離をその場で調整して再起動後も復元できます。ローカルグラフだけ現在ノートを中心へ固定し、Vault全体グラフは自由配置します。大量のリンクごとにDOMやSVG要素を増やさないよう、辺は単一Canvas層へ集約し、操作対象のノートだけをDOMとして維持するハイブリッド描画へ移行しました。各Markdownは円形ノードとして表示し、Wikiリンクの線は円周間へ接続します。「全体表示」は表示中ノードとラベルの実寸範囲を自動計測し、60〜180%の範囲で余白付きに収めます。P0-4で導入した50ノート・200リンクの表示上限は、GP1-5で「Vault内の全Markdownを表示する」という現在要件に合わせて撤廃しました。以前の深度1／2切替と上限制御は過去の実装記録として[Graph Explorer P0-4 HTML Report](docs/reports/graph-explorer-p0-4-2026-08-01.html)へ残し、現在の比較契約は[Obsidian Graph Parity Reference](docs/obsidian-graph-parity-reference.md)で確認できます。
 
+Global GraphのSearch filesはLocal Graphとは別の表示状態として保存され、Graphを閉じて再表示した後とアプリ再起動後に復元されます。固定条件`path:"10_projects"`についてはObsidian 1.13.4との3点比較を完了しています。これは検索条件保持だけの一致で、Graph全体の完全互換を意味しません。
+
 ### GoogleログインとDrive同期
 
 Google接続は任意です。ログインしなくても、従来どおりローカルVaultの閲覧・編集とMCP連携を使えます。

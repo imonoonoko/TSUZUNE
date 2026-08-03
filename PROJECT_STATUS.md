@@ -8,11 +8,11 @@
 
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
-| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-03 11:48 JSTにpackaged／installed smoke、hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`、HEAD `5c0f4bb3`。`origin/agent/tsuzune-mcp-integration`と一致 | Git |
-| Working tree | clean。v0.6 Graph parity、Temporal、MCP自律更新、製品最適化、tests、fixture、report assetsをcheckpointへ収録済み。typecheck PASS、45 files／全367 tests PASS、MCP smoke 4 read＋3 write PASS | source、tests、fixture、report assets |
+| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-03 20:11 JSTにfeature checkpoint `ad26532`のclean sourceから更新し、packaged／installed smoke、hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。feature checkpoint `ad26532`を含み、同名originへ同期 | Git |
+| Working tree | Graph検索保持と最終資料をcheckpoint化。typecheck PASS、45 files／全368 tests PASS、MCP smoke 4 read＋3 write PASS | source、tests、fixture、report assets |
 | 最優先Track | v0.6 Obsidian Graph Parity | [PLAN.md](PLAN.md#active-track-v06-obsidian-graph-parity) |
-| 次の縦切り | GP0-3b／GP1-7の残り。同一fixtureでnode drag、camera、context menu、Groups、Animate、Restore defaults、再起動後保存を比較する | [Graph parity reference](docs/obsidian-graph-parity-reference.md) |
+| 次の縦切り | GP0-3b-c。同一fixtureでGlobal Graphのcamera zoom／panについて、Graph再表示とアプリ再起動の保存境界を比較する | [Graph parity reference](docs/obsidian-graph-parity-reference.md) |
 
 ## 実装済みの基盤
 
@@ -31,9 +31,12 @@ GP6-0Wでは公式Obsidian Desktop 1.13.4と同じfixture、viewport、DPR、the
 
 GP0-3b-aでは、未保存のGlobal Graphを初めて開いたときに設定パネルが表示される公開挙動を一致させました。Obsidian 1.13.4の`close: false`に対し、TSUZUNEのVault scope既定を`settingsOpen: true`としました。Local既定と利用者が明示保存した開閉状態は変更していません。この一項目だけが`matched`であり、node drag、camera、context menu、Groups、Animate、Restore defaults、再起動後保存は引き続き未判定です。
 
+GP0-3b-bでは、Global GraphのSearch filesへ`path:"10_projects"`を入力し、Graph再表示と別プロセスによるアプリ完全再起動後まで検索条件が保持されるかを比較しました。Obsidian 1.13.4とTSUZUNEはいずれも入力直後を含む3観測点で2 node／1 unique visible edgeを維持しました。このqueryとライフサイクルだけを`matched`とし、ピクセル一致、他query、起動時のGraph workspace自動復元は主張しません。
+
 - [GP6 comparison report](docs/reports/graph-gp6-production-comparison-2026-08-02.html)
 - [GP6 working-tree evidence](docs/reports/assets/graph-gp6/tsuzune-working-tree/manifest.json)
 - [GP7 initial settings comparison](docs/reports/graph-gp7-global-settings-default-2026-08-03.html)
+- [GP0 search persistence comparison](docs/reports/graph-gp0-search-persistence-2026-08-03.html)
 
 ### Performance
 
@@ -56,11 +59,11 @@ M5固定dogfoodでは時間整合性が1/4から4/4、State NoteからSourceへ�
 4. 実行順: `PLAN.md`のActive TrackとCurrent Transition Queue。
 5. 本番TSUZUNE Vault: 現在地への検索導線、判断履歴、日付付きEvidence。repo仕様の複製ではない。
 
-SemVerやHEADだけで同一性を判断しません。現在の本番v0.5.0は`5c0f4bb3`を作る直前のdirty working treeから検証・導入されたため、receiptはGit provenanceとして`93a8502f`と`dirty: true`を正しく保持しています。本番同一性はreceiptのsource fingerprint、EXE／`app.asar` hashを併用して確認します。
+SemVerやHEADだけで同一性を判断しません。現在の本番v0.5.0はfeature checkpoint `ad26532`のclean sourceから検証・導入され、receiptは同コミットと`dirty: false`を保持しています。本番同一性はreceiptのsource fingerprint、EXE／`app.asar` hashを併用して確認します。
 
 ## 優先キュー
 
-1. GP0-3b／GP1-7の残る同条件操作比較を採取し、`matched`、`different`、`missing`、`intentional exception`へ分類する。
+1. GP0-3b-cとしてcamera zoom／panのGraph再表示／アプリ再起動後の保存境界を採取し、`matched`、`different`、`missing`へ分類する。
 2. 次に確認できた公開差を一件だけ修正し、同じcaptureで回帰を確認する。
 3. Graph Trackを閉じた後に、720px／200% zoom、tree semantics、実Windows accessibilityを別sliceで扱う。
 4. その後、Google Tasks、Drive選択取込、YouTube、Data Portabilityから一つを再選択する。
@@ -68,7 +71,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番v0.5.0は`
 
 ## CheckpointとWorking treeの扱い
 
-現状は`5c0f4bb3`へ製品コード、tests、fixture、再現script、report assetsを収録し、working treeはcleanです。ブランチは同名のoriginへpush済みです。
+Graph検索保持の製品コード、tests、fixture、再現script、report assetsは`ad26532`へ収録し、ブランチは同名のoriginへpush済みです。現在地資料とproduction receiptも同じ区切りで同期します。
 
 - 次のsliceでも、sourceだけ、reportだけの機械的な分割commitをせず、共有型、App、Vault、testsを含む機能契約単位で切る。
 - fixture、日付付きreport、machine-readable artifactは比較の証拠として保持し、生成ゴミと決めつけて一括削除しない。
