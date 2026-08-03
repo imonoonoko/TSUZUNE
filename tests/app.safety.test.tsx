@@ -518,6 +518,7 @@ describe('App data-loss guards', () => {
     const graphViewStates = {
       local: {
         scale: 2,
+        query: 'file:A',
         settingsOpen: true,
         settingsSections: {
           filters: true,
@@ -528,6 +529,7 @@ describe('App data-loss guards', () => {
       },
       vault: {
         scale: 0.5,
+        query: 'file:B',
         settingsOpen: false,
         settingsSections: {
           filters: false,
@@ -562,7 +564,11 @@ describe('App data-loss guards', () => {
 
     expect(container.querySelector<HTMLElement>('.wiki-graph-stage')?.style.transform)
       .toContain('scale(2)')
-    expect(screen.getByRole('searchbox', { name: 'ファイルを検索…' })).toBeTruthy()
+    expect(
+      (screen.getByRole('searchbox', {
+        name: 'ファイルを検索…'
+      }) as HTMLInputElement).value
+    ).toBe('file:A')
     fireEvent.click(screen.getByRole('button', { name: 'グラフ設定を閉じる' }))
 
     await waitFor(() => {

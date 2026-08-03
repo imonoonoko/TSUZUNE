@@ -18,6 +18,7 @@ const DEFAULT_GRAPH_SETTINGS_SECTIONS: GraphSettingsSectionState = {
 
 export const DEFAULT_GRAPH_VIEW_STATE: GraphViewState = {
   scale: 1,
+  query: '',
   settingsOpen: false,
   settingsSections: DEFAULT_GRAPH_SETTINGS_SECTIONS
 }
@@ -53,6 +54,8 @@ export function parseGraphViewState(
 
   return {
     scale,
+    query:
+      typeof candidate?.query === 'string' ? candidate.query : defaults.query,
     settingsOpen:
       typeof candidate?.settingsOpen === 'boolean'
         ? candidate.settingsOpen

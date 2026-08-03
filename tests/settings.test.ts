@@ -180,6 +180,7 @@ describe('App settings', () => {
       graphViewStates: {
         local: {
           scale: 16,
+          query: 'file:Local',
           settingsOpen: true,
           settingsSections: {
             filters: true,
@@ -190,6 +191,7 @@ describe('App settings', () => {
         },
         vault: {
           scale: 0.5,
+          query: 'path:Projects',
           settingsOpen: false,
           settingsSections: {
             filters: false,
@@ -205,6 +207,7 @@ describe('App settings', () => {
       graphViewStates: {
         local: {
           scale: 8,
+          query: 'file:Local',
           settingsOpen: true,
           settingsSections: {
             filters: true,
@@ -215,6 +218,7 @@ describe('App settings', () => {
         },
         vault: {
           scale: 0.5,
+          query: 'path:Projects',
           settingsOpen: false,
           settingsSections: {
             filters: false,

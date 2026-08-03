@@ -26,6 +26,7 @@ describe('graph view state preload API', () => {
     await import('../src/preload/index')
     const state = {
       scale: 0.5,
+      query: 'tag:#project',
       settingsOpen: true,
       settingsSections: {
         filters: true,

@@ -1,0 +1,179 @@
+{
+  "capturedAt": "2026-08-03T11:00:45.786Z",
+  "query": "path:\"10_projects\"",
+  "repository": {
+    "head": "5c0f4bb3e0c33ce3384754872dafaea611161458",
+    "dirty": true,
+    "changedEntryCount": 17,
+    "porcelainSha256": "7E4F8C2F17B66BB880A3D9C7A21B6BDE44394F76F458A5BC7FA07EA70BF3723E"
+  },
+  "initial": {
+    "phase": "initial",
+    "processId": 7788,
+    "graphClosed": true,
+    "entered": {
+      "query": "path:\"10_projects\"",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md"
+      ],
+      "edgeCount": 1,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "dimensions": {
+        "innerWidth": 1264,
+        "innerHeight": 761,
+        "devicePixelRatio": 1
+      }
+    },
+    "reopened": {
+      "query": "path:\"10_projects\"",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md"
+      ],
+      "edgeCount": 1,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "dimensions": {
+        "innerWidth": 1264,
+        "innerHeight": 761,
+        "devicePixelRatio": 1
+      }
+    },
+    "settingsGraphViewState": {
+      "scale": 1,
+      "query": "path:\"10_projects\"",
+      "settingsOpen": true,
+      "settingsSections": {
+        "filters": true,
+        "groups": false,
+        "display": false,
+        "forces": false
+      }
+    },
+    "screenshots": [
+      {
+        "file": "01-query-entered.png",
+        "bytes": 95543,
+        "sha256": "3B330655E889F1BEE55C2FCF61105CAD9B8A3EC291C0E3B937EE957AB6C3D094",
+        "width": 1264,
+        "height": 761
+      },
+      {
+        "file": "02-graph-reopened.png",
+        "bytes": 94825,
+        "sha256": "5FEE0CABF3C7571A15398D71870A18C93518F606901E6C0756F11F18EB88E7A2",
+        "width": 1264,
+        "height": 761
+      }
+    ]
+  },
+  "restarted": {
+    "phase": "restarted",
+    "processId": 7696,
+    "restarted": {
+      "query": "path:\"10_projects\"",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md"
+      ],
+      "edgeCount": 1,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "dimensions": {
+        "innerWidth": 1264,
+        "innerHeight": 761,
+        "devicePixelRatio": 1
+      }
+    },
+    "settingsGraphViewState": {
+      "scale": 1,
+      "query": "path:\"10_projects\"",
+      "settingsOpen": true,
+      "settingsSections": {
+        "filters": true,
+        "groups": false,
+        "display": false,
+        "forces": false
+      }
+    },
+    "screenshots": [
+      {
+        "file": "03-app-restarted.png",
+        "bytes": 94847,
+        "sha256": "08F4858C9074F1A9B64CCB4445BCD83902A1FD43D411B4D5742CB7ECF727F82E",
+        "width": 1264,
+        "height": 761
+      }
+    ]
+  },
+  "persistedGraphViewState": {
+    "scale": 1,
+    "query": "path:\"10_projects\"",
+    "settingsOpen": true,
+    "settingsSections": {
+      "filters": true,
+      "groups": false,
+      "display": false,
+      "forces": false
+    }
+  },
+  "protection": {
+    "before": {
+      "sourceFixture": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3"
+      },
+      "productSource": {
+        "fileCount": 63,
+        "combinedSha256": "924F265AED3FA1540E91B60F95F399C45C6AF9B38F4EE6FA1792967CE24BF46D"
+      },
+      "builtApplication": {
+        "fileCount": 8,
+        "combinedSha256": "246E54C36602BDD47E070ACDD3843E615456D7B54BB88314BAEB7EB6487C3EED"
+      },
+      "isolatedMarkdown": {
+        "fileCount": 7,
+        "combinedSha256": "54B472FF4C646CF8858BBAF700F562CD001927123A18B72FE98398BCDBDBC59B"
+      }
+    },
+    "after": {
+      "sourceFixture": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3"
+      },
+      "productSource": {
+        "fileCount": 63,
+        "combinedSha256": "924F265AED3FA1540E91B60F95F399C45C6AF9B38F4EE6FA1792967CE24BF46D"
+      },
+      "builtApplication": {
+        "fileCount": 8,
+        "combinedSha256": "246E54C36602BDD47E070ACDD3843E615456D7B54BB88314BAEB7EB6487C3EED"
+      },
+      "isolatedMarkdown": {
+        "fileCount": 7,
+        "combinedSha256": "54B472FF4C646CF8858BBAF700F562CD001927123A18B72FE98398BCDBDBC59B"
+      }
+    }
+  },
+  "assertions": {
+    "queryEntered": true,
+    "queryRestoredAfterGraphReopen": true,
+    "queryRestoredAfterAppRestart": true,
+    "filteredNodeSetStable": true,
+    "settingsPersisted": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "noIsolatedProcessesRemaining": true
+  }
+}

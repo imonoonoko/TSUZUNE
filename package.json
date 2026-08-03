@@ -18,6 +18,8 @@
     "capture:graph:gp6:obsidian": "node scripts/capture-graph-gp6-obsidian.mjs",
     "capture:graph:gp6:tsuzune": "node scripts/capture-graph-gp6-tsuzune.mjs",
     "capture:graph:gp6:working-tree": "npm run build && electron scripts/capture-graph-gp6-working-tree.mjs",
+    "capture:graph:gp0-3b:obsidian": "node scripts/probe-obsidian-graph-search-persistence.mjs",
+    "capture:graph:gp0-3b:tsuzune": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs",
     "capture:optimization-ui": "electron scripts/capture-optimization-ui.mjs",
     "measure:vault:large": "npm run build && node scripts/run-large-vault-performance.mjs",
     "build:mcp": "node scripts/build-mcp.mjs",

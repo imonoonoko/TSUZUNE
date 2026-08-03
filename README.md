@@ -4,7 +4,7 @@
 
 TSUZUNEは、ローカルのMarkdownファイルをそのまま扱う、Windows向けの個人用メモアプリです。v0.2ではCodexとChatGPTデスクトップからVaultを参照・更新するMCP連携、v0.3では時間付き記憶、v0.4では1-hopグラフと手動Google Drive同期を追加しました。v0.5では、現在ノートの直接リンクに固定したローカルグラフ、孤立ノートを含むVault内の全Markdown表示、絞り込み、ズーム、パン、全体表示、関係凡例、接続強調、AI自動更新と更新履歴に加え、Windowsインストーラーとアプリ内更新を使えます。
 
-開発中の現在地、本番v0.5.0と未コミットv0.6の境界、検証済み範囲、次の作業は[PROJECT_STATUS.md](PROJECT_STATUS.md)に集約しています。資料全体は[docs/INDEX.md](docs/INDEX.md)から辿れます。
+開発中の現在地、本番v0.5.0とv0.6開発checkpointの境界、検証済み範囲、次の作業は[PROJECT_STATUS.md](PROJECT_STATUS.md)に集約しています。資料全体は[docs/INDEX.md](docs/INDEX.md)から辿れます。
 
 ## v0.1でできること
 

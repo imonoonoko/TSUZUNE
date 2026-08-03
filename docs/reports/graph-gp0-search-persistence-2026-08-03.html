@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GP0 Search Persistence Comparison — Obsidian 1.13.4 × TSUZUNE</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #202923;
+      --muted: #657069;
+      --paper: #f6f4ed;
+      --surface: #fffdf7;
+      --line: #d9ddd7;
+      --accent: #0f766e;
+      --accent-soft: #dff3ef;
+      --warning: #8a5a12;
+      --warning-soft: #fff2ce;
+      --shadow: 0 12px 34px rgb(36 48 41 / 8%);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 9% 0%, rgb(15 118 110 / 8%), transparent 30rem),
+        var(--paper);
+      color: var(--ink);
+      font-family: Inter, "Segoe UI", "Noto Sans JP", sans-serif;
+      line-height: 1.65;
+    }
+
+    main {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 64px 0 72px;
+    }
+
+    a {
+      color: var(--accent);
+      text-underline-offset: 0.2em;
+    }
+
+    code {
+      padding: 0.12rem 0.34rem;
+      border: 1px solid var(--line);
+      border-radius: 0.35rem;
+      background: #fff;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 0.9em;
+      overflow-wrap: anywhere;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 750;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 920px;
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 4.3rem);
+      line-height: 1.05;
+      letter-spacing: -0.045em;
+    }
+
+    .lede {
+      max-width: 860px;
+      margin: 24px 0 0;
+      color: #3f4b44;
+      font-size: clamp(1rem, 2vw, 1.22rem);
+    }
+
+    .verdict {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin-top: 24px;
+      padding: 8px 13px;
+      border: 1px solid #9ccfc6;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #0b625c;
+      font-size: 0.84rem;
+      font-weight: 750;
+      letter-spacing: 0.04em;
+    }
+
+    .verdict::before {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      content: "";
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 34px 0 0;
+    }
+
+    .metric,
+    .panel,
+    .shot {
+      border: 1px solid var(--line);
+      background: rgb(255 253 247 / 94%);
+      box-shadow: var(--shadow);
+    }
+
+    .metric {
+      min-height: 132px;
+      padding: 21px;
+      border-radius: 18px;
+    }
+
+    .metric strong {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 1.45rem;
+      line-height: 1.2;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    section {
+      margin-top: 58px;
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      font-size: clamp(1.45rem, 3vw, 2.15rem);
+      letter-spacing: -0.025em;
+    }
+
+    .section-intro {
+      max-width: 850px;
+      margin: 0 0 22px;
+      color: var(--muted);
+    }
+
+    .panel {
+      overflow: hidden;
+      border-radius: 20px;
+    }
+
+    .scope-note {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 18px;
+      padding: 22px;
+    }
+
+    .scope-note h3,
+    .pair-header h3 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+
+    .scope-note p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .limit {
+      padding: 16px 18px;
+      border: 1px solid #e8cf94;
+      border-radius: 14px;
+      background: var(--warning-soft);
+      color: #70470c;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+
+    th,
+    td {
+      padding: 15px 17px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #edf1ec;
+      color: #3b4840;
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    td:first-child {
+      font-weight: 700;
+    }
+
+    .match {
+      color: var(--accent);
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .pair {
+      margin-top: 30px;
+    }
+
+    .pair-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 12px;
+    }
+
+    .pair-header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .pair-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .shot {
+      overflow: hidden;
+      margin: 0;
+      border-radius: 16px;
+    }
+
+    .shot-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfaf4;
+      font-weight: 700;
+    }
+
+    .shot-label small {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .shot img {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #fff;
+    }
+
+    .shot figcaption {
+      padding: 10px 13px 12px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.78rem;
+      overflow-wrap: anywhere;
+    }
+
+    .integrity-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .integrity-list li {
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface);
+    }
+
+    .integrity-list strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .integrity-list span {
+      color: var(--muted);
+    }
+
+    .sources {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px 16px;
+      padding: 20px;
+    }
+
+    footer {
+      margin-top: 54px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    @media (max-width: 780px) {
+      main {
+        width: min(100% - 22px, 1180px);
+        padding-top: 38px;
+      }
+
+      .metrics,
+      .scope-note,
+      .pair-grid,
+      .integrity-list {
+        grid-template-columns: 1fr;
+      }
+
+      .pair-header {
+        display: block;
+      }
+
+      .pair-header p {
+        margin-top: 3px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">GP0 · Evidence comparison · 2026-08-03</p>
+      <h1>Search persistence:<br>Obsidian 1.13.4 × TSUZUNE</h1>
+      <p class="lede">
+        <strong>結論:</strong>
+        <code>path:"10_projects"</code> に限り、TSUZUNE は Obsidian 1.13.4 で観測した
+        Global Graph の検索保持挙動と一致した。対象は入力直後、Graph の close / reopen 後、
+        full app restart 後に Graph view を表示した時点の3チェックポイントである。
+      </p>
+      <div class="verdict">BEHAVIOR MATCH · BOUNDED</div>
+
+      <div class="metrics" aria-label="comparison summary">
+        <div class="metric">
+          <strong>1 exact query</strong>
+          <span><code>path:"10_projects"</code> のみを比較</span>
+        </div>
+        <div class="metric">
+          <strong>3 / 3 checkpoints</strong>
+          <span>entry · graph reopen · restart then graph view</span>
+        </div>
+        <div class="metric">
+          <strong>2 nodes / 1 edge</strong>
+          <span>Project Alpha と Project Beta の topology が安定</span>
+        </div>
+      </div>
+    </header>
+
+    <section aria-labelledby="scope-title">
+      <h2 id="scope-title">判定範囲</h2>
+      <div class="panel scope-note">
+        <div>
+          <h3>一致とした内容</h3>
+          <p>
+            各チェックポイントで exact query が入力欄に残り、同じ2ノートだけが表示され、
+            その間の1本の可視 edge が維持された。これは検索状態と filtered topology の
+            behavior match である。
+          </p>
+        </div>
+        <div class="limit">
+          <strong>明示的な限界</strong><br>
+          Pixel parity は判定していない。また restart の比較点は
+          「再起動後に Graph view を表示した時点」であり、Graph workspace / view が
+          起動時に自動復元されることを証明しない。
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="table-title">
+      <h2 id="table-title">比較表</h2>
+      <p class="section-intro">
+        Obsidian の probe は各時点で raw <code>renderedLinkCount: 2</code> を返すが、
+        画像上は2ノード間の1本の接続である。本表では unique visible edge 1本へ正規化した。
+        TSUZUNE は <code>edgeCount: 1</code> を直接記録している。
+      </p>
+      <div class="panel table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Checkpoint</th>
+              <th>Obsidian 1.13.4</th>
+              <th>TSUZUNE working tree</th>
+              <th>判定</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Query entry</td>
+              <td>Exact query 適用。2 nodes / 1 unique visible edge。</td>
+              <td>Exact query 適用。2 nodes / 1 edge。</td>
+              <td class="match">MATCH</td>
+            </tr>
+            <tr>
+              <td>Graph close / reopen</td>
+              <td>Query と filtered topology を保持。</td>
+              <td>Query と filtered topology を保持。</td>
+              <td class="match">MATCH</td>
+            </tr>
+            <tr>
+              <td>Full restart → Graph view</td>
+              <td>Second process の Graph で query と topology を確認。</td>
+              <td>Second process で Graph を表示後、query と topology を確認。</td>
+              <td class="match">MATCH*</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="section-intro" style="margin-top: 10px">
+        * Graph の自動 workspace restoration は比較対象外。
+      </p>
+    </section>
+
+    <section aria-labelledby="evidence-title">
+      <h2 id="evidence-title">Side-by-side evidence</h2>
+      <p class="section-intro">
+        画像は各 checkpoint の状態確認用であり、見た目の同一性を示すものではない。
+      </p>
+
+      <article class="pair">
+        <div class="pair-header">
+          <h3>01 · Query entry</h3>
+          <p>Exact query visible · 2 nodes · 1 visible edge</p>
+        </div>
+        <div class="pair-grid">
+          <figure class="shot">
+            <div class="shot-label"><span>Obsidian</span><small>1.13.4</small></div>
+            <img
+              src="assets/graph-gp0-search-persistence/obsidian-1.13.4/01-after-entry.png"
+              width="1265"
+              height="768"
+              alt="Obsidian 1.13.4 Global Graph after entering path 10_projects query"
+            >
+            <figcaption>assets/graph-gp0-search-persistence/obsidian-1.13.4/01-after-entry.png</figcaption>
+          </figure>
+          <figure class="shot">
+            <div class="shot-label"><span>TSUZUNE</span><small>working tree</small></div>
+            <img
+              src="assets/graph-gp0-3b-search-restart-working-tree/01-query-entered.png"
+              width="1264"
+              height="761"
+              alt="TSUZUNE Global Graph after entering path 10_projects query"
+            >
+            <figcaption>assets/graph-gp0-3b-search-restart-working-tree/01-query-entered.png</figcaption>
+          </figure>
+        </div>
+      </article>
+
+      <article class="pair">
+        <div class="pair-header">
+          <h3>02 · Graph close / reopen</h3>
+          <p>Exact query restored · topology unchanged</p>
+        </div>
+        <div class="pair-grid">
+          <figure class="shot">
+            <div class="shot-label"><span>Obsidian</span><small>1.13.4</small></div>
+            <img
+              src="assets/graph-gp0-search-persistence/obsidian-1.13.4/02-after-graph-reopen.png"
+              width="1265"
+              height="768"
+              loading="lazy"
+              alt="Obsidian 1.13.4 Global Graph after closing and reopening Graph"
+            >
+            <figcaption>assets/graph-gp0-search-persistence/obsidian-1.13.4/02-after-graph-reopen.png</figcaption>
+          </figure>
+          <figure class="shot">
+            <div class="shot-label"><span>TSUZUNE</span><small>working tree</small></div>
+            <img
+              src="assets/graph-gp0-3b-search-restart-working-tree/02-graph-reopened.png"
+              width="1264"
+              height="761"
+              loading="lazy"
+              alt="TSUZUNE Global Graph after closing and reopening Graph"
+            >
+            <figcaption>assets/graph-gp0-3b-search-restart-working-tree/02-graph-reopened.png</figcaption>
+          </figure>
+        </div>
+      </article>
+
+      <article class="pair">
+        <div class="pair-header">
+          <h3>03 · Full app restart, then Graph view</h3>
+          <p>Second process · exact query restored · topology unchanged</p>
+        </div>
+        <div class="pair-grid">
+          <figure class="shot">
+            <div class="shot-label"><span>Obsidian</span><small>1.13.4</small></div>
+            <img
+              src="assets/graph-gp0-search-persistence/obsidian-1.13.4/03-after-app-restart.png"
+              width="1265"
+              height="768"
+              loading="lazy"
+              alt="Obsidian 1.13.4 Global Graph after full application restart"
+            >
+            <figcaption>assets/graph-gp0-search-persistence/obsidian-1.13.4/03-after-app-restart.png</figcaption>
+          </figure>
+          <figure class="shot">
+            <div class="shot-label"><span>TSUZUNE</span><small>working tree</small></div>
+            <img
+              src="assets/graph-gp0-3b-search-restart-working-tree/03-app-restarted.png"
+              width="1264"
+              height="761"
+              loading="lazy"
+              alt="TSUZUNE Global Graph shown after full application restart"
+            >
+            <figcaption>assets/graph-gp0-3b-search-restart-working-tree/03-app-restarted.png</figcaption>
+          </figure>
+        </div>
+      </article>
+    </section>
+
+    <section aria-labelledby="integrity-title">
+      <h2 id="integrity-title">Isolation &amp; integrity</h2>
+      <ul class="integrity-list">
+        <li>
+          <strong>Isolated profiles</strong>
+          <span>
+            Obsidian と TSUZUNE は別々の isolated user-data profile と copied vault を使用し、
+            offscreen で capture した。
+          </span>
+        </li>
+        <li>
+          <strong>Source unchanged</strong>
+          <span>
+            Before / after digest assertions は source fixture の不変を確認。
+            TSUZUNE evidence は product source、built application、isolated Markdown の不変も確認した。
+          </span>
+        </li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="sources-title">
+      <h2 id="sources-title">Evidence sources</h2>
+      <div class="panel sources">
+        <a href="assets/graph-gp0-search-persistence/comparison.json">Comparison JSON</a>
+        <a href="assets/graph-gp0-search-persistence/manifest.json">Obsidian manifest</a>
+        <a href="assets/graph-gp0-search-persistence/obsidian-1.13.4/observation.json">Obsidian observation</a>
+        <a href="assets/graph-gp0-3b-search-restart-working-tree/manifest.json">TSUZUNE manifest</a>
+        <a href="assets/graph-gp0-3b-search-restart-working-tree/observation.json">TSUZUNE observation</a>
+      </div>
+    </section>
+
+    <footer>
+      GP0 search-persistence comparison · 2026-08-03 ·
+      Behavioral evidence only; no pixel-parity or automatic-workspace-restoration claim.
+    </footer>
+  </main>
+</body>
+</html>

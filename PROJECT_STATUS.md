@@ -8,9 +8,9 @@
 
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
-| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-03 11:08 JSTにpackaged／installed smoke、hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`、HEAD `93a8502f` | Git |
-| Working tree | v0.6 Graph parity、Temporal、MCP自律更新、製品最適化などの検証済み変更を含むdirty tree。2026-08-03時点でtypecheck PASS、全362 tests PASS。commitだけでは本番bundleを再現できない | source、tests、fixture、report assets |
+| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-03 11:48 JSTにpackaged／installed smoke、hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`、HEAD `5c0f4bb3`。`origin/agent/tsuzune-mcp-integration`と一致 | Git |
+| Working tree | clean。v0.6 Graph parity、Temporal、MCP自律更新、製品最適化、tests、fixture、report assetsをcheckpointへ収録済み。typecheck PASS、45 files／全367 tests PASS、MCP smoke 4 read＋3 write PASS | source、tests、fixture、report assets |
 | 最優先Track | v0.6 Obsidian Graph Parity | [PLAN.md](PLAN.md#active-track-v06-obsidian-graph-parity) |
 | 次の縦切り | GP0-3b／GP1-7の残り。同一fixtureでnode drag、camera、context menu、Groups、Animate、Restore defaults、再起動後保存を比較する | [Graph parity reference](docs/obsidian-graph-parity-reference.md) |
 
@@ -19,7 +19,7 @@
 - ローカルMarkdown編集、folder、Wiki link、backlink、検索、添付preview。
 - MCPによる検索、取得、backlink、Context、明示作成、revision付き更新、履歴付きAI自律更新。
 - Temporal Memory Lite M0〜M5。valid-timeとknowledge-timeを分け、過去時点への未来情報混入を保守的に抑制する。
-- Local／Global Graph、円形node、Canvas edge、Force runtime、Graph設定、Groups、検索、Animate、状態復元のworking-tree実装。
+- Local／Global Graph、円形node、Canvas edge、Force runtime、Graph設定、Groups、検索、Animate、状態復元のcheckpoint実装。
 - Google OAuth、基本profile、Google Drive手動同期。
 - Windows installer、アプリ内更新、本番更新gate、installed hash検証、MCP再登録。
 
@@ -56,7 +56,7 @@ M5固定dogfoodでは時間整合性が1/4から4/4、State NoteからSourceへ�
 4. 実行順: `PLAN.md`のActive TrackとCurrent Transition Queue。
 5. 本番TSUZUNE Vault: 現在地への検索導線、判断履歴、日付付きEvidence。repo仕様の複製ではない。
 
-SemVerやHEADだけで同一性を判断しません。現在の本番v0.5.0はdirty working treeから検証・導入されているため、receiptのsource fingerprint、EXE／`app.asar` hashを併用します。
+SemVerやHEADだけで同一性を判断しません。現在の本番v0.5.0は`5c0f4bb3`を作る直前のdirty working treeから検証・導入されたため、receiptはGit provenanceとして`93a8502f`と`dirty: true`を正しく保持しています。本番同一性はreceiptのsource fingerprint、EXE／`app.asar` hashを併用して確認します。
 
 ## 優先キュー
 
@@ -66,13 +66,12 @@ SemVerやHEADだけで同一性を判断しません。現在の本番v0.5.0はd
 4. その後、Google Tasks、Drive選択取込、YouTube、Data Portabilityから一つを再選択する。
 5. Context Compiler 2.0、より深い時間モデル、GraphRAG、独自DBは固定評価または計測で必要性が出てから一つずつ導入する。
 
-## Working treeの扱い
+## CheckpointとWorking treeの扱い
 
-現状はtracked 33 filesと多数の未追跡製品コード、tests、fixture、再現script、report assetsを含む大きなcheckpointです。未追跡の大半は生成ゴミではなく、PLANやREADMEから参照される証拠です。
+現状は`5c0f4bb3`へ製品コード、tests、fixture、再現script、report assetsを収録し、working treeはcleanです。ブランチは同名のoriginへpush済みです。
 
-- `git clean`や一括削除をしない。
-- sourceだけ、reportだけの機械的な分割commitをしない。共有型、App、Vault、testsを含む機能契約単位で切る。
-- `docs/reports/assets/graph-gp1/capture-error.txt`は成功capture前の未参照エラーログで、将来の整理候補。ただし確認なしには削除しない。
+- 次のsliceでも、sourceだけ、reportだけの機械的な分割commitをせず、共有型、App、Vault、testsを含む機能契約単位で切る。
+- fixture、日付付きreport、machine-readable artifactは比較の証拠として保持し、生成ゴミと決めつけて一括削除しない。
 - `work/`は再計測用のローカル作業領域。耐久する性能証拠は`docs/reports/assets/large-vault-performance-2026-08-03/summary-public.json`を参照する。
 
 ## 再開時の確認

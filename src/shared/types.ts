@@ -115,6 +115,7 @@ export interface GraphSettingsSectionState {
 
 export interface GraphViewState {
   scale: number
+  query: string
   settingsOpen: boolean
   settingsSections: GraphSettingsSectionState
 }

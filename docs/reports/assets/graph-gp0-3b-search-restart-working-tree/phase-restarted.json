@@ -1,0 +1,41 @@
+{
+  "phase": "restarted",
+  "processId": 7696,
+  "restarted": {
+    "query": "path:\"10_projects\"",
+    "graphLabel": "Vault全体グラフ",
+    "settingsPanelVisible": true,
+    "filterSectionVisible": true,
+    "nodePaths": [
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md"
+    ],
+    "edgeCount": 1,
+    "stageTransform": "translate(0px, 0px) scale(1)",
+    "dimensions": {
+      "innerWidth": 1264,
+      "innerHeight": 761,
+      "devicePixelRatio": 1
+    }
+  },
+  "settingsGraphViewState": {
+    "scale": 1,
+    "query": "path:\"10_projects\"",
+    "settingsOpen": true,
+    "settingsSections": {
+      "filters": true,
+      "groups": false,
+      "display": false,
+      "forces": false
+    }
+  },
+  "screenshots": [
+    {
+      "file": "03-app-restarted.png",
+      "bytes": 94847,
+      "sha256": "08F4858C9074F1A9B64CCB4445BCD83902A1FD43D411B4D5742CB7ECF727F82E",
+      "width": 1264,
+      "height": 761
+    }
+  ]
+}

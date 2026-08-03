@@ -231,6 +231,7 @@ describe('graph settings IPC', () => {
     expect(handler).toBeTypeOf('function')
     const localState = {
       scale: 99,
+      query: 'path:Projects',
       settingsOpen: true,
       settingsSections: {
         filters: true,

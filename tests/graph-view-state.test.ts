@@ -35,6 +35,7 @@ describe('graph view state', () => {
     ).toEqual({
       local: {
         scale: 8,
+        query: '',
         settingsOpen: true,
         settingsSections: {
           filters: true,

@@ -1,0 +1,154 @@
+{
+  "expected": {
+    "version": "1.13.4",
+    "installerSha256": "8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0",
+    "asarSha256": "51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917",
+    "markdownCount": 7,
+    "search": "path:\"10_projects\"",
+    "filteredNodeIds": [
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md"
+    ],
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1
+  },
+  "afterEntry": {
+    "label": "after-entry",
+    "capturedAt": "2026-08-03T10:53:06.233Z",
+    "processId": 13508,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-search\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "path:\"10_projects\"",
+    "graphOptionsSearch": "path:\"10_projects\"",
+    "renderedNodeIds": [
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md"
+    ],
+    "renderedNodeCount": 2,
+    "renderedLinkCount": 2,
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-search-persistence/obsidian-1.13.4/01-after-entry.png",
+      "bytes": 45460,
+      "sha256": "03D2AF565B34F39F85E3FFB5D43AD730B8F9FAE25B2F23540DC9627A842929EA"
+    }
+  },
+  "afterGraphReopen": {
+    "label": "after-graph-reopen",
+    "capturedAt": "2026-08-03T10:53:07.676Z",
+    "processId": 13508,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-search\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "path:\"10_projects\"",
+    "graphOptionsSearch": "path:\"10_projects\"",
+    "renderedNodeIds": [
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md"
+    ],
+    "renderedNodeCount": 2,
+    "renderedLinkCount": 2,
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-search-persistence/obsidian-1.13.4/02-after-graph-reopen.png",
+      "bytes": 43750,
+      "sha256": "F35F77C0B80646BC2F02D990433A9F1FC84C8A6A996AD13FB82F3B4F1C5B9855"
+    }
+  },
+  "afterAppRestart": {
+    "label": "after-app-restart",
+    "capturedAt": "2026-08-03T10:53:10.394Z",
+    "processId": 21172,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-search\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "path:\"10_projects\"",
+    "graphOptionsSearch": "path:\"10_projects\"",
+    "renderedNodeIds": [
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md"
+    ],
+    "renderedNodeCount": 2,
+    "renderedLinkCount": 2,
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "graphLeafCountAtRestart": 1,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-search-persistence/obsidian-1.13.4/03-after-app-restart.png",
+      "bytes": 43131,
+      "sha256": "90B22F2B722C3D6DE4EEAF3EC20B00914B9807C77D4524D18DF5D4F28197648C"
+    }
+  },
+  "sessions": [
+    {
+      "sessionNumber": 1,
+      "pid": 1720,
+      "cdpPort": 60267,
+      "startedAt": "2026-08-03T10:53:03.813Z",
+      "exited": {
+        "code": 0,
+        "signal": null,
+        "at": "2026-08-03T10:53:07.897Z"
+      },
+      "starterUsed": false,
+      "isolation": {
+        "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-search\\obsidian-1.13.4\\userdata",
+        "vault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-search\\obsidian-1.13.4\\vault",
+        "bounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "skipTaskbarRequested": true
+      }
+    },
+    {
+      "sessionNumber": 2,
+      "pid": 14556,
+      "cdpPort": 55657,
+      "startedAt": "2026-08-03T10:53:09.179Z",
+      "exited": {
+        "code": 0,
+        "signal": null,
+        "at": "2026-08-03T10:53:10.546Z"
+      },
+      "starterUsed": false,
+      "isolation": {
+        "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-search\\obsidian-1.13.4\\userdata",
+        "vault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-search\\obsidian-1.13.4\\vault",
+        "bounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "skipTaskbarRequested": true
+      }
+    }
+  ]
+}

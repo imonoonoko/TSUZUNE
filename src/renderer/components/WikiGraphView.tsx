@@ -253,7 +253,7 @@ export default function WikiGraphView({
     ...DEFAULT_GRAPH_FILTER_SETTINGS,
     showOrphans: includeOrphans
   }
-  const [filterQuery, setFilterQuery] = useState('')
+  const [filterQuery, setFilterQuery] = useState(initialViewState.query)
   const [zoom, setZoom] = useState(initialViewState.scale)
   const [pan, setPan] = useState<GraphPan>({ x: 0, y: 0 })
   const [hoveredPath, setHoveredPath] = useState<string | null>(null)
@@ -289,6 +289,7 @@ export default function WikiGraphView({
     const next = parseGraphViewState(savedViewState)
     viewStateRef.current = next
     setZoom(next.scale)
+    setFilterQuery(next.query)
     setSettingsOpen(next.settingsOpen)
     setSettingsSections(next.settingsSections)
   }, [savedViewState, scope])
@@ -454,6 +455,7 @@ export default function WikiGraphView({
 
   const restoreGraphSettings = (): void => {
     setFilterQuery('')
+    commitViewState({ query: '' })
     if (!filterSettings.showOrphans) {
       onIncludeOrphansChange(true)
     }
@@ -1033,7 +1035,11 @@ export default function WikiGraphView({
                     aria-label="ファイルを検索…"
                     placeholder="ファイルを検索…"
                     value={filterQuery}
-                    onChange={(event) => setFilterQuery(event.target.value)}
+                    onChange={(event) => {
+                      const query = event.target.value
+                      setFilterQuery(query)
+                      commitViewState({ query })
+                    }}
                     style={{ width: '100%', padding: '6px 8px' }}
                   />
                   <label

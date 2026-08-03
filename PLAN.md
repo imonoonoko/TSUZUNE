@@ -359,9 +359,9 @@ Temporal Memory Liteは完了済みの基盤として保持する。以下のM0�
 
 GP6-0として公式Obsidian Desktop 1.13.4のGlobal Graph既定画面を、固定fixture、1265×768、DPR 1、Default light theme、隔離profileで採取した。結果は7 Markdown、未解決1件を含む8 node、renderer上の有向link 12本、無向pair 8組で、fixture原本、隔離Vaultの保護対象、`obsidian://`登録がすべて不変である。証拠は`docs/reports/assets/graph-gp6/manifest.json`、同階層のenvironment／observation／PNGを正本とする。
 
-GP6-0Pではインストール済み本番TSUZUNE 0.5.0を同じfixture／viewport／themeで隔離採取し、公式1.13.4との差を`not-matched`として記録した。Markdown数は7対7、既存Markdown間の有向Wikiリンク11本は完全一致した一方、表示nodeは8対6、有向edgeは12対11、無向pairは8対7で、本番0.5.0には孤立ノート`90_orphan/Orphan.md`、未解決node`Missing Note`、`00_Home.md -> Missing Note`が表示されない。視覚面も公式の円形node／Force由来の不規則配置／既定矢印なし／右上浮動設定パネルに対して、本番0.5.0はpill node／規則配置／矢印あり／inline controlsで一致していない。fixture原本、隔離Vault、本番通常profileはすべて不変である。比較正本は`docs/reports/assets/graph-gp6/comparison.json`、人間向け証拠は`docs/reports/graph-gp6-production-comparison-2026-08-02.html`とする。この判定は配布済み0.5.0だけを評価したもので、より新しい未コミットworking treeの実装判定ではない。
+GP6-0Pではインストール済み本番TSUZUNE 0.5.0を同じfixture／viewport／themeで隔離採取し、公式1.13.4との差を`not-matched`として記録した。Markdown数は7対7、既存Markdown間の有向Wikiリンク11本は完全一致した一方、表示nodeは8対6、有向edgeは12対11、無向pairは8対7で、本番0.5.0には孤立ノート`90_orphan/Orphan.md`、未解決node`Missing Note`、`00_Home.md -> Missing Note`が表示されない。視覚面も公式の円形node／Force由来の不規則配置／既定矢印なし／右上浮動設定パネルに対して、本番0.5.0はpill node／規則配置／矢印あり／inline controlsで一致していない。fixture原本、隔離Vault、本番通常profileはすべて不変である。比較正本は`docs/reports/assets/graph-gp6/comparison.json`、人間向け証拠は`docs/reports/graph-gp6-production-comparison-2026-08-02.html`とする。この判定は配布済み0.5.0だけを評価したもので、後に`5c0f4bb3`へ収録されたGP6-0W実装の判定ではない。
 
-1. GP6-0Wとして現在のdirty working tree（Git HEAD `93a8502f103b86a92a1bf1f3af96f0192173b1f8`）を隔離buildし、同一fixture／1265×768／DPR 1／light themeで背景非フォーカス採取した。7 Markdown、8 node、12 directed edge、8 undirected pairは公式1.13.4と一致し、Canvas初回描画、8 node全件の有限geometry、fixture原本・隔離Markdown・製品source・capture中のbuild不変も確認した。製品source SHA-256は`CD0522CBADE425CE01C49197DAA52D354492D3524CA34995EB65F9AC260AE253`、build SHA-256は`65F943B538C521BA6009FB151338F46B41C46EF9ECC1FB5B9C1FBEDF0850F4E7`。構造一致だけで完全互換とは判定せず、製品chrome／canvas領域、色・強調、未解決nodeの内部ID、操作・保存境界は`not-matched`または未判定としてGP0-3b／GP1-7へ残す。正本は`docs/reports/assets/graph-gp6/tsuzune-working-tree/manifest.json`、同階層のenvironment／observation／PNGとする
+1. GP6-0Wとして採取時のdirty working tree（Git HEAD `93a8502f103b86a92a1bf1f3af96f0192173b1f8`）を隔離buildし、同一fixture／1265×768／DPR 1／light themeで背景非フォーカス採取した。7 Markdown、8 node、12 directed edge、8 undirected pairは公式1.13.4と一致し、Canvas初回描画、8 node全件の有限geometry、fixture原本・隔離Markdown・製品source・capture中のbuild不変も確認した。製品source SHA-256は`CD0522CBADE425CE01C49197DAA52D354492D3524CA34995EB65F9AC260AE253`、build SHA-256は`65F943B538C521BA6009FB151338F46B41C46EF9ECC1FB5B9C1FBEDF0850F4E7`。構造一致だけで完全互換とは判定せず、製品chrome／canvas領域、色・強調、未解決nodeの内部ID、操作・保存境界は`not-matched`または未判定としてGP0-3b／GP1-7へ残す。正本は`docs/reports/assets/graph-gp6/tsuzune-working-tree/manifest.json`、同階層のenvironment／observation／PNGとする
 2. [x] GP0-3b-a: 固定fixtureで最初に観測できた公開差はGlobal Graph初回表示の設定パネルだった。Obsidian 1.13.4の`close: false`に合わせ、TSUZUNEは未保存のVault scope既定だけを`settingsOpen: true`へ変更した。Local既定と明示保存済み状態は維持する。公開UIのRED→GREEN、全362 tests、隔離captureの`settingsPanelVisibleByDefault: true`を確認し、この一項目だけを`matched`とする。比較レポートは`docs/reports/graph-gp7-global-settings-default-2026-08-03.html`。
 3. Obsidian Desktop 1.13.4固定参照版とGP6-0W buildを同じ条件で操作し、node drag、camera、context menu、Groups、Animate開始・途中・終了、Restore defaults、再起動後の保存境界を採取する
 4. 両者の画像、操作動画、node／directed edge／settings JSON、Markdown SHAを同じ比較表へ並べ、各項目を`matched`、`different`、`missing`、唯一の`intentional exception`へ分類する
@@ -399,7 +399,7 @@ P0-3／P0-4当時は力学シミュレーション、グラフDB、GraphRAG、�
 - [x] GP0-3a: 公式1.13.4配布artifactのSHAを照合し、Graph色、設定箱寸法、公開設定の既定値とrangeを固定する
 - [x] GP6-0: 公式1.13.4 Global Graph既定画面を固定fixture／viewport／DPI／themeで採取し、artifact hash、node／directed edge、設定、Markdown不変、protocol復元を証拠化する
 - [x] GP6-0P: インストール済み本番TSUZUNE 0.5.0を同一fixtureで採取し、公式1.13.4との差を`not-matched`として証拠化する
-- [x] GP6-0W: 現在のdirty working treeを隔離build／同一captureし、構造8 node／12 directed edge／8 undirected pairの一致と、視覚・操作差が残る`not-matched`境界を証拠化する
+- [x] GP6-0W: 採取時のdirty working treeを隔離build／同一captureし、構造8 node／12 directed edge／8 undirected pairの一致と、視覚・操作差が残る`not-matched`境界を証拠化する
 - [x] GP1-1: 4つのForce設定モデル、既定値、初期値復元を追加
 - [x] GP1-2: Force設定をアプリ設定へ保存し、再起動時に復元
 - [x] GP1-3: 固定リング配置を力学レイアウトへ置換
@@ -720,7 +720,7 @@ Gate:
 
 更新日: 2026-08-03
 
-状態: working treeで実装・隔離fixture検証を完了。Windows本番環境への反映結果は`docs/reports/production-update-latest.json`を正とする。500件／2000件のcontrolled sparse fixtureを各3回、隔離copy／fresh profileで実測して性能baselineを固定した。GP6-0Wでは現在のdirty working treeを同一fixture／viewport／themeで採取し、7 Markdown、8 node、12 directed edge、8 undirected pairの構造一致を確認した。これは性能基準の合格判定でもObsidian完全互換の証明でもなく、実OSアクセシビリティ確認も未完了。次はGP0-3b／GP1-7としてnode drag、camera、context menu、Groups、Animate、Restore defaults、再起動後保存境界を公式1.13.4と同条件で比較する。
+状態: 実装・隔離fixture検証・このPCの本番反映を完了し、`5c0f4bb3`へ収録して同名originへpush済み。Windows本番環境への反映結果は`docs/reports/production-update-latest.json`を正とし、receiptはコミット直前のdirty provenance（`93a8502f`）を履歴として保持する。500件／2000件のcontrolled sparse fixtureを各3回、隔離copy／fresh profileで実測して性能baselineを固定した。GP6-0Wでは採取時のdirty working treeを同一fixture／viewport／themeで採取し、7 Markdown、8 node、12 directed edge、8 undirected pairの構造一致を確認した。これは性能基準の合格判定でもObsidian完全互換の証明でもなく、実OSアクセシビリティ確認も未完了。次はGP0-3b／GP1-7としてnode drag、camera、context menu、Groups、Animate、Restore defaults、再起動後保存境界を公式1.13.4と同条件で比較する。
 
 - [x] 100ms以内のVault外部変更をpath単位で集約し、20イベントを1回のsnapshot refreshへまとめる
 - [x] 外部エディタのunlink→add形式のファイル置換を選択中ノートへ再読込し、更新を取りこぼさない
@@ -766,13 +766,13 @@ Electron capture            PASS: brand mark / 14 icons / focus / inert / embedd
 残作業:
 
 - [x] 500件・2000件Vaultで入力遅延、外部変更burst、グラフ切替を実測し、aggregate medianと計測境界を固定する
-- [x] GP6-0Wで現在のdirty working treeを隔離buildし、公式Obsidian 1.13.4と同一fixture／viewport／themeで採取する
+- [x] GP6-0Wで採取時のdirty working treeを隔離buildし、公式Obsidian 1.13.4と同一fixture／viewport／themeで採取する
 - [ ] 次: GP0-3b／GP1-7でnode drag、camera、context menu、Groups、Animate、Restore defaults、再起動後保存境界を同条件で採取・比較する
 - [ ] 720px未満と200% zoomはsidebar・関連欄の折畳みを含めて別sliceで対応する
 - [ ] ファイルツリーへtreeitem semanticsと矢印キー操作を追加する
 - [ ] 標準prompt／confirmをアプリ内ダイアログへ段階的に置換する
 - [ ] 実Windows keyboard、screen reader、High Contrast、複数DPIを確認する
-- [ ] 検証後、このPCの本番TSUZUNEへ反映する
+- [x] 2026-08-03 11:48 JSTにこのPCの本番TSUZUNEへ反映し、packaged／installed smoke、hash一致、profile不変、MCP再登録を確認する
 
 Gate:
 

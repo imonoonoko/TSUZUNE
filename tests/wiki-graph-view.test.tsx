@@ -63,6 +63,7 @@ describe('WikiGraphView', () => {
         includeOrphans
         viewState={{
           scale: 0.125,
+          query: '',
           settingsOpen: false,
           settingsSections: {
             filters: false,
@@ -350,6 +351,7 @@ describe('WikiGraphView', () => {
     const onViewStateCommit = vi.fn()
     const viewState: GraphViewState = {
       scale: 2,
+      query: '',
       settingsOpen: true,
       settingsSections: {
         filters: true,
@@ -395,6 +397,50 @@ describe('WikiGraphView', () => {
         ...viewState.settingsSections,
         filters: false
       }
+    })
+  })
+
+  it('restores and commits the saved search query for the global graph', () => {
+    const onViewStateCommit = vi.fn()
+    const viewState = {
+      scale: 1,
+      query: 'file:Beta',
+      settingsOpen: true,
+      settingsSections: {
+        filters: true,
+        groups: false,
+        display: false,
+        forces: false
+      }
+    } satisfies GraphViewState
+
+    render(
+      <WikiGraphView
+        graph={{
+          nodes: [
+            { path: 'Alpha.md', name: 'Alpha' },
+            { path: 'Beta.md', name: 'Beta' }
+          ],
+          edges: []
+        }}
+        currentPath={null}
+        scope="vault"
+        includeOrphans
+        viewState={viewState}
+        onViewStateCommit={onViewStateCommit}
+        onScopeChange={() => undefined}
+        onIncludeOrphansChange={() => undefined}
+        onOpen={() => undefined}
+      />
+    )
+
+    const search = screen.getByRole('searchbox', { name: 'ファイルを検索…' })
+    expect((search as HTMLInputElement).value).toBe('file:Beta')
+
+    fireEvent.change(search, { target: { value: 'path:Projects' } })
+    expect(onViewStateCommit).toHaveBeenLastCalledWith({
+      ...viewState,
+      query: 'path:Projects'
     })
   })
 
@@ -1455,6 +1501,7 @@ describe('WikiGraphView', () => {
         includeOrphans
         viewState={{
           scale: 0.36288736930121135,
+          query: '',
           settingsOpen: false,
           settingsSections: {
             filters: false,
