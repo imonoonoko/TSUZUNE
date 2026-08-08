@@ -29,6 +29,8 @@
     "capture:optimization-ui": "electron scripts/capture-optimization-ui.mjs",
     "measure:vault:large": "npm run build && node scripts/run-large-vault-performance.mjs",
     "build:mcp": "node scripts/build-mcp.mjs",
+    "build:chatgpt-export": "node scripts/build-chatgpt-export-preview.mjs",
+    "preview:chatgpt-export": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preview-chatgpt-export.ps1",
     "check:mcp": "npm run build:mcp && node scripts/check-mcp.mjs",
     "mcp": "node out/mcp/server.js",
     "mcp:register": "npm run build:mcp && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/register-codex-mcp.ps1",

@@ -1758,15 +1758,42 @@ Data Portabilityは個人利用でも専用OAuth、対象scope、利用可能地
 - 5機能の同時実装
 - 公開配布、複数利用者、複数Googleアカウント対応
 
-## 19. Future Track: ChatGPT Export Intake
+## 19. Temporarily Active Supporting Track: ChatGPT Export Intake
 
-このトラックはM5完了後に着手する。Google連携やChatGPTへのログインとは分離し、ユーザーが明示的に選択したChatGPTデータエクスポートだけをローカルで取り込む。
+Google連携やChatGPTへのログインとは分離し、ユーザーが明示的に選択したChatGPTデータエクスポートだけをローカルで取り込む。2026-08-08、ユーザー指定によりGP0-3b-d完了後の一スライスをC0-Aへ再優先化し、同日に読み取り専用previewまで完了した。個人情報を含むpreviewはGitと本番Vaultへ入れず、人物情報の確定、Vault適用、UI、AI抽出、添付コピーは後続sliceへ分離する。
 
 ### Current Intake Status
 
-2026-07-31時点では、ローカルにChatGPT公式データエクスポートのZIP、`conversations.json`、`chat.html`は見つかっていない。現在参照できた会話はStarter Vaultへ出典付きで選択保存したが、全アーカイブ取込とは扱わない。
+2026-08-08、ユーザーからOpenAI公式Exportのローカルdirectoryが明示提供された。読取専用監査では番号付き会話JSON 4件、343会話、重複conversation ID 0、全message 4095件、current branch 4059件、old branch 36件、archived 321会話を確認した。入力には会話以外の連絡先・請求・顧客profile系データも含まれるため、C0-Aは会話JSONと参照添付の索引だけを対象とし、それらのCSVをTSUZUNE VaultまたはGitへ複製しない。
 
-次の開始条件は、ユーザーが公式エクスポートZIPまたは展開済みフォルダを提供することである。製品内の自動インポーターはM5完了後の別トラックだが、Codexによる一回限りの原本保持型整理はアーカイブ受領後に実行できる。
+`new-chat/outputs/OpenAI-export-整理`は検索用の暫定整理として参照できるが、分類対象が212／343会話に留まり、複数の分類ontologyが混在する。`07_conversation_index.csv`はrouting/provenanceに利用し、11〜31番台の分類とdashboard集計は正本にしない。C0-Aでは公式Exportから安定した原典索引を再構築する。
+
+### C0-A. Read-Only Preview And Normalized Manifest
+
+Status: **completed and verified on 2026-08-08**
+
+提供された公式ExportをGit管理外のローカルstagingへ4回処理し、343会話、4095 message、4059 current branch、36 old branch、321 archived、重複conversation ID 0、重複conversation/message複合key 0を再現した。4実行のcontent digestは`f092df0e9ed171263405bc67ef3a21d5a48cd583bedbceea3d63b59c73e98fa0`で一致した。602件の`.dat`を索引し、562件を参照解決、40件を未参照として保持、big-paste系5参照をmissingとして推測せず警告した。候補索引は843 user textであり、本人事実の確定数ではない。
+
+Work:
+
+- 明示指定されたZIP、展開フォルダ、会話JSONだけを読む
+- `current_node`から現行分岐を復元し、旧分岐も失わず`candidate_eligible: false`で索引する
+- conversation/message ID、role、小数Unix時刻、content kind、添付参照、source hash、branch membershipを正規化する
+- `is_do_not_remember`をtrue／false／nullの三値で保持し、trueは候補抽出を禁止、nullは後段の確定時にprivacy確認を要求する
+- 分割ZIP全体の`.dat`を展開せず索引し、許可したopaque IDの完全一致だけで添付参照をresolved／missing／ambiguous／unsupportedへ分類する
+- userの現行分岐にある通常textだけを後続候補抽出の対象にし、assistant、tool、system、thoughts、reasoning、旧分岐は対象外にする
+- 公式ID欠落時だけcanonical内容から決定的synthetic IDを作り、その事実を記録する
+- stagingへ`manifest.json`、`conversations.jsonl`、`messages.jsonl`を出力し、入力と本番Vaultは変更しない
+
+Gate（2026-08-08 PASS）:
+
+- [x] 入力ファイルの前後SHA-256が一致し、source write 0、Vault write 0
+- [x] 提供データで343会話、4095 message、4059 current branch、36 old branch、321 archived、重複conversation ID 0を再現
+- [x] 全recordからsource archive／entry、conversation、message、content hashへ追跡可能
+- [x] 同じ入力を2回処理してrecord ID、JSONL hash、content digestが一致し、重複0
+- [x] malformed JSONはfail-closed、壊れたcurrent chainは検出、欠落添付はwarningとし、既存ノートを変更しない
+- [x] 提供データの602 `.dat` entryを索引し、参照された562件、未参照40件、欠落したbig-paste系5参照を推測せず再現
+- [x] C0-A匿名fixture 15件、typecheck、全383 test、MCP smoke、`git diff --check`がPASS
 
 ### Confirmed Availability Boundary
 
@@ -1822,6 +1849,27 @@ Gate:
 - 派生候補の却下や削除が原本と添付を変更しない
 
 ### C1. Provenance-Backed Candidate Notes
+
+次の縦切りはC1-Aとし、C0-Aが出力した843件のeligible user textから、ローカルstaging内だけに出典付き候補previewを作る。TSUZUNE Vaultはまだ変更しない。
+
+#### C1-A. Candidate Preview Without Vault Writes
+
+Work:
+
+- 現在プロフィール、過去状態、意思決定、プロジェクト、嗜好、生活上の配慮、未確認へ候補を複数labelで振り分ける
+- 1候補ごとにconversation/message複合key、元時刻、content hash、抽出ruleを保持する
+- 同じ主張の候補をまとめても全source referenceを保持し、反対・訂正候補を別に見えるようにする
+- `privacyReviewRequired`の候補を通常候補と分離する
+- assistant出力、旧分岐、thoughts、reasoning recapを候補本文へ混ぜない
+- previewと差分reportだけをGit管理外へ出し、既存Vaultへのwriteを0に保つ
+
+Gate:
+
+- 同じC0-A出力から候補ID、source set、集計が決定的に一致する
+- 全候補から元messageへ戻れ、出典欠損候補は0
+- 現在／過去／未確認／訂正候補を同一のactive factへ潰さない
+- privacy review対象を自動承認しない
+- 人物プロフィール5ノートへの適用差分は表示だけで、承認前にwriteしない
 
 Work:
 

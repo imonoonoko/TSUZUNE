@@ -1,6 +1,6 @@
 # TSUZUNE Project Status
 
-更新日: 2026-08-04（JST）
+更新日: 2026-08-08（JST）
 
 この文書は、TSUZUNEの「今」を一枚で確認するための入口です。長期計画と完了履歴は[PLAN.md](PLAN.md)、製品の不変条件は[PRODUCT.md](PRODUCT.md)、画面・ブランド規約は[DESIGN.md](DESIGN.md)を正本とします。
 
@@ -9,10 +9,10 @@
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
 | インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-03 20:11 JSTにfeature checkpoint `ad26532`のclean sourceから更新し、packaged／installed smoke、hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`。HEAD `16984a3`は同名originへ同期済み。GP0-3b-dのcapture・report・資料はlocal closeout対象 | Git |
-| Working tree | Global node drag比較を完了。両製品で一時固定／pointerup解放／Force復帰／座標・pin非永続化の5/5項目が一致し、製品コード変更は不要。capture safeguards、build、report描画検証もPASS | capture scripts、fixture、report assets |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。GP0-3b-dとOpenAI公式Export C0-Aのcheckpointを同名originへ同期 | Git |
+| 直近slice | OpenAI公式Export C0-Aを実装・検証済み。原本非破壊の読み取り専用preview、安定ID、分岐・role・時刻・privacy・添付参照・hashの正規化に限定 | [PLAN.md](PLAN.md#c0-a-read-only-preview-and-normalized-manifest) |
 | 最優先Track | v0.6 Obsidian Graph Parity | [PLAN.md](PLAN.md#active-track-v06-obsidian-graph-parity) |
-| 次の縦切り | GP0-3b-e。同一fixtureでGlobal Graphのnode context menuの項目、順序、無効状態、種別別openを比較する | [Graph parity reference](docs/obsidian-graph-parity-reference.md) |
+| 次の縦切り | C1-A Candidate Preview。843件のeligible user textから出典付き候補をローカルpreviewへ整理し、人物プロフィールへの適用差分だけを表示する。Vault writeは0 | [PLAN.md](PLAN.md#c1-a-candidate-preview-without-vault-writes) |
 
 ## 実装済みの基盤
 
@@ -71,16 +71,17 @@ SemVerやHEADだけで同一性を判断しません。現在の本番v0.5.0はf
 
 ## 優先キュー
 
-1. GP0-3b-dのreport、comparison、repo文書を検証してcheckpointへ収録する。
-2. GP0-3b-eとしてGlobal Graphのnode context menuを採取し、`matched`、`different`、`missing`へ分類する。
-3. 公開差が確認できた場合だけ一件を修正し、同じcaptureで回帰を確認する。
-4. Graph Trackを閉じた後に、720px／200% zoom、tree semantics、実Windows accessibilityを別sliceで扱う。
-5. その後、Google Tasks、Drive選択取込、YouTube、Data Portabilityから一つを再選択する。
-6. Context Compiler 2.0、より深い時間モデル、GraphRAG、独自DBは固定評価または計測で必要性が出てから一つずつ導入する。
+1. C1-Aとして、843件のeligible user textを出典付き候補previewへ整理し、現在プロフィール5ノートとの差分をwriteなしで確認できるようにする。
+2. 候補の現在性、privacy、訂正関係、出典を検証し、本人確認または明示ルールを通過した候補だけを後続sliceでVaultへ適用する。
+3. GP0-3b-eとしてGlobal Graphのnode context menuを採取し、`matched`、`different`、`missing`へ分類する。
+4. 公開差が確認できた場合だけ一件を修正し、同じcaptureで回帰を確認する。
+5. Graph Trackを閉じた後に、720px／200% zoom、tree semantics、実Windows accessibilityを別sliceで扱う。
+6. その後、Google Tasks、Drive選択取込、YouTube、Data Portabilityから一つを再選択する。
+7. Context Compiler 2.0、より深い時間モデル、GraphRAG、独自DBは固定評価または計測で必要性が出てから一つずつ導入する。
 
 ## CheckpointとWorking treeの扱い
 
-Graph検索保持の製品コード、tests、fixture、再現script、report assetsは`ad26532`へ収録済みです。GP0-3b-cとGP0-3b-dは比較harness、raw observation、画像、比較表、HTMLレポートだけを追加し、製品sourceは変更していません。研究・資料checkpointのため同一binaryを再インストールせず、ブランチHEADと本番TSUZUNEの開発記録を同期します。
+Graph検索保持の製品コード、tests、fixture、再現script、report assetsは`ad26532`へ収録済みです。GP0-3b-cとGP0-3b-dは比較harness、raw observation、画像、比較表、HTMLレポートだけを追加し、製品sourceは変更していません。C0-AはGit管理外で動く開発用CLIと純粋coreであり、Electron本番UI・packaged runtime・Vaultへは接続していません。このcheckpointでは同一binaryを再インストールせず、ブランチと本番TSUZUNEの開発記録だけを同期します。
 
 - 次のsliceでも、sourceだけ、reportだけの機械的な分割commitをせず、共有型、App、Vault、testsを含む機能契約単位で切る。
 - fixture、日付付きreport、machine-readable artifactは比較の証拠として保持し、生成ゴミと決めつけて一括削除しない。

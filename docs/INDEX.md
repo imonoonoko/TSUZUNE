@@ -1,6 +1,6 @@
 # TSUZUNE Documentation Index
 
-更新日: 2026-08-03
+更新日: 2026-08-08
 
 ## まず読む
 
@@ -15,6 +15,7 @@
 - [Product Plan](../PLAN.md) — 長期計画、完了履歴、Active v0.6 Track。
 - [Obsidian Graph Parity Reference](obsidian-graph-parity-reference.md) — 固定比較対象と受入契約。
 - [MCP Integration](mcp-integration.md) — Codex／ChatGPTデスクトップ連携と書込境界。
+- [ChatGPT Export Intake](chatgpt-export-intake.md) — 公式Exportの読み取り専用preview、正規化、個人データ境界。
 - [Windows Production](windows-production.md) — build、installer、更新、受入手順。
 
 ## 現行の検証証拠
