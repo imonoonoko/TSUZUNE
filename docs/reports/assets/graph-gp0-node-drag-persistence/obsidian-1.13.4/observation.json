@@ -1,0 +1,697 @@
+{
+  "expected": {
+    "version": "1.13.4",
+    "installerSha256": "8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0",
+    "asarSha256": "51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917",
+    "markdownCount": 7,
+    "search": "",
+    "filteredNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note"
+    ],
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "drag": {
+      "targetNodeId": "00_Home.md",
+      "deltaX": 96,
+      "deltaY": 64
+    }
+  },
+  "beforeEntry": {
+    "label": "before-node-drag",
+    "capturedAt": "2026-08-03T12:24:55.068Z",
+    "processId": 16212,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-node-drag\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "",
+    "graphOptionsSearch": "",
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note"
+    ],
+    "renderedNodeCount": 8,
+    "renderedLinkCount": 12,
+    "targetNode": {
+      "id": "00_Home.md",
+      "x": -173.1363983154297,
+      "y": -96.17765045166016,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 631.3636016845703,
+      "clientY": 326.79109954833984
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-node-drag-persistence/obsidian-1.13.4/00-baseline.png",
+      "bytes": 62524,
+      "sha256": "3B1EB274C287D85A6B1C36A0B8BE87B3C2A319382428EE52C4AA19B765667E74"
+    }
+  },
+  "dragInput": {
+    "startX": 631.3685913085938,
+    "startY": 326.75062561035156,
+    "endX": 727.3685913085938,
+    "endY": 390.75062561035156
+  },
+  "duringDrag": {
+    "label": "during-node-drag",
+    "capturedAt": "2026-08-03T12:24:55.505Z",
+    "processId": 16212,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-node-drag\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "",
+    "graphOptionsSearch": "",
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note"
+    ],
+    "renderedNodeCount": 8,
+    "renderedLinkCount": 12,
+    "targetNode": {
+      "id": "00_Home.md",
+      "x": -77.13140869140625,
+      "y": -32.23230485202208,
+      "fx": -77.13140869140625,
+      "fy": -32.23230485202208,
+      "fixed": true,
+      "clientX": 727.3685913085938,
+      "clientY": 390.7364451479779
+    },
+    "dragNodeId": "00_Home.md",
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-node-drag-persistence/obsidian-1.13.4/01-during-node-drag.png",
+      "bytes": 62193,
+      "sha256": "F630845C0053773612ACC7CCE9FF08A29ECFCD414E7A08ED8999C42E47D5DAC6"
+    }
+  },
+  "afterReleaseImmediate": {
+    "label": "after-node-release-immediate",
+    "capturedAt": "2026-08-03T12:24:55.545Z",
+    "processId": 16212,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-node-drag\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "",
+    "graphOptionsSearch": "",
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note"
+    ],
+    "renderedNodeCount": 8,
+    "renderedLinkCount": 12,
+    "targetNode": {
+      "id": "00_Home.md",
+      "x": -77.13140869140625,
+      "y": -32.23230485202208,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 727.3685913085938,
+      "clientY": 390.7364451479779
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true
+  },
+  "afterRelease250ms": {
+    "label": "after-node-release-250ms",
+    "capturedAt": "2026-08-03T12:24:55.801Z",
+    "processId": 16212,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-node-drag\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "",
+    "graphOptionsSearch": "",
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note"
+    ],
+    "renderedNodeCount": 8,
+    "renderedLinkCount": 12,
+    "targetNode": {
+      "id": "00_Home.md",
+      "x": -104.85001373291016,
+      "y": -74.42249298095703,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 699.6499862670898,
+      "clientY": 348.54625701904297
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true
+  },
+  "afterEntry": {
+    "label": "after-node-release-settled",
+    "capturedAt": "2026-08-03T12:24:58.045Z",
+    "processId": 16212,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-node-drag\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "",
+    "graphOptionsSearch": "",
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note"
+    ],
+    "renderedNodeCount": 8,
+    "renderedLinkCount": 12,
+    "targetNode": {
+      "id": "00_Home.md",
+      "x": -128.4779510498047,
+      "y": -98.73819732666016,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 676.0220489501953,
+      "clientY": 324.23055267333984
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-node-drag-persistence/obsidian-1.13.4/02-after-node-release.png",
+      "bytes": 61983,
+      "sha256": "4A8A800C025FB0082DAFFC71887CBFB3373B3DAA5D2BA12B50730DED9FEE34CD"
+    }
+  },
+  "afterGraphReopen": {
+    "label": "after-graph-reopen",
+    "capturedAt": "2026-08-03T12:25:00.583Z",
+    "processId": 16212,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-node-drag\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "",
+    "graphOptionsSearch": "",
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note"
+    ],
+    "renderedNodeCount": 8,
+    "renderedLinkCount": 12,
+    "targetNode": {
+      "id": "00_Home.md",
+      "x": -61.22291946411133,
+      "y": -139.22714233398438,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 743.2770805358887,
+      "clientY": 283.7416076660156
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-node-drag-persistence/obsidian-1.13.4/03-after-graph-reopen.png",
+      "bytes": 56213,
+      "sha256": "9D1BEB3791AB287E4933FE18D80721E63F18F67DE7F5F60DDFFA116006F8B0CA"
+    }
+  },
+  "afterAppRestart": {
+    "label": "after-app-restart",
+    "capturedAt": "2026-08-03T12:25:04.733Z",
+    "processId": 11808,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-node-drag\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "",
+    "graphOptionsSearch": "",
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note"
+    ],
+    "renderedNodeCount": 8,
+    "renderedLinkCount": 12,
+    "targetNode": {
+      "id": "00_Home.md",
+      "x": 20.735958099365234,
+      "y": 176.87510681152344,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 825.2359580993652,
+      "clientY": 599.8438568115234
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "graphLeafCountAtRestart": 1,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-node-drag-persistence/obsidian-1.13.4/04-after-app-restart.png",
+      "bytes": 55748,
+      "sha256": "BE5DFF8015E355D5BF44D80AF7C43C5AE79D8EF266FB5305D75A7DA738C2C9FD"
+    }
+  },
+  "sessions": [
+    {
+      "sessionNumber": 1,
+      "pid": 10440,
+      "cdpPort": 57152,
+      "startedAt": "2026-08-03T12:24:51.467Z",
+      "exited": {
+        "code": 0,
+        "signal": null,
+        "at": "2026-08-03T12:25:00.749Z"
+      },
+      "starterUsed": false,
+      "isolation": {
+        "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-node-drag\\obsidian-1.13.4\\userdata",
+        "vault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-node-drag\\obsidian-1.13.4\\vault",
+        "bounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "skipTaskbarRequested": true
+      }
+    },
+    {
+      "sessionNumber": 2,
+      "pid": 18456,
+      "cdpPort": 62232,
+      "startedAt": "2026-08-03T12:25:01.893Z",
+      "exited": {
+        "code": 0,
+        "signal": null,
+        "at": "2026-08-03T12:25:04.870Z"
+      },
+      "starterUsed": false,
+      "isolation": {
+        "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-node-drag\\obsidian-1.13.4\\userdata",
+        "vault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-node-drag\\obsidian-1.13.4\\vault",
+        "bounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "skipTaskbarRequested": true
+      }
+    }
+  ]
+}

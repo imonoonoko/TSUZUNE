@@ -7,24 +7,35 @@ const repoRoot = resolve(import.meta.dirname, '..')
 const scriptPath = resolve(import.meta.filename)
 const cameraProbe =
   process.argv.includes('--camera') || process.env.TSUZUNE_GRAPH_CAMERA_PROBE === '1'
+const nodeDragProbe =
+  process.argv.includes('--node-drag') || process.env.TSUZUNE_GRAPH_NODE_DRAG_PROBE === '1'
+if (cameraProbe && nodeDragProbe) {
+  throw new Error('--camera と --node-drag は同時に指定できません。')
+}
+const probeKind = nodeDragProbe ? 'node-drag' : cameraProbe ? 'camera' : 'search'
 const sourceFixture = resolve(repoRoot, 'fixtures/obsidian-graph-parity-vault')
 const workRoot = resolve(
   repoRoot,
-  cameraProbe
-    ? 'work/graph-gp0-camera-restart-working-tree'
-    : 'work/graph-gp0-3b-search-restart-working-tree'
+  probeKind === 'node-drag'
+    ? 'work/graph-gp0-node-drag-restart-working-tree'
+    : cameraProbe
+      ? 'work/graph-gp0-camera-restart-working-tree'
+      : 'work/graph-gp0-3b-search-restart-working-tree'
 )
 const vault = resolve(workRoot, 'vault')
 const userData = resolve(workRoot, 'userdata')
 const outputRoot = resolve(
   repoRoot,
-  cameraProbe
-    ? 'docs/reports/assets/graph-gp0-camera-persistence/tsuzune-working-tree'
-    : 'docs/reports/assets/graph-gp0-3b-search-restart-working-tree'
+  probeKind === 'node-drag'
+    ? 'docs/reports/assets/graph-gp0-node-drag-persistence/tsuzune-working-tree'
+    : cameraProbe
+      ? 'docs/reports/assets/graph-gp0-camera-persistence/tsuzune-working-tree'
+      : 'docs/reports/assets/graph-gp0-3b-search-restart-working-tree'
 )
 const settingsPath = resolve(userData, 'settings.json')
-const query = cameraProbe ? '' : 'path:"10_projects"'
-const viewport = cameraProbe ? { width: 1265, height: 768 } : { width: 1280, height: 800 }
+const query = cameraProbe || nodeDragProbe ? '' : 'path:"10_projects"'
+const viewport = cameraProbe || nodeDragProbe ? { width: 1265, height: 768 } : { width: 1280, height: 800 }
+const drag = { targetNodePath: '00_Home.md', deltaX: 96, deltaY: 64 }
 const expectedCameraNodePaths = [
   '00_Home.md',
   '10_projects/Project Alpha.md',
@@ -291,7 +302,14 @@ async function fillSearch(window, value) {
 async function graphState(window) {
   return evaluate(
     window,
-    `(() => ({
+    `(() => {
+      const targetButton = [...document.querySelectorAll('button.wiki-graph-node')]
+        .find((node) => node.title === ${JSON.stringify(drag.targetNodePath)})
+      const targetDot = targetButton?.querySelector('.wiki-graph-node-dot')
+      const targetBounds = targetDot?.getBoundingClientRect() ?? null
+      const leftMatch = targetButton?.style.left.match(/(-?[0-9]+(?:[.][0-9]+)?)px/)
+      const topMatch = targetButton?.style.top.match(/(-?[0-9]+(?:[.][0-9]+)?)px/)
+      return {
       query: document.querySelector('[aria-label="ファイルを検索…"]')?.value ?? null,
       graphLabel: document.querySelector('.wiki-graph-view')?.getAttribute('aria-label') ?? null,
       settingsPanelVisible: Boolean(document.querySelector('aside[aria-label="グラフ設定"]')),
@@ -301,6 +319,19 @@ async function graphState(window) {
         .sort(),
       edgeCount: Number(document.querySelector('canvas.wiki-graph-edges')?.dataset.edgeCount ?? 0),
       stageTransform: document.querySelector('.wiki-graph-stage')?.style.transform ?? '',
+      targetNode: targetButton && targetBounds
+        ? {
+            path: targetButton.title,
+            x: leftMatch ? Number(leftMatch[1]) : null,
+            y: topMatch ? Number(topMatch[1]) : null,
+            clientX: targetBounds.left + targetBounds.width / 2,
+            clientY: targetBounds.top + targetBounds.height / 2,
+            dotWidth: targetBounds.width,
+            dotHeight: targetBounds.height,
+            styleLeft: targetButton.style.left,
+            styleTop: targetButton.style.top
+          }
+        : null,
       canvasRect: (() => {
         const canvas = document.querySelector('[aria-label="グラフキャンバス"]')
         if (!canvas) return null
@@ -312,7 +343,7 @@ async function graphState(window) {
         innerHeight,
         devicePixelRatio
       }
-    }))()`
+    }})()`
   )
 }
 
@@ -335,6 +366,29 @@ async function waitForStableGraph(window, expectedQuery) {
     await delay(200)
   }
   throw new Error(`Graph検索結果が安定しませんでした: ${JSON.stringify(await graphState(window))}`)
+}
+
+async function waitForTargetNodeStability(window, timeoutMilliseconds = 20_000) {
+  const deadline = Date.now() + timeoutMilliseconds
+  let previous = null
+  let stableSamples = 0
+  while (Date.now() < deadline) {
+    const state = await graphState(window)
+    const current = state.targetNode
+    if (
+      current &&
+      previous &&
+      Math.hypot(current.clientX - previous.clientX, current.clientY - previous.clientY) < 0.75
+    ) {
+      stableSamples += 1
+      if (stableSamples >= 4) return state
+    } else {
+      stableSamples = 0
+    }
+    previous = current
+    await delay(200)
+  }
+  throw new Error('TSUZUNEのdrag対象nodeが安定しませんでした。')
 }
 
 async function waitForSavedQuery(expectedQuery) {
@@ -408,6 +462,84 @@ async function applyCameraInput(window) {
   await delay(500)
   await waitForPaint(window)
   return result
+}
+
+async function beginNodeDragInput(window) {
+  const target = await evaluate(
+    window,
+    `(() => {
+      const button = [...document.querySelectorAll('button.wiki-graph-node')]
+        .find((node) => node.title === ${JSON.stringify(drag.targetNodePath)})
+      const dot = button?.querySelector('.wiki-graph-node-dot')
+      const canvas = document.querySelector('[aria-label="グラフキャンバス"]')
+      if (!(button instanceof HTMLButtonElement) || !(dot instanceof HTMLElement)) {
+        throw new Error('drag対象nodeが見つかりません。')
+      }
+      if (!(canvas instanceof HTMLElement)) throw new Error('Graph canvasが見つかりません。')
+      const targetBounds = dot.getBoundingClientRect()
+      const canvasBounds = canvas.getBoundingClientRect()
+      const startX = targetBounds.left + targetBounds.width / 2
+      const startY = targetBounds.top + targetBounds.height / 2
+      const endX = startX + ${drag.deltaX}
+      const endY = startY + ${drag.deltaY}
+      if (
+        startX < canvasBounds.left ||
+        startX > canvasBounds.right ||
+        startY < canvasBounds.top ||
+        startY > canvasBounds.bottom ||
+        endX > canvasBounds.right ||
+        endY > canvasBounds.bottom
+      ) {
+        throw new Error('drag経路がGraph canvas外です。')
+      }
+      return { startX, startY, endX, endY }
+    })()`
+  )
+  const debug = window.webContents.debugger
+  if (!debug.isAttached()) debug.attach('1.3')
+  await debug.sendCommand('Input.dispatchMouseEvent', {
+    type: 'mouseMoved',
+    x: target.startX,
+    y: target.startY,
+    button: 'none',
+    buttons: 0
+  })
+  await debug.sendCommand('Input.dispatchMouseEvent', {
+    type: 'mousePressed',
+    x: target.startX,
+    y: target.startY,
+    button: 'left',
+    buttons: 1,
+    clickCount: 1
+  })
+  for (let step = 1; step <= 4; step += 1) {
+    await debug.sendCommand('Input.dispatchMouseEvent', {
+      type: 'mouseMoved',
+      x: target.startX + (drag.deltaX * step) / 4,
+      y: target.startY + (drag.deltaY * step) / 4,
+      button: 'left',
+      buttons: 1
+    })
+    await delay(35)
+  }
+  await delay(200)
+  return target
+}
+
+async function releaseNodeDragInput(window, target) {
+  const debug = window.webContents.debugger
+  try {
+    await debug.sendCommand('Input.dispatchMouseEvent', {
+      type: 'mouseReleased',
+      x: target.endX,
+      y: target.endY,
+      button: 'left',
+      buttons: 0,
+      clickCount: 1
+    })
+  } finally {
+    if (debug.isAttached()) debug.detach()
+  }
 }
 
 function cameraFromState(state) {
@@ -506,15 +638,38 @@ async function runWorker(phase) {
     if (phase === 'initial') {
       await ensureGlobalGraphControls(window)
       await fillSearch(window, query)
-      const baseline = await waitForStableGraph(window, query)
-      const baselineScreenshot = cameraProbe
+      let baseline = await waitForStableGraph(window, query)
+      if (nodeDragProbe) baseline = await waitForTargetNodeStability(window)
+      const baselineScreenshot = cameraProbe || nodeDragProbe
         ? await capture(window, '00-baseline.png')
         : null
-      const input = cameraProbe ? await applyCameraInput(window) : null
-      const entered = cameraProbe ? await graphState(window) : baseline
+      let input = null
+      let duringDrag = null
+      let afterReleaseImmediate = null
+      let afterRelease250ms = null
+      if (cameraProbe) {
+        input = await applyCameraInput(window)
+      } else if (nodeDragProbe) {
+        input = await beginNodeDragInput(window)
+        try {
+          duringDrag = await graphState(window)
+          await capture(window, '01-during-node-drag.png')
+        } finally {
+          await releaseNodeDragInput(window, input)
+        }
+        afterReleaseImmediate = await graphState(window)
+        await delay(250)
+        afterRelease250ms = await graphState(window)
+        await waitForTargetNodeStability(window)
+      }
+      const entered = cameraProbe || nodeDragProbe ? await graphState(window) : baseline
       const enteredScreenshot = await capture(
         window,
-        cameraProbe ? '01-after-camera-input.png' : '01-query-entered.png'
+        nodeDragProbe
+          ? '02-after-node-release.png'
+          : cameraProbe
+            ? '01-after-camera-input.png'
+            : '01-query-entered.png'
       )
       const settingsAfterInput = cameraProbe
         ? await waitForSavedScale(cameraFromState(entered).scale)
@@ -528,12 +683,17 @@ async function runWorker(phase) {
       if (!graphClosed) throw new Error('Global Graphを編集画面へ閉じられませんでした。')
 
       await ensureGlobalGraphControls(window)
-      const reopened = await waitForStableGraph(window, query)
+      let reopened = await waitForStableGraph(window, query)
+      if (nodeDragProbe) reopened = await waitForTargetNodeStability(window)
       const reopenedScreenshot = await capture(
         window,
-        cameraProbe ? '02-after-graph-reopen.png' : '02-graph-reopened.png'
+        nodeDragProbe
+          ? '03-after-graph-reopen.png'
+          : cameraProbe
+            ? '02-after-graph-reopen.png'
+            : '02-graph-reopened.png'
       )
-      if (!cameraProbe) {
+      if (!cameraProbe && !nodeDragProbe) {
         assertFilteredState(entered, 'query入力直後')
         assertFilteredState(reopened, 'Graph再表示後')
       }
@@ -549,6 +709,9 @@ async function runWorker(phase) {
           graphClosed,
           baseline,
           input,
+          duringDrag,
+          afterReleaseImmediate,
+          afterRelease250ms,
           entered,
           reopened,
           settingsGraphViewState: settingsAfterInput.graphViewStates.vault,
@@ -558,15 +721,20 @@ async function runWorker(phase) {
       )
     } else if (phase === 'restarted') {
       await ensureGlobalGraphControls(window)
-      const restarted = await waitForStableGraph(window, query)
+      let restarted = await waitForStableGraph(window, query)
+      if (nodeDragProbe) restarted = await waitForTargetNodeStability(window)
       const restartedScreenshot = await capture(
         window,
-        cameraProbe ? '03-after-app-restart.png' : '03-app-restarted.png'
+        nodeDragProbe
+          ? '04-after-app-restart.png'
+          : cameraProbe
+            ? '03-after-app-restart.png'
+            : '03-app-restarted.png'
       )
       const settingsAfterRestart = cameraProbe
         ? await waitForSavedScale(cameraFromState(restarted).scale)
         : await waitForSavedQuery(query)
-      if (!cameraProbe) assertFilteredState(restarted, 'アプリ再起動後')
+      if (!cameraProbe && !nodeDragProbe) assertFilteredState(restarted, 'アプリ再起動後')
       await writeFile(
         resolve(outputRoot, 'phase-restarted.json'),
         `${JSON.stringify({
@@ -627,6 +795,7 @@ function runWorkerProcess(phase) {
       env: {
         ...process.env,
         TSUZUNE_GRAPH_CAMERA_PROBE: cameraProbe ? '1' : '',
+        TSUZUNE_GRAPH_NODE_DRAG_PROBE: nodeDragProbe ? '1' : '',
         TSUZUNE_GRAPH_SEARCH_RESTART_PHASE: phase
       }
     }
@@ -680,9 +849,11 @@ async function runController() {
 
   try {
     stage(
-      cameraProbe
-        ? 'camera入力とGraph再表示をcaptureします。'
-        : 'query入力とGraph再表示をcaptureします。'
+      nodeDragProbe
+        ? 'node drag入力とGraph再表示をcaptureします。'
+        : cameraProbe
+          ? 'camera入力とGraph再表示をcaptureします。'
+          : 'query入力とGraph再表示をcaptureします。'
     )
     runWorkerProcess('initial')
     stage('別processでアプリ再起動後をcaptureします。')
@@ -707,6 +878,41 @@ async function runController() {
         afterInput: cameraFromState(initial.entered),
         afterGraphReopen: cameraFromState(initial.reopened),
         afterAppRestart: cameraFromState(restarted.restarted)
+      }
+    : null
+  const nodeClientDistance = (left, right) =>
+    left && right
+      ? Math.hypot(left.clientX - right.clientX, left.clientY - right.clientY)
+      : Number.POSITIVE_INFINITY
+  const nodeDragContract = nodeDragProbe
+    ? {
+        targetNodePath: drag.targetNodePath,
+        requestedDeltaCssPx: { x: drag.deltaX, y: drag.deltaY },
+        baseline: initial.baseline.targetNode,
+        duringHold: initial.duringDrag.targetNode,
+        afterReleaseImmediate: initial.afterReleaseImmediate.targetNode,
+        afterRelease250ms: initial.afterRelease250ms.targetNode,
+        afterReleaseSettled: initial.entered.targetNode,
+        afterGraphReopen: initial.reopened.targetNode,
+        afterAppRestart: restarted.restarted.targetNode,
+        appliedDeltaCssPx: {
+          x: initial.duringDrag.targetNode.clientX - initial.baseline.targetNode.clientX,
+          y: initial.duringDrag.targetNode.clientY - initial.baseline.targetNode.clientY
+        },
+        heldAtPointer:
+          Math.hypot(
+            initial.duringDrag.targetNode.clientX - initial.input.endX,
+            initial.duringDrag.targetNode.clientY - initial.input.endY
+          ) < 3,
+        movedAfterRelease:
+          nodeClientDistance(initial.duringDrag.targetNode, initial.entered.targetNode) > 2,
+        resetNearBaselineAfterGraphReopen:
+          nodeClientDistance(initial.baseline.targetNode, initial.reopened.targetNode) < 3,
+        resetNearBaselineAfterAppRestart:
+          nodeClientDistance(initial.baseline.targetNode, restarted.restarted.targetNode) < 3,
+        nodePositionAbsentFromSettings: !Object.keys(settings.graphViewStates?.vault ?? {}).some(
+          (key) => /node.*position|position.*node|pinned/i.test(key)
+        )
       }
     : null
 
@@ -738,8 +944,33 @@ async function runController() {
       protectionAfter.isolatedMarkdown.combinedSha256,
     noIsolatedProcessesRemaining: processesUsingCommandLineFragment(userData).length === 0
   }
-  const assertions = cameraProbe
+  const assertions = nodeDragProbe
     ? {
+        exactNodeSetAtEveryCheckpoint: [
+          initial.baseline,
+          initial.duringDrag,
+          initial.afterReleaseImmediate,
+          initial.afterRelease250ms,
+          initial.entered,
+          initial.reopened,
+          restarted.restarted
+        ].every(
+          (state) => JSON.stringify(state.nodePaths) === JSON.stringify(expectedCameraNodePaths)
+        ),
+        nodeDragApplied:
+          Math.abs(nodeDragContract.appliedDeltaCssPx.x - drag.deltaX) < 3 &&
+          Math.abs(nodeDragContract.appliedDeltaCssPx.y - drag.deltaY) < 3,
+        nodeHeldAtPointer: nodeDragContract.heldAtPointer,
+        nodeMovedAfterRelease: nodeDragContract.movedAfterRelease,
+        nodeResetNearBaselineAfterGraphReopen:
+          nodeDragContract.resetNearBaselineAfterGraphReopen,
+        nodeResetNearBaselineAfterAppRestart:
+          nodeDragContract.resetNearBaselineAfterAppRestart,
+        nodePositionNotPersistedInSettings: nodeDragContract.nodePositionAbsentFromSettings,
+        ...sharedAssertions
+      }
+    : cameraProbe
+      ? {
         exactNodeSetAtEveryCheckpoint: [
           initial.baseline,
           initial.entered,
@@ -765,20 +996,22 @@ async function runController() {
         settingsPersisted:
           Math.abs((settings.graphViewStates?.vault?.scale ?? 0) - cameraContract.afterInput.scale) < 1e-9,
         ...sharedAssertions
-      }
-    : {
-        queryEntered: initial.entered.query === query,
-        queryRestoredAfterGraphReopen: initial.reopened.query === query,
-        queryRestoredAfterAppRestart: restarted.restarted.query === query,
-        settingsPersisted: settings.graphViewStates?.vault?.query === query,
-        ...sharedAssertions
-      }
+        }
+      : {
+          queryEntered: initial.entered.query === query,
+          queryRestoredAfterGraphReopen: initial.reopened.query === query,
+          queryRestoredAfterAppRestart: restarted.restarted.query === query,
+          settingsPersisted: settings.graphViewStates?.vault?.query === query,
+          ...sharedAssertions
+        }
   const completed = Object.values(assertions).every(Boolean)
   const observation = {
     capturedAt: new Date().toISOString(),
     query,
     cameraProbe,
+    nodeDragProbe,
     cameraContract,
+    nodeDragContract,
     repository,
     initial,
     restarted,
@@ -793,7 +1026,15 @@ async function runController() {
   )
 
   const artifactPaths = [
-    ...(cameraProbe
+    ...(nodeDragProbe
+      ? [
+          '00-baseline.png',
+          '01-during-node-drag.png',
+          '02-after-node-release.png',
+          '03-after-graph-reopen.png',
+          '04-after-app-restart.png'
+        ]
+      : cameraProbe
       ? [
           '00-baseline.png',
           '01-after-camera-input.png',
@@ -807,16 +1048,22 @@ async function runController() {
   ].map((name) => resolve(outputRoot, name))
   const manifest = {
     capturedAt: observation.capturedAt,
-    stage: cameraProbe
-      ? 'GP0-3b-c Global Graph camera persistence working-tree evidence'
-      : 'GP0-3b Global Graph search persistence working-tree evidence',
+    stage: nodeDragProbe
+      ? 'GP0-3b-d Global Graph node drag lifecycle working-tree evidence'
+      : cameraProbe
+        ? 'GP0-3b-c Global Graph camera persistence working-tree evidence'
+        : 'GP0-3b Global Graph search persistence working-tree evidence',
     status: completed ? 'captured' : 'failed',
-    comparisonStatus: cameraProbe
-      ? 'Compare with docs/reports/assets/graph-gp0-camera-persistence/comparison.json'
-      : 'Compare with docs/reports/assets/graph-gp0-search-persistence/comparison.json',
-    command: cameraProbe
-      ? '$env:TSUZUNE_GRAPH_CAMERA_PROBE=1; npm run build; node scripts/capture-graph-gp0-3b-search-restart.mjs'
-      : 'npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs',
+    comparisonStatus: nodeDragProbe
+      ? 'Compare with docs/reports/assets/graph-gp0-node-drag-persistence/comparison.json'
+      : cameraProbe
+        ? 'Compare with docs/reports/assets/graph-gp0-camera-persistence/comparison.json'
+        : 'Compare with docs/reports/assets/graph-gp0-search-persistence/comparison.json',
+    command: nodeDragProbe
+      ? 'npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --node-drag'
+      : cameraProbe
+        ? '$env:TSUZUNE_GRAPH_CAMERA_PROBE=1; npm run build; node scripts/capture-graph-gp0-3b-search-restart.mjs'
+        : 'npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs',
     isolation: {
       sourceFixture: relative(repoRoot, sourceFixture).replaceAll('\\', '/'),
       copiedVault: relative(repoRoot, vault).replaceAll('\\', '/'),
@@ -832,9 +1079,11 @@ async function runController() {
     processIds: [initial.processId, restarted.processId],
     assertions,
     artifacts: await Promise.all(artifactPaths.map(artifactSummary)),
-    next: cameraProbe
-      ? 'Document the observed Obsidian/TSUZUNE camera persistence contract before the next parity slice.'
-      : 'Continue GP0-3b with the remaining camera, drag, menu, animation, and reset behaviors.'
+    next: nodeDragProbe
+      ? 'Document the observed Obsidian/TSUZUNE node drag lifecycle contract before the next parity slice.'
+      : cameraProbe
+        ? 'Document the observed Obsidian/TSUZUNE camera persistence contract before the next parity slice.'
+        : 'Continue GP0-3b with the remaining camera, drag, menu, animation, and reset behaviors.'
   }
   await writeFile(
     resolve(outputRoot, 'manifest.json'),

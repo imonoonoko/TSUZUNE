@@ -8,16 +8,24 @@ import { relative, resolve, sep } from 'node:path'
 const repoRoot = resolve(import.meta.dirname, '..')
 const cameraProbe =
   process.argv.includes('--camera') || process.env.TSUZUNE_GRAPH_CAMERA_PROBE === '1'
+const nodeDragProbe =
+  process.argv.includes('--node-drag') || process.env.TSUZUNE_GRAPH_NODE_DRAG_PROBE === '1'
+if (cameraProbe && nodeDragProbe) {
+  throw new Error('--camera と --node-drag は同時に指定できません。')
+}
+const probeKind = nodeDragProbe ? 'node-drag' : cameraProbe ? 'camera' : 'search'
 const fixtureDirectory = resolve(repoRoot, 'fixtures/obsidian-graph-parity-vault')
-const workRoot = resolve(repoRoot, cameraProbe ? 'work/gp0-camera' : 'work/gp0-search')
+const workRoot = resolve(repoRoot, `work/gp0-${probeKind}`)
 const referenceWorkDirectory = resolve(workRoot, 'obsidian-1.13.4')
 const vaultDirectory = resolve(referenceWorkDirectory, 'vault')
 const userDataDirectory = resolve(referenceWorkDirectory, 'userdata')
 const outputRoot = resolve(
   repoRoot,
-  cameraProbe
-    ? 'docs/reports/assets/graph-gp0-camera-persistence'
-    : 'docs/reports/assets/graph-gp0-search-persistence'
+  probeKind === 'node-drag'
+    ? 'docs/reports/assets/graph-gp0-node-drag-persistence'
+    : cameraProbe
+      ? 'docs/reports/assets/graph-gp0-camera-persistence'
+      : 'docs/reports/assets/graph-gp0-search-persistence'
 )
 const outputDirectory = resolve(outputRoot, 'obsidian-1.13.4')
 const observationPath = resolve(outputDirectory, 'observation.json')
@@ -37,8 +45,8 @@ const expected = {
   installerSha256: '8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0',
   asarSha256: '51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917',
   markdownCount: 7,
-  search: cameraProbe ? '' : 'path:"10_projects"',
-  filteredNodeIds: cameraProbe
+  search: cameraProbe || nodeDragProbe ? '' : 'path:"10_projects"',
+  filteredNodeIds: cameraProbe || nodeDragProbe
     ? [
         '00_Home.md',
         '10_projects/Project Alpha.md',
@@ -51,7 +59,8 @@ const expected = {
       ]
     : ['10_projects/Project Alpha.md', '10_projects/Project Beta.md'],
   viewport: { width: 1265, height: 768 },
-  deviceScaleFactor: 1
+  deviceScaleFactor: 1,
+  drag: { targetNodeId: '00_Home.md', deltaX: 96, deltaY: 64 }
 }
 
 const delay = (milliseconds) => new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds))
@@ -254,6 +263,26 @@ async function observeGraph(cdp, label) {
     const nodeId = ${nodeIdExpression()}
     const input = document.querySelector('.graph-control-section.mod-filter input[type="search"]')
     const window = require('@electron/remote').getCurrentWindow()
+    const interactiveBounds = view.renderer.interactiveEl?.getBoundingClientRect() ?? null
+    const targetNode = view.renderer.nodes.find(
+      (node) => nodeId(node) === ${JSON.stringify(expected.drag.targetNodeId)}
+    )
+    const targetNodeObservation = targetNode && interactiveBounds
+      ? {
+          id: nodeId(targetNode),
+          x: targetNode.x,
+          y: targetNode.y,
+          fx: Number.isFinite(targetNode.fx) ? targetNode.fx : null,
+          fy: Number.isFinite(targetNode.fy) ? targetNode.fy : null,
+          fixed: Number.isFinite(targetNode.fx) && Number.isFinite(targetNode.fy),
+          clientX:
+            interactiveBounds.left +
+            (view.renderer.panX + targetNode.x * view.renderer.scale) / devicePixelRatio,
+          clientY:
+            interactiveBounds.top +
+            (view.renderer.panY + targetNode.y * view.renderer.scale) / devicePixelRatio
+        }
+      : null
     return {
       label: ${JSON.stringify(label)},
       capturedAt: new Date().toISOString(),
@@ -278,11 +307,55 @@ async function observeGraph(cdp, label) {
       renderedNodeIds: view.renderer.nodes.map(nodeId).filter(Boolean).sort(),
       renderedNodeCount: view.renderer.nodes.length,
       renderedLinkCount: view.renderer.links.length,
+      targetNode: targetNodeObservation,
+      dragNodeId: view.renderer.dragNode ? nodeId(view.renderer.dragNode) : null,
+      highlightedNodeId: view.renderer.highlightNode ? nodeId(view.renderer.highlightNode) : null,
+      interactiveBounds: interactiveBounds
+        ? {
+            left: interactiveBounds.left,
+            top: interactiveBounds.top,
+            right: interactiveBounds.right,
+            bottom: interactiveBounds.bottom,
+            width: interactiveBounds.width,
+            height: interactiveBounds.height
+          }
+        : null,
+      graphOptionKeys: Object.keys(view.dataEngine.getOptions()).sort(),
       windowBounds: window.getBounds(),
       windowVisible: window.isVisible(),
       windowSkipTaskbarRequested: true
     }
   })()`)
+}
+
+async function waitForTargetNodeStability(cdp, timeoutMilliseconds = 20_000) {
+  const deadline = Date.now() + timeoutMilliseconds
+  let previous = null
+  let stableSamples = 0
+  while (Date.now() < deadline) {
+    const current = await cdp.evaluate(`(() => {
+      const view = app.workspace.getLeavesOfType('graph')[0]?.view
+      if (!view) return null
+      const nodeId = ${nodeIdExpression()}
+      const node = view.renderer.nodes.find(
+        (candidate) => nodeId(candidate) === ${JSON.stringify(expected.drag.targetNodeId)}
+      )
+      return node ? { x: node.x, y: node.y } : null
+    })()`)
+    if (
+      current &&
+      previous &&
+      Math.hypot(current.x - previous.x, current.y - previous.y) < 0.75
+    ) {
+      stableSamples += 1
+      if (stableSamples >= 4) return current
+    } else {
+      stableSamples = 0
+    }
+    previous = current
+    await delay(200)
+  }
+  throw new Error('Obsidianのdrag対象nodeが安定しませんでした。')
 }
 
 async function captureScreenshot(cdp, path) {
@@ -387,6 +460,86 @@ async function applyCameraInput(cdp) {
     `Math.abs(app.internalPlugins.getPluginById('graph').instance.options.scale - ${targetScale}) < 0.000001`
   )
   await delay(500)
+}
+
+async function beginNodeDragInput(cdp) {
+  const target = await cdp.evaluate(`(() => {
+    const view = app.workspace.getLeavesOfType('graph')[0]?.view
+    if (!view) throw new Error('Global Graphが開いていません。')
+    const nodeId = ${nodeIdExpression()}
+    const node = view.renderer.nodes.find(
+      (candidate) => nodeId(candidate) === ${JSON.stringify(expected.drag.targetNodeId)}
+    )
+    if (!node) throw new Error('drag対象nodeが見つかりません。')
+    const bounds = view.renderer.interactiveEl.getBoundingClientRect()
+    const startX = bounds.left + (view.renderer.panX + node.x * view.renderer.scale) / devicePixelRatio
+    const startY = bounds.top + (view.renderer.panY + node.y * view.renderer.scale) / devicePixelRatio
+    if (
+      startX < bounds.left ||
+      startX > bounds.right ||
+      startY < bounds.top ||
+      startY > bounds.bottom ||
+      startX + ${expected.drag.deltaX} > bounds.right ||
+      startY + ${expected.drag.deltaY} > bounds.bottom
+    ) {
+      throw new Error('drag対象nodeがGraph canvas外です。')
+    }
+    const startHit = document.elementFromPoint(startX, startY)
+    const endHit = document.elementFromPoint(
+      startX + ${expected.drag.deltaX},
+      startY + ${expected.drag.deltaY}
+    )
+    if (
+      (startHit !== view.renderer.interactiveEl && !view.renderer.interactiveEl.contains(startHit)) ||
+      (endHit !== view.renderer.interactiveEl && !view.renderer.interactiveEl.contains(endHit))
+    ) {
+      throw new Error('drag経路がGraph canvasの操作面にありません。')
+    }
+    return {
+      startX,
+      startY,
+      endX: startX + ${expected.drag.deltaX},
+      endY: startY + ${expected.drag.deltaY}
+    }
+  })()`)
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved',
+    x: target.startX,
+    y: target.startY,
+    button: 'none',
+    buttons: 0
+  })
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mousePressed',
+    x: target.startX,
+    y: target.startY,
+    button: 'left',
+    buttons: 1,
+    clickCount: 1
+  })
+  for (let step = 1; step <= 4; step += 1) {
+    await cdp.send('Input.dispatchMouseEvent', {
+      type: 'mouseMoved',
+      x: target.startX + (expected.drag.deltaX * step) / 4,
+      y: target.startY + (expected.drag.deltaY * step) / 4,
+      button: 'left',
+      buttons: 1
+    })
+    await delay(35)
+  }
+  await delay(200)
+  return target
+}
+
+async function releaseNodeDragInput(cdp, target) {
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseReleased',
+    x: target.endX,
+    y: target.endY,
+    button: 'left',
+    buttons: 0,
+    clickCount: 1
+  })
 }
 
 async function launchSession(sessionNumber) {
@@ -622,20 +775,54 @@ async function main() {
       await first.whileChildAlive(openGlobalGraph(first.cdp))
     }
     await first.whileChildAlive(setGraphSearch(first.cdp, expected.search))
-    if (cameraProbe) {
+    if (nodeDragProbe) {
+      await first.whileChildAlive(waitForTargetNodeStability(first.cdp))
+    }
+    if (cameraProbe || nodeDragProbe) {
       observations.beforeEntry = await first.whileChildAlive(
-        observeGraph(first.cdp, 'before-camera-input')
+        observeGraph(first.cdp, nodeDragProbe ? 'before-node-drag' : 'before-camera-input')
       )
       observations.beforeEntry.screenshot = await first.whileChildAlive(
         captureScreenshot(first.cdp, resolve(outputDirectory, '00-baseline.png'))
       )
-      await first.whileChildAlive(applyCameraInput(first.cdp))
     }
-    observations.afterEntry = await first.whileChildAlive(observeGraph(first.cdp, 'after-entry'))
+    if (cameraProbe) {
+      await first.whileChildAlive(applyCameraInput(first.cdp))
+    } else if (nodeDragProbe) {
+      observations.dragInput = await first.whileChildAlive(beginNodeDragInput(first.cdp))
+      try {
+        observations.duringDrag = await first.whileChildAlive(
+          observeGraph(first.cdp, 'during-node-drag')
+        )
+        observations.duringDrag.screenshot = await first.whileChildAlive(
+          captureScreenshot(first.cdp, resolve(outputDirectory, '01-during-node-drag.png'))
+        )
+      } finally {
+        await first.whileChildAlive(releaseNodeDragInput(first.cdp, observations.dragInput))
+      }
+      observations.afterReleaseImmediate = await first.whileChildAlive(
+        observeGraph(first.cdp, 'after-node-release-immediate')
+      )
+      await first.whileChildAlive(delay(250))
+      observations.afterRelease250ms = await first.whileChildAlive(
+        observeGraph(first.cdp, 'after-node-release-250ms')
+      )
+      await first.whileChildAlive(waitForTargetNodeStability(first.cdp))
+    }
+    observations.afterEntry = await first.whileChildAlive(
+      observeGraph(first.cdp, nodeDragProbe ? 'after-node-release-settled' : 'after-entry')
+    )
     observations.afterEntry.screenshot = await first.whileChildAlive(
       captureScreenshot(
         first.cdp,
-        resolve(outputDirectory, cameraProbe ? '01-after-camera-input.png' : '01-after-entry.png')
+        resolve(
+          outputDirectory,
+          nodeDragProbe
+            ? '02-after-node-release.png'
+            : cameraProbe
+              ? '01-after-camera-input.png'
+              : '01-after-entry.png'
+        )
       )
     )
 
@@ -646,11 +833,18 @@ async function main() {
     })()`))
     await first.whileChildAlive(waitForRenderer(first.cdp, `app.workspace.getLeavesOfType('graph').length === 0`))
     await first.whileChildAlive(openGlobalGraph(first.cdp))
+    if (nodeDragProbe) await first.whileChildAlive(waitForTargetNodeStability(first.cdp))
     observations.afterGraphReopen = await first.whileChildAlive(
       observeGraph(first.cdp, 'after-graph-reopen')
     )
     observations.afterGraphReopen.screenshot = await first.whileChildAlive(
-      captureScreenshot(first.cdp, resolve(outputDirectory, '02-after-graph-reopen.png'))
+      captureScreenshot(
+        first.cdp,
+        resolve(
+          outputDirectory,
+          nodeDragProbe ? '03-after-graph-reopen.png' : '02-after-graph-reopen.png'
+        )
+      )
     )
     const firstExit = await first.stop()
 
@@ -669,12 +863,19 @@ async function main() {
     )
     if (graphLeafCountAtRestart === 0) await second.whileChildAlive(openGlobalGraph(second.cdp))
     else await second.whileChildAlive(delay(1_200))
+    if (nodeDragProbe) await second.whileChildAlive(waitForTargetNodeStability(second.cdp))
     observations.afterAppRestart = await second.whileChildAlive(
       observeGraph(second.cdp, 'after-app-restart')
     )
     observations.afterAppRestart.graphLeafCountAtRestart = graphLeafCountAtRestart
     observations.afterAppRestart.screenshot = await second.whileChildAlive(
-      captureScreenshot(second.cdp, resolve(outputDirectory, '03-after-app-restart.png'))
+      captureScreenshot(
+        second.cdp,
+        resolve(
+          outputDirectory,
+          nodeDragProbe ? '04-after-app-restart.png' : '03-after-app-restart.png'
+        )
+      )
     )
     const secondExit = await second.stop()
 
@@ -738,6 +939,49 @@ async function main() {
           Math.abs(observations.afterAppRestart.camera.panOffsetY) < 1
       }
     : null
+  const nodeDistance = (left, right) =>
+    left && right ? Math.hypot(left.x - right.x, left.y - right.y) : Number.POSITIVE_INFINITY
+  const nodeDragContract = nodeDragProbe
+    ? {
+        targetNodeId: expected.drag.targetNodeId,
+        requestedDeltaCssPx: { x: expected.drag.deltaX, y: expected.drag.deltaY },
+        baseline: observations.beforeEntry.targetNode,
+        duringHold: observations.duringDrag.targetNode,
+        afterReleaseImmediate: observations.afterReleaseImmediate.targetNode,
+        afterRelease250ms: observations.afterRelease250ms.targetNode,
+        afterReleaseSettled: observations.afterEntry.targetNode,
+        afterGraphReopen: observations.afterGraphReopen.targetNode,
+        afterAppRestart: observations.afterAppRestart.targetNode,
+        appliedDeltaCssPx: {
+          x:
+            observations.duringDrag.targetNode.clientX -
+            observations.beforeEntry.targetNode.clientX,
+          y:
+            observations.duringDrag.targetNode.clientY -
+            observations.beforeEntry.targetNode.clientY
+        },
+        heldFixed:
+          observations.duringDrag.targetNode.fixed &&
+          observations.duringDrag.dragNodeId === expected.drag.targetNodeId &&
+          Math.hypot(
+            observations.duringDrag.targetNode.x - observations.duringDrag.targetNode.fx,
+            observations.duringDrag.targetNode.y - observations.duringDrag.targetNode.fy
+          ) < 1,
+        releasedImmediately:
+          !observations.afterReleaseImmediate.targetNode.fixed &&
+          observations.afterReleaseImmediate.dragNodeId === null,
+        movedAfterRelease:
+          nodeDistance(
+            observations.duringDrag.targetNode,
+            observations.afterEntry.targetNode
+          ) > 2,
+        unpinnedAfterGraphReopen: !observations.afterGraphReopen.targetNode.fixed,
+        unpinnedAfterAppRestart: !observations.afterAppRestart.targetNode.fixed,
+        nodePositionAbsentFromGraphOptions: !observations.afterEntry.graphOptionKeys.some((key) =>
+          /node.*position|position.*node|pinned/i.test(key)
+        )
+      }
+    : null
   const exactNodeIds = (observation) =>
     JSON.stringify(observation.renderedNodeIds) === JSON.stringify(expected.filteredNodeIds)
   const assertions = {
@@ -762,7 +1006,20 @@ async function main() {
           zoomPersistedAfterAppRestart: cameraContract.zoomPersistedAfterAppRestart,
           panResetAfterAppRestart: cameraContract.panResetAfterAppRestart
         }
-      : {}),
+      : nodeDragProbe
+        ? {
+            nodeDragApplied:
+              Math.abs(nodeDragContract.appliedDeltaCssPx.x - expected.drag.deltaX) < 3 &&
+              Math.abs(nodeDragContract.appliedDeltaCssPx.y - expected.drag.deltaY) < 3,
+            nodeFixedDuringHold: nodeDragContract.heldFixed,
+            nodeReleasedOnPointerUp: nodeDragContract.releasedImmediately,
+            nodeMovedAfterRelease: nodeDragContract.movedAfterRelease,
+            nodeUnpinnedAfterGraphReopen: nodeDragContract.unpinnedAfterGraphReopen,
+            nodeUnpinnedAfterAppRestart: nodeDragContract.unpinnedAfterAppRestart,
+            nodePositionNotPersistedInGraphOptions:
+              nodeDragContract.nodePositionAbsentFromGraphOptions
+          }
+        : {}),
     lightThemeEveryObservation: [
       observations.afterEntry,
       observations.afterGraphReopen,
@@ -784,15 +1041,18 @@ async function main() {
   }
   const manifest = {
     capturedAt: new Date().toISOString(),
-    stage: cameraProbe
-      ? 'GP0-3b-c Obsidian Global Graph camera persistence probe'
-      : 'GP0-3b Obsidian Global Graph search persistence probe',
+    stage: nodeDragProbe
+      ? 'GP0-3b-d Obsidian Global Graph node drag lifecycle probe'
+      : cameraProbe
+        ? 'GP0-3b-c Obsidian Global Graph camera persistence probe'
+        : 'GP0-3b Obsidian Global Graph search persistence probe',
     status: Object.values(assertions).every(Boolean) ? 'reference-captured' : 'failed',
     scope: {
       product: 'Obsidian Desktop',
       version: expected.version,
       query: expected.search,
       cameraProbe,
+      nodeDragProbe,
       lifecycle: ['entry', 'graph-close-reopen', 'full-app-restart'],
       fixture: relative(repoRoot, fixtureDirectory).replaceAll('\\', '/'),
       isolatedVault: relative(repoRoot, vaultDirectory).replaceAll('\\', '/'),
@@ -817,6 +1077,7 @@ async function main() {
     },
     assertions,
     cameraContract,
+    nodeDragContract,
     protection: {
       sourceBefore,
       sourceAfter,
@@ -842,6 +1103,7 @@ async function main() {
         afterAppRestart: observations.afterAppRestart.graphOptionsSearch,
         filteredNodeIds: observations.afterAppRestart.renderedNodeIds,
         cameraContract,
+        nodeDragContract,
         observation: manifest.scope.observation,
         sourceUnchanged: assertions.sourceUnchanged,
         isolatedVaultProtectedFilesUnchanged: assertions.isolatedVaultProtectedFilesUnchanged,

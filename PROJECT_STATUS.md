@@ -1,6 +1,6 @@
 # TSUZUNE Project Status
 
-更新日: 2026-08-03（JST）
+更新日: 2026-08-04（JST）
 
 この文書は、TSUZUNEの「今」を一枚で確認するための入口です。長期計画と完了履歴は[PLAN.md](PLAN.md)、製品の不変条件は[PRODUCT.md](PRODUCT.md)、画面・ブランド規約は[DESIGN.md](DESIGN.md)を正本とします。
 
@@ -9,10 +9,10 @@
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
 | インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-03 20:11 JSTにfeature checkpoint `ad26532`のclean sourceから更新し、packaged／installed smoke、hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`。GP0-3b-cの比較harness・証拠・資料を現在HEADへ収録し、同名originへ同期する | Git |
-| Working tree | Global camera比較を完了。Obsidian 1.13.4とTSUZUNEでzoom保持／pan中央復帰の6/6項目が一致し、製品コード変更は不要。typecheck、45 files／368 tests、MCP smokeもPASS | capture scripts、fixture、report assets |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。HEAD `16984a3`は同名originへ同期済み。GP0-3b-dのcapture・report・資料はlocal closeout対象 | Git |
+| Working tree | Global node drag比較を完了。両製品で一時固定／pointerup解放／Force復帰／座標・pin非永続化の5/5項目が一致し、製品コード変更は不要。capture safeguards、build、report描画検証もPASS | capture scripts、fixture、report assets |
 | 最優先Track | v0.6 Obsidian Graph Parity | [PLAN.md](PLAN.md#active-track-v06-obsidian-graph-parity) |
-| 次の縦切り | GP0-3b-d。同一fixtureでGlobal Graphのnode drag直後・Graph再表示後・アプリ再起動後のnode位置／固定状態を比較する | [Graph parity reference](docs/obsidian-graph-parity-reference.md) |
+| 次の縦切り | GP0-3b-e。同一fixtureでGlobal Graphのnode context menuの項目、順序、無効状態、種別別openを比較する | [Graph parity reference](docs/obsidian-graph-parity-reference.md) |
 
 ## 実装済みの基盤
 
@@ -35,12 +35,16 @@ GP0-3b-bでは、Global GraphのSearch filesへ`path:"10_projects"`を入力し�
 
 GP0-3b-cでは、Global Graphへ制御された論理wheel `deltaY=-120`と背景drag `+96,+64 CSS px`を与え、Graph再表示と別プロセスによるアプリ完全再起動後を比較しました。Obsidian側はCDPマウス入力、TSUZUNE側は隔離オフスクリーンのDOM合成入力です。両製品ともzoom `1.5`を保持し、panは中央へ戻りました。6/6比較が`matched`だったため、TSUZUNEへpan永続化などの製品変更は加えていません。物理マウス／trusted event、ピクセル一致、zoom easing、Local Graph、fit／reset、zoom限界、workspace leaf自動復元は未証明です。
 
+GP0-3b-dでは、同じ画面条件で`00_Home.md`を`+96,+64 CSS px`ドラッグし、押下中、pointerup直後、250ms後、settled、Graph再表示後、アプリ完全再起動後を比較しました。両製品とも押下中だけnodeを一時固定し、pointerupで固定を解除してForce simulationへ戻り、Graph再表示／再起動へnode座標・pinを保存しません。意味契約5/5は`matched`で、製品source修正は不要です。Obsidianの再シード座標とTSUZUNEの決定的baselineは永続化契約の差ではありません。物理マウス／trusted event、ピクセル単位のForce軌跡、Local Graph、touch／penは未証明です。
+
 - [GP6 comparison report](docs/reports/graph-gp6-production-comparison-2026-08-02.html)
 - [GP6 working-tree evidence](docs/reports/assets/graph-gp6/tsuzune-working-tree/manifest.json)
 - [GP7 initial settings comparison](docs/reports/graph-gp7-global-settings-default-2026-08-03.html)
 - [GP0 search persistence comparison](docs/reports/graph-gp0-search-persistence-2026-08-03.html)
 - [GP0 camera persistence comparison](docs/reports/graph-gp0-camera-persistence-2026-08-03.html)
 - [GP0 camera machine-readable comparison](docs/reports/assets/graph-gp0-camera-persistence/comparison.json)
+- [GP0 node drag persistence comparison](docs/reports/graph-gp0-node-drag-persistence-2026-08-04.html)
+- [GP0 node drag machine-readable comparison](docs/reports/assets/graph-gp0-node-drag-persistence/comparison.json)
 
 ### Performance
 
@@ -67,15 +71,16 @@ SemVerやHEADだけで同一性を判断しません。現在の本番v0.5.0はf
 
 ## 優先キュー
 
-1. GP0-3b-dとしてnode drag直後／Graph再表示後／アプリ再起動後のnode位置・固定状態を採取し、`matched`、`different`、`missing`へ分類する。
-2. 公開差が確認できた場合だけ一件を修正し、同じcaptureで回帰を確認する。
-3. Graph Trackを閉じた後に、720px／200% zoom、tree semantics、実Windows accessibilityを別sliceで扱う。
-4. その後、Google Tasks、Drive選択取込、YouTube、Data Portabilityから一つを再選択する。
-5. Context Compiler 2.0、より深い時間モデル、GraphRAG、独自DBは固定評価または計測で必要性が出てから一つずつ導入する。
+1. GP0-3b-dのreport、comparison、repo文書を検証してcheckpointへ収録する。
+2. GP0-3b-eとしてGlobal Graphのnode context menuを採取し、`matched`、`different`、`missing`へ分類する。
+3. 公開差が確認できた場合だけ一件を修正し、同じcaptureで回帰を確認する。
+4. Graph Trackを閉じた後に、720px／200% zoom、tree semantics、実Windows accessibilityを別sliceで扱う。
+5. その後、Google Tasks、Drive選択取込、YouTube、Data Portabilityから一つを再選択する。
+6. Context Compiler 2.0、より深い時間モデル、GraphRAG、独自DBは固定評価または計測で必要性が出てから一つずつ導入する。
 
 ## CheckpointとWorking treeの扱い
 
-Graph検索保持の製品コード、tests、fixture、再現script、report assetsは`ad26532`へ収録済みです。GP0-3b-cは比較harness、raw observation、画像、比較表、HTMLレポートだけを追加し、製品sourceは変更していません。研究・資料checkpointのため同一binaryを再インストールせず、ブランチHEADと本番TSUZUNEの開発記録を同期します。
+Graph検索保持の製品コード、tests、fixture、再現script、report assetsは`ad26532`へ収録済みです。GP0-3b-cとGP0-3b-dは比較harness、raw observation、画像、比較表、HTMLレポートだけを追加し、製品sourceは変更していません。研究・資料checkpointのため同一binaryを再インストールせず、ブランチHEADと本番TSUZUNEの開発記録を同期します。
 
 - 次のsliceでも、sourceだけ、reportだけの機械的な分割commitをせず、共有型、App、Vault、testsを含む機能契約単位で切る。
 - fixture、日付付きreport、machine-readable artifactは比較の証拠として保持し、生成ゴミと決めつけて一括削除しない。

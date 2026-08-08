@@ -1,0 +1,333 @@
+{
+  "schemaVersion": 1,
+  "stage": "GP0-3b-d",
+  "capturedAt": "2026-08-08T11:47:43.776Z",
+  "status": "matched",
+  "fixedConditions": {
+    "reference": "Obsidian Desktop 1.13.4",
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "scope": "Global Graph",
+    "query": "",
+    "topology": {
+      "nodes": 8
+    },
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "theme": "light",
+    "profile": "isolated"
+  },
+  "inputProtocol": {
+    "mechanism": {
+      "obsidian": "CDP Input.dispatchMouseEvent",
+      "tsuzune": "Electron debugger Input.dispatchMouseEvent"
+    },
+    "targetNode": "00_Home.md",
+    "drag": {
+      "deltaX": 96,
+      "deltaY": 64,
+      "unit": "CSS px"
+    },
+    "checkpoints": [
+      "baseline",
+      "during-hold",
+      "release-immediate",
+      "release-250ms",
+      "release-settled",
+      "graph-close-reopen",
+      "full-app-restart"
+    ]
+  },
+  "semanticContract": {
+    "duringPress": "node is temporarily held at the pointer",
+    "pointerUp": "temporary fixation is cleared and the force simulation resumes",
+    "persistence": "node coordinates and pin state are not persisted"
+  },
+  "normalization": {
+    "crossProductAcceptance": "semantic lifecycle only; baseline coordinate equality is intentionally excluded",
+    "obsidianReopenBehavior": "force layout is reseeded",
+    "tsuzuneReopenBehavior": "deterministic layout returns to its baseline",
+    "tolerance": {
+      "dragCssPx": 1
+    }
+  },
+  "nodeDrag": {
+    "obsidian": {
+      "targetNodeId": "00_Home.md",
+      "requestedDeltaCssPx": {
+        "x": 96,
+        "y": 64
+      },
+      "baseline": {
+        "id": "00_Home.md",
+        "x": -173.1363983154297,
+        "y": -96.17765045166016,
+        "fx": null,
+        "fy": null,
+        "fixed": false,
+        "clientX": 631.3636016845703,
+        "clientY": 326.79109954833984
+      },
+      "duringHold": {
+        "id": "00_Home.md",
+        "x": -77.13140869140625,
+        "y": -32.23230485202208,
+        "fx": -77.13140869140625,
+        "fy": -32.23230485202208,
+        "fixed": true,
+        "clientX": 727.3685913085938,
+        "clientY": 390.7364451479779
+      },
+      "afterReleaseImmediate": {
+        "id": "00_Home.md",
+        "x": -77.13140869140625,
+        "y": -32.23230485202208,
+        "fx": null,
+        "fy": null,
+        "fixed": false,
+        "clientX": 727.3685913085938,
+        "clientY": 390.7364451479779
+      },
+      "afterRelease250ms": {
+        "id": "00_Home.md",
+        "x": -104.85001373291016,
+        "y": -74.42249298095703,
+        "fx": null,
+        "fy": null,
+        "fixed": false,
+        "clientX": 699.6499862670898,
+        "clientY": 348.54625701904297
+      },
+      "afterReleaseSettled": {
+        "id": "00_Home.md",
+        "x": -128.4779510498047,
+        "y": -98.73819732666016,
+        "fx": null,
+        "fy": null,
+        "fixed": false,
+        "clientX": 676.0220489501953,
+        "clientY": 324.23055267333984
+      },
+      "afterGraphReopen": {
+        "id": "00_Home.md",
+        "x": -61.22291946411133,
+        "y": -139.22714233398438,
+        "fx": null,
+        "fy": null,
+        "fixed": false,
+        "clientX": 743.2770805358887,
+        "clientY": 283.7416076660156
+      },
+      "afterAppRestart": {
+        "id": "00_Home.md",
+        "x": 20.735958099365234,
+        "y": 176.87510681152344,
+        "fx": null,
+        "fy": null,
+        "fixed": false,
+        "clientX": 825.2359580993652,
+        "clientY": 599.8438568115234
+      },
+      "appliedDeltaCssPx": {
+        "x": 96.00498962402344,
+        "y": 63.945345599638074
+      },
+      "heldFixed": true,
+      "releasedImmediately": true,
+      "movedAfterRelease": true,
+      "unpinnedAfterGraphReopen": true,
+      "unpinnedAfterAppRestart": true,
+      "nodePositionAbsentFromGraphOptions": true
+    },
+    "tsuzune": {
+      "targetNodePath": "00_Home.md",
+      "requestedDeltaCssPx": {
+        "x": 96,
+        "y": 64
+      },
+      "baseline": {
+        "path": "00_Home.md",
+        "x": 114.47,
+        "y": 35.6859,
+        "clientX": 756.96875,
+        "clientY": 460.171875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 114.47px)",
+        "styleTop": "calc(50% + 35.6859px)"
+      },
+      "duringHold": {
+        "path": "00_Home.md",
+        "x": 210.469,
+        "y": 99.6719,
+        "clientX": 852.96875,
+        "clientY": 524.171875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 210.469px)",
+        "styleTop": "calc(50% + 99.6719px)"
+      },
+      "afterReleaseImmediate": {
+        "path": "00_Home.md",
+        "x": 210.469,
+        "y": 99.6719,
+        "clientX": 852.96875,
+        "clientY": 524.171875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 210.469px)",
+        "styleTop": "calc(50% + 99.6719px)"
+      },
+      "afterRelease250ms": {
+        "path": "00_Home.md",
+        "x": 150.084,
+        "y": 97.4942,
+        "clientX": 792.578125,
+        "clientY": 521.984375,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 150.084px)",
+        "styleTop": "calc(50% + 97.4942px)"
+      },
+      "afterReleaseSettled": {
+        "path": "00_Home.md",
+        "x": 147.146,
+        "y": 99.3076,
+        "clientX": 789.640625,
+        "clientY": 523.796875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 147.146px)",
+        "styleTop": "calc(50% + 99.3076px)"
+      },
+      "afterGraphReopen": {
+        "path": "00_Home.md",
+        "x": 114.47,
+        "y": 35.6859,
+        "clientX": 756.96875,
+        "clientY": 460.171875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 114.47px)",
+        "styleTop": "calc(50% + 35.6859px)"
+      },
+      "afterAppRestart": {
+        "path": "00_Home.md",
+        "x": 114.47,
+        "y": 35.6859,
+        "clientX": 756.96875,
+        "clientY": 460.171875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 114.47px)",
+        "styleTop": "calc(50% + 35.6859px)"
+      },
+      "appliedDeltaCssPx": {
+        "x": 96,
+        "y": 64
+      },
+      "heldAtPointer": true,
+      "movedAfterRelease": true,
+      "resetNearBaselineAfterGraphReopen": true,
+      "resetNearBaselineAfterAppRestart": true,
+      "nodePositionAbsentFromSettings": true
+    }
+  },
+  "comparisons": [
+    {
+      "id": "drag-delta",
+      "label": "ノードを +96, +64 CSS px 移動",
+      "obsidian": {
+        "x": 96.00498962402344,
+        "y": 63.945345599638074
+      },
+      "tsuzune": {
+        "x": 96,
+        "y": 64
+      },
+      "status": "matched"
+    },
+    {
+      "id": "held-during-press",
+      "label": "押下中だけポインター位置へ固定",
+      "obsidian": "固定",
+      "tsuzune": "固定",
+      "status": "matched"
+    },
+    {
+      "id": "released-to-force-simulation",
+      "label": "pointerup後にForce simulationへ復帰",
+      "obsidian": "復帰",
+      "tsuzune": "復帰",
+      "status": "matched"
+    },
+    {
+      "id": "graph-reopen-persistence",
+      "label": "Graph再表示後のnode pin／座標保存",
+      "obsidian": "保存しない",
+      "tsuzune": "保存しない",
+      "status": "matched"
+    },
+    {
+      "id": "app-restart-persistence",
+      "label": "アプリ再起動後のnode pin／座標保存",
+      "obsidian": "保存しない",
+      "tsuzune": "保存しない",
+      "status": "matched"
+    }
+  ],
+  "safeguards": {
+    "obsidian": {
+      "queryAccepted": true,
+      "queryVisibleAfterEntry": true,
+      "filteredNodesAfterEntry": true,
+      "queryPersistedAfterGraphReopen": true,
+      "filteredNodesAfterGraphReopen": true,
+      "firstProcessExitedBeforeRestart": true,
+      "secondProcessStarted": true,
+      "queryPersistedAfterAppRestart": true,
+      "filteredNodesAfterAppRestart": true,
+      "nodeDragApplied": true,
+      "nodeFixedDuringHold": true,
+      "nodeReleasedOnPointerUp": true,
+      "nodeMovedAfterRelease": true,
+      "nodeUnpinnedAfterGraphReopen": true,
+      "nodeUnpinnedAfterAppRestart": true,
+      "nodePositionNotPersistedInGraphOptions": true,
+      "lightThemeEveryObservation": true,
+      "isolatedUserDataEverySession": true,
+      "isolatedVaultEverySession": true,
+      "offscreenEverySession": true,
+      "sourceUnchanged": true,
+      "isolatedVaultProtectedFilesUnchanged": true,
+      "protocolRestored": true
+    },
+    "tsuzune": {
+      "exactNodeSetAtEveryCheckpoint": true,
+      "nodeDragApplied": true,
+      "nodeHeldAtPointer": true,
+      "nodeMovedAfterRelease": true,
+      "nodeResetNearBaselineAfterGraphReopen": true,
+      "nodeResetNearBaselineAfterAppRestart": true,
+      "nodePositionNotPersistedInSettings": true,
+      "contentViewportStable": true,
+      "filteredNodeSetStable": true,
+      "separateApplicationProcesses": true,
+      "sourceFixtureUnchanged": true,
+      "productSourceUnchanged": true,
+      "builtApplicationUnchanged": true,
+      "isolatedMarkdownUnchanged": true,
+      "noIsolatedProcessesRemaining": true
+    }
+  },
+  "notEstablished": [
+    "physical mouse and real-OS pointer acceptance",
+    "pixel-identical force trajectory or decay curve",
+    "identical seeded coordinates after graph remount",
+    "Local Graph node drag lifecycle",
+    "touch or pen input parity"
+  ],
+  "conclusion": "Both products hold a node only during the drag, release it back to the force simulation on pointerup, and persist neither node coordinates nor pin state. No TSUZUNE product-code change is required for this slice."
+}
