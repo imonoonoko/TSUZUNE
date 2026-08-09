@@ -8,13 +8,13 @@
 
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
-| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-10 04:18 JSTにcommit `cb56cdf`から更新し、GP0-3b-m Attachment Linked Views、全496 tests、packaged／installed smoke、build／installed hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`。GP0-3b-mはcommit `cb56cdf`としてpush・本番反映済み | Git |
+| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-10 05:41 JSTにcommit `601b94e`から更新し、X1-M1 MOC Title Router、全502 tests、packaged／installed smoke、build／installed hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。X1-M1はcommit `601b94e`としてpush・本番反映済み | Git |
 | 直近slice | GP0-3b-mで添付nodeの`リンクされたビューを開く`からバックリンクビューを追加し、元のGlobal Graphを保持する中核挙動を固定比較 | [GP0-3b-m report](docs/reports/graph-gp0-attachment-linked-view-2026-08-10.html) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
 | 最優先Track | v0.6 Obsidian Graph Parity。GP0-3b-mを完了し、次の未比較menu操作へ進む | [PLAN.md](PLAN.md#current-transition-queue) |
 | 次の縦切り | GP0-3b-n。attachment nodeの`デフォルトアプリで開く`を安全な外部起動intercept付きで固定比較する | [PLAN.md](PLAN.md) |
-| Context checkpoint | X1-M1 MOC Title Routerをworking treeへ実装。`type: moc`だけをタイトル一覧へ投影し、リンク先本文を次の取得まで展開しない。commit、push、インストール済み本番への反映前 | [requirements](.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md) |
+| Context checkpoint | X1-M1 MOC Title Routerをcommit `601b94e`としてpushし、インストール済み本番へ反映済み。`type: moc`だけをタイトル一覧へ投影し、リンク先本文を次の取得まで展開しない | [requirements](.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md) |
 
 ## 実装済みの基盤
 
@@ -28,7 +28,7 @@
 - `90_テンプレート`のMarkdown雛形と、filesystem最終更新日／`review_after`による非破壊の鮮度表示（本番反映済み）。
 - 通常ノートのアプリ内新規作成、Daily／Ideaフォーム、定型Markdownの安全なフォーム再編集、最小Markdown書式ツールバー（本番反映済み）。
 
-X1-M1のread-only実Vault比較では、`00_入口/知識地図.md`のContextを15,000文字／included 9／omitted 21から、1,132文字／included 1／omitted 0へ削減しました。MOC原本、リンク先本文、通常ノートのContext経路は変更せず、時間指定時の本文省略も維持します。約92.5%はContext Markdown文字数の削減であり、model-visible token削減率やインストール済み本番の効果ではありません。
+X1-M1のread-only本番Vault比較では、`00_入口/知識地図.md`のContextを15,000文字／included 9／omitted 21から、1,130文字／included 1／omitted 0へ削減しました。MOC原本、リンク先本文、通常ノートのContext経路は変更せず、時間指定時の本文省略も維持します。92.47%はContext Markdown文字数の削減であり、model-visible token削減率ではありません。実装は`installed-and-verified`の本番へ反映済みです。
 
 ## 検証済みだが、完了と言わない範囲
 
@@ -130,7 +130,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 
 ## CheckpointとWorking treeの扱い
 
-Graph検索保持の製品コード、tests、fixture、再現script、report assetsは`ad26532`へ収録済みです。GP0-3b-cとGP0-3b-dは比較harness、raw observation、画像、比較表、HTMLレポートだけを追加し、製品sourceは変更していません。C0-A〜C1-CはGit管理外の`work/`へ個人本文とreviewを出す開発用CLI／純粋coreであり、Electron本番UI・packaged runtimeへは接続していません。C1-Cは既知誤検出を止めた一方、rule別review 10件未満のため自動適用を解禁せず、人物プロフィール5ノートへのwriteは0です。O1-W0／O1-W1のbaselineはElectron UIへ接続し、2026-08-09のproduction update gateでこのPCの本番へ反映済みです。GP0-3b-jは`b47671a`、production testの2-worker gateは`9bec872`／`4051f9f`として同名originへpushし、12:54 JSTにclean sourceから本番へ反映済みです。GP0-3b-kは`efe52ea`として同名originへpushし、19:58 JSTに同commitのclean sourceから全438 tests、packaged／installed smoke、hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。GP0-3b-lとMarkdown不要な自由入力拡張は`b927171`としてpushし、2026-08-10 00:25 JSTにclean sourceから全453 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。O2-P1 Path Alias Foundationは`0aacecf`／`df9146e`としてpushし、02:16 JSTにclean sourceから全486 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。GP0-3b-m Attachment Linked Viewsは`cb56cdf`としてpushし、04:18 JSTに同commitのclean sourceから全496 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。
+Graph検索保持の製品コード、tests、fixture、再現script、report assetsは`ad26532`へ収録済みです。GP0-3b-cとGP0-3b-dは比較harness、raw observation、画像、比較表、HTMLレポートだけを追加し、製品sourceは変更していません。C0-A〜C1-CはGit管理外の`work/`へ個人本文とreviewを出す開発用CLI／純粋coreであり、Electron本番UI・packaged runtimeへは接続していません。C1-Cは既知誤検出を止めた一方、rule別review 10件未満のため自動適用を解禁せず、人物プロフィール5ノートへのwriteは0です。O1-W0／O1-W1のbaselineはElectron UIへ接続し、2026-08-09のproduction update gateでこのPCの本番へ反映済みです。GP0-3b-jは`b47671a`、production testの2-worker gateは`9bec872`／`4051f9f`として同名originへpushし、12:54 JSTにclean sourceから本番へ反映済みです。GP0-3b-kは`efe52ea`として同名originへpushし、19:58 JSTに同commitのclean sourceから全438 tests、packaged／installed smoke、hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。GP0-3b-lとMarkdown不要な自由入力拡張は`b927171`としてpushし、2026-08-10 00:25 JSTにclean sourceから全453 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。O2-P1 Path Alias Foundationは`0aacecf`／`df9146e`としてpushし、02:16 JSTにclean sourceから全486 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。GP0-3b-m Attachment Linked Viewsは`cb56cdf`としてpushし、04:18 JSTに同commitのclean sourceから全496 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。X1-M1 MOC Title Routerは`601b94e`としてpushし、05:41 JSTに同commitのclean sourceから全502 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。
 
 - 次のsliceでも、sourceだけ、reportだけの機械的な分割commitをせず、共有型、App、Vault、testsを含む機能契約単位で切る。
 - fixture、日付付きreport、machine-readable artifactは比較の証拠として保持し、生成ゴミと決めつけて一括削除しない。

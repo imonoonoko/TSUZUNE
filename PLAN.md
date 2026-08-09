@@ -48,7 +48,7 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 | 開発checkpoint | v0.6 Obsidian Graph Parity |
 | 完了した直近slice | GP0-3b-m Attachment Linked Views。添付nodeから対象pathのバックリンクビューを開き、Global Graphを保持する中核挙動を固定比較した |
 | 現役slice | GP0-3b-n Attachment Default App。次の未比較context menu操作を一項目だけ固定比較する |
-| Context checkpoint | X1-M1 MOC Title Routerをworking treeへ実装。`type: moc`だけをタイトル索引として扱い、通常ノートとインストール済み本番は未変更 |
+| Context checkpoint | X1-M1 MOC Title Routerをcommit `601b94e`としてpushし、インストール済み本番へ反映済み。`type: moc`だけをタイトル索引として扱い、通常ノートの従来経路を維持 |
 | 現役Track数 | 1。Google intakeとChatGPT candidate applyは保留 |
 
 ### Current Transition Queue
@@ -64,7 +64,7 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 
 利用者がMOCを「ノートタイトルを羅列した地図」と定義したため、valid frontmatterが`type: moc`のノートだけを軽量な二段階routerとして扱います。`build_context`はMOC本文の説明やリンク先・バックリンク本文を展開せず、解決済みWiki linkを記述順のタイトル一覧へ投影します。原本Markdownと`fetch`結果は変更しません。
 
-本番Vaultをread-onlyで使った固定比較では、`00_入口/知識地図.md`の15,000文字Contextが1,132文字になり、includedは9件からMOC 1件、omittedは21件から0件になりました。削減は13,868文字、約92.5%です。これはContext Markdown文字数の比較であり、model-visible token削減は未計測です。
+インストール済み本番をread-onlyで使った固定比較では、`00_入口/知識地図.md`の15,000文字Contextが1,130文字になり、includedは9件からMOC 1件、omittedは21件から0件になりました。削減は13,870文字、92.47%です。これはContext Markdown文字数の比較であり、model-visible token削減は未計測です。
 
 時間指定時の本文省略、Path Alias、未解決link、source fence、通常ノートの従来経路を維持します。MOCから選んだノート本文は、次の`fetch`または`build_context`で初めて読みます。query bridge、budget selection、MCP structured-only transportはX1-D0の未実装候補として残し、このsliceへ混ぜません。
 
