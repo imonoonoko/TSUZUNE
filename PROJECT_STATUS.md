@@ -2,7 +2,7 @@
 
 更新日: 2026-08-09（JST）
 
-この文書は、TSUZUNEの「今」を一枚で確認するための入口です。長期計画と完了履歴は[PLAN.md](PLAN.md)、製品の不変条件は[PRODUCT.md](PRODUCT.md)、画面・ブランド規約は[DESIGN.md](DESIGN.md)を正本とします。
+この文書は、TSUZUNEの「今」を一枚で確認するための入口です。実行順と将来計画は[PLAN.md](PLAN.md)、製品の不変条件は[PRODUCT.md](PRODUCT.md)、画面・ブランド規約は[DESIGN.md](DESIGN.md)を正本とします。完了証拠は[docs/INDEX.md](docs/INDEX.md)から辿ります。
 
 ## 現在地
 
@@ -93,7 +93,7 @@ M5固定dogfoodでは時間整合性が1/4から4/4、State NoteからSourceへ�
 4. 実行順: `PLAN.md`のActive TrackとCurrent Transition Queue。
 5. 本番TSUZUNE Vault: 現在地への検索導線、判断履歴、日付付きEvidence。repo仕様の複製ではない。
 
-SemVerやHEADだけで同一性を判断しません。現在の本番v0.5.0は2026-08-09 12:54 JSTにcommit `4051f9f`のclean sourceから導入され、receiptはsource fingerprintと`dirty: false`を保持しています。本番同一性はreceiptのsource fingerprint、EXE／`app.asar` hashを併用して確認します。
+SemVerやHEADだけで同一性を判断しません。現在の本番commit、source fingerprint、clean/dirty状態、EXE／`app.asar` hashは[production-update-latest.json](docs/reports/production-update-latest.json)を唯一の正本とし、この段落へ可変値を複製しません。
 
 ## 優先キュー
 
