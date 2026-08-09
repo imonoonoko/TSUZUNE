@@ -13,6 +13,7 @@ import {
   type TemporalPerspective,
   type TemporalTimelineEntry
 } from './temporal'
+import type { CompiledPathAliases } from './path-aliases'
 import type { NoteDocument, ResolvedWikiLink } from '../shared/types'
 
 export type ContextRelation = 'seed' | 'outgoing' | 'backlink'
@@ -76,6 +77,7 @@ export interface ContextBundleOptions {
   includeHistory?: boolean
   query?: string
   temporalPerspective?: TemporalPerspective
+  pathAliases?: CompiledPathAliases
 }
 
 export interface ContextSnapshotIndex {
@@ -84,6 +86,7 @@ export interface ContextSnapshotIndex {
   outgoingByPath: ReadonlyMap<string, ResolvedWikiLink[]>
   backlinksByPath: ReadonlyMap<string, NoteDocument[]>
   temporalByPath: ReadonlyMap<string, ParsedTemporalNote>
+  pathAliases?: CompiledPathAliases
 }
 
 const DEFAULT_MAX_CHARACTERS = 15_000
@@ -168,14 +171,15 @@ function sourceSectionParts(
 }
 
 export function createContextSnapshotIndex(
-  notes: NoteDocument[]
+  notes: NoteDocument[],
+  pathAliases?: CompiledPathAliases
 ): ContextSnapshotIndex {
   const noteByPath = new Map(notes.map((note) => [note.path, note]))
   const outgoingByPath = new Map<string, ResolvedWikiLink[]>()
   const backlinkPaths = new Map<string, string[]>()
 
   for (const note of notes) {
-    const outgoing = getOutgoingLinks(note.content, notes)
+    const outgoing = getOutgoingLinks(note.content, notes, pathAliases)
     outgoingByPath.set(note.path, outgoing)
     for (const link of outgoing) {
       if (
@@ -206,7 +210,8 @@ export function createContextSnapshotIndex(
     ),
     temporalByPath: new Map(
       notes.map((note) => [note.path, parseTemporalNote(note)])
-    )
+    ),
+    ...(pathAliases ? { pathAliases } : {})
   }
 }
 
@@ -246,6 +251,7 @@ function buildContextBundleInternal(
   const asOf = options.asOf ?? generatedAt
   const includeHistory = options.includeHistory ?? false
   const temporalPerspective = options.temporalPerspective ?? 'valid-time'
+  const pathAliases = snapshot?.pathAliases ?? options.pathAliases
   const query = options.query?.trim()
   const warnings: ContextWarning[] = []
   const seedTemporal = parseContextTemporalNote(
@@ -345,7 +351,7 @@ function buildContextBundleInternal(
   const outgoingNotes = (
     allowRelatedNormalMetadata
       ? snapshot?.outgoingByPath.get(seed.path) ??
-        getOutgoingLinks(seed.content, notes)
+        getOutgoingLinks(seed.content, notes, pathAliases)
       : []
   )
     .flatMap((link) => {
@@ -393,7 +399,7 @@ function buildContextBundleInternal(
 
   const backlinkNotes = allowRelatedNormalMetadata
     ? (snapshot?.backlinksByPath.get(seed.path) ??
-        getBacklinks(seed.path, notes)).filter((note) =>
+        getBacklinks(seed.path, notes, pathAliases)).filter((note) =>
         isSafeNormalContextNote(
           note,
           warnings,
@@ -447,7 +453,8 @@ function buildContextBundleInternal(
     subject,
     notes,
     asOf,
-    parsedTemporalNotes
+    parsedTemporalNotes,
+    pathAliases
   )
   for (const entry of allTemporalEntries) {
     if (entry.warnings.length > 0) {
@@ -488,7 +495,8 @@ function buildContextBundleInternal(
           asOf,
           parsedTemporalNotes?.filter(
             (parsed) => !unavailableKnowledgePaths.has(parsed.path)
-          )
+          ),
+          pathAliases
         )
   )
     .filter((entry) => {
@@ -559,7 +567,7 @@ function buildContextBundleInternal(
     if (!note || selected.has(note.path)) {
       continue
     }
-    const provenance = resolveProvenance(entry, notes)
+    const provenance = resolveProvenance(entry, notes, pathAliases)
     if (provenance && provenance.status !== 'resolved') {
       warnings.push({
         code: 'UNRESOLVED_SOURCE',
@@ -813,7 +821,8 @@ function temporalEntryRank(entry: TemporalTimelineEntry): number {
 
 function resolveProvenance(
   entry: TemporalTimelineEntry,
-  notes: NoteDocument[]
+  notes: NoteDocument[],
+  pathAliases?: CompiledPathAliases
 ): ResolvedWikiLink | undefined {
   const source = entry.metadata.source
   if (!source) {
@@ -821,7 +830,7 @@ function resolveProvenance(
   }
   const occurrence = extractWikiLinks(source)[0]
   return occurrence
-    ? resolveWikiLink(occurrence.target, notes)
+    ? resolveWikiLink(occurrence.target, notes, pathAliases)
     : undefined
 }
 

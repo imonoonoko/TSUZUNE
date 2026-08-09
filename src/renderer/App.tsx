@@ -22,6 +22,7 @@ import {
   withoutMarkdownExtension
 } from '../core/paths'
 import type { CopyPathFormat } from '../core/paths'
+import { compilePathAliases, resolvePathAlias } from '../core/path-aliases'
 import { searchNotes } from '../core/search'
 import { getNoteFreshness } from '../core/freshness'
 import {
@@ -125,6 +126,33 @@ function localCalendarDate(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function restoredLastNote(
+  notes: NoteDocument[],
+  lastNotePath: string,
+  pathAliases: VaultSnapshot['pathAliases']
+): NoteDocument | null {
+  const pathKey = lastNotePath.toLocaleLowerCase()
+  const exact = notes.find(
+    (note) => note.path.toLocaleLowerCase() === pathKey
+  )
+  if (exact) {
+    return exact
+  }
+
+  try {
+    const canonicalPath = resolvePathAlias(
+      compilePathAliases(pathAliases ?? {}),
+      lastNotePath
+    )
+    const canonicalKey = canonicalPath.toLocaleLowerCase()
+    return (
+      notes.find((note) => note.path.toLocaleLowerCase() === canonicalKey) ?? null
+    )
+  } catch {
+    return null
+  }
 }
 
 export default function App(): React.JSX.Element {
@@ -301,7 +329,10 @@ export default function App(): React.JSX.Element {
     }
   }
 
-  const loadNoteState = (note: NoteDocument | null): void => {
+  const loadNoteState = (
+    note: NoteDocument | null,
+    persistLastNote = true
+  ): void => {
     clearSaveTimer()
     const path = note?.path ?? null
     selectedPathRef.current = path
@@ -320,7 +351,9 @@ export default function App(): React.JSX.Element {
     if (path) {
       setTreeSelection({ kind: 'note', path })
     }
-    void window.tsuzune.setLastNote(path)
+    if (persistLastNote) {
+      void window.tsuzune.setLastNote(path)
+    }
   }
 
   const updateSnapshotNote = (
@@ -684,11 +717,13 @@ export default function App(): React.JSX.Element {
       } else if (vaultResult.value) {
         setCurrentSnapshot(vaultResult.value)
         if (settingsResult.ok && settingsResult.value.lastNotePath) {
-          const previous = vaultResult.value.notes.find(
-            (note) => note.path === settingsResult.value.lastNotePath
+          const previous = restoredLastNote(
+            vaultResult.value.notes,
+            settingsResult.value.lastNotePath,
+            vaultResult.value.pathAliases
           )
           if (previous) {
-            loadNoteState(previous)
+            loadNoteState(previous, false)
           }
         }
       }
@@ -779,6 +814,10 @@ export default function App(): React.JSX.Element {
   }, [])
 
   const savedNotes = snapshot?.notes ?? []
+  const pathAliases = useMemo(
+    () => compilePathAliases(snapshot?.pathAliases ?? {}),
+    [snapshot?.pathAliases]
+  )
   const bookmarkedPaths = useMemo(
     () => new Set((snapshot?.bookmarks ?? []).map((bookmark) => bookmark.path)),
     [snapshot?.bookmarks]
@@ -800,12 +839,14 @@ export default function App(): React.JSX.Element {
   }, [savedNotes, selectedPath, content, viewMode])
 
   const outgoing = useMemo(
-    () => (selectedPath ? getOutgoingLinks(content, savedNotes) : []),
-    [selectedPath, content, savedNotes]
+    () =>
+      selectedPath ? getOutgoingLinks(content, savedNotes, pathAliases) : [],
+    [selectedPath, content, savedNotes, pathAliases]
   )
   const backlinks = useMemo(
-    () => (selectedPath ? getBacklinks(selectedPath, savedNotes) : []),
-    [selectedPath, savedNotes]
+    () =>
+      selectedPath ? getBacklinks(selectedPath, savedNotes, pathAliases) : [],
+    [selectedPath, savedNotes, pathAliases]
   )
   const searchResults = useMemo(
     () => searchNotes(savedNotes, query),
@@ -845,13 +886,15 @@ export default function App(): React.JSX.Element {
         includeUnresolved: !graphFilters.existingFilesOnly,
         includeTags: graphFilters.showTags,
         includeAttachments: graphFilters.showAttachments,
-        attachments: snapshot?.attachments ?? []
+        attachments: snapshot?.attachments ?? [],
+        pathAliases
       }),
     [
       graphNotes,
       graphFilters.existingFilesOnly,
       graphFilters.showAttachments,
       graphFilters.showTags,
+      pathAliases,
       snapshot?.attachments,
       viewMode
     ]
@@ -1138,7 +1181,7 @@ export default function App(): React.JSX.Element {
   }
 
   const confirmLinkImpact = (changes: ReadonlyMap<string, string>): boolean => {
-    const impact = findLinkImpact(savedNotes, changes)
+    const impact = findLinkImpact(savedNotes, changes, pathAliases)
     if (impact.affectedCount === 0) {
       return true
     }
@@ -1396,7 +1439,7 @@ export default function App(): React.JSX.Element {
   }
 
   const handleWikiLink = (target: string): void => {
-    const resolved = resolveWikiLink(target, savedNotes)
+    const resolved = resolveWikiLink(target, savedNotes, pathAliases)
     if (resolved.status === 'resolved' && resolved.resolvedPath) {
       void openNote(resolved.resolvedPath)
     } else if (resolved.status === 'missing') {
@@ -2536,6 +2579,7 @@ export default function App(): React.JSX.Element {
                     selectedNote={selectedNote}
                     notes={savedNotes}
                     asOf={temporalAsOf}
+                    pathAliases={pathAliases}
                   />
                 ) : null
               }

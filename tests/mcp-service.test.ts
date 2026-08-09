@@ -2,6 +2,7 @@ import {
   mkdtemp,
   mkdir,
   readFile,
+  rename,
   rm,
   stat,
   utimes,
@@ -36,6 +37,17 @@ describe('MCP vault service', () => {
     await rm(root, { recursive: true, force: true })
   })
 
+  async function writePathAliases(
+    aliases: Record<string, string>
+  ): Promise<void> {
+    await mkdir(join(root, '.tsuzune'), { recursive: true })
+    await writeFile(
+      join(root, '.tsuzune', 'path-aliases.json'),
+      JSON.stringify(aliases),
+      'utf8'
+    )
+  }
+
   it('searches, fetches, follows backlinks, and builds context', async () => {
     const search = await service.search('AI連携')
     expect(search.results.map((result) => result.id)).toEqual([
@@ -50,6 +62,101 @@ describe('MCP vault service', () => {
 
     const context = await service.buildContext('Home.md')
     expect(context.markdown).toContain('Path: Projects/TSUZUNE.md')
+  })
+
+  it('uses a live canonical note through an old path across MCP reads and writes', async () => {
+    await mkdir(join(root, 'Knowledge'))
+    await rename(
+      join(root, 'Projects', 'TSUZUNE.md'),
+      join(root, 'Knowledge', 'TSUZUNE.md')
+    )
+    await writePathAliases({
+      'Projects/TSUZUNE.md': 'Archive/TSUZUNE.md',
+      'Archive/TSUZUNE.md': 'Knowledge/TSUZUNE.md'
+    })
+
+    const search = await service.search('AI連携')
+    expect(search.results.map((result) => result.id)).toEqual([
+      'Knowledge/TSUZUNE.md'
+    ])
+
+    const fetched = await service.fetch('Projects/TSUZUNE.md')
+    expect(fetched.id).toBe('Knowledge/TSUZUNE.md')
+    expect(fetched.metadata.path).toBe('Knowledge/TSUZUNE.md')
+
+    const backlinks = await service.backlinks('Projects/TSUZUNE.md')
+    expect(backlinks.note.id).toBe('Knowledge/TSUZUNE.md')
+    expect(backlinks.backlinks.map((item) => item.id)).toEqual(['Home.md'])
+
+    const context = await service.buildContext('Projects/TSUZUNE.md')
+    expect(context.seed_id).toBe('Knowledge/TSUZUNE.md')
+    expect(context.included.map((item) => item.path)).toContain('Home.md')
+
+    const updated = await service.updateNote(
+      'Projects/TSUZUNE.md',
+      '# TSUZUNE\n\n旧IDから更新。',
+      fetched.metadata.revision
+    )
+    expect(updated.id).toBe('Knowledge/TSUZUNE.md')
+    expect(
+      await readFile(join(root, 'Knowledge', 'TSUZUNE.md'), 'utf8')
+    ).toContain('旧IDから更新')
+
+    const autonomous = await service.autonomousUpdateNote(
+      'Projects/TSUZUNE.md',
+      '# TSUZUNE\n\n旧IDから自動更新。'
+    )
+    expect(autonomous.id).toBe('Knowledge/TSUZUNE.md')
+    const history = await readFile(
+      join(root, autonomous.provenance.history_path),
+      'utf8'
+    )
+    expect(history).toContain('target: Knowledge/TSUZUNE.md')
+  })
+
+  it('prefers an existing old-path note and rejects aliases without a live target', async () => {
+    await mkdir(join(root, 'Knowledge'))
+    await writeFile(
+      join(root, 'Knowledge', 'TSUZUNE.md'),
+      '# Canonical',
+      'utf8'
+    )
+    await writePathAliases({
+      'Projects/TSUZUNE.md': 'Knowledge/TSUZUNE.md',
+      'Missing-old.md': 'Knowledge/Missing.md'
+    })
+
+    const exact = await service.fetch('Projects/TSUZUNE.md')
+    expect(exact.id).toBe('Projects/TSUZUNE.md')
+    expect(exact.text).toContain('AI連携を試す')
+    await expect(service.fetch('Missing-old.md')).rejects.toThrow(
+      'ノートが見つかりません'
+    )
+  })
+
+  it('rejects a revision issued before a note moved behind an alias', async () => {
+    const beforeMove = await service.fetch('Projects/TSUZUNE.md')
+    await mkdir(join(root, 'Knowledge'))
+    await rename(
+      join(root, 'Projects', 'TSUZUNE.md'),
+      join(root, 'Knowledge', 'TSUZUNE.md')
+    )
+    await writePathAliases({
+      'Projects/TSUZUNE.md': 'Knowledge/TSUZUNE.md'
+    })
+
+    await expect(
+      service.updateNote(
+        'Projects/TSUZUNE.md',
+        '移動前revisionで上書きしない',
+        beforeMove.metadata.revision
+      )
+    ).rejects.toMatchObject({
+      appError: { code: 'FILE_CHANGED' }
+    })
+    expect(
+      await readFile(join(root, 'Knowledge', 'TSUZUNE.md'), 'utf8')
+    ).toContain('AI連携を試す')
   })
 
   it('builds an as-of context with temporal evidence in the MCP output', async () => {

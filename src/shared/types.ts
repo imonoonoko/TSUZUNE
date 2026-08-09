@@ -62,6 +62,7 @@ export interface VaultSnapshot {
   notes: NoteDocument[]
   attachments?: VaultAttachment[]
   bookmarks?: VaultBookmark[]
+  pathAliases?: Record<string, string>
 }
 
 export interface SaveNoteInput {

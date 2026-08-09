@@ -4,12 +4,14 @@ import {
   type TemporalTimelineEntry,
   type TemporalWarning
 } from '../../core/temporal'
+import type { CompiledPathAliases } from '../../core/path-aliases'
 import type { NoteDocument } from '../../shared/types'
 
 interface TemporalDetailsProps {
   selectedNote: NoteDocument
   notes: NoteDocument[]
   asOf: string
+  pathAliases?: CompiledPathAliases
 }
 
 function subjectFor(
@@ -90,13 +92,16 @@ function warningMessage(warning: TemporalWarning): string {
 export default function TemporalDetails({
   selectedNote,
   notes,
-  asOf
+  asOf,
+  pathAliases
 }: TemporalDetailsProps): React.JSX.Element {
   const parsed = parseTemporalNote(selectedNote)
   const timeline = buildTemporalTimeline(
     subjectFor(selectedNote, parsed),
     notes,
-    asOf
+    asOf,
+    undefined,
+    pathAliases
   )
   const warnings = [
     ...parsed.warnings,

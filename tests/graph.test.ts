@@ -6,6 +6,7 @@ import {
   getLocalWikiGraph,
   getVaultWikiGraph
 } from '../src/core/graph'
+import { compilePathAliases } from '../src/core/path-aliases'
 import type { NoteDocument, VaultAttachment } from '../src/shared/types'
 
 function note(path: string, content = ''): NoteDocument {
@@ -338,6 +339,27 @@ describe('Wiki graph', () => {
         { sourcePath: '入口.md', targetPath: '知識/方針.md' }
       ]
     })
+  })
+
+  it('connects old aliased links to the canonical node without an alias node', () => {
+    const notes = [
+      note('入口.md', '[[旧分類/旧名#見出し]]'),
+      note('30_知識/新名.md')
+    ]
+    const graph = buildWikiGraph(notes, {
+      includeUnresolved: true,
+      pathAliases: compilePathAliases({
+        '旧分類/旧名.md': '30_知識/新名.md'
+      })
+    })
+
+    expect(graph.nodes).toEqual([
+      existingNode('30_知識/新名.md', '新名'),
+      existingNode('入口.md', '入口')
+    ])
+    expect(graph.edges).toEqual([
+      { sourcePath: '入口.md', targetPath: '30_知識/新名.md' }
+    ])
   })
 
   it('keeps direct incoming and outgoing links while hiding neighbor links by default', () => {

@@ -54,6 +54,165 @@ describe('VaultService path and scan boundaries', () => {
     expect(snapshot.attachments).toEqual([])
   })
 
+  it('loads validated path aliases and resolves old Markdown bookmarks', async () => {
+    await mkdir(absolute('.tsuzune'), { recursive: true })
+    await mkdir(absolute('知識'), { recursive: true })
+    await writeFile(absolute('知識/正本.md'), '# 正本', 'utf8')
+    await writeFile(
+      absolute('.tsuzune/path-aliases.json'),
+      JSON.stringify({ '旧/ノート.md': '知識/正本.md' }),
+      'utf8'
+    )
+    await writeFile(
+      absolute('.tsuzune/bookmarks.json'),
+      JSON.stringify([
+        { type: 'file', path: '旧/ノート.md', title: '以前の入口', ctime: 123 }
+      ]),
+      'utf8'
+    )
+
+    const snapshot = await vault.scan()
+
+    expect(snapshot.pathAliases).toEqual({ '旧/ノート.md': '知識/正本.md' })
+    expect(snapshot.bookmarks).toEqual([
+      { type: 'file', path: '知識/正本.md', title: '以前の入口', ctime: 123 }
+    ])
+  })
+
+  it('removes a bookmark through its canonical path after alias restoration', async () => {
+    await mkdir(absolute('.tsuzune'), { recursive: true })
+    await mkdir(absolute('知識'), { recursive: true })
+    await writeFile(absolute('知識/正本.md'), '# 正本', 'utf8')
+    await writeFile(
+      absolute('.tsuzune/path-aliases.json'),
+      JSON.stringify({ '旧/ノート.md': '知識/正本.md' }),
+      'utf8'
+    )
+    await writeFile(
+      absolute('.tsuzune/bookmarks.json'),
+      JSON.stringify([
+        {
+          type: 'file',
+          path: '旧/ノート.md',
+          title: '以前の入口',
+          group: '移行前',
+          ctime: 123
+        }
+      ]),
+      'utf8'
+    )
+
+    expect((await vault.scan()).bookmarks).toEqual([
+      {
+        type: 'file',
+        path: '知識/正本.md',
+        title: '以前の入口',
+        group: '移行前',
+        ctime: 123
+      }
+    ])
+    await vault.removeBookmark('知識/正本.md')
+
+    expect((await vault.scan()).bookmarks).toEqual([])
+    expect(
+      JSON.parse(await readFile(absolute('.tsuzune/bookmarks.json'), 'utf8'))
+    ).toEqual([])
+  })
+
+  it('updates an aliased bookmark as one canonical entry without losing its ctime', async () => {
+    await mkdir(absolute('.tsuzune'), { recursive: true })
+    await mkdir(absolute('知識'), { recursive: true })
+    await writeFile(absolute('知識/正本.md'), '# 正本', 'utf8')
+    await writeFile(
+      absolute('.tsuzune/path-aliases.json'),
+      JSON.stringify({ '旧/ノート.md': '知識/正本.md' }),
+      'utf8'
+    )
+    await writeFile(
+      absolute('.tsuzune/bookmarks.json'),
+      JSON.stringify([
+        {
+          type: 'file',
+          path: '旧/ノート.md',
+          title: '以前の入口',
+          group: '移行前',
+          ctime: 123
+        }
+      ]),
+      'utf8'
+    )
+
+    const updated = await vault.saveBookmark({
+      path: '知識/正本.md',
+      title: '現在の入口',
+      group: '正本'
+    })
+
+    expect(updated).toEqual({
+      type: 'file',
+      path: '知識/正本.md',
+      title: '現在の入口',
+      group: '正本',
+      ctime: 123
+    })
+    expect(
+      JSON.parse(await readFile(absolute('.tsuzune/bookmarks.json'), 'utf8'))
+    ).toEqual([updated])
+  })
+
+  it('keeps a bookmark on a live old path instead of applying its stale alias', async () => {
+    await mkdir(absolute('.tsuzune'), { recursive: true })
+    await mkdir(absolute('旧'), { recursive: true })
+    await mkdir(absolute('知識'), { recursive: true })
+    await writeFile(absolute('旧/ノート.md'), '# 新しく作られた別ノート', 'utf8')
+    await writeFile(absolute('知識/正本.md'), '# 正本', 'utf8')
+    await writeFile(
+      absolute('.tsuzune/path-aliases.json'),
+      JSON.stringify({ '旧/ノート.md': '知識/正本.md' }),
+      'utf8'
+    )
+    await writeFile(
+      absolute('.tsuzune/bookmarks.json'),
+      JSON.stringify([{ type: 'file', path: '旧/ノート.md', ctime: 123 }]),
+      'utf8'
+    )
+
+    expect((await vault.scan()).bookmarks).toEqual([
+      { type: 'file', path: '旧/ノート.md', ctime: 123 }
+    ])
+  })
+
+  it('keeps an old bookmark unchanged when the alias terminal is missing', async () => {
+    await mkdir(absolute('.tsuzune'), { recursive: true })
+    await writeFile(
+      absolute('.tsuzune/path-aliases.json'),
+      JSON.stringify({ '旧/ノート.md': '知識/欠損.md' }),
+      'utf8'
+    )
+    await writeFile(
+      absolute('.tsuzune/bookmarks.json'),
+      JSON.stringify([{ type: 'file', path: '旧/ノート.md', ctime: 123 }]),
+      'utf8'
+    )
+
+    expect((await vault.scan()).bookmarks).toEqual([
+      { type: 'file', path: '旧/ノート.md', ctime: 123 }
+    ])
+  })
+
+  it('fails closed when path aliases are malformed or cyclic', async () => {
+    await mkdir(absolute('.tsuzune'), { recursive: true })
+    await writeFile(
+      absolute('.tsuzune/path-aliases.json'),
+      JSON.stringify({ 'A.md': 'B.md', 'B.md': 'A.md' }),
+      'utf8'
+    )
+
+    await expect(vault.scan()).rejects.toMatchObject({
+      appError: { code: 'INVALID_PATH' }
+    })
+  })
+
   it('scans supported attachments recursively with file metadata', async () => {
     const supportedExtensions = [
       'png',

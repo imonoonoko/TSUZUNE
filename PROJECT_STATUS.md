@@ -12,8 +12,8 @@
 | 開発ブランチ | `agent/tsuzune-mcp-integration`。GP0-3b-lと、通常ノート／Daily／IdeaのMarkdown不要な自由入力拡張、書式ボタン、Vaultノート選択、round-trip guard、同名／同期競合／作成失敗／アプリ終了時の入力保護をcommit `b927171`としてpushし、このPCの本番へ反映済み | Git |
 | 直近slice | GP0-3b-lでattachment nodeのpath copy 3形式、menu lifecycle、Graph検索条件・node集合・Vault内容の再表示／別プロセス再起動までの保持を比較し、`matched-core-behavior`にした | [比較report](docs/reports/graph-gp0-attachment-path-copy-2026-08-09.html) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
-| 最優先Track | v0.6 Obsidian Graph Parity | [PLAN.md](PLAN.md#active-track-v06-obsidian-graph-parity) |
-| 次の縦切り | GP0-3b-lの`パスをコピー`は比較済み。次はGP0-3b-mでattachment nodeの`リンクされたビューを開く`を固定参照版から採取し、先頭の有効な子操作1件だけを比較する | [PLAN.md](PLAN.md) |
+| 最優先Track | O2-P2 Classification Migration Dry-run。最小domainの移行manifestとrollback条件を、物理移動なしで固定する | [PLAN.md](PLAN.md#current-transition-queue) |
+| 次の縦切り | Path Alias基盤を前提に、候補path、hash、参照、Graph、MCP、履歴不変、Drive境界をdry-runで検証する | [PLAN.md](PLAN.md) |
 
 ## 実装済みの基盤
 
@@ -103,8 +103,8 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 
 1. M5-Cは要求単位snapshot indexで完了。Context構築median 151.123ms→35.934ms、p95 180.404ms→47.798ms、改善前後のMarkdown SHA-256と意味指標は一致した。
 2. retained heap比較は未測定。cacheを要求境界より長寿命化する提案が出た場合だけ、GCを分離したharnessを先に作る。永続DBやbackground cacheは追加しない。
-3. GP0-3b-lのpath copy 3形式は`matched-core-behavior`で完了。次はGP0-3b-mでObsidian attachment nodeの`リンクされたビューを開く`を同じfixtureから採取し、固定参照で実在を確認した先頭の有効な子操作1件だけをTSUZUNEと比較する。
-4. 公開差が確認できた場合だけ一件を修正し、同じcaptureで回帰を確認する。
+3. O2-P1 Path Alias Foundationは全486 tests、build、MCP検査をPASS。旧pathはWiki、backlink、Graph、Context、時間情報、MCP、bookmark、起動復元でcanonical pathへ解決され、実在する旧pathを優先する。
+4. 現在は最小domainのO2-P2移行dry-runを行い、hash、参照、Graph、MCP、履歴不変、rollbackをmanifest化する。Drive同期がsidecar未対応のため物理移動とDrive applyは行わず、その後GP0-3b-mへ戻る。
 5. O1-W1の通常ノート／Daily／Idea自由入力、最小書式ツールバー、Vaultノート選択、round-trip guard、同名／同期競合／作成失敗／アプリ終了時の入力保護はcommit `b927171`として本番反映済み。
 6. node context menuの残差分を一項目ずつ閉じた後、720px／200% zoom、tree semantics、実Windows accessibilityを別sliceで扱う。
 7. さらにGoogle Tasks、Drive選択取込、YouTube、Data Portabilityから一つを再選択する。

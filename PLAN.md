@@ -46,20 +46,41 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 |---|---|
 | インストール済み本番 | v0.5.0。最新の正確なcommit、hash、検証結果は[production-update-latest.json](docs/reports/production-update-latest.json)を参照 |
 | 開発checkpoint | v0.6 Obsidian Graph Parity |
-| 完了した直近slice | GP0-3b-l attachment path copy比較 |
-| 現役slice | GP0-3b-m attachment nodeの`リンクされたビューを開く` |
+| 完了した直近slice | O2-P1 Path Alias Foundation。旧pathをWiki／Graph／Context／MCP／bookmark／起動復元でcanonical pathへ解決 |
+| 現役slice | O2-P2 Classification Migration Dry-run。物理移動せず、最小domainの移行manifestとrollback条件を固定する |
 | 現役Track数 | 1。Google intakeとChatGPT candidate applyは保留 |
 
 ### Current Transition Queue
 
-1. **Now — GP0-3b-m:** attachment nodeの`リンクされたビューを開く`を固定比較する。
-2. **Next — GP0 context menu:** 固定参照版で実在を確認した残る操作を一項目ずつ固定比較する。
-3. **Then — Graph closure:** Groups、Animate、Restore defaults、Search/Excluded files境界を一項目ずつ閉じる。
-4. **After Graph checkpoint:** アクセシビリティ、Personal Google Intake、AI write policyのどれを次の独立Trackにするか再選択する。
+1. **Now — O2-P2 Classification Migration Dry-run:** 監査済みの最小domainを再確定し、path・hash・参照・Graph・MCP・履歴不変条件をmanifest化する。dry-runが全件PASSするまで移動しない。
+2. **Then — GP0-3b-m:** attachment nodeの`リンクされたビューを開く`を固定比較し、Graph parityへ戻る。
+3. **After Graph checkpoint:** アクセシビリティ、Personal Google Intake、AI write policyのどれを次の独立Trackにするか再選択する。
 
 新しいSupporting Trackを割り込ませる場合は、目的、停止条件、元Trackへ戻る条件をこの節へ先に記録します。
 
+## Completed Supporting Track: O2-P1 Path Alias Foundation
+
+分類を人間に見やすく細分化するには物理pathの整理が必要ですが、現行のmove／renameはMarkdown本文、履歴、外部MCP IDを自動更新しません。そこで旧pathをMarkdownダミーとして残さず、sidecarだけでcanonicalな新pathへ解決する最小基盤を先に作ります。
+
+### Acceptance
+
+- [x] Vault相対の`old.md -> new.md`をcase-insensitiveに検索し、canonicalな新path表記を返す。
+- [x] unsafe path、非Markdown、自己参照、case-insensitive重複、循環、曖昧な連鎖をfail-closedで拒否する。
+- [x] `#heading`、`#^block`、`|表示名`を壊さず、Wiki link、backlink、Graphで旧pathが新nodeへ解決される。
+- [x] MCPのfetch／update／backlinks／contextは旧IDを受けても新IDを返し、searchは新IDだけを返す。古いrevisionでの更新拒否は維持する。
+- [x] bookmarkと最後に開いたノートは旧pathから新pathへ復元でき、sidecarや本文を無言で書き換えない。
+- [x] 匿名fixture、targeted tests、全回帰486件、typecheck、build、MCP検査をPASSする。
+- [x] このsliceでは本番Vaultの物理移動、履歴書換え、redirect Markdown、DB、新依存を追加しない。
+
+実装契約と復旧方法は[Path Alias](docs/path-aliases.md)を正本とします。Drive同期はsidecarをまだ扱わないため、O2-P2もdry-runだけを行い、分類目的の物理移動とDrive applyは実行しません。
+
+### Stop Condition
+
+同じ旧pathがUI、Graph、MCPで一意に同じ新pathへ解決され、循環・衝突fixtureがfail-closedになったら止めます。分類移動は別sliceのmanifest、rollback、Drive previewを通してから実行します。
+
 ## Active Track: v0.6 Obsidian Graph Parity
+
+O2-P1／O2-P2の安全な分類基盤を閉じる間だけ一時停止します。再開点はGP0-3b-mで変えません。
 
 ### Completed GP0-3b-l — Attachment Path Copy
 
@@ -117,9 +138,9 @@ Graph parity全体は、P2/P3へ到達していない領域が残る限り完了
 
 | Stage | 到達目標 | 状態 / 次のGate |
 |---|---|---|
-| O0. Graph Parity | Local/Global Graph、filter、group、display、force、interaction、保存、アクセシビリティを徹底比較 | **Active**。GP0-3b-mから一項目ずつ進める |
+| O0. Graph Parity | Local/Global Graph、filter、group、display、force、interaction、保存、アクセシビリティを徹底比較 | O2-P1／O2-P2の後にGP0-3b-mから再開 |
 | O1. Daily Writing & Navigation | Markdownを知らなくても作成・編集・日次運用できる | Daily/Ideaフォーム、toolbar、template、freshnessは実装済み。7日通常運用と残るnavigationは未完 |
-| O2. Organization & Retrieval | folders、tags、properties、outline、bookmarks、search、commandsを日常利用できる | 基礎あり。Graph checkpoint後に不足surfaceを棚卸し |
+| O2. Organization & Retrieval | folders、tags、properties、outline、bookmarks、search、commandsを日常利用できる | **Active supporting slice**。Path Aliasで非破壊分類の前提を閉じる |
 | O3. Structured Views | Markdown/frontmatter原本のtable/card/list view | Planned。実用queryと編集契約を固定してから開始 |
 | O4. Canvas & Rich Media | freeform canvas、embed、PDF/audio/video、properties view | Planned。O2/O3の保存契約後 |
 | O5. Recovery, Sync, Import & Publish | recovery、version history、import/export、optional sync/publish | `.trash`、AI history、Drive手動同期、ChatGPT preview基礎あり。往復dogfoodとrecovery UIは未完 |

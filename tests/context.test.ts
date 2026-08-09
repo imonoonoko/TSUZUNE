@@ -4,6 +4,7 @@ import {
   buildContextBundleFromSnapshot,
   createContextSnapshotIndex
 } from '../src/core/context'
+import { compilePathAliases } from '../src/core/path-aliases'
 import type { NoteDocument } from '../src/shared/types'
 
 function note(path: string, content: string): NoteDocument {
@@ -1002,6 +1003,72 @@ describe('context bundle', () => {
     )
 
     expect(indexed).toEqual(direct)
+  })
+
+  it('resolves aliased Wiki paths consistently in direct and snapshot bundles', () => {
+    const indexedNotes = [
+      note('10_プロジェクト/Project.md', '# Project\n\n[[旧/Decision#結論]]'),
+      note('30_知識/Decision.md', '# Decision\n\nCanonical decision'),
+      note('30_知識/Backlink.md', '# Backlink\n\n[[旧/Project#概要]]'),
+      note('40_情報源/Conversation.md', '# Conversation\n\nOriginal evidence'),
+      note(
+        '50_履歴/Project-状態.md',
+        [
+          '---',
+          'kind: state',
+          'subject: "[[旧/Project#概要]]"',
+          'status: active',
+          'valid_from: 2026-07-01',
+          'source: "[[旧/Conversation#根拠]]"',
+          '---',
+          '# Current state'
+        ].join('\n')
+      )
+    ]
+    const pathAliases = compilePathAliases({
+      '旧/Decision.md': '30_知識/Decision.md',
+      '旧/Project.md': '10_プロジェクト/Project.md',
+      '旧/Conversation.md': '40_情報源/Conversation.md'
+    })
+    const options = {
+      asOf: '2026-07-30',
+      generatedAt: '2026-07-30T12:00:00+09:00',
+      pathAliases
+    }
+
+    const direct = buildContextBundle(
+      '10_プロジェクト/Project.md',
+      indexedNotes,
+      options
+    )
+    const indexed = buildContextBundleFromSnapshot(
+      '10_プロジェクト/Project.md',
+      createContextSnapshotIndex(indexedNotes, pathAliases),
+      {
+        asOf: options.asOf,
+        generatedAt: options.generatedAt
+      }
+    )
+
+    expect(indexed).toEqual(direct)
+    expect(direct.included.map((source) => source.path)).toEqual(
+      expect.arrayContaining([
+        '30_知識/Decision.md',
+        '30_知識/Backlink.md',
+        '50_履歴/Project-状態.md'
+      ])
+    )
+    expect(
+      direct.included.find(
+        (source) => source.path === '50_履歴/Project-状態.md'
+      )?.provenance
+    ).toMatchObject({
+      status: 'resolved',
+      resolvedPath: '40_情報源/Conversation.md'
+    })
+    expect(direct.warnings).not.toContainEqual(
+      expect.objectContaining({ code: 'UNRESOLVED_SOURCE' })
+    )
   })
 
   it('keeps the character limit even when temporal warnings are numerous', () => {

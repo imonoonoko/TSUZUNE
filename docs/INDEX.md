@@ -16,6 +16,7 @@
 - [Obsidian Graph Parity Reference](obsidian-graph-parity-reference.md) — 固定比較対象と受入契約。
 - [MCP Integration](mcp-integration.md) — Codex／ChatGPTデスクトップ連携と書込境界。
 - [Templates and Freshness](templates-and-freshness.md) — Markdown雛形、placeholder、最終更新日、再確認表示の使い方。
+- [Path Alias](path-aliases.md) — 分類移動後の旧Wikiリンク・MCP IDをcanonical pathへ安全に解決するsidecar契約。
 - [ChatGPT Export Intake](chatgpt-export-intake.md) — 公式Exportの読み取り専用preview、正規化、個人データ境界。
 - [Windows Production](windows-production.md) — build、installer、更新、受入手順。
 

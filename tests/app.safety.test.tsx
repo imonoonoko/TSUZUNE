@@ -269,6 +269,243 @@ afterEach(() => {
 })
 
 describe('App data-loss guards', () => {
+  it('restores an aliased last note without rewriting the saved setting', async () => {
+    const canonical: NoteDocument = {
+      ...noteB,
+      path: '30_知識/現在名.md',
+      name: '現在名',
+      content: 'aliasから復元した本文'
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue(
+      await ok({
+        ...snapshot,
+        directories: ['', '30_知識'],
+        notes: [canonical],
+        pathAliases: { '旧分類/旧名.md': canonical.path }
+      })
+    )
+    vi.mocked(api.getSettings).mockResolvedValue(
+      await ok({
+        lastVaultPath: snapshot.rootPath,
+        lastNotePath: '旧分類/旧名.md',
+        userIgnoreFilters: [],
+        graphForces: {
+          centerForce: 50,
+          repelForce: 50,
+          linkForce: 50,
+          linkDistance: 50
+        },
+        graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
+        graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
+        graphGroups: DEFAULT_GRAPH_GROUPS,
+        graphViewStates: DEFAULT_GRAPH_VIEW_STATES
+      })
+    )
+
+    render(<App />)
+
+    expect(await screen.findByDisplayValue('aliasから復元した本文')).toBeTruthy()
+    expect(api.setLastNote).not.toHaveBeenCalled()
+  })
+
+  it('prefers a live note at the old path over its stale alias', async () => {
+    const liveOld: NoteDocument = {
+      ...noteA,
+      path: '旧分類/旧名.md',
+      name: '旧名',
+      content: '現在も存在する旧パスの本文'
+    }
+    const canonical: NoteDocument = {
+      ...noteB,
+      path: '30_知識/現在名.md',
+      name: '現在名',
+      content: 'alias終端の本文'
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue(
+      await ok({
+        ...snapshot,
+        directories: ['', '旧分類', '30_知識'],
+        notes: [liveOld, canonical],
+        pathAliases: { [liveOld.path]: canonical.path }
+      })
+    )
+    vi.mocked(api.getSettings).mockResolvedValue(
+      await ok({
+        lastVaultPath: snapshot.rootPath,
+        lastNotePath: liveOld.path,
+        userIgnoreFilters: [],
+        graphForces: {
+          centerForce: 50,
+          repelForce: 50,
+          linkForce: 50,
+          linkDistance: 50
+        },
+        graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
+        graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
+        graphGroups: DEFAULT_GRAPH_GROUPS,
+        graphViewStates: DEFAULT_GRAPH_VIEW_STATES
+      })
+    )
+
+    render(<App />)
+
+    expect(
+      await screen.findByDisplayValue('現在も存在する旧パスの本文')
+    ).toBeTruthy()
+    expect(screen.queryByDisplayValue('alias終端の本文')).toBeNull()
+    expect(api.setLastNote).not.toHaveBeenCalled()
+  })
+
+  it('does not restore an aliased last note when its terminal note is missing', async () => {
+    vi.mocked(api.openLastVault).mockResolvedValue(
+      await ok({
+        ...snapshot,
+        notes: [noteA],
+        pathAliases: { '旧分類/旧名.md': '30_知識/削除済み.md' }
+      })
+    )
+    vi.mocked(api.getSettings).mockResolvedValue(
+      await ok({
+        lastVaultPath: snapshot.rootPath,
+        lastNotePath: '旧分類/旧名.md',
+        userIgnoreFilters: [],
+        graphForces: {
+          centerForce: 50,
+          repelForce: 50,
+          linkForce: 50,
+          linkDistance: 50
+        },
+        graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
+        graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
+        graphGroups: DEFAULT_GRAPH_GROUPS,
+        graphViewStates: DEFAULT_GRAPH_VIEW_STATES
+      })
+    )
+
+    render(<App />)
+
+    expect(
+      await screen.findByText(
+        '左の一覧からノートを選ぶか、新しいノートを作成してください。'
+      )
+    ).toBeTruthy()
+    expect(screen.queryByLabelText('Markdown編集欄')).toBeNull()
+    expect(api.setLastNote).not.toHaveBeenCalled()
+  })
+
+  it('uses path aliases for related notes, Wiki navigation, backlinks, and graph nodes', async () => {
+    const source: NoteDocument = {
+      ...noteA,
+      content: '[[旧分類/旧名]]'
+    }
+    const canonical: NoteDocument = {
+      ...noteB,
+      path: '30_知識/現在名.md',
+      name: '現在名',
+      content: 'canonical本文'
+    }
+    const aliasSnapshot: VaultSnapshot = {
+      ...snapshot,
+      directories: ['', '30_知識'],
+      notes: [source, canonical],
+      pathAliases: { '旧分類/旧名.md': canonical.path }
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok(aliasSnapshot))
+    vi.mocked(api.readNote).mockImplementation((path) => {
+      const note = aliasSnapshot.notes.find((candidate) => candidate.path === path)
+      return note
+        ? ok(note)
+        : Promise.resolve({
+            ok: false,
+            error: { code: 'NOT_FOUND', message: '見つかりません。' }
+          })
+    })
+    vi.mocked(api.getSettings).mockResolvedValue(
+      await ok({
+        lastVaultPath: snapshot.rootPath,
+        lastNotePath: source.path,
+        userIgnoreFilters: [],
+        graphForces: {
+          centerForce: 50,
+          repelForce: 50,
+          linkForce: 50,
+          linkDistance: 50
+        },
+        graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
+        graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
+        graphGroups: DEFAULT_GRAPH_GROUPS,
+        graphViewStates: DEFAULT_GRAPH_VIEW_STATES
+      })
+    )
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('button', { name: '旧分類/旧名' })
+    ).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'ローカルグラフ' }))
+    expect(
+      await screen.findByRole('button', { name: '現在名（リンク先）を開く' })
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'プレビュー' }))
+    fireEvent.click(await screen.findByRole('link', { name: '旧分類/旧名' }))
+
+    await waitFor(() => {
+      expect(api.setLastNote).toHaveBeenCalledWith(canonical.path)
+    })
+    expect(await screen.findByText('canonical本文')).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: /A\s*A\.md/ })
+    ).toBeTruthy()
+  })
+
+  it('warns before moving a canonical note that is reached through an old path alias', async () => {
+    const source: NoteDocument = {
+      ...noteA,
+      content: '[[旧分類/旧名]]'
+    }
+    const canonical: NoteDocument = {
+      ...noteB,
+      path: '30_知識/現在名.md',
+      name: '現在名'
+    }
+    const aliasSnapshot: VaultSnapshot = {
+      ...snapshot,
+      directories: ['', '30_知識', '40_情報源'],
+      notes: [source, canonical],
+      pathAliases: { '旧分類/旧名.md': canonical.path }
+    }
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok(aliasSnapshot))
+    vi.mocked(api.moveNote).mockResolvedValue(
+      await ok({ oldPath: canonical.path, path: '40_情報源/現在名.md' })
+    )
+
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'ローカルグラフ' }))
+    fireEvent.contextMenu(
+      await screen.findByRole('button', { name: '現在名（リンク先）を開く' })
+    )
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ファイルを移動…' }))
+    fireEvent.change(screen.getByRole('combobox', { name: '移動先' }), {
+      target: { value: '40_情報源' }
+    })
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: 'ファイルを移動' })).getByRole(
+        'button',
+        { name: '移動' }
+      )
+    )
+
+    await waitFor(() => {
+      expect(confirmSpy).toHaveBeenCalledWith(
+        expect.stringContaining('1件の参照元')
+      )
+    })
+    expect(api.moveNote).not.toHaveBeenCalled()
+  })
+
   it('shows each note modification time and the selected note freshness', async () => {
     render(<App />)
     await screen.findByLabelText('Markdown編集欄')

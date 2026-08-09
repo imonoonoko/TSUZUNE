@@ -21,6 +21,7 @@ import {
 import { randomUUID } from 'node:crypto'
 import { isSupportedAttachmentPath } from '../shared/attachments'
 import { createExcludedFileMatcher } from '../shared/excluded-files'
+import { compilePathAliases, resolvePathAlias } from '../core/path-aliases'
 import {
   basenameRelative,
   dirnameRelative,
@@ -375,6 +376,72 @@ export class VaultService {
     }
   }
 
+  private async readPathAliases(rootPath: string): Promise<Record<string, string>> {
+    const metadataDirectory = join(rootPath, '.tsuzune')
+    const aliasPath = join(metadataDirectory, 'path-aliases.json')
+    try {
+      const [directoryInfo, aliasInfo] = await Promise.all([
+        lstat(metadataDirectory),
+        lstat(aliasPath)
+      ])
+      if (
+        !directoryInfo.isDirectory() ||
+        directoryInfo.isSymbolicLink() ||
+        !aliasInfo.isFile() ||
+        aliasInfo.isSymbolicLink()
+      ) {
+        throw new Error('path-aliases.json must be a regular file.')
+      }
+      const parsed: unknown = JSON.parse(await readFile(aliasPath, 'utf8'))
+      compilePathAliases(parsed)
+      return { ...(parsed as Record<string, string>) }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return {}
+      }
+      throw new VaultError(
+        {
+          code: 'INVALID_PATH',
+          message: '.tsuzune/path-aliases.jsonを確認してください。'
+        },
+        { cause: error }
+      )
+    }
+  }
+
+  private async bookmarkMatchesPath(
+    bookmarkPath: string,
+    targetPath: string,
+    aliases: ReturnType<typeof compilePathAliases>
+  ): Promise<boolean> {
+    if (bookmarkPath.toLocaleLowerCase() === targetPath.toLocaleLowerCase()) {
+      return true
+    }
+    if (!isMarkdownFile(bookmarkPath)) {
+      return false
+    }
+
+    try {
+      const absolute = this.absolutePath(bookmarkPath)
+      await this.assertNoSymlinkTraversal(absolute)
+      if ((await stat(absolute)).isFile()) {
+        return false
+      }
+    } catch (error) {
+      if (
+        (error as NodeJS.ErrnoException).code !== 'ENOENT' &&
+        !(error instanceof VaultError && error.appError.code === 'INVALID_PATH')
+      ) {
+        throw error
+      }
+    }
+
+    return (
+      resolvePathAlias(aliases, bookmarkPath).toLocaleLowerCase() ===
+      targetPath.toLocaleLowerCase()
+    )
+  }
+
   private async writeBookmarks(
     rootPath: string,
     revision: number,
@@ -589,7 +656,7 @@ export class VaultService {
       })
     }
 
-    const [creationTimes, bookmarks] = await Promise.all([
+    const [creationTimes, bookmarks, pathAliases] = await Promise.all([
       this.updateCreationTimes(
         root,
         revision,
@@ -604,7 +671,8 @@ export class VaultService {
           return next
         }
       ),
-      this.readBookmarks(root)
+      this.readBookmarks(root),
+      this.readPathAliases(root)
     ])
 
     if (this.rootRevision !== revision || this.rootPath !== root) {
@@ -626,13 +694,35 @@ export class VaultService {
     visibleNotes.sort((left, right) => left.path.localeCompare(right.path, 'ja'))
     visibleAttachments.sort((left, right) => left.path.localeCompare(right.path, 'ja'))
 
+    const compiledAliases = compilePathAliases(pathAliases)
+    const liveNotePaths = new Map(
+      visibleNotes.map((note) => [note.path.toLocaleLowerCase(), note.path])
+    )
+    const resolvedBookmarks = normalizeBookmarks(
+      bookmarks.map((bookmark) => {
+        if (!isMarkdownFile(bookmark.path)) {
+          return bookmark
+        }
+        const liveExactPath = liveNotePaths.get(bookmark.path.toLocaleLowerCase())
+        if (liveExactPath) {
+          return { ...bookmark, path: liveExactPath }
+        }
+        const canonicalPath = resolvePathAlias(compiledAliases, bookmark.path)
+        const liveCanonicalPath = liveNotePaths.get(canonicalPath.toLocaleLowerCase())
+        return liveCanonicalPath
+          ? { ...bookmark, path: liveCanonicalPath }
+          : bookmark
+      })
+    )
+
     return {
       rootPath: root,
       rootName: basename(root),
       directories,
       notes: visibleNotes,
       attachments: visibleAttachments,
-      bookmarks
+      bookmarks: resolvedBookmarks,
+      pathAliases
     }
   }
 
@@ -652,7 +742,13 @@ export class VaultService {
 
       const path = this.relativePathFrom(root, absolute)
       const current = await this.readBookmarks(root)
-      const previous = current.find((bookmark) => bookmark.path === path)
+      const aliases = compilePathAliases(await this.readPathAliases(root))
+      const matches = await Promise.all(
+        current.map((bookmark) =>
+          this.bookmarkMatchesPath(bookmark.path, path, aliases)
+        )
+      )
+      const previous = current.find((_, index) => matches[index])
       const title = input.title?.trim()
       const group = input.group?.trim()
       const bookmark: VaultBookmark = {
@@ -663,7 +759,7 @@ export class VaultService {
         ctime: previous?.ctime ?? Date.now()
       }
       await this.writeBookmarks(root, revision, [
-        ...current.filter((candidate) => candidate.path !== path),
+        ...current.filter((_, index) => !matches[index]),
         bookmark
       ])
       return bookmark
@@ -682,10 +778,16 @@ export class VaultService {
     const normalizedPath = this.relativePathFrom(root, absolute)
     try {
       const current = await this.readBookmarks(root)
+      const aliases = compilePathAliases(await this.readPathAliases(root))
+      const matches = await Promise.all(
+        current.map((bookmark) =>
+          this.bookmarkMatchesPath(bookmark.path, normalizedPath, aliases)
+        )
+      )
       await this.writeBookmarks(
         root,
         revision,
-        current.filter((bookmark) => bookmark.path !== normalizedPath)
+        current.filter((_, index) => !matches[index])
       )
     } catch (error) {
       if (error instanceof VaultError) {

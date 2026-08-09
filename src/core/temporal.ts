@@ -1,5 +1,6 @@
 import { parseFrontmatter } from './frontmatter'
 import { extractWikiLinks, resolveWikiLink } from './links'
+import type { CompiledPathAliases } from './path-aliases'
 import type { NoteDocument } from '../shared/types'
 
 export type TemporalWarningCode =
@@ -190,15 +191,30 @@ function getWholeWikiLinkTarget(value: string): string | null {
     : null
 }
 
-function normalizeSubject(value: string): string | null {
+function normalizeSubject(
+  value: string,
+  notes?: NoteDocument[],
+  pathAliases?: CompiledPathAliases
+): string | null {
   const target = getWholeWikiLinkTarget(value)
-  return target
-    ? target
+  if (!target) {
+    return null
+  }
+
+  const resolved =
+    notes && pathAliases
+      ? resolveWikiLink(target, notes, pathAliases)
+      : undefined
+  const canonicalTarget =
+    resolved?.status === 'resolved' && resolved.resolvedPath
+      ? resolved.resolvedPath
+      : target.split('#', 1)[0]
+
+  return canonicalTarget
         .trim()
         .replaceAll('\\', '/')
         .replace(/\.md$/i, '')
         .toLocaleLowerCase()
-    : null
 }
 
 function optionalDateField(
@@ -326,16 +342,18 @@ export function buildTemporalTimeline(
   subject: string,
   notes: NoteDocument[],
   asOf: string,
-  parsedNotes: ParsedTemporalNote[] = notes.map(parseTemporalNote)
+  parsedNotes: ParsedTemporalNote[] = notes.map(parseTemporalNote),
+  pathAliases?: CompiledPathAliases
 ): TemporalTimelineEntry[] {
   const entries: TemporalTimelineEntry[] = []
-  const normalizedSubject = normalizeSubject(subject)
+  const normalizedSubject = normalizeSubject(subject, notes, pathAliases)
 
   for (const parsed of parsedNotes) {
     if (
       parsed.kind === 'normal' ||
       !parsed.metadata ||
-      normalizeSubject(parsed.metadata.subject) !== normalizedSubject
+      normalizeSubject(parsed.metadata.subject, notes, pathAliases) !==
+        normalizedSubject
     ) {
       continue
     }
@@ -366,7 +384,7 @@ export function buildTemporalTimeline(
       (link) => link.raw === supersedes
     )
     const resolved = occurrence
-      ? resolveWikiLink(occurrence.target, notes)
+      ? resolveWikiLink(occurrence.target, notes, pathAliases)
       : null
     const replaced =
       resolved?.status === 'resolved' && resolved.resolvedPath

@@ -2,6 +2,10 @@ import { createHash } from 'node:crypto'
 import { buildContextBundle, type ContextBundle } from '../core/context'
 import { getBacklinks } from '../core/links'
 import {
+  compilePathAliases,
+  resolvePathAlias
+} from '../core/path-aliases'
+import {
   basenameRelative,
   dirnameRelative,
   validateRelativePath
@@ -131,7 +135,11 @@ function revisionFor(rootPath: string, note: NoteDocument): string {
   return `sha256:${digest}`
 }
 
-function canonicalNote(snapshot: VaultSnapshot, rawId: string): NoteDocument {
+function canonicalNote(
+  snapshot: VaultSnapshot,
+  rawId: string,
+  aliases = compilePathAliases(snapshot.pathAliases ?? {})
+): NoteDocument {
   const id = rawId.trim().replaceAll('\\', '/')
   const validation = validateRelativePath(id)
   if (
@@ -142,15 +150,24 @@ function canonicalNote(snapshot: VaultSnapshot, rawId: string): NoteDocument {
     throw new Error('Vault内のMarkdownノートの相対パスを指定してください。')
   }
 
-  const note = snapshot.notes.find(
+  const exact = snapshot.notes.find(
     (candidate) =>
       candidate.path.toLocaleLowerCase() ===
       validation.normalized?.toLocaleLowerCase()
   )
-  if (!note) {
+  if (exact) {
+    return exact
+  }
+
+  const canonicalPath = resolvePathAlias(aliases, validation.normalized)
+  const canonical = snapshot.notes.find(
+    (candidate) =>
+      candidate.path.toLocaleLowerCase() === canonicalPath.toLocaleLowerCase()
+  )
+  if (!canonical) {
     throw new Error(`ノートが見つかりません: ${validation.normalized}`)
   }
-  return note
+  return canonical
 }
 
 async function ensureDirectory(
@@ -405,8 +422,9 @@ export class VaultMcpService {
 
   async backlinks(id: string, limit = 20): Promise<BacklinksOutput> {
     const { snapshot } = await this.snapshot()
-    const note = canonicalNote(snapshot, id)
-    const backlinks = getBacklinks(note.path, snapshot.notes)
+    const aliases = compilePathAliases(snapshot.pathAliases ?? {})
+    const note = canonicalNote(snapshot, id, aliases)
+    const backlinks = getBacklinks(note.path, snapshot.notes, aliases)
 
     return {
       note: {
@@ -427,12 +445,14 @@ export class VaultMcpService {
     options: BuildContextOptions = {}
   ): Promise<ContextOutput> {
     const { snapshot } = await this.snapshot()
-    const note = canonicalNote(snapshot, id)
+    const aliases = compilePathAliases(snapshot.pathAliases ?? {})
+    const note = canonicalNote(snapshot, id, aliases)
     const bundle = buildContextBundle(note.path, snapshot.notes, {
       maxCharacters,
       asOf: options.asOf,
       includeHistory: options.includeHistory,
-      temporalPerspective: options.temporalPerspective
+      temporalPerspective: options.temporalPerspective,
+      pathAliases: aliases
     })
 
     return {

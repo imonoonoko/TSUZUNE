@@ -1,11 +1,15 @@
 import { isSupportedAttachmentPath } from '../shared/attachments'
 import type { NoteDocument, VaultAttachment } from '../shared/types'
 import { matchesGraphQuery } from './graph-query'
-import { extractWikiLinks } from './links'
+import {
+  buildWikiLinkIndex,
+  extractWikiLinks,
+  resolveIndexedWikiLink
+} from './links'
+import type { CompiledPathAliases } from './path-aliases'
 import {
   basenameRelative,
   validateRelativePath,
-  withMarkdownExtension,
   withoutMarkdownExtension
 } from './paths'
 import { extractMarkdownTags } from './tags'
@@ -33,6 +37,7 @@ export interface BuildWikiGraphOptions {
   includeTags?: boolean
   includeAttachments?: boolean
   attachments?: readonly VaultAttachment[]
+  pathAliases?: CompiledPathAliases
 }
 
 export interface LocalWikiGraphOptions {
@@ -50,17 +55,12 @@ const DEFAULT_LOCAL_GRAPH_OPTIONS: LocalWikiGraphOptions = {
 export type WikiGraphScope = 'local' | 'vault'
 export type WikiGraphViewMode = 'edit' | 'preview' | 'graph'
 
-interface WikiLinkIndex {
-  exactPaths: Map<string, string>
-  uniqueBasenames: Map<string, string | null>
-}
-
 interface AttachmentLinkIndex {
   exactPaths: Map<string, string>
   uniqueBasenames: Map<string, string | null>
 }
 
-type IndexedWikiLinkResolution =
+type IndexedAttachmentLinkResolution =
   | { status: 'resolved'; path: string }
   | { status: 'missing'; path: string }
   | { status: 'ambiguous' }
@@ -72,28 +72,6 @@ function comparePath(left: string, right: string): number {
     return localized
   }
   return left < right ? -1 : left > right ? 1 : 0
-}
-
-function buildWikiLinkIndex(notes: NoteDocument[]): WikiLinkIndex {
-  const exactPaths = new Map<string, string>()
-  const uniqueBasenames = new Map<string, string | null>()
-
-  for (const note of notes) {
-    const lowerPath = note.path.toLocaleLowerCase()
-    if (!exactPaths.has(lowerPath)) {
-      exactPaths.set(lowerPath, note.path)
-    }
-
-    const basename = withoutMarkdownExtension(
-      basenameRelative(note.path)
-    ).toLocaleLowerCase()
-    uniqueBasenames.set(
-      basename,
-      uniqueBasenames.has(basename) ? null : note.path
-    )
-  }
-
-  return { exactPaths, uniqueBasenames }
 }
 
 function buildAttachmentLinkIndex(
@@ -116,7 +94,7 @@ function buildAttachmentLinkIndex(
 function resolveIndexedAttachmentLink(
   target: string,
   index: AttachmentLinkIndex
-): IndexedWikiLinkResolution {
+): IndexedAttachmentLinkResolution {
   const noteTarget = target.trim().split('#', 1)[0].replaceAll('\\', '/')
   const validation = validateRelativePath(noteTarget)
   if (!validation.valid || !validation.normalized) {
@@ -140,38 +118,6 @@ function resolveIndexedAttachmentLink(
     : { status: 'missing', path: normalized }
 }
 
-function resolveIndexedWikiLink(
-  target: string,
-  index: WikiLinkIndex
-): IndexedWikiLinkResolution {
-  const noteTarget = target.trim().split('#', 1)[0]
-  const normalizedTarget = withoutMarkdownExtension(noteTarget).replaceAll(
-    '\\',
-    '/'
-  )
-  const validation = validateRelativePath(normalizedTarget)
-  if (!validation.valid || !validation.normalized) {
-    return { status: 'invalid' }
-  }
-
-  const normalized = validation.normalized
-  if (normalized.includes('/')) {
-    const intendedPath = withMarkdownExtension(normalized)
-    const resolvedPath = index.exactPaths.get(intendedPath.toLocaleLowerCase())
-    return resolvedPath
-      ? { status: 'resolved', path: resolvedPath }
-      : { status: 'missing', path: intendedPath }
-  }
-
-  const candidate = index.uniqueBasenames.get(normalized.toLocaleLowerCase())
-  if (candidate === null) {
-    return { status: 'ambiguous' }
-  }
-  return candidate
-    ? { status: 'resolved', path: candidate }
-    : { status: 'missing', path: withMarkdownExtension(normalized) }
-}
-
 export function buildWikiGraph(
   notes: NoteDocument[],
   options: BuildWikiGraphOptions = {}
@@ -189,7 +135,7 @@ export function buildWikiGraph(
   const edges = new Map<string, WikiGraphEdge>()
   const unresolvedNodes = new Map<string, WikiGraphNode>()
   const tagNodes = new Map<string, WikiGraphNode>()
-  const linkIndex = buildWikiLinkIndex(notes)
+  const linkIndex = buildWikiLinkIndex(notes, options.pathAliases)
   const attachments = options.attachments ?? []
   const attachmentIndex = buildAttachmentLinkIndex(attachments)
   const attachmentNodes = options.includeAttachments

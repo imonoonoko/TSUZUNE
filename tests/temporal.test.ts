@@ -5,6 +5,7 @@ import {
   parseTemporalNote,
   type StateMetadata
 } from '../src/core/temporal'
+import { compilePathAliases } from '../src/core/path-aliases'
 import type { NoteDocument } from '../src/shared/types'
 
 function note(path: string, content: string): NoteDocument {
@@ -490,6 +491,58 @@ describe('temporal evaluation', () => {
     expect(
       after.find((entry) => entry.path.endsWith('旧状態.md'))?.supersededBy
     ).toEqual(['50_履歴/TSUZUNE-新状態.md'])
+  })
+
+  it('resolves aliased subject and supersedes links with fragments', () => {
+    const notes = [
+      note('10_プロジェクト/TSUZUNE.md', '# TSUZUNE'),
+      note(
+        '50_履歴/TSUZUNE-旧状態.md',
+        [
+          '---',
+          'kind: state',
+          'subject: "[[旧/TSUZUNE#概要]]"',
+          'status: planning',
+          'valid_from: 2026-07-01',
+          '---',
+          '# 計画中'
+        ].join('\n')
+      ),
+      note(
+        '50_履歴/TSUZUNE-新状態.md',
+        [
+          '---',
+          'kind: state',
+          'subject: "[[旧/TSUZUNE#概要]]"',
+          'status: active',
+          'valid_from: 2026-07-30',
+          'supersedes: "[[旧/TSUZUNE-旧状態#^status]]"',
+          '---',
+          '# 開発中'
+        ].join('\n')
+      )
+    ]
+    const pathAliases = compilePathAliases({
+      '旧/TSUZUNE.md': '10_プロジェクト/TSUZUNE.md',
+      '旧/TSUZUNE-旧状態.md': '50_履歴/TSUZUNE-旧状態.md'
+    })
+
+    const timeline = buildTemporalTimeline(
+      '[[10_プロジェクト/TSUZUNE]]',
+      notes,
+      '2026-07-30',
+      undefined,
+      pathAliases
+    )
+
+    expect(timeline.map((entry) => entry.path)).toEqual([
+      '50_履歴/TSUZUNE-旧状態.md',
+      '50_履歴/TSUZUNE-新状態.md'
+    ])
+    expect(timeline[0].supersededBy).toEqual([
+      '50_履歴/TSUZUNE-新状態.md'
+    ])
+    expect(timeline[1].warnings).toEqual([])
   })
 
   it('builds a subject timeline from multiple states and events without changing input notes', () => {
