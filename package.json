@@ -11,7 +11,7 @@
     "dev": "electron-vite dev",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
-    "test:production": "vitest run --maxWorkers=1",
+    "test:production": "vitest run --maxWorkers=2",
     "test:watch": "vitest",
     "dogfood:m5": "node scripts/build-m5-dogfood.mjs",
     "capture:graph:gp1": "electron scripts/capture-graph-gp1.mjs",
