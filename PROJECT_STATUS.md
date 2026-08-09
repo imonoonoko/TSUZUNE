@@ -14,6 +14,7 @@
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
 | 最優先Track | v0.6 Obsidian Graph Parity。GP0-3b-mを完了し、次の未比較menu操作へ進む | [PLAN.md](PLAN.md#current-transition-queue) |
 | 次の縦切り | GP0-3b-n。attachment nodeの`デフォルトアプリで開く`を安全な外部起動intercept付きで固定比較する | [PLAN.md](PLAN.md) |
+| Context checkpoint | X1-M1 MOC Title Routerをworking treeへ実装。`type: moc`だけをタイトル一覧へ投影し、リンク先本文を次の取得まで展開しない。commit、push、インストール済み本番への反映前 | [requirements](.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md) |
 
 ## 実装済みの基盤
 
@@ -26,6 +27,8 @@
 - Windows installer、アプリ内更新、本番更新gate、installed hash検証、MCP再登録。
 - `90_テンプレート`のMarkdown雛形と、filesystem最終更新日／`review_after`による非破壊の鮮度表示（本番反映済み）。
 - 通常ノートのアプリ内新規作成、Daily／Ideaフォーム、定型Markdownの安全なフォーム再編集、最小Markdown書式ツールバー（本番反映済み）。
+
+X1-M1のread-only実Vault比較では、`00_入口/知識地図.md`のContextを15,000文字／included 9／omitted 21から、1,132文字／included 1／omitted 0へ削減しました。MOC原本、リンク先本文、通常ノートのContext経路は変更せず、時間指定時の本文省略も維持します。約92.5%はContext Markdown文字数の削減であり、model-visible token削減率やインストール済み本番の効果ではありません。
 
 ## 検証済みだが、完了と言わない範囲
 
@@ -123,7 +126,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 6. node context menuの残差分を一項目ずつ閉じた後、720px／200% zoom、tree semantics、実Windows accessibilityを別sliceで扱う。
 7. さらにGoogle Tasks、Drive選択取込、YouTube、Data Portabilityから一つを再選択する。
 8. ChatGPT候補は新しい高信頼例が10件以上たまるまで自動適用を解禁せず、C1-Dへ進まない。
-9. Context Compiler 2.0、より深い時間モデル、GraphRAG、独自DBは固定評価または計測で必要性が出てから一つずつ導入する。
+9. X1-M1 MOC Title Routerだけは明示優先により先行実装した。X1-D0のquery選定とtransportは[設計](.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md)で停止しており、固定corpus、4問、期待source、budget sweepの開始確認後に別sliceで扱う。より深い時間モデル、GraphRAG、独自DBは固定評価または計測で必要性が出てから一つずつ導入する。
 
 ## CheckpointとWorking treeの扱い
 

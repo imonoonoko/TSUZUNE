@@ -45,6 +45,151 @@ describe('context bundle', () => {
     expect(bundle.truncated).toBe(false)
   })
 
+  it('uses an explicit MOC as a title-only router without expanding linked bodies', () => {
+    const mocNotes = [
+      note(
+        '00_入口/知識地図.md',
+        [
+          '---',
+          'type: moc',
+          'status: active',
+          '---',
+          '# 知識地図',
+          '',
+          '長い説明はContextへ複製しない。',
+          '- [[旧/Alpha|説明用の別名]] — 長い説明',
+          '- [[30_知識/Beta]]',
+          '- [[30_知識/Alpha]]',
+          '- [[30_知識/Missing]]'
+        ].join('\n')
+      ),
+      note('30_知識/Alpha.md', '# Alpha\n\nALPHA_BODY_SENTINEL'),
+      note('30_知識/Beta.md', '# Beta\n\nBETA_BODY_SENTINEL'),
+      note(
+        'Backlink.md',
+        '# Backlink\n\nBACKLINK_BODY_SENTINEL [[00_入口/知識地図]]'
+      )
+    ]
+    const pathAliases = compilePathAliases({
+      '旧/Alpha.md': '30_知識/Alpha.md'
+    })
+    const options = {
+      generatedAt: '2026-08-10T12:00:00+09:00',
+      pathAliases
+    }
+
+    const bundle = buildContextBundle(
+      '00_入口/知識地図.md',
+      mocNotes,
+      options
+    )
+    const indexed = buildContextBundleFromSnapshot(
+      '00_入口/知識地図.md',
+      createContextSnapshotIndex(mocNotes, pathAliases),
+      { generatedAt: options.generatedAt }
+    )
+
+    expect(indexed).toEqual(bundle)
+    expect(bundle.included).toEqual([
+      {
+        path: '00_入口/知識地図.md',
+        name: '知識地図',
+        relation: 'seed',
+        truncated: false,
+        selectionReasons: ['MOCタイトル索引']
+      }
+    ])
+    expect(bundle.markdown).toContain('# 知識地図')
+    expect(bundle.markdown).toContain('- [[30_知識/Alpha]]')
+    expect(bundle.markdown).toContain('- [[30_知識/Beta]]')
+    expect(bundle.markdown).toContain('- [[30_知識/Missing]]')
+    expect(bundle.markdown.match(/\[\[30_知識\/Alpha\]\]/g)).toHaveLength(1)
+    expect(bundle.markdown).not.toContain('説明用の別名')
+    expect(bundle.markdown).not.toContain('長い説明')
+    expect(bundle.markdown).not.toContain('ALPHA_BODY_SENTINEL')
+    expect(bundle.markdown).not.toContain('BETA_BODY_SENTINEL')
+    expect(bundle.markdown).not.toContain('BACKLINK_BODY_SENTINEL')
+  })
+
+  it('does not infer MOC behavior from a note name', () => {
+    const namedLikeMoc = [
+      note('知識地図.md', '# 知識地図\n\n[[Alpha]]'),
+      note('Alpha.md', '# Alpha\n\nALPHA_BODY_SENTINEL')
+    ]
+
+    const bundle = buildContextBundle('知識地図.md', namedLikeMoc)
+
+    expect(bundle.included.map((source) => source.path)).toEqual([
+      '知識地図.md',
+      'Alpha.md'
+    ])
+    expect(bundle.markdown).toContain('ALPHA_BODY_SENTINEL')
+  })
+
+  it('projects a linked MOC without expanding its descriptions', () => {
+    const linkedMoc = [
+      note('Home.md', '# Home\n\n[[知識地図]]'),
+      note(
+        '知識地図.md',
+        [
+          '---',
+          'type: moc',
+          '---',
+          '# 知識地図',
+          '',
+          'MOC_DESCRIPTION_SENTINEL',
+          '- [[Alpha]] — ALPHA_DESCRIPTION_SENTINEL'
+        ].join('\n')
+      ),
+      note('Alpha.md', '# Alpha\n\nALPHA_BODY_SENTINEL')
+    ]
+
+    const bundle = buildContextBundle('Home.md', linkedMoc)
+
+    expect(bundle.included.map((source) => source.path)).toEqual([
+      'Home.md',
+      '知識地図.md'
+    ])
+    expect(bundle.markdown).toContain('- [[Alpha]]')
+    expect(bundle.markdown).not.toContain('MOC_DESCRIPTION_SENTINEL')
+    expect(bundle.markdown).not.toContain('ALPHA_DESCRIPTION_SENTINEL')
+    expect(bundle.markdown).not.toContain('ALPHA_BODY_SENTINEL')
+  })
+
+  it('keeps malformed frontmatter on the normal context path', () => {
+    const malformed = [
+      note('知識地図.md', '---\ntype: moc\n# 知識地図\n\n[[Alpha]]'),
+      note('Alpha.md', '# Alpha\n\nALPHA_BODY_SENTINEL')
+    ]
+
+    const bundle = buildContextBundle('知識地図.md', malformed)
+
+    expect(bundle.included.map((source) => source.path)).toContain('Alpha.md')
+    expect(bundle.markdown).toContain('ALPHA_BODY_SENTINEL')
+  })
+
+  it('does not let MOC projection bypass historical-time omission', () => {
+    const historicalMoc = [
+      note(
+        '知識地図.md',
+        '---\ntype: moc\n---\n# MOC_DESCRIPTION_SENTINEL\n\n[[Future]]'
+      ),
+      note('Future.md', '# FUTURE_BODY_SENTINEL')
+    ]
+
+    const bundle = buildContextBundle('知識地図.md', historicalMoc, {
+      asOf: '2026-08-01',
+      generatedAt: '2026-08-10T12:00:00+09:00'
+    })
+
+    expect(bundle.included).toContainEqual(
+      expect.objectContaining({ path: '知識地図.md', contentOmitted: true })
+    )
+    expect(bundle.markdown).not.toContain('MOC_DESCRIPTION_SENTINEL')
+    expect(bundle.markdown).not.toContain('[[Future]]')
+    expect(bundle.markdown).not.toContain('FUTURE_BODY_SENTINEL')
+  })
+
   it('reports explicit links excluded by the outgoing selection limit', () => {
     const bundle = buildContextBundle(
       'Home.md',

@@ -48,6 +48,7 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 | 開発checkpoint | v0.6 Obsidian Graph Parity |
 | 完了した直近slice | GP0-3b-m Attachment Linked Views。添付nodeから対象pathのバックリンクビューを開き、Global Graphを保持する中核挙動を固定比較した |
 | 現役slice | GP0-3b-n Attachment Default App。次の未比較context menu操作を一項目だけ固定比較する |
+| Context checkpoint | X1-M1 MOC Title Routerをworking treeへ実装。`type: moc`だけをタイトル索引として扱い、通常ノートとインストール済み本番は未変更 |
 | 現役Track数 | 1。Google intakeとChatGPT candidate applyは保留 |
 
 ### Current Transition Queue
@@ -58,6 +59,24 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 新しいSupporting Trackを割り込ませる場合は、目的、停止条件、元Trackへ戻る条件をこの節へ先に記録します。
 
 分類Trackを次に選ぶ場合のGateは、匿名一時Vaultだけでapplyとrollbackを往復するO2-P3、またはDriveがPath Alias sidecarを扱う契約判断です。どちらを先にするかを決めるまでCurrent Transition Queueへ割り込ませず、本番Vaultへのapplyは許可しません。
+
+## Completed Supporting Slice: X1-M1 MOC Title Router
+
+利用者がMOCを「ノートタイトルを羅列した地図」と定義したため、valid frontmatterが`type: moc`のノートだけを軽量な二段階routerとして扱います。`build_context`はMOC本文の説明やリンク先・バックリンク本文を展開せず、解決済みWiki linkを記述順のタイトル一覧へ投影します。原本Markdownと`fetch`結果は変更しません。
+
+本番Vaultをread-onlyで使った固定比較では、`00_入口/知識地図.md`の15,000文字Contextが1,132文字になり、includedは9件からMOC 1件、omittedは21件から0件になりました。削減は13,868文字、約92.5%です。これはContext Markdown文字数の比較であり、model-visible token削減は未計測です。
+
+時間指定時の本文省略、Path Alias、未解決link、source fence、通常ノートの従来経路を維持します。MOCから選んだノート本文は、次の`fetch`または`build_context`で初めて読みます。query bridge、budget selection、MCP structured-only transportはX1-D0の未実装候補として残し、このsliceへ混ぜません。
+
+## Completed Design Checkpoint: X1-D0 Query-aware Compact Context
+
+TSUZUNEの回答品質を保ちながらContext文字数とMCP搬送量を減らす設計を[requirements package](.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md)へ固定しました。既存coreのquery rankingをMCPへ公開し、query有りではscore 0の通常関連候補を外し、小予算では低順位候補を全件断片化より先に落とします。起点、時間候補、出典、warningは維持します。
+
+`build_context`は同じobjectをtext JSONと`structuredContent`へ二重搬送しており、実測JSON-RPC相当frameでは約52%が重複でした。実Codex／ChatGPT Desktop gateを通る場合だけ、対象toolをstructured-onlyへ狭く変更します。wire削減をmodel token削減とは呼びません。
+
+外部の永続code graphであるIxは設計比較だけを行い、X1-D0へ導入しません。code再読込の損失が別の固定課題で測定された場合だけ隔離比較します。判断根拠と変動する外部状態は[Alternatives](.agent/requirements/20260810-0440-query-aware-compact-context/2_alternatives.md)へ分離しました。
+
+X1-D0は設計だけで停止し、製品source、MCP登録、本番を変更しません。固定corpus、4問、期待source、2k／4k／6k／8k／15k budget sweepの実装開始確認が済むまでX1実装へ進まず、Current QueueはGP0-3b-nへ戻します。
 
 ## Completed Supporting Track: O2-P2 Classification Migration Dry-run
 
@@ -220,7 +239,7 @@ O0〜O7はGraphだけの計画ではありません。Obsidian 1.13.4の公式�
 
 | Stage | 目的 | 導入Gate |
 |---|---|---|
-| X1. Context Compiler 2.0 | keyword、graph、time、provenanceを組み合わせ、質問ごとに根拠Bundleを作る | 固定質問で関連性、出典、時間整合性がbaselineを上回る |
+| X1. Context Compiler 2.0 | X1-M1でMOCをタイトル索引化。query、graph、time、provenanceを組み合わせる残りは[X1-D0 Compact Context設計](.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md)で停止中 | 固定質問で関連性、出典、時間整合性がbaselineを上回る |
 | X2. Provenance-backed Personalization | 会話や資料から本人情報候補を抽出し、出典・確認状態を保つ | raw/derived/knowledge分離、stable source ID、再取込重複0、本人確認導線 |
 | X3. Temporal Memory Lifecycle | valid time、knowledge time、review due、supersedesを日常運用する | 現在/過去の誤混入0、状態更新の手作業が負担にならない |
 | X4. AI-assisted Maintenance | 通常ノートの整理、更新、矛盾候補、link候補をAIが行う | 履歴、出典、policy、rollback、失敗fixtureを用意 |

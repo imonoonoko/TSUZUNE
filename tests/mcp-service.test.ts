@@ -64,6 +64,44 @@ describe('MCP vault service', () => {
     expect(context.markdown).toContain('Path: Projects/TSUZUNE.md')
   })
 
+  it('returns an explicit MOC as a title-only router', async () => {
+    await writeFile(
+      join(root, 'Map.md'),
+      [
+        '---',
+        'type: moc',
+        '---',
+        '# Map',
+        '',
+        'MOC_DESCRIPTION_SENTINEL',
+        '- [[Projects/TSUZUNE]] — TARGET_DESCRIPTION_SENTINEL'
+      ].join('\n'),
+      'utf8'
+    )
+    await writeFile(
+      join(root, 'Backlink.md'),
+      '# Backlink\n\nBACKLINK_BODY_SENTINEL [[Map]]',
+      'utf8'
+    )
+
+    const context = await service.buildContext('Map.md')
+
+    expect(context.included).toEqual([
+      {
+        path: 'Map.md',
+        name: 'Map',
+        relation: 'seed',
+        truncated: false,
+        selection_reasons: ['MOCタイトル索引']
+      }
+    ])
+    expect(context.markdown).toContain('- [[Projects/TSUZUNE]]')
+    expect(context.markdown).not.toContain('MOC_DESCRIPTION_SENTINEL')
+    expect(context.markdown).not.toContain('TARGET_DESCRIPTION_SENTINEL')
+    expect(context.markdown).not.toContain('AI連携を試す。')
+    expect(context.markdown).not.toContain('BACKLINK_BODY_SENTINEL')
+  })
+
   it('uses a live canonical note through an old path across MCP reads and writes', async () => {
     await mkdir(join(root, 'Knowledge'))
     await rename(

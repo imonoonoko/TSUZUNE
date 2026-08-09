@@ -4,6 +4,8 @@ import {
   getOutgoingLinks,
   resolveWikiLink
 } from './links'
+import { parseFrontmatter } from './frontmatter'
+import { withoutMarkdownExtension } from './paths'
 import {
   buildTemporalTimeline,
   evaluateKnowledgeTime,
@@ -254,6 +256,11 @@ function buildContextBundleInternal(
   const pathAliases = snapshot?.pathAliases ?? options.pathAliases
   const query = options.query?.trim()
   const warnings: ContextWarning[] = []
+  const seedIsMoc = isMocNote(seed)
+  const seedOutgoingLinks = seedIsMoc
+    ? snapshot?.outgoingByPath.get(seed.path) ??
+      getOutgoingLinks(seed.content, notes, pathAliases)
+    : undefined
   const seedTemporal = parseContextTemporalNote(
     seed,
     warnings,
@@ -316,7 +323,9 @@ function buildContextBundleInternal(
           ? '[時間範囲が不明な通常ノート本文は、指定過去時点の事実として使用できないため省略されました]'
           : '[指定時点で利用できないState/Event Note本文は省略されました]'
       )
-    : seed
+    : seedIsMoc
+      ? projectMocTitles(seed, seedOutgoingLinks ?? [])
+      : seed
   if (seedIsUnscoped) {
     omittedNormalPaths.add(seed.path)
   }
@@ -326,7 +335,9 @@ function buildContextBundleInternal(
       ? '起点ノート（指定時点より後のため本文は省略）'
       : seedIsUnavailableKnowledge
         ? '起点ノート（指定知識時点で利用不可のため本文は省略）'
-        : '起点ノート'
+        : seedIsMoc
+          ? 'MOCタイトル索引'
+          : '起点ノート'
 
   const candidates: Array<{
     note: NoteDocument
@@ -347,7 +358,7 @@ function buildContextBundleInternal(
   const selected = new Set([seed.path])
 
   const allowRelatedNormalMetadata =
-    !seedContentOmitted || seedTemporal.kind === 'normal'
+    !seedIsMoc && (!seedContentOmitted || seedTemporal.kind === 'normal')
   const outgoingNotes = (
     allowRelatedNormalMetadata
       ? snapshot?.outgoingByPath.get(seed.path) ??
@@ -614,7 +625,15 @@ function buildContextBundleInternal(
   )
   let truncated = header.length > maxCharacters || omittedPaths.length > 0
   const renderedCandidates = candidates.map((candidate) => {
-    const parts = sourceSectionParts(candidate.note, candidate.source)
+    const displayNote =
+      candidate.source.contentOmitted || !isMocNote(candidate.note)
+        ? candidate.note
+        : projectMocTitles(
+            candidate.note,
+            snapshot?.outgoingByPath.get(candidate.note.path) ??
+              getOutgoingLinks(candidate.note.content, notes, pathAliases)
+          )
+    const parts = sourceSectionParts(displayNote, candidate.source)
     const prefix = `\n${parts.prefix}`
     return {
       candidate,
@@ -702,6 +721,52 @@ function omitContextBody(
   note: NoteDocument,
   content: string
 ): NoteDocument {
+  return {
+    ...note,
+    content,
+    size: content.length
+  }
+}
+
+function isMocNote(note: NoteDocument): boolean {
+  const frontmatter = parseFrontmatter(note.content)
+  return (
+    frontmatter.warnings.length === 0 &&
+    frontmatter.attributes.type === 'moc'
+  )
+}
+
+function projectMocTitles(
+  note: NoteDocument,
+  outgoing: ResolvedWikiLink[]
+): NoteDocument {
+  const seen = new Set<string>()
+  const routes: string[] = []
+  for (const link of outgoing) {
+    if (link.status === 'invalid') {
+      continue
+    }
+
+    const target = withoutMarkdownExtension(
+      (link.resolvedPath ?? link.target.split('#', 1)[0])
+        .trim()
+        .replaceAll('\\', '/')
+    )
+    if (!target) {
+      continue
+    }
+
+    const key = link.resolvedPath
+      ? `resolved:${link.resolvedPath.toLocaleLowerCase()}`
+      : `${link.status}:${target.toLocaleLowerCase()}`
+    if (seen.has(key)) {
+      continue
+    }
+    seen.add(key)
+    routes.push(`- [[${target}]]`)
+  }
+
+  const content = [`# ${note.name}`, '', ...routes].join('\n')
   return {
     ...note,
     content,
