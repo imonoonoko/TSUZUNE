@@ -53,7 +53,7 @@ npm run production:update
 
 1. 本番TSUZUNEが終了していること、merge conflictがないこと、`git diff --check`が通ることを確認する。
 2. source treeと`%APPDATA%\TSUZUNE`のfingerprintを取得する。
-3. typecheck、1 workerの全テスト、MCP検査、NSIS生成、installer検査を行う。
+3. typecheck、2 workersの全テスト、MCP検査、NSIS生成、installer検査を行う。
 4. 一時`--user-data-dir`でpackaged版を起動し、renderer-readyを確認する。
 5. sourceが処理中に変化していない場合だけ、installerを`/S`で実行する。
 6. installed版も一時profileで起動し、version、実行ファイル、`app.asar`をbuild成果物と照合する。
