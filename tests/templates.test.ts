@@ -7,6 +7,7 @@ import {
   parseIdeaNote,
   renderDailyNote,
   renderIdeaNote,
+  renderPlainNote,
   renderTemplate
 } from '../src/core/templates'
 import type { NoteDocument } from '../src/shared/types'
@@ -68,15 +69,29 @@ describe('templates', () => {
       now: new Date(2026, 7, 9, 12),
       completed: '実装した',
       insight: '入力は簡単な方がよい',
-      next: '本番で試す'
+      memo: '形式に縛られない追記',
+      next: '本番で試す\n結果を共有する'
     })
 
     expect(parseDailyNote(markdown)).toEqual({
       completed: '実装した',
       insight: '入力は簡単な方がよい',
-      next: '本番で試す'
+      memo: '形式に縛られない追記',
+      next: '本番で試す\n結果を共有する'
     })
+    expect(markdown).toContain('- [ ] 本番で試す\n- [ ] 結果を共有する')
     expect(parseDailyNote(`${markdown}\n手書きの追記`)).toBeNull()
+  })
+
+  it('builds a regular note from a title and unrestricted multiline body', () => {
+    expect(
+      renderPlainNote({
+        title: '自由なノート',
+        body: '    先頭のインデント\n\n## 自分で付けた見出し\n\n- 箇条書き\n\n'
+      })
+    ).toBe(
+      '# 自由なノート\n\n    先頭のインデント\n\n## 自分で付けた見出し\n\n- 箇条書き\n\n'
+    )
   })
 
   it('builds a portable idea note with an optional project link', () => {
@@ -90,11 +105,12 @@ describe('templates', () => {
       body: 'フォームからノートを作る。',
       reason: 'Markdownを知らなくても使えるようにしたい。',
       projectPath: '10_プロジェクト/TSUZUNE.md',
-      next: '小さく試す'
+      next: '小さく試す\n結果を記録する',
+      memo: '自由に残した補足'
     }
     const markdown = renderIdeaNote(values)
     expect(markdown).toBe(
-      '# 入力を簡単にする\n\n## アイデア\n\nフォームからノートを作る。\n\n## 思いついた理由\n\nMarkdownを知らなくても使えるようにしたい。\n\n## 関連プロジェクト\n\n- [[10_プロジェクト/TSUZUNE]]\n\n## 次の一歩\n\n- [ ] 小さく試す\n'
+      '# 入力を簡単にする\n\n## アイデア\n\nフォームからノートを作る。\n\n## 思いついた理由\n\nMarkdownを知らなくても使えるようにしたい。\n\n## 関連プロジェクト\n\n- [[10_プロジェクト/TSUZUNE]]\n\n## メモ\n\n自由に残した補足\n\n## 次の一歩\n\n- [ ] 小さく試す\n- [ ] 結果を記録する\n'
     )
     expect(parseIdeaNote(markdown)).toEqual(values)
     expect(parseIdeaNote(`${markdown}\n自由形式の追記`)).toBeNull()

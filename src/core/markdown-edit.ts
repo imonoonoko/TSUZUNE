@@ -30,10 +30,38 @@ export function formatMarkdownSelection(
 
   const prefix = format === 'heading' ? '## ' : format === 'task' ? '- [ ] ' : '- '
   const lineStart = value.lastIndexOf('\n', Math.max(0, start - 1)) + 1
-  const replacement = `${prefix}${value.slice(lineStart)}`
+  const searchFrom = end > start && value[end - 1] === '\n' ? end - 1 : end
+  const nextLineBreak = value.indexOf('\n', searchFrom)
+  const lineEnd = nextLineBreak < 0 ? value.length : nextLineBreak
+  const selectedLines = value.slice(lineStart, lineEnd).split('\n')
+  const replacement = selectedLines.map((line) => `${prefix}${line}`).join('\n')
   return {
-    value: `${value.slice(0, lineStart)}${replacement}`,
+    value: `${value.slice(0, lineStart)}${replacement}${value.slice(lineEnd)}`,
     selectionStart: start + prefix.length,
-    selectionEnd: end + prefix.length
+    selectionEnd: end + prefix.length * selectedLines.length
+  }
+}
+
+export function insertWikiLink(
+  value: string,
+  selectionStart: number,
+  selectionEnd: number,
+  notePath: string
+): MarkdownEditResult {
+  const start = Math.max(0, Math.min(selectionStart, value.length))
+  const end = Math.max(start, Math.min(selectionEnd, value.length))
+  const target = notePath.replaceAll('\\', '/').replace(/\.md$/i, '')
+  const label = value.slice(start, end)
+  const link = `[[${target}]]`
+  const replacement = label
+    ? /[\r\n|\]]/.test(label)
+      ? `${link}${label}`
+      : `[[${target}|${label}]]`
+    : link
+  const cursor = start + replacement.length
+  return {
+    value: `${value.slice(0, start)}${replacement}${value.slice(end)}`,
+    selectionStart: cursor,
+    selectionEnd: cursor
   }
 }

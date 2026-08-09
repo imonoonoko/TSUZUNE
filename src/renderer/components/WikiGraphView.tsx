@@ -8,6 +8,7 @@ import {
 } from 'react'
 import { filterWikiGraph } from '../../core/graph'
 import { getGraphNodeGroupColor } from '../../core/graph-groups'
+import type { CopyPathFormat } from '../../core/paths'
 import { calculateGraphFit } from '../../core/graph-fit'
 import { calculateGraphNodeWeights } from '../../core/graph-geometry'
 import {
@@ -77,6 +78,7 @@ interface WikiGraphViewProps {
   onMove?: (path: string) => void
   bookmarkedPaths?: ReadonlySet<string>
   onBookmark?: (path: string) => void
+  onCopyPath?: (path: string, format: CopyPathFormat) => void
   onTrash?: (path: string) => void
   onOpen: (path: string) => void
 }
@@ -117,6 +119,7 @@ interface GraphNodeContextMenu {
 
 const EMPTY_NOTES: NoteDocument[] = []
 const EMPTY_GROUPS: GraphGroup[] = []
+const GRAPH_CONTEXT_MENU_WIDTH = 190
 
 const canvasStyle: React.CSSProperties = {
   position: 'relative',
@@ -253,6 +256,7 @@ export default function WikiGraphView({
   onMove,
   bookmarkedPaths = new Set(),
   onBookmark,
+  onCopyPath,
   onTrash,
   onOpen
 }: WikiGraphViewProps): React.JSX.Element {
@@ -271,6 +275,7 @@ export default function WikiGraphView({
   )
   const [nodeContextMenu, setNodeContextMenu] =
     useState<GraphNodeContextMenu | null>(null)
+  const [pathCopyMenuOpen, setPathCopyMenuOpen] = useState(false)
   const [settingsSections, setSettingsSections] =
     useState<GraphSettingsSectionState>(initialViewState.settingsSections)
   const [displaySettings, setDisplaySettings] = useState<GraphDisplaySettings>(
@@ -328,11 +333,13 @@ export default function WikiGraphView({
     const closeOnPointerDown = (event: PointerEvent): void => {
       if (!(event.target as HTMLElement).closest('.wiki-graph-context-menu')) {
         setNodeContextMenu(null)
+        setPathCopyMenuOpen(false)
       }
     }
     const closeOnEscape = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         setNodeContextMenu(null)
+        setPathCopyMenuOpen(false)
       }
     }
     document.addEventListener('pointerdown', closeOnPointerDown)
@@ -1552,12 +1559,23 @@ export default function WikiGraphView({
                       return
                     }
                     event.preventDefault()
-                    const bounds = canvasRef.current?.getBoundingClientRect()
+                    const canvas = canvasRef.current
+                    const bounds = canvas?.getBoundingClientRect()
+                    const canvasWidth =
+                      canvas?.clientWidth || bounds?.width || GRAPH_CONTEXT_MENU_WIDTH
+                    const requestedX = event.clientX - (bounds?.left ?? 0)
                     setNodeContextMenu({
                       node,
-                      x: event.clientX - (bounds?.left ?? 0),
+                      x: Math.max(
+                        0,
+                        Math.min(
+                          requestedX,
+                          Math.max(0, canvasWidth - GRAPH_CONTEXT_MENU_WIDTH)
+                        )
+                      ),
                       y: event.clientY - (bounds?.top ?? 0)
                     })
+                    setPathCopyMenuOpen(false)
                   }}
                   onPointerDown={(event) => startNodeDrag(event, node.path)}
                   onPointerMove={moveNodeDrag}
@@ -1711,6 +1729,53 @@ export default function WikiGraphView({
                           ? 'ブックマークを編集'
                           : 'ブックマーク…'}
                       </button>
+                      <div className="wiki-graph-context-submenu-host">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          aria-label="パスをコピー"
+                          aria-haspopup="menu"
+                          aria-expanded={pathCopyMenuOpen}
+                          disabled={!onCopyPath}
+                          onClick={() => setPathCopyMenuOpen(true)}
+                          onMouseEnter={() => setPathCopyMenuOpen(true)}
+                        >
+                          パスをコピー <span aria-hidden="true">›</span>
+                        </button>
+                        {pathCopyMenuOpen && (
+                          <div
+                            className={`wiki-graph-context-submenu${
+                              nodeContextMenu.x + GRAPH_CONTEXT_MENU_WIDTH * 2 >
+                              (canvasRef.current?.clientWidth ?? Infinity)
+                                ? ' is-left'
+                                : ''
+                            }`}
+                            role="menu"
+                            aria-label="パスをコピー"
+                          >
+                            {(
+                              [
+                                ['obsidian-url', 'Obsidian URL として'],
+                                ['vault-relative', '保管庫フォルダから'],
+                                ['system-absolute', 'システムルートから']
+                              ] as const
+                            ).map(([format, label]) => (
+                              <button
+                                key={format}
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  onCopyPath?.(nodeContextMenu.node.path, format)
+                                  setNodeContextMenu(null)
+                                  setPathCopyMenuOpen(false)
+                                }}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </>
                   )}
                 <button

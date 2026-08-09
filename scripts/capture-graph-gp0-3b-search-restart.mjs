@@ -38,18 +38,30 @@ const attachmentBookmarkScenario =
 if (!['cancel', 'create', 'duplicate'].includes(attachmentBookmarkScenario)) {
   throw new Error('--bookmark-scenario は cancel、create、duplicate のいずれかを指定してください。')
 }
+const attachmentPathCopyProbe =
+  process.argv.includes('--attachment-path-copy') ||
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_PATH_COPY_PROBE === '1'
+const attachmentPathCopyScenario =
+  process.argv.find((argument) => argument.startsWith('--path-copy-scenario='))?.split('=')[1] ||
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_PATH_COPY_SCENARIO ||
+  'vault'
+if (!['url', 'vault', 'system'].includes(attachmentPathCopyScenario)) {
+  throw new Error('--path-copy-scenario は url、vault、system のいずれかを指定してください。')
+}
 const nodeNewTabProbe =
   workspaceTabProbe ||
   process.argv.includes('--node-new-tab') ||
   process.env.TSUZUNE_GRAPH_NODE_NEW_TAB_PROBE === '1'
 const nodeMenuProbe =
-  nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe ||
+  nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe ||
   process.argv.includes('--node-menu') ||
   process.env.TSUZUNE_GRAPH_NODE_MENU_PROBE === '1'
-if ([cameraProbe, nodeDragProbe, nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe, nodeNewTabProbe, attachmentNewTabProbe, attachmentNewWindowProbe, attachmentMoveProbe, attachmentBookmarkProbe].filter(Boolean).length > 1) {
-  throw new Error('--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move、--attachment-bookmark は同時に指定できません。')
+if ([cameraProbe, nodeDragProbe, nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe, nodeNewTabProbe, attachmentNewTabProbe, attachmentNewWindowProbe, attachmentMoveProbe, attachmentBookmarkProbe, attachmentPathCopyProbe].filter(Boolean).length > 1) {
+  throw new Error('--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move、--attachment-bookmark、--attachment-path-copy は同時に指定できません。')
 }
-const probeKind = attachmentBookmarkProbe
+const probeKind = attachmentPathCopyProbe
+  ? `attachment-path-copy-${attachmentPathCopyScenario}`
+  : attachmentBookmarkProbe
   ? `attachment-bookmark-${attachmentBookmarkScenario}`
   : attachmentMoveProbe
   ? `attachment-file-move-${attachmentMoveScenario}`
@@ -71,7 +83,9 @@ const probeKind = attachmentBookmarkProbe
 const sourceFixture = resolve(repoRoot, 'fixtures/obsidian-graph-parity-vault')
 const workRoot = resolve(
   repoRoot,
-  attachmentBookmarkProbe
+  attachmentPathCopyProbe
+    ? 'work/graph-gp0-attachment-path-copy-working-tree'
+    : attachmentBookmarkProbe
     ? `work/graph-gp0-attachment-bookmark-${attachmentBookmarkScenario}-working-tree`
     : attachmentMoveProbe
     ? `work/graph-gp0-attachment-file-move-${attachmentMoveScenario}-working-tree`
@@ -95,7 +109,9 @@ const vault = resolve(workRoot, 'vault')
 const userData = resolve(workRoot, 'userdata')
 const outputRoot = resolve(
   repoRoot,
-  attachmentBookmarkProbe
+  attachmentPathCopyProbe
+    ? `docs/reports/assets/graph-gp0-attachment-path-copy/${attachmentPathCopyScenario}/tsuzune-working-tree`
+    : attachmentBookmarkProbe
     ? `docs/reports/assets/graph-gp0-attachment-bookmark/${attachmentBookmarkScenario}/tsuzune-working-tree`
     : attachmentMoveProbe
     ? `docs/reports/assets/graph-gp0-attachment-file-move/${attachmentMoveScenario}/tsuzune-working-tree`
@@ -131,7 +147,7 @@ const expectedCameraNodePaths = [
   '90_orphan/Orphan.md',
   'Missing Note.md'
 ].concat(
-  attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe
+  attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe
     ? ['attachments/diagram.svg']
     : []
 ).concat(
@@ -157,6 +173,41 @@ function ordinal(left, right) {
 
 function delay(milliseconds) {
   return new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds))
+}
+
+function sanitizeEvidence(value, replacements) {
+  if (typeof value === 'string') {
+    return replacements.reduce((sanitized, [source, token]) => {
+      if (!source) return sanitized
+      return sanitized
+        .replaceAll(source, token)
+        .replaceAll(source.replaceAll('\\', '/'), token)
+    }, value)
+  }
+  if (Array.isArray(value)) return value.map((item) => sanitizeEvidence(item, replacements))
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, sanitizeEvidence(item, replacements)])
+    )
+  }
+  return value
+}
+
+const pathCopyEvidenceReplacements = [
+  [vault, '<TSUZUNE_VAULT_ROOT>'],
+  [userData, '<TSUZUNE_USER_DATA_ROOT>'],
+  [workRoot, '<TSUZUNE_CAPTURE_ROOT>'],
+  [repoRoot, '<REPO_ROOT>']
+].sort(([left], [right]) => right.length - left.length)
+
+const repositoryEvidence = (value) =>
+  attachmentPathCopyProbe ? sanitizeEvidence(value, pathCopyEvidenceReplacements) : value
+
+function clipboardTextFingerprint(value) {
+  return {
+    bytes: Buffer.byteLength(value, 'utf8'),
+    sha256: createHash('sha256').update(value, 'utf8').digest('hex').toUpperCase()
+  }
 }
 
 async function listFiles(directory, options = {}) {
@@ -485,6 +536,10 @@ async function graphState(window) {
         .sort((left, right) => left.path.localeCompare(right.path)),
       edgeCount: Number(document.querySelector('canvas.wiki-graph-edges')?.dataset.edgeCount ?? 0),
       stageTransform: document.querySelector('.wiki-graph-stage')?.style.transform ?? '',
+      tabs: [...document.querySelectorAll('[role="tab"]')].map((tab) => ({
+        label: tab.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+        selected: tab.getAttribute('aria-selected') === 'true'
+      })),
       targetNode: targetButton && targetBounds
         ? {
             path: targetButton.title,
@@ -1101,6 +1156,110 @@ async function activateAttachmentBookmark(window) {
   }
 }
 
+function expectedAttachmentPathCopyText() {
+  const relativePath = 'attachments/diagram.svg'
+  if (attachmentPathCopyScenario === 'url') {
+    return `obsidian://open?vault=${encodeURIComponent('vault')}&file=${encodeURIComponent(relativePath)}`
+  }
+  if (attachmentPathCopyScenario === 'system') {
+    return resolve(vault, relativePath)
+  }
+  return relativePath
+}
+
+async function activateAttachmentPathCopy(window, clipboardCapture) {
+  const labelByScenario = {
+    url: 'Obsidian URL として',
+    vault: '保管庫フォルダから',
+    system: 'システムルートから'
+  }
+  const graphBeforeAction = await graphState(window)
+  await evaluate(window, `(() => {
+    const item = [...document.querySelectorAll('.wiki-graph-context-menu [role="menuitem"]')]
+      .find((candidate) => candidate.getAttribute('aria-label') === 'パスをコピー')
+    if (!(item instanceof HTMLButtonElement) || item.disabled) {
+      throw new Error('有効な「パスをコピー」が見つかりません。')
+    }
+    item.click()
+  })()`)
+  const submenu = await evaluate(window, `new Promise((resolve, reject) => {
+    const deadline = performance.now() + 5000
+    const check = () => {
+      const main = document.querySelector('.wiki-graph-context-menu')
+      const parent = main?.querySelector('[role="menuitem"][aria-label="パスをコピー"]')
+      const submenu = main?.querySelector('[role="menu"][aria-label="パスをコピー"]')
+      if (main instanceof HTMLElement && parent instanceof HTMLButtonElement && submenu instanceof HTMLElement) {
+        const mainBounds = main.getBoundingClientRect()
+        const parentBounds = parent.getBoundingClientRect()
+        const submenuBounds = submenu.getBoundingClientRect()
+        resolve({
+          mainMenuStillOpen: true,
+          parentAriaExpanded: parent.getAttribute('aria-expanded'),
+          mainBounds: { left: mainBounds.left, right: mainBounds.right, top: mainBounds.top, bottom: mainBounds.bottom, width: mainBounds.width, height: mainBounds.height },
+          parentBounds: { left: parentBounds.left, right: parentBounds.right, top: parentBounds.top, bottom: parentBounds.bottom, width: parentBounds.width, height: parentBounds.height },
+          submenuBounds: { left: submenuBounds.left, right: submenuBounds.right, top: submenuBounds.top, bottom: submenuBounds.bottom, width: submenuBounds.width, height: submenuBounds.height },
+          placement: submenuBounds.right <= parentBounds.left + 2
+            ? 'left'
+            : submenuBounds.left >= parentBounds.right - 2
+              ? 'right'
+              : 'overlap',
+          fullyInsideViewport:
+            submenuBounds.left >= 0 && submenuBounds.top >= 0 &&
+            submenuBounds.right <= innerWidth && submenuBounds.bottom <= innerHeight,
+          items: [...submenu.querySelectorAll('[role="menuitem"]')].map((item, index) => ({
+            index,
+            text: item.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+            disabled: item instanceof HTMLButtonElement ? item.disabled : item.getAttribute('aria-disabled') === 'true'
+          }))
+        })
+        return
+      }
+      if (performance.now() >= deadline) {
+        reject(new Error('パスをコピーsubmenuが5秒以内に開きませんでした。'))
+        return
+      }
+      requestAnimationFrame(check)
+    }
+    check()
+  })`)
+  await waitForPaint(window)
+  submenu.screenshot = await capture(window, '02-path-copy-submenu.png')
+
+  await evaluate(window, `(() => {
+    const label = ${JSON.stringify(labelByScenario[attachmentPathCopyScenario])}
+    const item = [...document.querySelectorAll('[role="menu"][aria-label="パスをコピー"] [role="menuitem"]')]
+      .find((candidate) => candidate.textContent?.replace(/\\s+/g, ' ').trim() === label)
+    if (!(item instanceof HTMLButtonElement) || item.disabled) {
+      throw new Error('有効なパスコピー形式が見つかりません: ' + label)
+    }
+    item.click()
+  })()`)
+
+  const deadline = Date.now() + 5_000
+  let uiAfterAction = null
+  while (Date.now() < deadline) {
+    uiAfterAction = await evaluate(window, `({
+      contextMenuOpen: Boolean(document.querySelector('.wiki-graph-context-menu')),
+      submenuOpen: Boolean(document.querySelector('[role="menu"][aria-label="パスをコピー"]')),
+      globalGraphVisible: Boolean(document.querySelector('.wiki-graph-view[aria-label="Vault全体グラフ"]'))
+    })`)
+    if (clipboardCapture.writes.length === 1 && !uiAfterAction.contextMenuOpen) break
+    await delay(50)
+  }
+  const graphAfterAction = await graphState(window)
+  const actionScreenshot = await capture(window, '03-after-path-copy.png')
+  return {
+    scenario: attachmentPathCopyScenario,
+    expectedText: expectedAttachmentPathCopyText(),
+    submenu,
+    writes: [...clipboardCapture.writes],
+    uiAfterAction,
+    graphBeforeAction,
+    graphAfterAction,
+    screenshots: [submenu.screenshot, actionScreenshot]
+  }
+}
+
 async function activateNodeNewTab(window, expectedKind = 'note') {
   const before = await evaluate(
     window,
@@ -1394,9 +1553,37 @@ function assertFilteredState(state, label) {
 }
 
 async function runWorker(phase) {
-  const { app, BrowserWindow } = await import('electron')
+  const { app, BrowserWindow, clipboard } = await import('electron')
   const originalLoadFile = BrowserWindow.prototype.loadFile
   let captureStarted = false
+  const clipboardCapture = {
+    writes: [],
+    beforeFingerprint: null,
+    unchanged: false,
+    hookInstalled: false,
+    hookRestored: false
+  }
+  const originalClipboardWriteText = clipboard.writeText
+  const originalClipboardWriteTextDescriptor = Object.getOwnPropertyDescriptor(
+    clipboard,
+    'writeText'
+  )
+  function restoreClipboardHook() {
+    if (!attachmentPathCopyProbe || phase !== 'initial' || clipboardCapture.hookRestored) return
+    const afterActionFingerprint = clipboardTextFingerprint(clipboard.readText())
+    if (originalClipboardWriteTextDescriptor) {
+      Object.defineProperty(clipboard, 'writeText', originalClipboardWriteTextDescriptor)
+    } else {
+      delete clipboard.writeText
+    }
+    clipboardCapture.hookRestored = clipboard.writeText === originalClipboardWriteText
+    const afterHookRestoreFingerprint = clipboardTextFingerprint(clipboard.readText())
+    clipboardCapture.unchanged =
+      JSON.stringify(clipboardCapture.beforeFingerprint) ===
+        JSON.stringify(afterActionFingerprint) &&
+      JSON.stringify(clipboardCapture.beforeFingerprint) ===
+        JSON.stringify(afterHookRestoreFingerprint)
+  }
 
   process.env.TSUZUNE_HEADLESS_SMOKE = '1'
   app.setPath('userData', userData)
@@ -1408,12 +1595,28 @@ async function runWorker(phase) {
     'host-resolver-rules',
     'MAP * 0.0.0.0, EXCLUDE localhost'
   )
+  if (attachmentPathCopyProbe && phase === 'initial') {
+    Object.defineProperty(clipboard, 'writeText', {
+      configurable: true,
+      writable: true,
+      value(text, type) {
+        clipboardCapture.writes.push({
+          text,
+          type: type ?? null
+        })
+      }
+    })
+    clipboardCapture.hookInstalled = clipboard.writeText !== originalClipboardWriteText
+  }
 
   async function run(window) {
     window.setSkipTaskbar(true)
     window.setBounds({ x: -32_000, y: -32_000, ...viewport }, false)
     window.showInactive()
     await waitForEditor(window)
+    if (attachmentPathCopyProbe && phase === 'initial') {
+      clipboardCapture.beforeFingerprint = clipboardTextFingerprint(clipboard.readText())
+    }
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const rendererViewport = await evaluate(
         window,
@@ -1446,7 +1649,7 @@ async function runWorker(phase) {
     if (phase === 'initial') {
       await ensureGlobalGraphControls(window)
       await fillSearch(window, query)
-      if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe) {
+      if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe) {
         await setGraphAttachmentsVisible(window, true)
         await ensureGlobalGraphControls(window)
         await fillSearch(window, query)
@@ -1469,6 +1672,7 @@ async function runWorker(phase) {
       let attachmentNewWindow = null
       let attachmentMove = null
       let attachmentBookmark = null
+      let attachmentPathCopy = null
       if (cameraProbe) {
         input = await applyCameraInput(window)
       } else if (nodeDragProbe) {
@@ -1487,13 +1691,13 @@ async function runWorker(phase) {
       if (nodeMenuProbe) {
         const openedMenu = await openNodeContextMenu(
           window,
-          attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe
+          attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe
             ? 'attachments/diagram.svg'
             : drag.targetNodePath
         )
         input = openedMenu.input
         nodeContextMenu = openedMenu.menu
-        if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe) {
+        if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe) {
           attachmentContextMenu = openedMenu.menu
         }
       }
@@ -1558,6 +1762,14 @@ async function runWorker(phase) {
         attachmentMove = await activateAttachmentMove(window)
       } else if (attachmentBookmarkProbe) {
         attachmentBookmark = await activateAttachmentBookmark(window)
+      } else if (attachmentPathCopyProbe) {
+        attachmentPathCopy = await activateAttachmentPathCopy(window, clipboardCapture)
+        restoreClipboardHook()
+        attachmentPathCopy.clipboard = {
+          hookInstalled: clipboardCapture.hookInstalled,
+          hookRestored: clipboardCapture.hookRestored,
+          unchanged: clipboardCapture.unchanged
+        }
       }
       const settingsAfterInput = cameraProbe
         ? await waitForSavedScale(cameraFromState(entered).scale)
@@ -1585,7 +1797,9 @@ async function runWorker(phase) {
       }
       const reopenedScreenshot = await capture(
         window,
-        attachmentBookmarkProbe
+        attachmentPathCopyProbe
+          ? '04-after-graph-reopen.png'
+          : attachmentBookmarkProbe
           ? attachmentBookmarkScenario === 'duplicate'
             ? '06-after-graph-reopen.png'
             : '04-after-graph-reopen.png'
@@ -1611,7 +1825,7 @@ async function runWorker(phase) {
       }
       await writeFile(
         resolve(outputRoot, 'phase-initial.json'),
-        `${JSON.stringify({
+        `${JSON.stringify(repositoryEvidence({
           phase,
           processId: process.pid,
           windowGeometry,
@@ -1629,6 +1843,7 @@ async function runWorker(phase) {
           attachmentNewWindow,
           attachmentMove,
           attachmentBookmark,
+          attachmentPathCopy,
           entered,
           reopened,
           settingsGraphViewState: settingsAfterInput.graphViewStates.vault,
@@ -1642,9 +1857,10 @@ async function runWorker(phase) {
             attachmentNewWindow?.screenshot ?? null,
             ...(attachmentMove?.screenshots ?? []),
             ...(attachmentBookmark?.screenshots ?? []),
+            ...(attachmentPathCopy?.screenshots ?? []),
             reopenedScreenshot
           ].filter(Boolean)
-        }, null, 2)}\n`,
+        }), null, 2)}\n`,
         'utf8'
       )
     } else if (phase === 'restarted') {
@@ -1657,7 +1873,9 @@ async function runWorker(phase) {
         : null
       const restartedScreenshot = await capture(
         window,
-        attachmentBookmarkProbe
+        attachmentPathCopyProbe
+          ? '05-after-app-restart.png'
+          : attachmentBookmarkProbe
           ? attachmentBookmarkScenario === 'duplicate'
             ? '07-after-app-restart.png'
             : '05-after-app-restart.png'
@@ -1677,7 +1895,7 @@ async function runWorker(phase) {
       if (!cameraProbe && !nodeDragProbe && !nodeMenuProbe) assertFilteredState(restarted, 'アプリ再起動後')
       await writeFile(
         resolve(outputRoot, 'phase-restarted.json'),
-        `${JSON.stringify({
+        `${JSON.stringify(repositoryEvidence({
           phase,
           processId: process.pid,
           windowGeometry,
@@ -1685,7 +1903,7 @@ async function runWorker(phase) {
           bookmarkPersistenceAfterAppRestart,
           settingsGraphViewState: settingsAfterRestart.graphViewStates.vault,
           screenshots: [restartedScreenshot]
-        }, null, 2)}\n`,
+        }), null, 2)}\n`,
         'utf8'
       )
     } else {
@@ -1701,9 +1919,10 @@ async function runWorker(phase) {
     if (!captureStarted) {
       captureStarted = true
       void loaded.then(() => run(this)).catch(async (error) => {
+        restoreClipboardHook()
         await writeFile(
           resolve(outputRoot, `capture-error-${phase}.txt`),
-          String(error?.stack || error),
+          repositoryEvidence(String(error?.stack || error)),
           'utf8'
         )
         const image = await this.webContents.capturePage().catch(() => null)
@@ -1746,6 +1965,8 @@ function runWorkerProcess(phase) {
         TSUZUNE_GRAPH_ATTACHMENT_MOVE_SCENARIO: attachmentMoveScenario,
         TSUZUNE_GRAPH_ATTACHMENT_BOOKMARK_PROBE: attachmentBookmarkProbe ? '1' : '',
         TSUZUNE_GRAPH_ATTACHMENT_BOOKMARK_SCENARIO: attachmentBookmarkScenario,
+        TSUZUNE_GRAPH_ATTACHMENT_PATH_COPY_PROBE: attachmentPathCopyProbe ? '1' : '',
+        TSUZUNE_GRAPH_ATTACHMENT_PATH_COPY_SCENARIO: attachmentPathCopyScenario,
         TSUZUNE_GRAPH_SEARCH_RESTART_PHASE: phase
       }
     }
@@ -1812,6 +2033,8 @@ async function runController() {
     stage(
       nodeDragProbe
         ? 'node drag入力とGraph再表示をcaptureします。'
+        : attachmentPathCopyProbe
+          ? `添付パスコピー（${attachmentPathCopyScenario}）とGraph再表示をcaptureします。`
         : attachmentBookmarkProbe
           ? `添付ブックマーク（${attachmentBookmarkScenario}）とGraph再表示をcaptureします。`
         : attachmentMoveProbe
@@ -1904,6 +2127,7 @@ async function runController() {
     : null
   const attachmentMoveContract = attachmentMoveProbe ? initial.attachmentMove : null
   const attachmentBookmarkContract = attachmentBookmarkProbe ? initial.attachmentBookmark : null
+  const attachmentPathCopyContract = attachmentPathCopyProbe ? initial.attachmentPathCopy : null
   const bookmarkPersistence = attachmentBookmarkProbe
     ? {
         ...attachmentBookmarkContract.persistence,
@@ -1920,7 +2144,10 @@ async function runController() {
         ])
       )
     : null
-  const postActionGraph = attachmentMoveContract?.graphAfterAction ?? initial.entered
+  const postActionGraph =
+    attachmentMoveContract?.graphAfterAction ??
+    attachmentPathCopyContract?.graphAfterAction ??
+    initial.entered
   const sameDigest = (left, right) =>
     left?.exists === true &&
     right?.exists === true &&
@@ -1928,6 +2155,14 @@ async function runController() {
     left.sha256 === right.sha256
   const attachmentNodeIsResolved = (state, path) =>
     state?.nodeDetails?.find((node) => node.path === path)?.ariaLabel?.includes('添付書類') === true
+  const graphSurfaceSignature = (state) =>
+    JSON.stringify({
+      query: state?.query,
+      stageTransform: state?.stageTransform,
+      nodePaths: state?.nodePaths,
+      edgeCount: state?.edgeCount,
+      tabs: state?.tabs
+    })
 
   const sharedAssertions = {
     contentViewportStable: [
@@ -1990,6 +2225,72 @@ async function runController() {
         nodePositionNotPersistedInSettings: nodeDragContract.nodePositionAbsentFromSettings,
         ...sharedAssertions
       }
+    : attachmentPathCopyProbe
+      ? {
+          exactNodeSetAtEveryCheckpoint: [
+            initial.baseline,
+            initial.entered,
+            attachmentPathCopyContract.graphBeforeAction,
+            attachmentPathCopyContract.graphAfterAction,
+            initial.reopened,
+            restarted.restarted
+          ].every(
+            (state) => JSON.stringify(state.nodePaths) === JSON.stringify(expectedCameraNodePaths)
+          ),
+          attachmentContextMenuOpened: Boolean(initial.attachmentContextMenu?.items?.length),
+          pathCopyImmediatelyAfterBookmark: (() => {
+            const items = initial.attachmentContextMenu?.items ?? []
+            const bookmarkIndex = items.findIndex((item) => item.text.includes('ブックマーク'))
+            const pathCopyIndex = items.findIndex((item) => item.text.startsWith('パスをコピー'))
+            return bookmarkIndex >= 0 && pathCopyIndex === bookmarkIndex + 1
+          })(),
+          parentClickKeptMainMenuOpen:
+            attachmentPathCopyContract.submenu?.mainMenuStillOpen === true &&
+            attachmentPathCopyContract.submenu?.parentAriaExpanded === 'true',
+          submenuItemsExact:
+            JSON.stringify(
+              attachmentPathCopyContract.submenu?.items?.map((item) => item.text)
+            ) ===
+            JSON.stringify([
+              'Obsidian URL として',
+              '保管庫フォルダから',
+              'システムルートから'
+            ]),
+          submenuEnabled:
+            attachmentPathCopyContract.submenu?.items?.every((item) => !item.disabled) === true,
+          submenuPlacementMatchesCapturedPosition:
+            attachmentPathCopyContract.submenu?.placement === 'right' &&
+            attachmentPathCopyContract.submenu?.fullyInsideViewport === true,
+          exactPlainTextCopied:
+            attachmentPathCopyContract.writes?.length === 1 &&
+            attachmentPathCopyContract.writes[0]?.text ===
+              attachmentPathCopyContract.expectedText &&
+            attachmentPathCopyContract.writes[0]?.type === null,
+          clipboardHookInstalledAndRestored:
+            attachmentPathCopyContract.clipboard?.hookInstalled === true &&
+            attachmentPathCopyContract.clipboard?.hookRestored === true,
+          userClipboardUnchanged:
+            attachmentPathCopyContract.clipboard?.unchanged === true,
+          childSelectionClosedMenus:
+            attachmentPathCopyContract.uiAfterAction?.contextMenuOpen === false &&
+            attachmentPathCopyContract.uiAfterAction?.submenuOpen === false,
+          globalGraphRemainedVisible:
+            attachmentPathCopyContract.uiAfterAction?.globalGraphVisible === true,
+          graphSurfacePreservedImmediately:
+            graphSurfaceSignature(attachmentPathCopyContract.graphBeforeAction) ===
+            graphSurfaceSignature(attachmentPathCopyContract.graphAfterAction),
+          queryCameraNodesLinksTabsPreservedAcrossReopenAndRestart: [
+            attachmentPathCopyContract.graphBeforeAction,
+            attachmentPathCopyContract.graphAfterAction,
+            initial.reopened,
+            restarted.restarted
+          ].every(
+            (state) =>
+              graphSurfaceSignature(state) ===
+              graphSurfaceSignature(attachmentPathCopyContract.graphBeforeAction)
+          ),
+          ...sharedAssertions
+        }
     : attachmentMoveProbe
       ? {
           exactNodeSetBeforeAction:
@@ -2316,6 +2617,8 @@ async function runController() {
     attachmentMoveScenario: attachmentMoveProbe ? attachmentMoveScenario : null,
     attachmentBookmarkProbe,
     attachmentBookmarkScenario: attachmentBookmarkProbe ? attachmentBookmarkScenario : null,
+    attachmentPathCopyProbe,
+    attachmentPathCopyScenario: attachmentPathCopyProbe ? attachmentPathCopyScenario : null,
     cameraContract,
     nodeDragContract,
     nodeMenuContract,
@@ -2324,6 +2627,7 @@ async function runController() {
     attachmentNewWindowContract,
     attachmentMoveContract,
     attachmentBookmarkContract,
+    attachmentPathCopyContract,
     bookmarkCounts,
     bookmarkPersistence,
     repository,
@@ -2335,12 +2639,21 @@ async function runController() {
   }
   await writeFile(
     resolve(outputRoot, 'observation.json'),
-    `${JSON.stringify(observation, null, 2)}\n`,
+    `${JSON.stringify(repositoryEvidence(observation), null, 2)}\n`,
     'utf8'
   )
 
   const artifactPaths = [
-    ...(attachmentBookmarkProbe
+    ...(attachmentPathCopyProbe
+      ? [
+          '00-baseline.png',
+          '01-node-context-menu.png',
+          '02-path-copy-submenu.png',
+          '03-after-path-copy.png',
+          '04-after-graph-reopen.png',
+          '05-after-app-restart.png'
+        ]
+      : attachmentBookmarkProbe
       ? attachmentBookmarkScenario === 'duplicate'
         ? [
             '00-baseline.png',
@@ -2434,7 +2747,9 @@ async function runController() {
   ].map((name) => resolve(outputRoot, name))
   const manifest = {
     capturedAt: observation.capturedAt,
-    stage: attachmentBookmarkProbe
+    stage: attachmentPathCopyProbe
+      ? `GP0-3b-l Global Graph attachment path copy (${attachmentPathCopyScenario}) working-tree evidence`
+      : attachmentBookmarkProbe
       ? `GP0-3b-k Global Graph attachment bookmark (${attachmentBookmarkScenario}) working-tree evidence`
       : attachmentMoveProbe
       ? `GP0-3b-j Global Graph attachment file move (${attachmentMoveScenario}) working-tree evidence`
@@ -2454,7 +2769,9 @@ async function runController() {
         ? 'GP0-3b-c Global Graph camera persistence working-tree evidence'
         : 'GP0-3b Global Graph search persistence working-tree evidence',
     status: completed ? 'captured' : 'failed',
-    comparisonStatus: attachmentBookmarkProbe
+    comparisonStatus: attachmentPathCopyProbe
+      ? `Compare with docs/reports/assets/graph-gp0-attachment-path-copy/${attachmentPathCopyScenario}/obsidian-1.13.4/observation.json`
+      : attachmentBookmarkProbe
       ? `Compare with docs/reports/assets/graph-gp0-attachment-bookmark/${attachmentBookmarkScenario}/obsidian-1.13.4/observation.json`
       : attachmentMoveProbe
       ? `Compare with docs/reports/assets/graph-gp0-attachment-file-move/${attachmentMoveScenario}/obsidian-1.13.4/observation.json`
@@ -2473,7 +2790,9 @@ async function runController() {
       : cameraProbe
         ? 'Compare with docs/reports/assets/graph-gp0-camera-persistence/comparison.json'
         : 'Compare with docs/reports/assets/graph-gp0-search-persistence/comparison.json',
-    command: attachmentBookmarkProbe
+    command: attachmentPathCopyProbe
+      ? `npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-path-copy --path-copy-scenario=${attachmentPathCopyScenario}`
+      : attachmentBookmarkProbe
       ? `npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-bookmark --bookmark-scenario=${attachmentBookmarkScenario}`
       : attachmentMoveProbe
       ? `npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-move --move-scenario=${attachmentMoveScenario}`
@@ -2504,7 +2823,32 @@ async function runController() {
       },
       network: 'host resolver blocked except localhost'
     },
-    evidenceBoundary: attachmentBookmarkProbe
+    evidenceBoundary: attachmentPathCopyProbe
+      ? {
+          established: [
+            'Fresh isolated fixture Vault and userData profile',
+            'Public TSUZUNE graph node context menu and three-item path-copy submenu were used',
+            'Parent click retained the main menu; child selection closed both menus',
+            'Electron clipboard.writeText was intercepted inside the capture process and restored before exit',
+            'Clipboard equality was checked in memory; only the unchanged boolean was recorded',
+            'Graph query, camera transform, rendered node paths, rendered edge count, and workspace tabs were compared immediately, after Graph reopen, and after a distinct-process restart',
+            'Source fixture and isolated Vault were hashed before and after the capture'
+          ],
+          notEstablished: [
+            'Physical mouse or keyboard input',
+            'Visible onscreen foreground-window interaction',
+            'Touch or pen input',
+            'Screen reader or Windows High Contrast acceptance',
+            'Multi-DPI or pixel-identical parity',
+            'A real OS clipboard write and paste round-trip',
+            'Semantic edge identities beyond the public canvas edge-count signal'
+          ],
+          submenuPlacement: attachmentPathCopyContract.submenu?.placement ?? null,
+          submenuFullyInsideViewport:
+            attachmentPathCopyContract.submenu?.fullyInsideViewport ?? null,
+          fixedReferencePlacement: 'left at the captured right-edge position'
+        }
+      : attachmentBookmarkProbe
       ? {
           established: [
             'Fresh isolated fixture Vault and userData profile',
@@ -2526,7 +2870,9 @@ async function runController() {
     processIds: [initial.processId, restarted.processId],
     assertions,
     artifacts: await Promise.all(artifactPaths.map(artifactSummary)),
-    next: attachmentBookmarkProbe
+    next: attachmentPathCopyProbe
+      ? `Compare the ${attachmentPathCopyScenario} path format and adaptive submenu placement with the fixed Obsidian 1.13.4 evidence.`
+      : attachmentBookmarkProbe
       ? `Compare the ${attachmentBookmarkScenario} scenario with the fixed Obsidian 1.13.4 evidence.`
       : attachmentMoveProbe
       ? `Compare the ${attachmentMoveScenario} scenario with the fixed Obsidian 1.13.4 evidence.`
@@ -2548,7 +2894,7 @@ async function runController() {
   }
   await writeFile(
     resolve(outputRoot, 'manifest.json'),
-    `${JSON.stringify(manifest, null, 2)}\n`,
+    `${JSON.stringify(repositoryEvidence(manifest), null, 2)}\n`,
     'utf8'
   )
 

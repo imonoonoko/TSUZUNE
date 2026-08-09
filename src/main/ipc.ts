@@ -1,4 +1,11 @@
-import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
+import {
+  BrowserWindow,
+  clipboard,
+  dialog,
+  ipcMain,
+  shell,
+  type IpcMainInvokeEvent
+} from 'electron'
 import { readFile } from 'node:fs/promises'
 import type {
   AppError,
@@ -483,6 +490,11 @@ export function registerIpc(
       })
     }
     await openVaultFileWindow(path)
+    return null
+  })
+
+  registerTrusted('system:copyText', async (text: string) => {
+    clipboard.writeText(text)
     return null
   })
 

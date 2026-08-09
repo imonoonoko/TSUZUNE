@@ -42,6 +42,7 @@ const api: TsuzuneApi = {
   openVaultFile: (path: string) => invoke<null>('system:openVaultFile', path),
   openVaultFileWindow: (path: string) =>
     invoke<null>('system:openVaultFileWindow', path),
+  copyText: (text: string) => invoke<null>('system:copyText', text),
   saveNote: (input: SaveNoteInput) => invoke<SaveNoteOutput>('note:save', input),
   createNote: (input: CreateNoteInput) =>
     invoke<EntryOperationOutput>('entry:createNote', input),

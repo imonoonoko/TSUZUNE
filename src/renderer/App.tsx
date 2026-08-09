@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   buildNoteCreationPath,
   findLinkImpact,
@@ -15,11 +15,13 @@ import {
 import {
   basenameRelative,
   dirnameRelative,
+  formatPathForCopy,
   isPathInsideOrEqual,
   joinRelative,
   withMarkdownExtension,
   withoutMarkdownExtension
 } from '../core/paths'
+import type { CopyPathFormat } from '../core/paths'
 import { searchNotes } from '../core/search'
 import { getNoteFreshness } from '../core/freshness'
 import {
@@ -30,6 +32,7 @@ import {
   parseIdeaNote,
   renderDailyNote,
   renderIdeaNote,
+  renderPlainNote,
   renderTemplate,
   TEMPLATE_DIRECTORY
 } from '../core/templates'
@@ -171,6 +174,7 @@ export default function App(): React.JSX.Element {
   const [captureKind, setCaptureKind] = useState<'note' | 'daily' | 'idea' | null>(null)
   const [captureEditPath, setCaptureEditPath] = useState<string | null>(null)
   const [noteCreationTemplate, setNoteCreationTemplate] = useState<NoteDocument | null>(null)
+  const [captureError, setCaptureError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
   const conflictRef = useRef<ConflictState | null>(null)
@@ -198,6 +202,7 @@ export default function App(): React.JSX.Element {
   const googleDialogRef = useRef<HTMLElement | null>(null)
   const googleDialogPreviousFocusRef = useRef<HTMLElement | null>(null)
   const busyRef = useRef(false)
+  const captureDirtyRef = useRef(false)
   const vaultGenerationRef = useRef(0)
   const vaultSwitchingRef = useRef(false)
   const snapshotRequestRef = useRef(0)
@@ -209,6 +214,9 @@ export default function App(): React.JSX.Element {
     async () => undefined
   )
   const searchInputRef = useRef<HTMLInputElement | null>(null)
+  const handleCaptureDirtyChange = useCallback((dirty: boolean): void => {
+    captureDirtyRef.current = dirty
+  }, [])
 
   const setCurrentSnapshot = (next: VaultSnapshot | null): void => {
     snapshotRef.current = next
@@ -699,6 +707,15 @@ export default function App(): React.JSX.Element {
         window.tsuzune.confirmClose(false)
         return
       }
+      if (
+        captureDirtyRef.current &&
+        !window.confirm(
+          '入力フォームに未保存の内容があります。破棄してアプリを閉じますか？'
+        )
+      ) {
+        window.tsuzune.confirmClose(false)
+        return
+      }
       void flushSave().then((saved) => {
         window.tsuzune.confirmClose(saved)
       })
@@ -814,11 +831,11 @@ export default function App(): React.JSX.Element {
     }
     if (/^02_デイリー\/\d{4}-\d{2}-\d{2}\.md$/.test(selectedPath)) {
       const values = parseDailyNote(content)
-      return values ? { kind: 'daily', ...values } : null
+      return values ? { kind: 'daily', ...values, memo: values.memo ?? '' } : null
     }
     if (selectedPath.startsWith('01_受信箱/アイデア/')) {
       const values = parseIdeaNote(content)
-      return values ? { kind: 'idea', ...values } : null
+      return values ? { kind: 'idea', ...values, memo: values.memo ?? '' } : null
     }
     return null
   }, [content, selectedPath])
@@ -909,6 +926,7 @@ export default function App(): React.JSX.Element {
     if (!snapshot) {
       return
     }
+    setCaptureError(null)
     setNoteCreationTemplate(template ?? null)
     setCaptureEditPath(null)
     setCaptureKind('note')
@@ -922,7 +940,9 @@ export default function App(): React.JSX.Element {
       if (!known.has(path)) {
         const result = await window.tsuzune.createDirectory({ parent, name })
         if (!result.ok && result.error.code !== 'ALREADY_EXISTS') {
-          setMessage(errorMessage(result.error))
+          const error = errorMessage(result.error)
+          setMessage(error)
+          setCaptureError(error)
           return false
         }
         known.add(path)
@@ -935,6 +955,7 @@ export default function App(): React.JSX.Element {
   const createCapturedNote = async (
     submission: HumanNoteCaptureSubmission
   ): Promise<boolean> => {
+    setCaptureError(null)
     if (!snapshot) {
       return false
     }
@@ -954,11 +975,18 @@ export default function App(): React.JSX.Element {
     const content =
       submission.kind === 'note'
         ? noteCreationTemplate
-          ? renderTemplate(noteCreationTemplate.content, {
-              title: submission.title,
-              now
-            })
-          : undefined
+          ? (() => {
+              const template = renderTemplate(noteCreationTemplate.content, {
+                title: submission.title,
+                now
+              })
+              return submission.body.trim()
+                ? `${template.trimEnd()}\n\n${submission.body}${submission.body.endsWith('\n') ? '' : '\n'}`
+                : template
+            })()
+          : submission.body.trim()
+            ? renderPlainNote(submission)
+            : undefined
         : submission.kind === 'daily'
           ? renderDailyNote({ now: dailyDate, ...submission })
           : renderIdeaNote(submission)
@@ -991,11 +1019,13 @@ export default function App(): React.JSX.Element {
       ? snapshotRef.current?.notes.find((note) => note.path === location.path)
       : null
     if (existing) {
-      await openNote(existing.path)
-      setCaptureKind(null)
-      setCaptureEditPath(null)
-      setViewMode('preview')
-      return true
+      const error =
+        submission.kind === 'idea'
+          ? `同名のアイデア「${submission.title.trim()}」は既にあります。タイトルを変えてください。`
+          : '今日のノートは既にあります。入力内容を残したまま保存を中止しました。'
+      setMessage(error)
+      setCaptureError(error)
+      return false
     }
     if (!beginOperation()) {
       return false
@@ -1022,7 +1052,9 @@ export default function App(): React.JSX.Element {
       const name = submission.kind === 'note' ? submission.title : location?.name ?? ''
       const result = await window.tsuzune.createNote({ directory, name, content })
       if (!result.ok) {
-        setMessage(errorMessage(result.error))
+        const error = errorMessage(result.error)
+        setMessage(error)
+        setCaptureError(error)
         return false
       }
       const next = await refreshSnapshot()
@@ -1053,6 +1085,7 @@ export default function App(): React.JSX.Element {
     }
     setCaptureKind('daily')
     setCaptureEditPath(null)
+    setCaptureError(null)
   }
 
   const createDirectory = async (): Promise<void> => {
@@ -1503,6 +1536,21 @@ export default function App(): React.JSX.Element {
       return
     }
     const result = await window.tsuzune.openVaultFileWindow(path)
+    if (!result.ok) {
+      setMessage(errorMessage(result.error))
+    }
+  }
+
+  const copyGraphNodePath = async (
+    path: string,
+    format: CopyPathFormat
+  ): Promise<void> => {
+    if (!snapshot) {
+      return
+    }
+    const result = await window.tsuzune.copyText(
+      formatPathForCopy(snapshot.rootPath, snapshot.rootName, path, format)
+    )
     if (!result.ok) {
       setMessage(errorMessage(result.error))
     }
@@ -2146,6 +2194,7 @@ export default function App(): React.JSX.Element {
                 type="button"
                 onClick={() => {
                   setCaptureEditPath(null)
+                  setCaptureError(null)
                   setCaptureKind('idea')
                 }}
               >
@@ -2286,6 +2335,7 @@ export default function App(): React.JSX.Element {
                   onMove={setMovePath}
                   bookmarkedPaths={bookmarkedPaths}
                   onBookmark={setBookmarkPath}
+                  onCopyPath={copyGraphNodePath}
                   onTrash={(path) => void trashPath(path)}
                   onOpen={openGraphNode}
                   onOpenInNewTab={(path) => void openGraphNodeInNewTab(path)}
@@ -2337,6 +2387,7 @@ export default function App(): React.JSX.Element {
                         type="button"
                         onClick={() => {
                           setCaptureEditPath(selectedPath)
+                          setCaptureError(null)
                           setCaptureKind(structuredCapture.kind)
                         }}
                       >
@@ -2399,6 +2450,7 @@ export default function App(): React.JSX.Element {
                     value={content}
                     onChange={handleContentChange}
                     readOnly={busy}
+                    notes={savedNotes.filter((note) => note.path !== selectedPath)}
                   />
                 ) : viewMode === 'preview' ? (
                   <MarkdownPreview
@@ -2445,6 +2497,7 @@ export default function App(): React.JSX.Element {
                     onMove={setMovePath}
                     bookmarkedPaths={bookmarkedPaths}
                     onBookmark={setBookmarkPath}
+                    onCopyPath={copyGraphNodePath}
                     onTrash={(path) => void trashPath(path)}
                     onOpen={openGraphNode}
                     onOpenInNewTab={(path) => void openGraphNodeInNewTab(path)}
@@ -2521,20 +2574,22 @@ export default function App(): React.JSX.Element {
         <HumanNoteCaptureDialog
           key={`${captureKind}:${captureEditPath ?? noteCreationTemplate?.path ?? ''}`}
           kind={captureKind}
+          error={captureError}
           dateLabel={
             captureEditPath?.match(/^02_デイリー\/(\d{4}-\d{2}-\d{2})\.md$/)?.[1] ??
             localCalendarDate(new Date())
           }
           initialTitle={captureKind === 'note' ? '無題のノート' : undefined}
           initialValues={captureEditPath ? structuredCapture ?? undefined : undefined}
-          projectNotes={savedNotes.filter((note) =>
-            note.path.startsWith('10_プロジェクト/')
-          )}
+          notes={savedNotes}
           onCancel={() => {
+            captureDirtyRef.current = false
             setCaptureKind(null)
             setCaptureEditPath(null)
             setNoteCreationTemplate(null)
+            setCaptureError(null)
           }}
+          onDirtyChange={handleCaptureDirtyChange}
           onSubmit={createCapturedNote}
         />
       )}

@@ -45,6 +45,8 @@
 - [GP0-3b-j attachment file move comparison JSON](reports/assets/graph-gp0-attachment-file-move/comparison.json) — 中核動作を`matched-core-behavior`とし、typeahead対select/buttonとmenu 11対4を既知UI差として残した機械可読比較。
 - [GP0-3b-k attachment bookmark](reports/graph-gp0-attachment-bookmark-2026-08-09.html) — 作成、取消、同一path再編集upsert、`ctime`保持、Graph再表示／別プロセス再起動保持、Vault内容不変を両製品で固定した画面証拠。
 - [GP0-3b-k attachment bookmark comparison JSON](reports/assets/graph-gp0-attachment-bookmark/comparison.json) — 中核動作を`matched-core-behavior`とし、group selector対plain text input、menu 11対5、Bookmarks side panel未証明を残した機械可読比較。
+- [GP0-3b-l attachment path copy](reports/graph-gp0-attachment-path-copy-2026-08-09.html) — URL、Vault相対path、system絶対pathの3形式、menu lifecycle、Graph検索条件・node集合・Vault内容の再表示／別プロセス再起動までの保持を両製品で固定した画面証拠。
+- [GP0-3b-l attachment path-copy comparison JSON](reports/assets/graph-gp0-attachment-path-copy/comparison.json) — 中核動作を`matched-core-behavior`とし、system root差、submenu geometry差、interceptしたclipboard、menu 11対6を境界として残した機械可読比較。
 - [Large Vault performance](reports/tsuzune-large-vault-performance-2026-08-03.html) — 500件／2000件baseline。
 - [Large Vault public summary](reports/assets/large-vault-performance-2026-08-03/summary-public.json) — 性能値の耐久する機械可読版。
 - [Product optimization](reports/tsuzune-product-optimization-2026-08-03.html) — GUI、icon、画像preview、watcher、更新gate。

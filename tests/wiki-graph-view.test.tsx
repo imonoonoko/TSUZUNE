@@ -7,7 +7,8 @@ import {
   fireEvent,
   render,
   screen,
-  waitFor
+  waitFor,
+  within
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -853,6 +854,7 @@ describe('WikiGraphView', () => {
     const onOpenInNewWindow = vi.fn()
     const onMove = vi.fn()
     const onBookmark = vi.fn()
+    const onCopyPath = vi.fn()
     const onTrash = vi.fn()
     const graph: WikiGraph = {
       nodes: [
@@ -879,6 +881,7 @@ describe('WikiGraphView', () => {
         onOpenInNewWindow={onOpenInNewWindow}
         onMove={onMove}
         onBookmark={onBookmark}
+        onCopyPath={onCopyPath}
         onTrash={onTrash}
         onOpen={() => undefined}
       />
@@ -917,10 +920,34 @@ describe('WikiGraphView', () => {
       '新規ウィンドウで開く',
       'ファイルを移動…',
       'ブックマーク…',
+      'パスをコピー ›',
       'ファイルを削除'
     ])
     await user.click(screen.getByRole('menuitem', { name: 'ブックマーク…' }))
     expect(onBookmark).toHaveBeenCalledWith('assets/diagram.png')
+
+    fireEvent.contextMenu(
+      screen.getByRole('button', {
+        name: 'diagram.png（添付書類）を開く'
+      })
+    )
+    await user.click(screen.getByRole('menuitem', { name: 'パスをコピー' }))
+    expect(screen.getByRole('menu', { name: 'diagram.png' })).toBeTruthy()
+    expect(
+      within(screen.getByRole('menu', { name: 'パスをコピー' }))
+        .getAllByRole('menuitem')
+        .map((item) => item.textContent)
+    ).toEqual([
+      'Obsidian URL として',
+      '保管庫フォルダから',
+      'システムルートから'
+    ])
+    await user.click(screen.getByRole('menuitem', { name: '保管庫フォルダから' }))
+    expect(onCopyPath).toHaveBeenCalledWith(
+      'assets/diagram.png',
+      'vault-relative'
+    )
+    expect(screen.queryByRole('menu', { name: 'diagram.png' })).toBeNull()
 
     fireEvent.contextMenu(
       screen.getByRole('button', {
@@ -937,6 +964,36 @@ describe('WikiGraphView', () => {
     )
     await user.click(screen.getByRole('menuitem', { name: 'ファイルを削除' }))
     expect(onTrash).toHaveBeenCalledWith('assets/diagram.png')
+
+    fireEvent.contextMenu(
+      screen.getByRole('button', { name: 'A（現在のノート）' })
+    )
+    await user.click(screen.getByRole('menuitem', { name: 'パスをコピー' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Obsidian URL として' }))
+    expect(onCopyPath).toHaveBeenLastCalledWith('A.md', 'obsidian-url')
+
+    const canvas = document.querySelector('.wiki-graph-canvas')
+    expect(canvas).toBeTruthy()
+    Object.defineProperty(canvas, 'clientWidth', {
+      configurable: true,
+      value: 800
+    })
+    fireEvent.contextMenu(
+      screen.getByRole('button', {
+        name: 'diagram.png（添付書類）を開く'
+      }),
+      { clientX: 700 }
+    )
+    expect(
+      (screen.getByRole('menu', { name: 'diagram.png' }) as HTMLElement).style.left
+    ).toBe('610px')
+    await user.click(screen.getByRole('menuitem', { name: 'パスをコピー' }))
+    expect(
+      screen
+        .getByRole('menu', { name: 'パスをコピー' })
+        .classList.contains('is-left')
+    ).toBe(true)
+    await user.click(screen.getByRole('menuitem', { name: 'システムルートから' }))
 
     fireEvent.contextMenu(
       screen.getByRole('button', { name: 'A（現在のノート）' })

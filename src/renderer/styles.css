@@ -619,11 +619,16 @@ button:hover:not(:disabled) {
   border-bottom: 1px solid var(--line);
 }
 
-.markdown-format-toolbar button {
+.markdown-format-toolbar button,
+.markdown-format-toolbar select {
   min-height: 28px;
   padding: 3px 9px;
   font-size: 12px;
   white-space: nowrap;
+}
+
+.markdown-format-toolbar select {
+  width: min(260px, 42vw);
 }
 
 .markdown-editor {
@@ -1097,6 +1102,30 @@ button:hover:not(:disabled) {
   resize: vertical;
 }
 
+.capture-friendly-field {
+  display: grid;
+  gap: 6px;
+}
+
+.capture-format-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.capture-format-toolbar button,
+.capture-format-toolbar select {
+  width: auto;
+  min-height: 30px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.capture-format-toolbar select {
+  flex: 1 1 220px;
+}
+
 .modal-actions {
   display: flex;
   gap: 8px;
@@ -1364,6 +1393,35 @@ button:hover:not(:disabled) {
 
 .wiki-graph-context-menu button:disabled {
   color: #aaa;
+}
+
+.wiki-graph-context-submenu-host {
+  position: relative;
+  display: grid;
+}
+
+.wiki-graph-context-submenu-host > button {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.wiki-graph-context-submenu {
+  position: absolute;
+  top: -6px;
+  left: calc(100% - 2px);
+  display: grid;
+  min-width: 190px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #dadada;
+  border-radius: 6px;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 18%);
+}
+
+.wiki-graph-context-submenu.is-left {
+  right: calc(100% - 2px);
+  left: auto;
 }
 
 @media (max-width: 1120px) {

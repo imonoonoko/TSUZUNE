@@ -72,6 +72,18 @@ describe('graph view state preload API', () => {
     )
   })
 
+  it('copies an exact Vault-relative path through trusted IPC', async () => {
+    electron.invoke.mockResolvedValue({ ok: true, value: null })
+    await import('../src/preload/index')
+
+    await electron.api!.copyText('attachments/diagram.svg')
+
+    expect(electron.invoke).toHaveBeenCalledWith(
+      'system:copyText',
+      'attachments/diagram.svg'
+    )
+  })
+
   it('forwards bookmark writes through dedicated trusted IPC channels', async () => {
     electron.invoke.mockResolvedValue({ ok: true, value: null })
     await import('../src/preload/index')

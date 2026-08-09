@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os'
 
 const electron = vi.hoisted(() => ({
   appData: '',
-  handlers: new Map<string, (...args: unknown[]) => Promise<unknown>>()
+  handlers: new Map<string, (...args: unknown[]) => Promise<unknown>>(),
+  writeText: vi.fn()
 }))
 
 vi.mock('electron', () => ({
@@ -13,6 +14,9 @@ vi.mock('electron', () => ({
     getPath: () => electron.appData
   },
   BrowserWindow: class {},
+  clipboard: {
+    writeText: electron.writeText
+  },
   dialog: {
     showOpenDialog: vi.fn()
   },
@@ -37,6 +41,7 @@ describe('graph settings IPC', () => {
   beforeEach(async () => {
     electron.appData = await mkdtemp(join(tmpdir(), 'tsuzune-ipc-settings-'))
     electron.handlers.clear()
+    electron.writeText.mockClear()
   })
 
   afterEach(async () => {
@@ -86,6 +91,40 @@ describe('graph settings IPC', () => {
       )
     ).resolves.toEqual({ ok: true, value: null })
     await expect(readSettings()).resolves.toMatchObject({ graphForces })
+  })
+
+  it('copies exact text only for the active renderer', async () => {
+    const mainFrame = {}
+    const webContents = { mainFrame }
+    const window = { webContents }
+    registerIpc(
+      {} as never,
+      {} as never,
+      {
+        connection: {} as never,
+        driveSync: {} as never
+      },
+      {} as never,
+      () => window as never,
+      () => undefined
+    )
+    const handler = electron.handlers.get('system:copyText')!
+
+    await expect(
+      handler(
+        { sender: {}, senderFrame: {} },
+        'attachments/diagram.svg'
+      )
+    ).resolves.toMatchObject({ ok: false })
+    expect(electron.writeText).not.toHaveBeenCalled()
+
+    await expect(
+      handler(
+        { sender: webContents, senderFrame: mainFrame },
+        'attachments/diagram.svg'
+      )
+    ).resolves.toEqual({ ok: true, value: null })
+    expect(electron.writeText).toHaveBeenCalledWith('attachments/diagram.svg')
   })
 
   it('persists Obsidian graph display settings from the active renderer', async () => {

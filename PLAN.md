@@ -46,14 +46,14 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 |---|---|
 | インストール済み本番 | v0.5.0。最新の正確なcommit、hash、検証結果は[production-update-latest.json](docs/reports/production-update-latest.json)を参照 |
 | 開発checkpoint | v0.6 Obsidian Graph Parity |
-| 完了した直近slice | GP0-3b-k attachment bookmark比較 |
-| 現役slice | GP0-3b-l attachment nodeの`パスをコピー` |
+| 完了した直近slice | GP0-3b-l attachment path copy比較 |
+| 現役slice | GP0-3b-m attachment nodeの`リンクされたビューを開く` |
 | 現役Track数 | 1。Google intakeとChatGPT candidate applyは保留 |
 
 ### Current Transition Queue
 
-1. **Now — GP0-3b-l:** attachment nodeの`パスをコピー`を固定比較する。
-2. **Next — GP0 context menu:** 残る操作を一項目ずつ固定比較する。
+1. **Now — GP0-3b-m:** attachment nodeの`リンクされたビューを開く`を固定比較する。
+2. **Next — GP0 context menu:** 固定参照版で実在を確認した残る操作を一項目ずつ固定比較する。
 3. **Then — Graph closure:** Groups、Animate、Restore defaults、Search/Excluded files境界を一項目ずつ閉じる。
 4. **After Graph checkpoint:** アクセシビリティ、Personal Google Intake、AI write policyのどれを次の独立Trackにするか再選択する。
 
@@ -61,11 +61,20 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 
 ## Active Track: v0.6 Obsidian Graph Parity
 
-### GP0-3b-l — Attachment Path Copy
+### Completed GP0-3b-l — Attachment Path Copy
+
+`パスをコピー`の3形式は、親menu位置、submenu文言・順序・有効状態、copy値、1回のplain-text write、menu close、共通検証範囲であるGraph検索条件・node集合・Vault内容の再表示／別プロセス再起動までの保持を固定比較し、`matched-core-behavior`と判定しました。Obsidian URLとVault相対pathは完全一致し、system pathは各隔離Vault rootから同じ相対suffixです。
+
+固定参照は右端から左、TSUZUNE captureは中央から右へsubmenuを開いたため、同一geometryは主張しません。TSUZUNEの右端左開きはrenderer回帰testにあり、実画面captureでは未証明です。両captureともOS clipboardへの実writeをinterceptしており、別applicationへのpaste roundtripも未証明です。
+
+- [比較report](docs/reports/graph-gp0-attachment-path-copy-2026-08-09.html)
+- [機械可読comparison](docs/reports/assets/graph-gp0-attachment-path-copy/comparison.json)
+
+### GP0-3b-m — Attachment Linked Views
 
 #### Question
 
-Obsidian 1.13.4でattachment nodeの`パスをコピー`を実行したとき、何がclipboardへ入り、menu、Graph、Vaultがどう変化するか。TSUZUNEは同じ公開挙動を持つか。
+Obsidian 1.13.4でattachment nodeの`リンクされたビューを開く`を開いたとき、どのsubmenuがどの順序と有効状態で現れるか。固定参照版で確認した先頭の有効操作を1件だけ実行した結果を、TSUZUNEは同じ公開挙動として持つか。
 
 #### Fixed Input
 
@@ -75,24 +84,23 @@ Obsidian 1.13.4でattachment nodeの`パスをコピー`を実行したとき、
 
 #### Acceptance
 
-- [ ] Obsidian 1.13.4からmenu文言、順序、有効状態を採取する。
-- [ ] 実行後のclipboardをplain textとして正確に記録する。
-- [ ] menuが閉じ、Global Graph tab、query、camera、表示nodeが保たれるか記録する。
-- [ ] Markdown、添付、内部設定を含むVault digestが不変であることを確認する。
-- [ ] clipboardの事前値を隔離または復元し、通常の利用者clipboardを証拠採取の副作用として残さない。
-- [ ] 差がある場合だけ、既存context menuとElectron clipboard APIを再利用して最小修正する。
+- [ ] Obsidian 1.13.4から親menuの位置、有効状態、hover／click後のsubmenu文言・順序・有効状態を採取する。
+- [ ] 固定参照版で実在を確認した先頭の有効な子操作を1件だけ選び、開くview、workspace状態、menu closeを記録する。
+- [ ] Global Graph tab、query、camera、表示nodeと対象viewが、Graph再表示／別プロセス再起動でどう扱われるか記録する。
+- [ ] Markdown、添付、内部設定を含むVault digestが意図しない変化をしないことを確認する。
+- [ ] 差がある場合だけ既存のworkspace tabとcontext menuを再利用して最小修正する。
 - [ ] 差を検出できるtargeted testを追加し、全回帰、typecheck、MCP検査を通す。
 - [ ] 参照版とTSUZUNEのraw observation、画像、comparison JSON、HTML reportを同じsliceへ保存する。
 
 #### Stop Condition
 
-対象操作を`matched`、`matched-core-behavior`、`different`のいずれかで根拠付き判定し、未証明境界を明記したら止めます。隣のmenu操作、Bookmarks side panel、Plugin APIへ同時に進みません。
+対象の親submenu契約と、参照版から選んだ子操作1件を`matched`、`matched-core-behavior`、`different`のいずれかで根拠付き判定し、未証明境界を明記したら止めます。2件目の子操作、次の親menu操作、Plugin APIへ同時に進みません。
 
 ### Remaining Graph Work
 
 | Area | 現在 | 完了条件 |
 |---|---|---|
-| Context menu | 新規tab、新規window、file move、bookmarkまで比較済み | 残る操作、submenu、note/tag/attachment別挙動を一項目ずつ固定比較 |
+| Context menu | 新規tab、新規window、file move、bookmark、path copyまで比較済み | `リンクされたビューを開く`から、残る操作、submenu、note/tag/attachment別挙動を一項目ずつ固定比較 |
 | Workspace state | Global query、zoom/pan境界、node drag、Graph tab保持の一部を比較済み | Local、fit/reset、zoom限界、workspace leaf復元を固定比較 |
 | Filters/Search | Search、tags、attachments、unresolved、excluded基礎を実装済み | malformed query、Manage UI、全surfaceへのExcluded files効果を比較 |
 | Groups | ordered groups基礎を実装済み | 作成、編集、順序、色、保存、復元、既定状態を比較 |
@@ -109,7 +117,7 @@ Graph parity全体は、P2/P3へ到達していない領域が残る限り完了
 
 | Stage | 到達目標 | 状態 / 次のGate |
 |---|---|---|
-| O0. Graph Parity | Local/Global Graph、filter、group、display、force、interaction、保存、アクセシビリティを徹底比較 | **Active**。GP0-3b-lから一項目ずつ進める |
+| O0. Graph Parity | Local/Global Graph、filter、group、display、force、interaction、保存、アクセシビリティを徹底比較 | **Active**。GP0-3b-mから一項目ずつ進める |
 | O1. Daily Writing & Navigation | Markdownを知らなくても作成・編集・日次運用できる | Daily/Ideaフォーム、toolbar、template、freshnessは実装済み。7日通常運用と残るnavigationは未完 |
 | O2. Organization & Retrieval | folders、tags、properties、outline、bookmarks、search、commandsを日常利用できる | 基礎あり。Graph checkpoint後に不足surfaceを棚卸し |
 | O3. Structured Views | Markdown/frontmatter原本のtable/card/list view | Planned。実用queryと編集契約を固定してから開始 |
@@ -125,9 +133,11 @@ O0〜O7はGraphだけの計画ではありません。Obsidian 1.13.4の公式�
 実装済み:
 
 - `今日のノート`: `02_デイリー/YYYY-MM-DD.md`へ同日一件。既存なら開く。
-- `アイデアを追加`: 本文、理由、関連project、次の一歩をフォーム入力し、通常Markdownへ保存。
-- 通常ノートのアプリ内新規作成。
-- 見出し、太字、list、check、linkの最小toolbar。
+- `アイデアを追加`: 本文、理由、関連project、自由メモ、複数の次の一歩をフォーム入力し、通常Markdownへ保存。
+- 通常ノートは名前と自由な複数行本文を同じアプリ内フォームで新規作成。
+- 作成フォームとeditorで見出し、太字、list、checkの最小書式ボタンとVaultノート選択によるWiki link挿入。
+- Daily／Ideaはparse→renderが元Markdownと一致するときだけフォームへ戻すround-trip guard。
+- 同名／作成失敗では入力と画面内エラーを保持し、入力途中のアプリ終了は確認して未保存内容を保護。
 - `90_テンプレート`とcustom template読込。
 - filesystem更新日時と`review_after`による非破壊の鮮度表示。
 
@@ -261,7 +271,7 @@ NotebookLMや外部資料は、原典package、派生要約、更新対象知識
 | Human Capture O1-W0/W1 | template、freshness、通常作成、Daily/Idea、toolbar | [Templates and Freshness](docs/templates-and-freshness.md) |
 | Google v0.4 Foundation | Desktop OAuth、profile、Drive manual preview/apply、local graph | [README](README.md) |
 | Windows v0.5 Foundation | installer、updater、packaged/installed smoke、production gate | [Windows Production](docs/windows-production.md) |
-| Graph GP0-a〜k | settings、search/camera/drag、tabs、attachment open/move/bookmarkの固定比較 | [Parity Reference](docs/obsidian-graph-parity-reference.md) |
+| Graph GP0-a〜l | settings、search/camera/drag、tabs、attachment open/move/bookmark/path copyの固定比較 | [Parity Reference](docs/obsidian-graph-parity-reference.md) |
 | TSUZUNE Benchmark | TSUZUNEあり/なしの品質とlatencyを分離計測 | [Benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
 | ChatGPT Export C0-A〜C1-C | read-only normalization、provenance、candidate preview、安全回帰 | [Intake Contract](docs/chatgpt-export-intake.md) |
 

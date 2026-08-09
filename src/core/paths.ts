@@ -108,6 +108,26 @@ export function withoutMarkdownExtension(value: string): string {
   return value.toLowerCase().endsWith('.md') ? value.slice(0, -3) : value
 }
 
+export type CopyPathFormat =
+  | 'obsidian-url'
+  | 'vault-relative'
+  | 'system-absolute'
+
+export function formatPathForCopy(
+  rootPath: string,
+  rootName: string,
+  relativePath: string,
+  format: CopyPathFormat
+): string {
+  if (format === 'obsidian-url') {
+    return `obsidian://open?vault=${encodeURIComponent(rootName)}&file=${encodeURIComponent(relativePath)}`
+  }
+  if (format === 'system-absolute') {
+    return `${rootPath.replace(/[\\/]+$/, '')}\\${relativePath.replaceAll('/', '\\')}`
+  }
+  return relativePath
+}
+
 export function withMarkdownExtension(value: string): string {
   return value.toLowerCase().endsWith('.md') ? value : `${value}.md`
 }

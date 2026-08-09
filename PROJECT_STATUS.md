@@ -9,11 +9,11 @@
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
 | インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-09 19:58 JSTにcommit `efe52ea`から更新し、GP0-3b-k、全438 tests、packaged／installed smoke、build／installed hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`。C0-A〜C1-C、O1-W0、O1-W1、GP0-3b-kを実装・検証・commit・push・本番反映済み | Git |
-| 直近slice | GP0-3b-kでattachment nodeのブックマークを比較。作成、取消、同一path再編集upsert、`ctime`保持、Graph再表示／別プロセス再起動保持、Vault内容不変を`matched-core-behavior`にした | [比較report](docs/reports/graph-gp0-attachment-bookmark-2026-08-09.html) |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。GP0-3b-kまではcommit・push・本番反映済み。GP0-3b-lはworking treeで3形式の固定比較まで完了。同じworking treeには、通常ノート／Daily／IdeaのMarkdown不要な自由入力拡張、書式ボタン、Vaultノート選択、round-trip guard、同名衝突／作成失敗／アプリ終了時の入力保護も含まれる。いずれもcommit・push・本番反映前 | Git |
+| 直近slice | GP0-3b-lでattachment nodeのpath copy 3形式、menu lifecycle、Graph検索条件・node集合・Vault内容の再表示／別プロセス再起動までの保持を比較し、`matched-core-behavior`にした | [比較report](docs/reports/graph-gp0-attachment-path-copy-2026-08-09.html) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
 | 最優先Track | v0.6 Obsidian Graph Parity | [PLAN.md](PLAN.md#active-track-v06-obsidian-graph-parity) |
-| 次の縦切り | GP0-3b-kはattachment nodeの`ブックマーク…`を比較済み。次はGP0-3b-lで`パスをコピー`のclipboard内容、menu close、Graph保持を固定比較する | [PLAN.md](PLAN.md) |
+| 次の縦切り | GP0-3b-lの`パスをコピー`は比較済み。次はGP0-3b-mでattachment nodeの`リンクされたビューを開く`を固定参照版から採取し、先頭の有効な子操作1件だけを比較する | [PLAN.md](PLAN.md) |
 
 ## 実装済みの基盤
 
@@ -54,6 +54,8 @@ GP0-3b-jでは、添付nodeの`ファイルを移動…`を取消、通常移動
 
 GP0-3b-kでは、添付nodeの`ブックマーク…`を取消、作成、同一path再編集の3シナリオで比較しました。両製品とも取消では保存せず、作成後は対象pathのbookmarkをちょうど1件保持し、再編集では重複を作らず同じbookmarkをupsertして`ctime`を保持します。Graph再表示と別プロセス再起動後もbookmarkと対象attachment nodeを保持し、Markdown／Vault内容は変更しません。中核動作は`matched-core-behavior`です。Obsidianのgroup selectorに対するTSUZUNEのplain text input、context menu全体11対5、Bookmarks side panel／一覧／並べ替え／group階層は未一致または未証明です。
 
+GP0-3b-lでは、添付nodeの`パスをコピー`をURL、Vault相対path、system絶対pathの3シナリオで比較しました。親menuと3件のsubmenuの文言・順序・有効状態、選択ごとのplain-text write 1回、選択後のmenu close、共通検証範囲であるGraph検索条件・node集合・Vault内容のGraph再表示／別プロセス再起動までの保持を満たし、中核挙動は`matched-core-behavior`です。URLとVault相対pathは完全一致し、system pathは各隔離Vault rootから同じ相対suffixでした。両captureともOS clipboard実writeをinterceptしたため別applicationへのpaste roundtripは未証明です。固定参照は右端から左、TSUZUNE captureは中央から右へsubmenuを開いており、TSUZUNE実画面の右端左開きはこのcaptureでは未観測です。context menu全体も11対6の既知差です。
+
 - [GP6 comparison report](docs/reports/graph-gp6-production-comparison-2026-08-02.html)
 - [GP6 working-tree evidence](docs/reports/assets/graph-gp6/tsuzune-working-tree/manifest.json)
 - [GP7 initial settings comparison](docs/reports/graph-gp7-global-settings-default-2026-08-03.html)
@@ -68,6 +70,8 @@ GP0-3b-kでは、添付nodeの`ブックマーク…`を取消、作成、同一
 - [GP0 attachment file-move machine-readable comparison](docs/reports/assets/graph-gp0-attachment-file-move/comparison.json)
 - [GP0 attachment bookmark comparison](docs/reports/graph-gp0-attachment-bookmark-2026-08-09.html)
 - [GP0 attachment bookmark machine-readable comparison](docs/reports/assets/graph-gp0-attachment-bookmark/comparison.json)
+- [GP0 attachment path-copy comparison](docs/reports/graph-gp0-attachment-path-copy-2026-08-09.html)
+- [GP0 attachment path-copy machine-readable comparison](docs/reports/assets/graph-gp0-attachment-path-copy/comparison.json)
 
 ### Performance
 
@@ -99,9 +103,9 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 
 1. M5-Cは要求単位snapshot indexで完了。Context構築median 151.123ms→35.934ms、p95 180.404ms→47.798ms、改善前後のMarkdown SHA-256と意味指標は一致した。
 2. retained heap比較は未測定。cacheを要求境界より長寿命化する提案が出た場合だけ、GCを分離したharnessを先に作る。永続DBやbackground cacheは追加しない。
-3. GP0-3b-kのブックマークは`matched-core-behavior`で完了。次はGP0-3b-lでObsidian attachment nodeの`パスをコピー`実動作を同じfixtureで採取し、clipboard内容、menu close、Graph保持をTSUZUNEと固定比較する。
+3. GP0-3b-lのpath copy 3形式は`matched-core-behavior`で完了。次はGP0-3b-mでObsidian attachment nodeの`リンクされたビューを開く`を同じfixtureから採取し、固定参照で実在を確認した先頭の有効な子操作1件だけをTSUZUNEと比較する。
 4. 公開差が確認できた場合だけ一件を修正し、同じcaptureで回帰を確認する。
-5. O1-W1は利用者指示で先行し、Daily／Ideaフォーム、新規ノート作成修正、最小書式ツールバーまで全回帰を通して完了した。
+5. O1-W1の本番baselineはDaily／Ideaフォーム、新規ノート作成修正、最小書式ツールバーまで反映済み。通常ノート／Daily／Ideaの自由入力拡張、Vaultノート選択、round-trip guard、同名衝突／作成失敗／アプリ終了時の入力保護はworking treeにあり、commit・push・本番反映前。
 6. node context menuの残差分を一項目ずつ閉じた後、720px／200% zoom、tree semantics、実Windows accessibilityを別sliceで扱う。
 7. さらにGoogle Tasks、Drive選択取込、YouTube、Data Portabilityから一つを再選択する。
 8. ChatGPT候補は新しい高信頼例が10件以上たまるまで自動適用を解禁せず、C1-Dへ進まない。
@@ -109,7 +113,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 
 ## CheckpointとWorking treeの扱い
 
-Graph検索保持の製品コード、tests、fixture、再現script、report assetsは`ad26532`へ収録済みです。GP0-3b-cとGP0-3b-dは比較harness、raw observation、画像、比較表、HTMLレポートだけを追加し、製品sourceは変更していません。C0-A〜C1-CはGit管理外の`work/`へ個人本文とreviewを出す開発用CLI／純粋coreであり、Electron本番UI・packaged runtimeへは接続していません。C1-Cは既知誤検出を止めた一方、rule別review 10件未満のため自動適用を解禁せず、人物プロフィール5ノートへのwriteは0です。O1-W0／O1-W1はElectron UIへ接続し、2026-08-09のproduction update gateでこのPCの本番へ反映済みです。GP0-3b-jは`b47671a`、production testの2-worker gateは`9bec872`／`4051f9f`として同名originへpushし、12:54 JSTにclean sourceから本番へ反映済みです。GP0-3b-kは`efe52ea`として同名originへpushし、19:58 JSTに同commitのclean sourceから全438 tests、packaged／installed smoke、hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。
+Graph検索保持の製品コード、tests、fixture、再現script、report assetsは`ad26532`へ収録済みです。GP0-3b-cとGP0-3b-dは比較harness、raw observation、画像、比較表、HTMLレポートだけを追加し、製品sourceは変更していません。C0-A〜C1-CはGit管理外の`work/`へ個人本文とreviewを出す開発用CLI／純粋coreであり、Electron本番UI・packaged runtimeへは接続していません。C1-Cは既知誤検出を止めた一方、rule別review 10件未満のため自動適用を解禁せず、人物プロフィール5ノートへのwriteは0です。O1-W0／O1-W1のbaselineはElectron UIへ接続し、2026-08-09のproduction update gateでこのPCの本番へ反映済みです。今回のMarkdown不要な自由入力拡張、Vaultノート選択、round-trip guard、同名衝突／作成失敗／アプリ終了時の入力保護はworking treeにあり、本番には未反映です。GP0-3b-jは`b47671a`、production testの2-worker gateは`9bec872`／`4051f9f`として同名originへpushし、12:54 JSTにclean sourceから本番へ反映済みです。GP0-3b-kは`efe52ea`として同名originへpushし、19:58 JSTに同commitのclean sourceから全438 tests、packaged／installed smoke、hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。GP0-3b-lはworking treeで3形式のraw observation、画像、comparison JSON、HTML reportまで生成済みで、commit・push・production updateは未実施です。
 
 - 次のsliceでも、sourceだけ、reportだけの機械的な分割commitをせず、共有型、App、Vault、testsを含む機能契約単位で切る。
 - fixture、日付付きreport、machine-readable artifactは比較の証拠として保持し、生成ゴミと決めつけて一括削除しない。

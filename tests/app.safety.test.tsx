@@ -72,6 +72,7 @@ const snapshot: VaultSnapshot = {
 
 let vaultChanged: ((event: VaultChangeEvent) => void) | null
 let updateStatusChanged: ((status: AppUpdateStatus) => void) | null
+let requestClose: (() => void) | null
 let api: TsuzuneApi
 
 function ok<T>(value: T): Promise<Result<T>> {
@@ -81,6 +82,7 @@ function ok<T>(value: T): Promise<Result<T>> {
 beforeEach(() => {
   vaultChanged = null
   updateStatusChanged = null
+  requestClose = null
   api = {
     chooseVault: vi.fn(() => ok(null)),
     openLastVault: vi.fn(() => ok(snapshot)),
@@ -116,6 +118,7 @@ beforeEach(() => {
     ),
     openVaultFile: vi.fn(() => ok(null)),
     openVaultFileWindow: vi.fn(() => ok(null)),
+    copyText: vi.fn(() => ok(null)),
     saveNote: vi.fn((input) =>
       ok({
         path: input.path,
@@ -228,7 +231,12 @@ beforeEach(() => {
       vaultChanged = callback
       return () => undefined
     }),
-    onRequestClose: vi.fn(() => () => undefined),
+    onRequestClose: vi.fn((callback) => {
+      requestClose = callback
+      return () => {
+        requestClose = null
+      }
+    }),
     onUpdateStatus: vi.fn((callback) => {
       updateStatusChanged = callback
       return () => {
@@ -305,6 +313,9 @@ describe('App data-loss guards', () => {
     fireEvent.change(await screen.findByLabelText('ノート名'), {
       target: { value: '新規メモ' }
     })
+    fireEvent.change(screen.getByLabelText('本文'), {
+      target: { value: '    インデントした本文\n\n' }
+    })
     fireEvent.click(screen.getByRole('button', { name: '保存して開く' }))
 
     await waitFor(() => {
@@ -313,7 +324,9 @@ describe('App data-loss guards', () => {
     const input = vi.mocked(api.createNote).mock.calls[0][0]
     expect(input.directory).toBe('')
     expect(input.name).toBe('新規メモ')
-    expect(input.content).toMatch(/^# 新規メモ\n\n作成日: \d{4}-\d{2}-\d{2}$/)
+    expect(input.content).toMatch(
+      /^# 新規メモ\n\n作成日: \d{4}-\d{2}-\d{2}\n\n    インデントした本文\n\n$/
+    )
     expect(template.content).toBe('# {{title}}\n\n作成日: {{date}}')
   })
 
@@ -346,6 +359,82 @@ describe('App data-loss guards', () => {
       })
     })
     expect(promptSpy).not.toHaveBeenCalled()
+  })
+
+  it('keeps a dirty capture form open when app close is cancelled', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'ノート' }))
+    fireEvent.change(await screen.findByLabelText('本文'), {
+      target: { value: 'まだ保存していない本文' }
+    })
+
+    expect(requestClose).not.toBeNull()
+    act(() => requestClose?.())
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+      '入力フォームに未保存の内容があります。破棄してアプリを閉じますか？'
+    )
+    expect(api.confirmClose).toHaveBeenCalledWith(false)
+    expect(screen.getByDisplayValue('まだ保存していない本文')).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: '新しいノート' })).toBeTruthy()
+  })
+
+  it('still flushes the selected note after accepting a dirty capture close', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(<App />)
+    fireEvent.change(await screen.findByLabelText('Markdown編集欄'), {
+      target: { value: '終了前に保存する本文' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'ノート' }))
+    fireEvent.change(await screen.findByLabelText('本文'), {
+      target: { value: '破棄を確認済みのフォーム本文' }
+    })
+
+    act(() => requestClose?.())
+
+    await waitFor(() => {
+      expect(api.saveNote).toHaveBeenCalledWith(
+        expect.objectContaining({ path: noteA.path, content: '終了前に保存する本文' })
+      )
+      expect(api.confirmClose).toHaveBeenCalledWith(true)
+    })
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('creates a normal note with free text and a chosen related note without typing Markdown', async () => {
+    const createdNote: NoteDocument = {
+      path: '自由なノート.md',
+      name: '自由なノート',
+      content: '',
+      modifiedAt: Date.now(),
+      size: 0
+    }
+    vi.mocked(api.createNote).mockResolvedValue(await ok({ path: createdNote.path }))
+    vi.mocked(api.getSnapshot).mockResolvedValue(
+      await ok({ ...snapshot, notes: [...snapshot.notes, createdNote] })
+    )
+
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'ノート' }))
+    fireEvent.change(await screen.findByLabelText('ノート名'), {
+      target: { value: '自由なノート' }
+    })
+    const body = screen.getByLabelText('本文') as HTMLTextAreaElement
+    fireEvent.change(body, { target: { value: '思いついたことを自由に書く。\n' } })
+    fireEvent.change(screen.getByLabelText('本文に関連ノートを挿入'), {
+      target: { value: noteB.path }
+    })
+    fireEvent.click(screen.getByRole('button', { name: '保存して開く' }))
+
+    await waitFor(() => expect(api.createNote).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(api.createNote).mock.calls[0][0]).toMatchObject({
+      directory: '',
+      name: '自由なノート',
+      content: '# 自由なノート\n\n思いついたことを自由に書く。\n[[B]]\n'
+    })
   })
 
   it('creates one daily note from plain form fields in the dated folder', async () => {
@@ -419,6 +508,47 @@ describe('App data-loss guards', () => {
     await waitFor(() => expect(api.setLastNote).toHaveBeenCalledWith(dailyNote.path))
     expect(api.createNote).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog', { name: '今日のノート' })).toBeNull()
+  })
+
+  it('keeps a dirty daily form open when the note appears before save', async () => {
+    const now = new Date()
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const externalDaily: NoteDocument = {
+      path: `02_デイリー/${date}.md`,
+      name: date,
+      content: '# 外部で作成された今日のノート\n',
+      modifiedAt: Date.now(),
+      size: 48
+    }
+
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '今日のノート' }))
+    fireEvent.change(await screen.findByLabelText('今日やったこと'), {
+      target: { value: '失ってはいけない日報' }
+    })
+
+    vi.mocked(api.getSnapshot).mockResolvedValue(
+      await ok({
+        ...snapshot,
+        directories: ['', '02_デイリー'],
+        notes: [...snapshot.notes, externalDaily]
+      })
+    )
+    vi.mocked(api.getSnapshot).mockClear()
+    act(() => {
+      vaultChanged?.({ type: 'add', path: externalDaily.path })
+    })
+    await waitFor(() => expect(api.getSnapshot).toHaveBeenCalledTimes(1))
+
+    fireEvent.click(screen.getByRole('button', { name: '保存して開く' }))
+
+    const dialog = screen.getByRole('dialog', { name: '今日のノート' })
+    expect((await within(dialog).findByRole('alert')).textContent).toMatch(
+      /今日のノート.*既に/
+    )
+    expect(within(dialog).getByDisplayValue('失ってはいけない日報')).toBeTruthy()
+    expect(api.createNote).not.toHaveBeenCalled()
+    expect(api.setLastNote).not.toHaveBeenCalledWith(externalDaily.path)
   })
 
   it('round-trips a generated daily note through the plain form', async () => {
@@ -572,6 +702,160 @@ describe('App data-loss guards', () => {
     expect(input.directory).toBe('01_受信箱/アイデア')
     expect(input.name).toBe('自然な入力')
     expect(input.content).toContain('[[10_プロジェクト/TSUZUNE]]')
+  })
+
+  it('keeps the idea form and its input when the title already exists', async () => {
+    const existingIdea: NoteDocument = {
+      path: '01_受信箱/アイデア/重複する案.md',
+      name: '重複する案',
+      content: '# 重複する案\n',
+      modifiedAt: Date.now(),
+      size: 12
+    }
+    const ideaSnapshot: VaultSnapshot = {
+      ...snapshot,
+      directories: ['', '01_受信箱', '01_受信箱/アイデア'],
+      notes: [...snapshot.notes, existingIdea]
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok(ideaSnapshot))
+
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'アイデアを追加' }))
+    fireEvent.change(await screen.findByLabelText('タイトル'), {
+      target: { value: '重複する案' }
+    })
+    fireEvent.change(screen.getByLabelText('内容'), {
+      target: { value: '保存前に失ってはいけない本文' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: '保存して開く' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'アイデアを追加' })
+    expect((await within(dialog).findByRole('alert')).textContent).toMatch(/同名のアイデア/)
+    expect(screen.getByDisplayValue('保存前に失ってはいけない本文')).toBeTruthy()
+    expect(dialog).toBeTruthy()
+    expect(api.createNote).not.toHaveBeenCalled()
+  })
+
+  it('shows note creation failures inside the capture dialog without clearing input', async () => {
+    vi.mocked(api.createNote).mockResolvedValue({
+      ok: false,
+      error: { code: 'SAVE_FAILED', message: 'ノートを作成できませんでした。' }
+    })
+
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'ノート' }))
+    fireEvent.change(await screen.findByLabelText('ノート名'), {
+      target: { value: '失敗しても残すノート' }
+    })
+    fireEvent.change(screen.getByLabelText('本文'), {
+      target: { value: '消えてはいけない本文' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: '保存して開く' }))
+
+    const dialog = screen.getByRole('dialog', { name: '新しいノート' })
+    expect((await within(dialog).findByRole('alert')).textContent).toBe(
+      'ノートを作成できませんでした。'
+    )
+    expect(within(dialog).getByDisplayValue('失敗しても残すノート')).toBeTruthy()
+    expect(within(dialog).getByDisplayValue('消えてはいけない本文')).toBeTruthy()
+  })
+
+  it('shows daily folder creation failures inside the dialog and keeps every input', async () => {
+    vi.mocked(api.createDirectory).mockResolvedValue({
+      ok: false,
+      error: { code: 'SAVE_FAILED', message: '保存先フォルダーを作成できませんでした。' }
+    })
+
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '今日のノート' }))
+    fireEvent.change(await screen.findByLabelText('今日やったこと'), {
+      target: { value: '今日やったことの入力' }
+    })
+    fireEvent.change(screen.getByLabelText('気づき'), {
+      target: { value: '気づきの入力' }
+    })
+    fireEvent.change(screen.getByLabelText('メモ'), {
+      target: { value: 'メモの入力' }
+    })
+    fireEvent.change(screen.getByLabelText('次にすること'), {
+      target: { value: '次にすることの入力' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: '保存して開く' }))
+
+    const dialog = screen.getByRole('dialog', { name: '今日のノート' })
+    expect((await within(dialog).findByRole('alert')).textContent).toBe(
+      '保存先フォルダーを作成できませんでした。'
+    )
+    for (const value of [
+      '今日やったことの入力',
+      '気づきの入力',
+      'メモの入力',
+      '次にすることの入力'
+    ]) {
+      expect(within(dialog).getByDisplayValue(value)).toBeTruthy()
+    }
+    expect(api.createNote).not.toHaveBeenCalled()
+  })
+
+  it('shows idea folder creation failures inside the dialog and keeps every input', async () => {
+    const project: NoteDocument = {
+      path: '10_プロジェクト/TSUZUNE.md',
+      name: 'TSUZUNE',
+      content: '# TSUZUNE\n',
+      modifiedAt: Date.now(),
+      size: 10
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue(
+      await ok({
+        ...snapshot,
+        directories: ['', '10_プロジェクト'],
+        notes: [...snapshot.notes, project]
+      })
+    )
+    vi.mocked(api.createDirectory).mockResolvedValue({
+      ok: false,
+      error: { code: 'SAVE_FAILED', message: '保存先フォルダーを作成できませんでした。' }
+    })
+
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'アイデアを追加' }))
+    fireEvent.change(await screen.findByLabelText('タイトル'), {
+      target: { value: '保持するアイデア' }
+    })
+    fireEvent.change(screen.getByLabelText('内容'), {
+      target: { value: '内容の入力' }
+    })
+    fireEvent.change(screen.getByLabelText('思いついた理由'), {
+      target: { value: '理由の入力' }
+    })
+    fireEvent.change(screen.getByLabelText('関連プロジェクト'), {
+      target: { value: project.path }
+    })
+    fireEvent.change(screen.getByLabelText('メモ'), {
+      target: { value: 'アイデアメモの入力' }
+    })
+    fireEvent.change(screen.getByLabelText('次の一歩'), {
+      target: { value: '次の一歩の入力' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: '保存して開く' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'アイデアを追加' })
+    expect((await within(dialog).findByRole('alert')).textContent).toBe(
+      '保存先フォルダーを作成できませんでした。'
+    )
+    for (const value of [
+      '保持するアイデア',
+      '内容の入力',
+      '理由の入力',
+      'アイデアメモの入力',
+      '次の一歩の入力'
+    ]) {
+      expect(within(dialog).getByDisplayValue(value)).toBeTruthy()
+    }
+    expect(
+      (within(dialog).getByLabelText('関連プロジェクト') as HTMLSelectElement).value
+    ).toBe(project.path)
+    expect(api.createNote).not.toHaveBeenCalled()
   })
 
   it('batches a burst of external file events into one Vault refresh', async () => {
@@ -1300,6 +1584,20 @@ describe('App data-loss guards', () => {
       ...DEFAULT_GRAPH_FILTER_SETTINGS,
       showAttachments: true
     })
+
+    fireEvent.contextMenu(attachmentNode)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'パスをコピー' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'システムルートから' }))
+    await waitFor(() => {
+      expect(api.copyText).toHaveBeenCalledWith(
+        'C:\\Vault\\assets\\diagram.svg'
+      )
+    })
+    expect(
+      screen.getByRole('tab', { name: 'グラフビュー' }).getAttribute(
+        'aria-selected'
+      )
+    ).toBe('true')
   })
 
   it('creates, edits, and removes a Vault bookmark from the graph menu', async () => {

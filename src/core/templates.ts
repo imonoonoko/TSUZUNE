@@ -12,6 +12,7 @@ export interface DailyNoteValues {
   now: Date
   completed: string
   insight: string
+  memo?: string
   next: string
 }
 
@@ -22,6 +23,7 @@ export interface IdeaNoteValues {
   body: string
   reason: string
   projectPath: string
+  memo?: string
   next: string
 }
 
@@ -31,6 +33,11 @@ export interface NoteLocation {
   directory: string
   name: string
   path: string
+}
+
+export interface PlainNoteValues {
+  title: string
+  body: string
 }
 
 function localDate(date: Date): string {
@@ -84,6 +91,33 @@ function readSection(markdown: string, heading: string): string {
   return markdown.slice(contentStart, nextHeading < 0 ? undefined : nextHeading).trimEnd()
 }
 
+function renderTasks(value: string): string {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => `- [ ] ${line}`)
+    .join('\n')
+}
+
+function readTasks(markdown: string, heading: string): string {
+  const section = readSection(markdown, heading)
+  if (!section) {
+    return ''
+  }
+  const lines = section.split('\n')
+  return lines.every((line) => line.startsWith('- [ ] '))
+    ? lines.map((line) => line.slice(6)).join('\n')
+    : section
+}
+
+export function renderPlainNote(values: PlainNoteValues): string {
+  const body = values.body
+  return body.trim()
+    ? `# ${values.title.trim()}\n\n${body}${body.endsWith('\n') ? '' : '\n'}`
+    : `# ${values.title.trim()}\n`
+}
+
 export function dailyNoteLocation(now: Date): NoteLocation {
   const name = localDate(now)
   const directory = '02_デイリー'
@@ -94,10 +128,11 @@ export function renderDailyNote(values: DailyNoteValues): string {
   const lines = [`# ${localDate(values.now)}`, '']
   appendSection(lines, '今日やったこと', values.completed)
   appendSection(lines, '気づき', values.insight)
+  appendSection(lines, 'メモ', values.memo ?? '')
   appendSection(
     lines,
     '次にすること',
-    values.next.trim() ? `- [ ] ${values.next.trim()}` : ''
+    renderTasks(values.next)
   )
   return `${lines.join('\n').trimEnd()}\n`
 }
@@ -115,11 +150,11 @@ export function parseDailyNote(markdown: string): DailyNoteFormValues | null {
   ) {
     return null
   }
-  const nextSection = readSection(markdown, '次にすること')
   const values = {
     completed: readSection(markdown, '今日やったこと'),
     insight: readSection(markdown, '気づき'),
-    next: nextSection.startsWith('- [ ] ') ? nextSection.slice(6) : nextSection
+    memo: readSection(markdown, 'メモ'),
+    next: readTasks(markdown, '次にすること')
   }
   return renderDailyNote({ now, ...values }) === markdown ? values : null
 }
@@ -141,10 +176,11 @@ export function renderIdeaNote(values: IdeaNoteValues): string {
       ? `- [[${withoutMarkdownExtension(values.projectPath)}]]`
       : ''
   )
+  appendSection(lines, 'メモ', values.memo ?? '')
   appendSection(
     lines,
     '次の一歩',
-    values.next.trim() ? `- [ ] ${values.next.trim()}` : ''
+    renderTasks(values.next)
   )
   return `${lines.join('\n').trimEnd()}\n`
 }
@@ -156,13 +192,13 @@ export function parseIdeaNote(markdown: string): IdeaNoteFormValues | null {
   }
   const projectSection = readSection(markdown, '関連プロジェクト')
   const projectMatch = /^\- \[\[([^\]]+)\]\]$/.exec(projectSection)
-  const nextSection = readSection(markdown, '次の一歩')
   const values = {
     title: titleMatch[1],
     body: readSection(markdown, 'アイデア'),
     reason: readSection(markdown, '思いついた理由'),
     projectPath: projectMatch ? `${projectMatch[1]}.md` : '',
-    next: nextSection.startsWith('- [ ] ') ? nextSection.slice(6) : nextSection
+    memo: readSection(markdown, 'メモ'),
+    next: readTasks(markdown, '次の一歩')
   }
   return renderIdeaNote(values) === markdown ? values : null
 }

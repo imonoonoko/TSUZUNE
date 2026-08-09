@@ -1,0 +1,1581 @@
+{
+  "capturedAt": "2026-08-09T15:10:41.607Z",
+  "query": "",
+  "cameraProbe": false,
+  "nodeDragProbe": false,
+  "nodeMenuProbe": true,
+  "nodeNewTabProbe": false,
+  "attachmentNewTabProbe": false,
+  "attachmentNewWindowProbe": false,
+  "attachmentMoveProbe": false,
+  "attachmentMoveScenario": null,
+  "attachmentBookmarkProbe": false,
+  "attachmentBookmarkScenario": null,
+  "attachmentPathCopyProbe": true,
+  "attachmentPathCopyScenario": "url",
+  "cameraContract": null,
+  "nodeDragContract": null,
+  "nodeMenuContract": {
+    "targetNodePath": "attachments/diagram.svg",
+    "bounds": {
+      "left": 510,
+      "top": 461,
+      "width": 190,
+      "height": 251
+    },
+    "items": [
+      {
+        "index": 0,
+        "text": "新規タブに開く",
+        "disabled": false,
+        "classes": []
+      },
+      {
+        "index": 1,
+        "text": "新規ウィンドウで開く",
+        "disabled": false,
+        "classes": []
+      },
+      {
+        "index": 2,
+        "text": "ファイルを移動…",
+        "disabled": false,
+        "classes": []
+      },
+      {
+        "index": 3,
+        "text": "ブックマーク…",
+        "disabled": false,
+        "classes": []
+      },
+      {
+        "index": 4,
+        "text": "パスをコピー ›",
+        "disabled": false,
+        "classes": []
+      },
+      {
+        "index": 5,
+        "text": "ファイルを削除",
+        "disabled": false,
+        "classes": [
+          "is-danger"
+        ]
+      }
+    ],
+    "title": "diagram.svg"
+  },
+  "nodeNewTabContract": null,
+  "attachmentNewTabContract": null,
+  "attachmentNewWindowContract": null,
+  "attachmentMoveContract": null,
+  "attachmentBookmarkContract": null,
+  "attachmentPathCopyContract": {
+    "scenario": "url",
+    "expectedText": "obsidian://open?vault=vault&file=attachments%2Fdiagram.svg",
+    "submenu": {
+      "mainMenuStillOpen": true,
+      "parentAriaExpanded": "true",
+      "mainBounds": {
+        "left": 510,
+        "right": 700,
+        "top": 461,
+        "bottom": 712,
+        "width": 190,
+        "height": 251
+      },
+      "parentBounds": {
+        "left": 517,
+        "right": 693,
+        "top": 635,
+        "bottom": 670,
+        "width": 176,
+        "height": 35
+      },
+      "submenuBounds": {
+        "left": 691,
+        "right": 881,
+        "top": 629,
+        "bottom": 748,
+        "width": 190,
+        "height": 119
+      },
+      "placement": "right",
+      "fullyInsideViewport": true,
+      "items": [
+        {
+          "index": 0,
+          "text": "Obsidian URL として",
+          "disabled": false
+        },
+        {
+          "index": 1,
+          "text": "保管庫フォルダから",
+          "disabled": false
+        },
+        {
+          "index": 2,
+          "text": "システムルートから",
+          "disabled": false
+        }
+      ],
+      "screenshot": {
+        "file": "02-path-copy-submenu.png",
+        "bytes": 135967,
+        "sha256": "BBC24A5CAC161A615D8279534DA41C2CD1C621187DFB2A6D8C16B117E96D31F4",
+        "width": 1265,
+        "height": 768
+      }
+    },
+    "writes": [
+      {
+        "text": "obsidian://open?vault=vault&file=attachments%2Fdiagram.svg",
+        "type": null
+      }
+    ],
+    "uiAfterAction": {
+      "contextMenuOpen": false,
+      "submenuOpen": false,
+      "globalGraphVisible": true
+    },
+    "graphBeforeAction": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md",
+        "attachments/diagram.svg"
+      ],
+      "nodeDetails": [
+        {
+          "path": "00_Home.md",
+          "ariaLabel": "00_Home（現在のノート）",
+          "classes": [
+            "is-current",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "10_projects/Project Alpha.md",
+          "ariaLabel": "Project Alpha（相互リンク）を開く",
+          "classes": [
+            "is-both",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "10_projects/Project Beta.md",
+          "ariaLabel": "Project Beta（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "20_knowledge/Distillation.md",
+          "ariaLabel": "Distillation（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "20_knowledge/Reference.md",
+          "ariaLabel": "Reference（相互リンク）を開く",
+          "classes": [
+            "is-both",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "80_excluded/Hidden.md",
+          "ariaLabel": "Hidden（バックリンク）を開く",
+          "classes": [
+            "is-incoming",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "90_orphan/Orphan.md",
+          "ariaLabel": "Orphan（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "attachments/diagram.svg",
+          "ariaLabel": "diagram.svg（添付書類）を開く",
+          "classes": [
+            "is-outgoing",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "Missing Note.md",
+          "ariaLabel": "Missing Note（リンク先）を開く",
+          "classes": [
+            "is-outgoing",
+            "wiki-graph-node"
+          ]
+        }
+      ],
+      "edgeCount": 9,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "tabs": [
+        {
+          "label": "00_Home",
+          "selected": false
+        },
+        {
+          "label": "グラフビュー",
+          "selected": true
+        }
+      ],
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 126.984,
+        "y": 30.0581,
+        "clientX": 769.46875,
+        "clientY": 473.046875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 126.984px)",
+        "styleTop": "calc(50% + 30.0581px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 148,
+        "width": 765,
+        "height": 590
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "graphAfterAction": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md",
+        "attachments/diagram.svg"
+      ],
+      "nodeDetails": [
+        {
+          "path": "00_Home.md",
+          "ariaLabel": "00_Home（現在のノート）",
+          "classes": [
+            "is-current",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "10_projects/Project Alpha.md",
+          "ariaLabel": "Project Alpha（相互リンク）を開く",
+          "classes": [
+            "is-both",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "10_projects/Project Beta.md",
+          "ariaLabel": "Project Beta（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "20_knowledge/Distillation.md",
+          "ariaLabel": "Distillation（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "20_knowledge/Reference.md",
+          "ariaLabel": "Reference（相互リンク）を開く",
+          "classes": [
+            "is-both",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "80_excluded/Hidden.md",
+          "ariaLabel": "Hidden（バックリンク）を開く",
+          "classes": [
+            "is-incoming",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "90_orphan/Orphan.md",
+          "ariaLabel": "Orphan（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "attachments/diagram.svg",
+          "ariaLabel": "diagram.svg（添付書類）を開く",
+          "classes": [
+            "is-outgoing",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "Missing Note.md",
+          "ariaLabel": "Missing Note（リンク先）を開く",
+          "classes": [
+            "is-outgoing",
+            "wiki-graph-node"
+          ]
+        }
+      ],
+      "edgeCount": 9,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "tabs": [
+        {
+          "label": "00_Home",
+          "selected": false
+        },
+        {
+          "label": "グラフビュー",
+          "selected": true
+        }
+      ],
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 126.984,
+        "y": 30.0581,
+        "clientX": 769.46875,
+        "clientY": 473.046875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 126.984px)",
+        "styleTop": "calc(50% + 30.0581px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 148,
+        "width": 765,
+        "height": 590
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "screenshots": [
+      {
+        "file": "02-path-copy-submenu.png",
+        "bytes": 135967,
+        "sha256": "BBC24A5CAC161A615D8279534DA41C2CD1C621187DFB2A6D8C16B117E96D31F4",
+        "width": 1265,
+        "height": 768
+      },
+      {
+        "file": "03-after-path-copy.png",
+        "bytes": 122113,
+        "sha256": "E58EE0640E535A487DFB76A0B2305FBC4306365BA2EE75F2A2BFC1646CDA413D",
+        "width": 1265,
+        "height": 768
+      }
+    ],
+    "clipboard": {
+      "hookInstalled": true,
+      "hookRestored": true,
+      "unchanged": true
+    }
+  },
+  "bookmarkCounts": null,
+  "bookmarkPersistence": null,
+  "repository": {
+    "head": "0d05fb215982285b5cb7eb92e55004cdd32189d9",
+    "dirty": true,
+    "changedEntryCount": 30,
+    "porcelainSha256": "C3155056DBE6B222A4A464185D77E466748472B745772CC562690B06572E46A3"
+  },
+  "initial": {
+    "phase": "initial",
+    "processId": 5976,
+    "windowGeometry": {
+      "frame": {
+        "x": -32000,
+        "y": -32000,
+        "width": 1265,
+        "height": 768
+      },
+      "electronContentBounds": {
+        "x": -32000,
+        "y": -32000,
+        "width": 1265,
+        "height": 768
+      },
+      "rendererViewport": {
+        "width": 1265,
+        "height": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "graphClosed": true,
+    "baseline": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md",
+        "attachments/diagram.svg"
+      ],
+      "nodeDetails": [
+        {
+          "path": "00_Home.md",
+          "ariaLabel": "00_Home（現在のノート）",
+          "classes": [
+            "is-current",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "10_projects/Project Alpha.md",
+          "ariaLabel": "Project Alpha（相互リンク）を開く",
+          "classes": [
+            "is-both",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "10_projects/Project Beta.md",
+          "ariaLabel": "Project Beta（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "20_knowledge/Distillation.md",
+          "ariaLabel": "Distillation（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "20_knowledge/Reference.md",
+          "ariaLabel": "Reference（相互リンク）を開く",
+          "classes": [
+            "is-both",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "80_excluded/Hidden.md",
+          "ariaLabel": "Hidden（バックリンク）を開く",
+          "classes": [
+            "is-incoming",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "90_orphan/Orphan.md",
+          "ariaLabel": "Orphan（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "attachments/diagram.svg",
+          "ariaLabel": "diagram.svg（添付書類）を開く",
+          "classes": [
+            "is-outgoing",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "Missing Note.md",
+          "ariaLabel": "Missing Note（リンク先）を開く",
+          "classes": [
+            "is-outgoing",
+            "wiki-graph-node"
+          ]
+        }
+      ],
+      "edgeCount": 9,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "tabs": [
+        {
+          "label": "00_Home",
+          "selected": false
+        },
+        {
+          "label": "グラフビュー",
+          "selected": true
+        }
+      ],
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 126.984,
+        "y": 30.0581,
+        "clientX": 769.46875,
+        "clientY": 473.046875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 126.984px)",
+        "styleTop": "calc(50% + 30.0581px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 148,
+        "width": 765,
+        "height": 590
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "input": {
+      "x": 510.8671875,
+      "y": 461.953125
+    },
+    "duringDrag": null,
+    "afterReleaseImmediate": null,
+    "afterRelease250ms": null,
+    "nodeContextMenu": {
+      "targetNodePath": "attachments/diagram.svg",
+      "bounds": {
+        "left": 510,
+        "top": 461,
+        "width": 190,
+        "height": 251
+      },
+      "items": [
+        {
+          "index": 0,
+          "text": "新規タブに開く",
+          "disabled": false,
+          "classes": []
+        },
+        {
+          "index": 1,
+          "text": "新規ウィンドウで開く",
+          "disabled": false,
+          "classes": []
+        },
+        {
+          "index": 2,
+          "text": "ファイルを移動…",
+          "disabled": false,
+          "classes": []
+        },
+        {
+          "index": 3,
+          "text": "ブックマーク…",
+          "disabled": false,
+          "classes": []
+        },
+        {
+          "index": 4,
+          "text": "パスをコピー ›",
+          "disabled": false,
+          "classes": []
+        },
+        {
+          "index": 5,
+          "text": "ファイルを削除",
+          "disabled": false,
+          "classes": [
+            "is-danger"
+          ]
+        }
+      ],
+      "title": "diagram.svg"
+    },
+    "nodeNewTab": null,
+    "graphWorkspaceTab": null,
+    "attachmentContextMenu": {
+      "targetNodePath": "attachments/diagram.svg",
+      "bounds": {
+        "left": 510,
+        "top": 461,
+        "width": 190,
+        "height": 251
+      },
+      "items": [
+        {
+          "index": 0,
+          "text": "新規タブに開く",
+          "disabled": false,
+          "classes": []
+        },
+        {
+          "index": 1,
+          "text": "新規ウィンドウで開く",
+          "disabled": false,
+          "classes": []
+        },
+        {
+          "index": 2,
+          "text": "ファイルを移動…",
+          "disabled": false,
+          "classes": []
+        },
+        {
+          "index": 3,
+          "text": "ブックマーク…",
+          "disabled": false,
+          "classes": []
+        },
+        {
+          "index": 4,
+          "text": "パスをコピー ›",
+          "disabled": false,
+          "classes": []
+        },
+        {
+          "index": 5,
+          "text": "ファイルを削除",
+          "disabled": false,
+          "classes": [
+            "is-danger"
+          ]
+        }
+      ],
+      "title": "diagram.svg"
+    },
+    "attachmentNewTab": null,
+    "attachmentNewWindow": null,
+    "attachmentMove": null,
+    "attachmentBookmark": null,
+    "attachmentPathCopy": {
+      "scenario": "url",
+      "expectedText": "obsidian://open?vault=vault&file=attachments%2Fdiagram.svg",
+      "submenu": {
+        "mainMenuStillOpen": true,
+        "parentAriaExpanded": "true",
+        "mainBounds": {
+          "left": 510,
+          "right": 700,
+          "top": 461,
+          "bottom": 712,
+          "width": 190,
+          "height": 251
+        },
+        "parentBounds": {
+          "left": 517,
+          "right": 693,
+          "top": 635,
+          "bottom": 670,
+          "width": 176,
+          "height": 35
+        },
+        "submenuBounds": {
+          "left": 691,
+          "right": 881,
+          "top": 629,
+          "bottom": 748,
+          "width": 190,
+          "height": 119
+        },
+        "placement": "right",
+        "fullyInsideViewport": true,
+        "items": [
+          {
+            "index": 0,
+            "text": "Obsidian URL として",
+            "disabled": false
+          },
+          {
+            "index": 1,
+            "text": "保管庫フォルダから",
+            "disabled": false
+          },
+          {
+            "index": 2,
+            "text": "システムルートから",
+            "disabled": false
+          }
+        ],
+        "screenshot": {
+          "file": "02-path-copy-submenu.png",
+          "bytes": 135967,
+          "sha256": "BBC24A5CAC161A615D8279534DA41C2CD1C621187DFB2A6D8C16B117E96D31F4",
+          "width": 1265,
+          "height": 768
+        }
+      },
+      "writes": [
+        {
+          "text": "obsidian://open?vault=vault&file=attachments%2Fdiagram.svg",
+          "type": null
+        }
+      ],
+      "uiAfterAction": {
+        "contextMenuOpen": false,
+        "submenuOpen": false,
+        "globalGraphVisible": true
+      },
+      "graphBeforeAction": {
+        "query": "",
+        "graphLabel": "Vault全体グラフ",
+        "settingsPanelVisible": true,
+        "filterSectionVisible": true,
+        "nodePaths": [
+          "00_Home.md",
+          "10_projects/Project Alpha.md",
+          "10_projects/Project Beta.md",
+          "20_knowledge/Distillation.md",
+          "20_knowledge/Reference.md",
+          "80_excluded/Hidden.md",
+          "90_orphan/Orphan.md",
+          "Missing Note.md",
+          "attachments/diagram.svg"
+        ],
+        "nodeDetails": [
+          {
+            "path": "00_Home.md",
+            "ariaLabel": "00_Home（現在のノート）",
+            "classes": [
+              "is-current",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "10_projects/Project Alpha.md",
+            "ariaLabel": "Project Alpha（相互リンク）を開く",
+            "classes": [
+              "is-both",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "10_projects/Project Beta.md",
+            "ariaLabel": "Project Beta（関連ノート）を開く",
+            "classes": [
+              "is-related",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "20_knowledge/Distillation.md",
+            "ariaLabel": "Distillation（関連ノート）を開く",
+            "classes": [
+              "is-related",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "20_knowledge/Reference.md",
+            "ariaLabel": "Reference（相互リンク）を開く",
+            "classes": [
+              "is-both",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "80_excluded/Hidden.md",
+            "ariaLabel": "Hidden（バックリンク）を開く",
+            "classes": [
+              "is-incoming",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "90_orphan/Orphan.md",
+            "ariaLabel": "Orphan（関連ノート）を開く",
+            "classes": [
+              "is-related",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "attachments/diagram.svg",
+            "ariaLabel": "diagram.svg（添付書類）を開く",
+            "classes": [
+              "is-outgoing",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "Missing Note.md",
+            "ariaLabel": "Missing Note（リンク先）を開く",
+            "classes": [
+              "is-outgoing",
+              "wiki-graph-node"
+            ]
+          }
+        ],
+        "edgeCount": 9,
+        "stageTransform": "translate(0px, 0px) scale(1)",
+        "tabs": [
+          {
+            "label": "00_Home",
+            "selected": false
+          },
+          {
+            "label": "グラフビュー",
+            "selected": true
+          }
+        ],
+        "targetNode": {
+          "path": "00_Home.md",
+          "x": 126.984,
+          "y": 30.0581,
+          "clientX": 769.46875,
+          "clientY": 473.046875,
+          "dotWidth": 16,
+          "dotHeight": 16,
+          "styleLeft": "calc(50% + 126.984px)",
+          "styleTop": "calc(50% + 30.0581px)"
+        },
+        "canvasRect": {
+          "x": 260,
+          "y": 148,
+          "width": 765,
+          "height": 590
+        },
+        "dimensions": {
+          "innerWidth": 1265,
+          "innerHeight": 768,
+          "devicePixelRatio": 1
+        }
+      },
+      "graphAfterAction": {
+        "query": "",
+        "graphLabel": "Vault全体グラフ",
+        "settingsPanelVisible": true,
+        "filterSectionVisible": true,
+        "nodePaths": [
+          "00_Home.md",
+          "10_projects/Project Alpha.md",
+          "10_projects/Project Beta.md",
+          "20_knowledge/Distillation.md",
+          "20_knowledge/Reference.md",
+          "80_excluded/Hidden.md",
+          "90_orphan/Orphan.md",
+          "Missing Note.md",
+          "attachments/diagram.svg"
+        ],
+        "nodeDetails": [
+          {
+            "path": "00_Home.md",
+            "ariaLabel": "00_Home（現在のノート）",
+            "classes": [
+              "is-current",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "10_projects/Project Alpha.md",
+            "ariaLabel": "Project Alpha（相互リンク）を開く",
+            "classes": [
+              "is-both",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "10_projects/Project Beta.md",
+            "ariaLabel": "Project Beta（関連ノート）を開く",
+            "classes": [
+              "is-related",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "20_knowledge/Distillation.md",
+            "ariaLabel": "Distillation（関連ノート）を開く",
+            "classes": [
+              "is-related",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "20_knowledge/Reference.md",
+            "ariaLabel": "Reference（相互リンク）を開く",
+            "classes": [
+              "is-both",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "80_excluded/Hidden.md",
+            "ariaLabel": "Hidden（バックリンク）を開く",
+            "classes": [
+              "is-incoming",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "90_orphan/Orphan.md",
+            "ariaLabel": "Orphan（関連ノート）を開く",
+            "classes": [
+              "is-related",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "attachments/diagram.svg",
+            "ariaLabel": "diagram.svg（添付書類）を開く",
+            "classes": [
+              "is-outgoing",
+              "wiki-graph-node"
+            ]
+          },
+          {
+            "path": "Missing Note.md",
+            "ariaLabel": "Missing Note（リンク先）を開く",
+            "classes": [
+              "is-outgoing",
+              "wiki-graph-node"
+            ]
+          }
+        ],
+        "edgeCount": 9,
+        "stageTransform": "translate(0px, 0px) scale(1)",
+        "tabs": [
+          {
+            "label": "00_Home",
+            "selected": false
+          },
+          {
+            "label": "グラフビュー",
+            "selected": true
+          }
+        ],
+        "targetNode": {
+          "path": "00_Home.md",
+          "x": 126.984,
+          "y": 30.0581,
+          "clientX": 769.46875,
+          "clientY": 473.046875,
+          "dotWidth": 16,
+          "dotHeight": 16,
+          "styleLeft": "calc(50% + 126.984px)",
+          "styleTop": "calc(50% + 30.0581px)"
+        },
+        "canvasRect": {
+          "x": 260,
+          "y": 148,
+          "width": 765,
+          "height": 590
+        },
+        "dimensions": {
+          "innerWidth": 1265,
+          "innerHeight": 768,
+          "devicePixelRatio": 1
+        }
+      },
+      "screenshots": [
+        {
+          "file": "02-path-copy-submenu.png",
+          "bytes": 135967,
+          "sha256": "BBC24A5CAC161A615D8279534DA41C2CD1C621187DFB2A6D8C16B117E96D31F4",
+          "width": 1265,
+          "height": 768
+        },
+        {
+          "file": "03-after-path-copy.png",
+          "bytes": 122113,
+          "sha256": "E58EE0640E535A487DFB76A0B2305FBC4306365BA2EE75F2A2BFC1646CDA413D",
+          "width": 1265,
+          "height": 768
+        }
+      ],
+      "clipboard": {
+        "hookInstalled": true,
+        "hookRestored": true,
+        "unchanged": true
+      }
+    },
+    "entered": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md",
+        "attachments/diagram.svg"
+      ],
+      "nodeDetails": [
+        {
+          "path": "00_Home.md",
+          "ariaLabel": "00_Home（現在のノート）",
+          "classes": [
+            "is-current",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "10_projects/Project Alpha.md",
+          "ariaLabel": "Project Alpha（相互リンク）を開く",
+          "classes": [
+            "is-both",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "10_projects/Project Beta.md",
+          "ariaLabel": "Project Beta（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "20_knowledge/Distillation.md",
+          "ariaLabel": "Distillation（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "20_knowledge/Reference.md",
+          "ariaLabel": "Reference（相互リンク）を開く",
+          "classes": [
+            "is-both",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "80_excluded/Hidden.md",
+          "ariaLabel": "Hidden（バックリンク）を開く",
+          "classes": [
+            "is-incoming",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "90_orphan/Orphan.md",
+          "ariaLabel": "Orphan（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "attachments/diagram.svg",
+          "ariaLabel": "diagram.svg（添付書類）を開く",
+          "classes": [
+            "is-outgoing",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "Missing Note.md",
+          "ariaLabel": "Missing Note（リンク先）を開く",
+          "classes": [
+            "is-outgoing",
+            "wiki-graph-node"
+          ]
+        }
+      ],
+      "edgeCount": 9,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "tabs": [
+        {
+          "label": "00_Home",
+          "selected": false
+        },
+        {
+          "label": "グラフビュー",
+          "selected": true
+        }
+      ],
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 126.984,
+        "y": 30.0581,
+        "clientX": 769.46875,
+        "clientY": 473.046875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 126.984px)",
+        "styleTop": "calc(50% + 30.0581px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 148,
+        "width": 765,
+        "height": 590
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "reopened": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md",
+        "attachments/diagram.svg"
+      ],
+      "nodeDetails": [
+        {
+          "path": "00_Home.md",
+          "ariaLabel": "00_Home（現在のノート）",
+          "classes": [
+            "is-current",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "10_projects/Project Alpha.md",
+          "ariaLabel": "Project Alpha（相互リンク）を開く",
+          "classes": [
+            "is-both",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "10_projects/Project Beta.md",
+          "ariaLabel": "Project Beta（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "20_knowledge/Distillation.md",
+          "ariaLabel": "Distillation（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "20_knowledge/Reference.md",
+          "ariaLabel": "Reference（相互リンク）を開く",
+          "classes": [
+            "is-both",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "80_excluded/Hidden.md",
+          "ariaLabel": "Hidden（バックリンク）を開く",
+          "classes": [
+            "is-incoming",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "90_orphan/Orphan.md",
+          "ariaLabel": "Orphan（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "attachments/diagram.svg",
+          "ariaLabel": "diagram.svg（添付書類）を開く",
+          "classes": [
+            "is-outgoing",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "Missing Note.md",
+          "ariaLabel": "Missing Note（リンク先）を開く",
+          "classes": [
+            "is-outgoing",
+            "wiki-graph-node"
+          ]
+        }
+      ],
+      "edgeCount": 9,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "tabs": [
+        {
+          "label": "00_Home",
+          "selected": false
+        },
+        {
+          "label": "グラフビュー",
+          "selected": true
+        }
+      ],
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 69.4609,
+        "y": 8.59769,
+        "clientX": 711.953125,
+        "clientY": 434.390625,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 69.4609px)",
+        "styleTop": "calc(50% - 8.59769px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 148,
+        "width": 765,
+        "height": 590
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "settingsGraphViewState": {
+      "scale": 1,
+      "query": "",
+      "settingsOpen": true,
+      "settingsSections": {
+        "filters": true,
+        "groups": false,
+        "display": false,
+        "forces": false
+      }
+    },
+    "screenshots": [
+      {
+        "file": "00-baseline.png",
+        "bytes": 126180,
+        "sha256": "FC915289E647A81BED28523C0C0B73B71E14CAF325FD868DFC428D72169D0673",
+        "width": 1265,
+        "height": 768
+      },
+      {
+        "file": "01-node-context-menu.png",
+        "bytes": 129607,
+        "sha256": "CD0146C48C18C0FB8E0588C5AD8EFD4193E6647F87D581970A7919C9E41DC0FC",
+        "width": 1265,
+        "height": 768
+      },
+      {
+        "file": "02-path-copy-submenu.png",
+        "bytes": 135967,
+        "sha256": "BBC24A5CAC161A615D8279534DA41C2CD1C621187DFB2A6D8C16B117E96D31F4",
+        "width": 1265,
+        "height": 768
+      },
+      {
+        "file": "03-after-path-copy.png",
+        "bytes": 122113,
+        "sha256": "E58EE0640E535A487DFB76A0B2305FBC4306365BA2EE75F2A2BFC1646CDA413D",
+        "width": 1265,
+        "height": 768
+      },
+      {
+        "file": "04-after-graph-reopen.png",
+        "bytes": 128738,
+        "sha256": "F54EC834BDFE197B1A2BDC301A0F6CB89832132C96F329B2FC7B70B898D36079",
+        "width": 1265,
+        "height": 768
+      }
+    ]
+  },
+  "restarted": {
+    "phase": "restarted",
+    "processId": 20180,
+    "windowGeometry": {
+      "frame": {
+        "x": -32000,
+        "y": -32000,
+        "width": 1265,
+        "height": 768
+      },
+      "electronContentBounds": {
+        "x": -32000,
+        "y": -32000,
+        "width": 1265,
+        "height": 768
+      },
+      "rendererViewport": {
+        "width": 1265,
+        "height": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "restarted": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md",
+        "attachments/diagram.svg"
+      ],
+      "nodeDetails": [
+        {
+          "path": "00_Home.md",
+          "ariaLabel": "00_Home（現在のノート）",
+          "classes": [
+            "is-current",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "10_projects/Project Alpha.md",
+          "ariaLabel": "Project Alpha（相互リンク）を開く",
+          "classes": [
+            "is-both",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "10_projects/Project Beta.md",
+          "ariaLabel": "Project Beta（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "20_knowledge/Distillation.md",
+          "ariaLabel": "Distillation（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "20_knowledge/Reference.md",
+          "ariaLabel": "Reference（相互リンク）を開く",
+          "classes": [
+            "is-both",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "80_excluded/Hidden.md",
+          "ariaLabel": "Hidden（バックリンク）を開く",
+          "classes": [
+            "is-incoming",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "90_orphan/Orphan.md",
+          "ariaLabel": "Orphan（関連ノート）を開く",
+          "classes": [
+            "is-related",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "attachments/diagram.svg",
+          "ariaLabel": "diagram.svg（添付書類）を開く",
+          "classes": [
+            "is-outgoing",
+            "wiki-graph-node"
+          ]
+        },
+        {
+          "path": "Missing Note.md",
+          "ariaLabel": "Missing Note（リンク先）を開く",
+          "classes": [
+            "is-outgoing",
+            "wiki-graph-node"
+          ]
+        }
+      ],
+      "edgeCount": 9,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "tabs": [
+        {
+          "label": "00_Home",
+          "selected": false
+        },
+        {
+          "label": "グラフビュー",
+          "selected": true
+        }
+      ],
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 69.4609,
+        "y": 8.59769,
+        "clientX": 711.953125,
+        "clientY": 434.390625,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 69.4609px)",
+        "styleTop": "calc(50% - 8.59769px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 148,
+        "width": 765,
+        "height": 590
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "bookmarkPersistenceAfterAppRestart": null,
+    "settingsGraphViewState": {
+      "scale": 1,
+      "query": "",
+      "settingsOpen": true,
+      "settingsSections": {
+        "filters": true,
+        "groups": false,
+        "display": false,
+        "forces": false
+      }
+    },
+    "screenshots": [
+      {
+        "file": "05-after-app-restart.png",
+        "bytes": 128738,
+        "sha256": "F54EC834BDFE197B1A2BDC301A0F6CB89832132C96F329B2FC7B70B898D36079",
+        "width": 1265,
+        "height": 768
+      }
+    ]
+  },
+  "persistedGraphViewState": {
+    "scale": 1,
+    "query": "",
+    "settingsOpen": true,
+    "settingsSections": {
+      "filters": true,
+      "groups": false,
+      "display": false,
+      "forces": false
+    }
+  },
+  "protection": {
+    "before": {
+      "sourceFixture": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3"
+      },
+      "productSource": {
+        "fileCount": 75,
+        "combinedSha256": "741D39C87F413AEDB2CCB7798E38C1D4C8E253957D706557D18FB5CCACB19075"
+      },
+      "builtApplication": {
+        "fileCount": 10,
+        "combinedSha256": "638C87E787FA80EA1951E19619D17E16D1A7AD15FD939181727ADDC275A008E0"
+      },
+      "isolatedMarkdown": {
+        "fileCount": 7,
+        "combinedSha256": "54B472FF4C646CF8858BBAF700F562CD001927123A18B72FE98398BCDBDBC59B"
+      },
+      "isolatedVaultContent": {
+        "fileCount": 8,
+        "combinedSha256": "16F04E2CF0A9416C71D5C3DCFC07FEEFD1642F867B7019282B97EC7EFBBF9BC7"
+      },
+      "isolatedVault": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3"
+      }
+    },
+    "after": {
+      "sourceFixture": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3"
+      },
+      "productSource": {
+        "fileCount": 75,
+        "combinedSha256": "741D39C87F413AEDB2CCB7798E38C1D4C8E253957D706557D18FB5CCACB19075"
+      },
+      "builtApplication": {
+        "fileCount": 10,
+        "combinedSha256": "638C87E787FA80EA1951E19619D17E16D1A7AD15FD939181727ADDC275A008E0"
+      },
+      "isolatedMarkdown": {
+        "fileCount": 7,
+        "combinedSha256": "54B472FF4C646CF8858BBAF700F562CD001927123A18B72FE98398BCDBDBC59B"
+      },
+      "isolatedVaultContent": {
+        "fileCount": 8,
+        "combinedSha256": "16F04E2CF0A9416C71D5C3DCFC07FEEFD1642F867B7019282B97EC7EFBBF9BC7"
+      },
+      "isolatedVault": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3"
+      }
+    }
+  },
+  "assertions": {
+    "exactNodeSetAtEveryCheckpoint": true,
+    "attachmentContextMenuOpened": true,
+    "pathCopyImmediatelyAfterBookmark": true,
+    "parentClickKeptMainMenuOpen": true,
+    "submenuItemsExact": true,
+    "submenuEnabled": true,
+    "submenuPlacementMatchesCapturedPosition": true,
+    "exactPlainTextCopied": true,
+    "clipboardHookInstalledAndRestored": true,
+    "userClipboardUnchanged": true,
+    "childSelectionClosedMenus": true,
+    "globalGraphRemainedVisible": true,
+    "graphSurfacePreservedImmediately": true,
+    "queryCameraNodesLinksTabsPreservedAcrossReopenAndRestart": true,
+    "contentViewportStable": true,
+    "filteredNodeSetStable": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "isolatedVaultContentUnchanged": true,
+    "isolatedVaultChangedOnlyWhenMoving": true,
+    "noIsolatedProcessesRemaining": true
+  }
+}
