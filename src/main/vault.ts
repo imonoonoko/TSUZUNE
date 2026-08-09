@@ -656,7 +656,8 @@ export class VaultService {
       })
     }
 
-    const [creationTimes, bookmarks, pathAliases] = await Promise.all([
+    const pathAliases = await this.readPathAliases(root)
+    const [creationTimes, bookmarks] = await Promise.all([
       this.updateCreationTimes(
         root,
         revision,
@@ -671,8 +672,7 @@ export class VaultService {
           return next
         }
       ),
-      this.readBookmarks(root),
-      this.readPathAliases(root)
+      this.readBookmarks(root)
     ])
 
     if (this.rootRevision !== revision || this.rootPath !== root) {

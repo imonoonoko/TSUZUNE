@@ -211,6 +211,9 @@ describe('VaultService path and scan boundaries', () => {
     await expect(vault.scan()).rejects.toMatchObject({
       appError: { code: 'INVALID_PATH' }
     })
+    await expect(
+      access(absolute('.tsuzune/graph-file-times.json'))
+    ).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('scans supported attachments recursively with file metadata', async () => {
