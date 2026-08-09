@@ -174,6 +174,8 @@ Local Graphの可変Depthは、過去の明示指示により撤廃したまま�
 - GP0-3b-dでは同じ画面条件で`00_Home.md`を`+96,+64 CSS px`ドラッグし、押下中、pointerup直後、250ms後、settled、Graph再表示後、アプリ完全再起動後を比較した。両製品とも押下中だけ一時固定し、pointerup後は固定を解除してForce simulationへ戻り、Graph再表示／再起動へnode座標・pinを保存しなかったため、意味契約5/5を`matched`とする。Obsidianの再シード座標とTSUZUNEの決定的baselineは永続化契約の差ではない。物理マウス／trusted event、ピクセル単位のForce軌跡、Local Graph、touch／penは未証明である。正本は`docs/reports/assets/graph-gp0-node-drag-persistence/comparison.json`とする。
 - GP0-3b-eではGlobal Graph node context menuを同条件比較し、Obsidian 1.13.4の11操作に対してTSUZUNEは2操作、6比較中3一致・3差分の`different`を固定した。GP0-3b-fでは先頭の`新規タブに開く`を実動作へ接続し、note tabの作成・active化を一致させ、TSUZUNEのattachment内部previewも固定した。GP0-3b-gでは残っていた元Global Graph保持の差を閉じ、Graph workspace tabの保持とTSUZUNEでの復帰を確認した。GP0-3b-hでは公開フィルタからattachment nodeを表示し、新規内部preview tabと元Graph tab保持・復帰を`matched`にした。GP0-3b-iでは両製品で2つ目のトップレベルウィンドウを生成し、SVGを内部画像ビューで表示し、元Global Graphを保持してmenuを閉じる公開動作を`matched`にした。GP0-3b-jでは取消、通常移動、同名衝突、自動採番、リンク非書換え、旧未解決／新実在node、再表示／再起動保持の中核挙動を`matched-core-behavior`にした。移動先UIはtypeahead対select/button、添付context menu全体は11対4で未一致である。最新正本は`docs/reports/assets/graph-gp0-attachment-file-move/comparison.json`とする。
 
+- GP0-3b-kではattachment nodeのブックマーク取消、作成、同一path再編集を比較した。両製品とも対象pathをちょうど1件でupsertし、再編集時に`ctime`を保持し、Graph再表示／別プロセス再起動後もbookmarkとattachment nodeを保持した。Markdown／Vault内容も変化しなかったため、中核挙動を`matched-core-behavior`とする。Obsidianのgroup selectorに対するTSUZUNEのplain text input、context menu全体11対5、Bookmarks side panel／一覧／並べ替え／group階層は未一致または未証明である。最新正本は`docs/reports/assets/graph-gp0-attachment-bookmark/comparison.json`とする。
+
 ## Current gap and reopened boundary
 
 固定tick／静的正規化は継続Force runtime、node drag、再加熱、camera分離へ置換済みである。全Markdown・上限なし・Local直接リンク契約も継続する。ただし、これらは実装基盤の完了であり、Obsidian 1.13.4実機との一致証拠ではない。Force slider、drag、live update、収束、保存境界は固定fixtureのcaptureで引き続き判定する。
@@ -182,7 +184,7 @@ Surface／Filter／Unresolved／tag／attachment／Local・Global独立入口／
 
 1. Animate中の増分graph feed、Force再加熱、通常のノート／リンク変更を含むlive topology更新は実装済みである。狭いtestと隔離Electron captureでは、開始0件、途中1件、終了7件のMarkdown表示と、終了時に8辺へ戻ることを確認した。固定参照版との順序・速度・操作結果比較は未完了である。
 2. 隔離したuserDataと比較fixtureでForce既定値・最大値・fit・time-lapse開始／途中／終了の観測証拠を固定した。Global node dragの一時固定、pointerup解放、再表示／再起動後の非永続化は固定参照版と一致した。通常のlive更新と収束方向、Local Graphは同条件captureが未完了である。
-3. GP0-3b-eのcontext menu項目比較、GP0-3b-fの`新規タブに開く`実動作比較、GP0-3b-gのGlobal Graph workspace tab保持、GP0-3b-hのattachment新規tab比較、GP0-3b-iのattachment新規window比較、GP0-3b-jのattachmentファイル移動比較は完了した。次のGP0-3b-kではattachment nodeの`ブックマーク…`を固定参照版から採取する。その後、残るmenu操作、Excluded filesのManage UIと全機能共通効果、Searchのmalformed query境界を一項目ずつ比較する。
+3. GP0-3b-eのcontext menu項目比較、GP0-3b-fの`新規タブに開く`実動作比較、GP0-3b-gのGlobal Graph workspace tab保持、GP0-3b-hのattachment新規tab比較、GP0-3b-iのattachment新規window比較、GP0-3b-jのattachmentファイル移動比較、GP0-3b-kのattachmentブックマーク比較は完了した。次のGP0-3b-lではattachment nodeの`パスをコピー`を固定参照版から採取し、clipboard内容、menu close、Graph保持を判定する。その後、残るmenu操作、Excluded filesのManage UIと全機能共通効果、Searchのmalformed query境界を一項目ずつ比較する。
 4. unique neighbor数、Local root特別値、zoom連動のnode／label／line／arrow式、相互edge、色、dim、fade、arrow alpha、余白、sliderを同一viewport／DPI／themeの画像で比較する。
 5. Global Graphの未保存初回状態で設定パネルが開く点、非空queryのGraph再表示／再起動保持、Global cameraのzoom保持／pan中央復帰、Global node dragの一時固定／release／非永続化は固定fixtureで`matched`にした。Localのcamera、他query、panel／section、context menu、fit／reset、zoom限界、workspace leaf自動復元は固定参照版で引き続き判定する。
 6. Windows版ElectronでGroup色スウォッチdragを実操作確認する。

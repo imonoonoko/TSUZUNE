@@ -323,4 +323,53 @@ describe('graph settings IPC', () => {
       }
     })
   })
+
+  it('guards and persists Vault bookmark writes', async () => {
+    const mainFrame = {}
+    const webContents = { mainFrame }
+    const window = { webContents }
+    const vaultRoot = join(electron.appData, 'Vault')
+    await mkdir(join(vaultRoot, 'attachments'), { recursive: true })
+    await writeFile(join(vaultRoot, 'attachments', 'diagram.svg'), '<svg/>', 'utf8')
+    const vault = new VaultService()
+    await vault.setRootPath(vaultRoot)
+    registerIpc(
+      vault,
+      {} as never,
+      { connection: {} as never, driveSync: {} as never },
+      {} as never,
+      () => window as never,
+      () => undefined
+    )
+    const save = electron.handlers.get('bookmark:save')!
+    const remove = electron.handlers.get('bookmark:remove')!
+
+    await expect(
+      save(
+        { sender: {}, senderFrame: {} },
+        { path: 'attachments/diagram.svg' }
+      )
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'ACCESS_DENIED' }
+    })
+    await expect(
+      save(
+        { sender: webContents, senderFrame: mainFrame },
+        { path: 'attachments/diagram.svg', title: '構成図' }
+      )
+    ).resolves.toMatchObject({
+      ok: true,
+      value: { path: 'attachments/diagram.svg', title: '構成図' }
+    })
+    expect((await vault.scan()).bookmarks).toHaveLength(1)
+
+    await expect(
+      remove(
+        { sender: webContents, senderFrame: mainFrame },
+        'attachments/diagram.svg'
+      )
+    ).resolves.toEqual({ ok: true, value: null })
+    expect((await vault.scan()).bookmarks).toEqual([])
+  })
 })

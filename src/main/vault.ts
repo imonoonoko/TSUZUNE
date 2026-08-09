@@ -38,8 +38,10 @@ import type {
   MoveNoteInput,
   NoteDocument,
   RenameEntryInput,
+  SaveBookmarkInput,
   SaveNoteInput,
   SaveNoteOutput,
+  VaultBookmark,
   VaultAttachment,
   VaultSnapshot
 } from '../shared/types'
@@ -115,6 +117,44 @@ function normalizeCreationTimes(value: unknown): CreationTimeRegistry {
     }
   }
   return normalized
+}
+
+function normalizeBookmarks(value: unknown): VaultBookmark[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const bookmarks = new Map<string, VaultBookmark>()
+  for (const item of value) {
+    if (!item || typeof item !== 'object') {
+      continue
+    }
+    const candidate = item as Partial<VaultBookmark>
+    const validation =
+      typeof candidate.path === 'string'
+        ? validateRelativePath(candidate.path)
+        : { valid: false }
+    if (
+      candidate.type !== 'file' ||
+      !validation.valid ||
+      !validation.normalized ||
+      !validCreationTime(candidate.ctime)
+    ) {
+      continue
+    }
+    bookmarks.set(validation.normalized, {
+      type: 'file',
+      path: validation.normalized,
+      ...(typeof candidate.title === 'string' && candidate.title.trim()
+        ? { title: candidate.title.trim() }
+        : {}),
+      ...(typeof candidate.group === 'string' && candidate.group.trim()
+        ? { group: candidate.group.trim() }
+        : {}),
+      ctime: candidate.ctime
+    })
+  }
+  return [...bookmarks.values()].sort((left, right) => left.ctime - right.ctime)
 }
 
 function timestampSuffix(date = new Date()): string {
@@ -313,6 +353,70 @@ export class VaultService {
     }
   }
 
+  private async readBookmarks(rootPath: string): Promise<VaultBookmark[]> {
+    const metadataDirectory = join(rootPath, '.tsuzune')
+    const bookmarkPath = join(metadataDirectory, 'bookmarks.json')
+    try {
+      const [directoryInfo, bookmarkInfo] = await Promise.all([
+        lstat(metadataDirectory),
+        lstat(bookmarkPath)
+      ])
+      if (
+        !directoryInfo.isDirectory() ||
+        directoryInfo.isSymbolicLink() ||
+        !bookmarkInfo.isFile() ||
+        bookmarkInfo.isSymbolicLink()
+      ) {
+        return []
+      }
+      return normalizeBookmarks(JSON.parse(await readFile(bookmarkPath, 'utf8')))
+    } catch {
+      return []
+    }
+  }
+
+  private async writeBookmarks(
+    rootPath: string,
+    revision: number,
+    bookmarks: VaultBookmark[]
+  ): Promise<void> {
+    if (!this.isCurrentRoot(rootPath, revision)) {
+      throw new VaultError({
+        code: 'NO_VAULT',
+        message: 'Vaultが切り替わったため、ブックマークを保存できませんでした。'
+      })
+    }
+
+    const metadataDirectory = join(rootPath, '.tsuzune')
+    const bookmarkPath = join(metadataDirectory, 'bookmarks.json')
+    const temporaryPath = join(metadataDirectory, `.bookmarks-${randomUUID()}.tmp`)
+    try {
+      await mkdir(metadataDirectory, { recursive: true })
+      const directoryInfo = await lstat(metadataDirectory)
+      if (!directoryInfo.isDirectory() || directoryInfo.isSymbolicLink()) {
+        throw new VaultError({
+          code: 'INVALID_PATH',
+          message: 'TSUZUNEのメタデータ保存先を使用できません。'
+        })
+      }
+      await writeFile(
+        temporaryPath,
+        `${JSON.stringify(normalizeBookmarks(bookmarks), null, 2)}\n`,
+        { encoding: 'utf8', flag: 'wx' }
+      )
+      if (!this.isCurrentRoot(rootPath, revision)) {
+        throw new VaultError({
+          code: 'NO_VAULT',
+          message: 'Vaultが切り替わったため、ブックマークを保存できませんでした。'
+        })
+      }
+      await rename(temporaryPath, bookmarkPath)
+    } catch (error) {
+      await rm(temporaryPath, { force: true }).catch(() => undefined)
+      throw error
+    }
+  }
+
   private async writeCreationTimes(
     rootPath: string,
     revision: number,
@@ -485,20 +589,23 @@ export class VaultService {
       })
     }
 
-    const creationTimes = await this.updateCreationTimes(
-      root,
-      revision,
-      (current) => {
-        const next: CreationTimeRegistry = {}
-        for (const item of [...notes, ...attachments]) {
-          const timestamp = current[item.path] ?? item.createdAt
-          if (validCreationTime(timestamp)) {
-            next[item.path] = timestamp
+    const [creationTimes, bookmarks] = await Promise.all([
+      this.updateCreationTimes(
+        root,
+        revision,
+        (current) => {
+          const next: CreationTimeRegistry = {}
+          for (const item of [...notes, ...attachments]) {
+            const timestamp = current[item.path] ?? item.createdAt
+            if (validCreationTime(timestamp)) {
+              next[item.path] = timestamp
+            }
           }
+          return next
         }
-        return next
-      }
-    )
+      ),
+      this.readBookmarks(root)
+    ])
 
     if (this.rootRevision !== revision || this.rootPath !== root) {
       throw new VaultError({
@@ -524,7 +631,67 @@ export class VaultService {
       rootName: basename(root),
       directories,
       notes: visibleNotes,
-      attachments: visibleAttachments
+      attachments: visibleAttachments,
+      bookmarks
+    }
+  }
+
+  async saveBookmark(input: SaveBookmarkInput): Promise<VaultBookmark> {
+    const root = this.requireRoot()
+    const revision = this.rootRevision
+    const absolute = this.absolutePath(input.path)
+    try {
+      await this.assertNoSymlinkTraversal(absolute)
+      const info = await stat(absolute)
+      if (!info.isFile()) {
+        throw new VaultError({
+          code: 'INVALID_PATH',
+          message: 'ファイルだけをブックマークできます。'
+        })
+      }
+
+      const path = this.relativePathFrom(root, absolute)
+      const current = await this.readBookmarks(root)
+      const previous = current.find((bookmark) => bookmark.path === path)
+      const title = input.title?.trim()
+      const group = input.group?.trim()
+      const bookmark: VaultBookmark = {
+        type: 'file',
+        path,
+        ...(title ? { title } : {}),
+        ...(group ? { group } : {}),
+        ctime: previous?.ctime ?? Date.now()
+      }
+      await this.writeBookmarks(root, revision, [
+        ...current.filter((candidate) => candidate.path !== path),
+        bookmark
+      ])
+      return bookmark
+    } catch (error) {
+      if (error instanceof VaultError) {
+        throw error
+      }
+      throw fromNodeError(error, 'SAVE_FAILED', 'ブックマークを保存できませんでした。')
+    }
+  }
+
+  async removeBookmark(path: string): Promise<void> {
+    const root = this.requireRoot()
+    const revision = this.rootRevision
+    const absolute = this.absolutePath(path)
+    const normalizedPath = this.relativePathFrom(root, absolute)
+    try {
+      const current = await this.readBookmarks(root)
+      await this.writeBookmarks(
+        root,
+        revision,
+        current.filter((bookmark) => bookmark.path !== normalizedPath)
+      )
+    } catch (error) {
+      if (error instanceof VaultError) {
+        throw error
+      }
+      throw fromNodeError(error, 'SAVE_FAILED', 'ブックマークを削除できませんでした。')
     }
   }
 

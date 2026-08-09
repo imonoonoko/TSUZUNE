@@ -128,6 +128,10 @@ beforeEach(() => {
     renameEntry: vi.fn(),
     moveNote: vi.fn(),
     trashEntry: vi.fn(),
+    saveBookmark: vi.fn((input) =>
+      ok({ type: 'file', ...input, ctime: 1 })
+    ),
+    removeBookmark: vi.fn(() => ok(null)),
     setLastNote: vi.fn(() => ok(null)),
     setUserIgnoreFilters: vi.fn(() => ok(null)),
     setGraphForces: vi.fn(() => ok(null)),
@@ -1295,6 +1299,75 @@ describe('App data-loss guards', () => {
     expect(api.setGraphFilters).toHaveBeenCalledWith({
       ...DEFAULT_GRAPH_FILTER_SETTINGS,
       showAttachments: true
+    })
+  })
+
+  it('creates, edits, and removes a Vault bookmark from the graph menu', async () => {
+    const attachment = {
+      path: 'assets/diagram.svg',
+      name: 'diagram.svg',
+      modifiedAt: 1,
+      createdAt: null,
+      size: 10
+    }
+    const initialSnapshot: VaultSnapshot = {
+      ...snapshot,
+      notes: [{ ...noteA, content: '![[assets/diagram.svg]]' }, noteB, noteC],
+      attachments: [attachment],
+      bookmarks: []
+    }
+    const bookmark = {
+      type: 'file' as const,
+      path: attachment.path,
+      title: '構成図',
+      group: '資料',
+      ctime: 1
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok(initialSnapshot))
+    vi.mocked(api.getSnapshot).mockResolvedValue(
+      await ok({ ...initialSnapshot, bookmarks: [bookmark] })
+    )
+    vi.mocked(api.saveBookmark).mockResolvedValue(await ok(bookmark))
+
+    render(<App />)
+    fireEvent.click((await screen.findAllByRole('button', { name: 'グラフビュー' }))[0])
+    fireEvent.click(screen.getByRole('button', { name: 'フィルタを開く' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: '添付書類' }))
+    fireEvent.contextMenu(
+      await screen.findByRole('button', { name: 'diagram.svg（添付書類）を開く' })
+    )
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ブックマーク…' }))
+
+    fireEvent.change(screen.getByLabelText('タイトル'), {
+      target: { value: '構成図' }
+    })
+    fireEvent.change(screen.getByLabelText('Bookmark group'), {
+      target: { value: '資料' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+    await waitFor(() => {
+      expect(api.saveBookmark).toHaveBeenCalledWith({
+        path: attachment.path,
+        title: '構成図',
+        group: '資料'
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    fireEvent.contextMenu(
+      screen.getByRole('button', { name: 'diagram.svg（添付書類）を開く' })
+    )
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ブックマークを編集' }))
+    expect(screen.getByLabelText('タイトル')).toHaveProperty('value', '構成図')
+
+    vi.mocked(api.getSnapshot).mockResolvedValue(
+      await ok({ ...initialSnapshot, bookmarks: [] })
+    )
+    fireEvent.click(screen.getByRole('button', { name: '削除' }))
+    await waitFor(() => {
+      expect(api.removeBookmark).toHaveBeenCalledWith(attachment.path)
+      expect(screen.queryByRole('dialog')).toBeNull()
     })
   })
 

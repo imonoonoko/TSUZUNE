@@ -1034,6 +1034,26 @@ button:hover:not(:disabled) {
   border-radius: 6px;
 }
 
+.bookmark-dialog input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  color: var(--ink);
+  font: inherit;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.bookmark-dialog label + label {
+  margin-top: 14px;
+}
+
+.bookmark-dialog .danger-button {
+  margin-right: auto;
+  color: var(--danger);
+}
+
 .human-note-capture-modal {
   width: min(620px, 100%);
   max-height: min(760px, calc(100vh - 48px));

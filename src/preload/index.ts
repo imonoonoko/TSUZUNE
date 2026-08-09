@@ -20,10 +20,12 @@ import type {
   PairDriveVaultInput,
   RenameEntryInput,
   Result,
+  SaveBookmarkInput,
   SaveNoteInput,
   SaveNoteOutput,
   TsuzuneApi,
   VaultChangeEvent,
+  VaultBookmark,
   VaultSnapshot
 } from '../shared/types'
 
@@ -50,6 +52,9 @@ const api: TsuzuneApi = {
   moveNote: (input: MoveNoteInput) =>
     invoke<EntryOperationOutput>('entry:moveNote', input),
   trashEntry: (path: string) => invoke<EntryOperationOutput>('entry:trash', path),
+  saveBookmark: (input: SaveBookmarkInput) =>
+    invoke<VaultBookmark>('bookmark:save', input),
+  removeBookmark: (path: string) => invoke<null>('bookmark:remove', path),
   setLastNote: (path: string | null) =>
     invoke<null>('settings:setLastNote', path),
   setUserIgnoreFilters: (filters: string[]) =>

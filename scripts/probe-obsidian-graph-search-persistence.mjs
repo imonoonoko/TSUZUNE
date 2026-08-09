@@ -19,6 +19,19 @@ const attachmentNewWindowProbe =
 const attachmentMoveProbe =
   process.argv.includes('--attachment-move') ||
   process.env.TSUZUNE_GRAPH_ATTACHMENT_MOVE_PROBE === '1'
+const attachmentBookmarkProbe =
+  process.argv.includes('--attachment-bookmark') ||
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_BOOKMARK_PROBE === '1'
+const attachmentBookmarkScenario =
+  process.argv.find((argument) => argument.startsWith('--bookmark-scenario='))?.split('=', 2)[1] ??
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_BOOKMARK_SCENARIO ??
+  'create'
+if (
+  attachmentBookmarkProbe &&
+  !['cancel', 'create', 'duplicate'].includes(attachmentBookmarkScenario)
+) {
+  throw new Error('--bookmark-scenario は cancel、create、duplicate のいずれかです。')
+}
 const attachmentMoveScenario =
   process.argv.find((argument) => argument.startsWith('--move-scenario='))?.split('=', 2)[1] ??
   process.env.TSUZUNE_GRAPH_ATTACHMENT_MOVE_SCENARIO ??
@@ -34,24 +47,28 @@ const nodeNewTabProbe =
   process.env.TSUZUNE_GRAPH_NODE_NEW_TAB_PROBE === '1'
 const nodeMenuProbe =
   nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe ||
+  attachmentBookmarkProbe ||
   process.argv.includes('--node-menu') ||
   process.env.TSUZUNE_GRAPH_NODE_MENU_PROBE === '1'
 if (
   [
     cameraProbe,
     nodeDragProbe,
-    nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe,
+    nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe,
     nodeNewTabProbe,
     attachmentNewTabProbe,
     attachmentNewWindowProbe,
-    attachmentMoveProbe
+    attachmentMoveProbe,
+    attachmentBookmarkProbe
   ].filter(Boolean).length > 1
 ) {
   throw new Error(
-    '--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move は同時に指定できません。'
+    '--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move、--attachment-bookmark は同時に指定できません。'
   )
 }
-const probeKind = attachmentMoveProbe
+const probeKind = attachmentBookmarkProbe
+  ? `attachment-bookmark-${attachmentBookmarkScenario}`
+  : attachmentMoveProbe
   ? `attachment-file-move-${attachmentMoveScenario}`
   : attachmentNewWindowProbe
   ? 'attachment-new-window'
@@ -73,7 +90,9 @@ const vaultDirectory = resolve(referenceWorkDirectory, 'vault')
 const userDataDirectory = resolve(referenceWorkDirectory, 'userdata')
 const outputRoot = resolve(
   repoRoot,
-  attachmentMoveProbe
+  attachmentBookmarkProbe
+    ? `docs/reports/assets/graph-gp0-attachment-bookmark/${attachmentBookmarkScenario}`
+    : attachmentMoveProbe
     ? `docs/reports/assets/graph-gp0-attachment-file-move/${attachmentMoveScenario}`
     : probeKind === 'attachment-new-window'
     ? 'docs/reports/assets/graph-gp0-attachment-new-window'
@@ -108,7 +127,7 @@ const expected = {
   asarSha256: '51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917',
   markdownCount: 7,
   search: cameraProbe || nodeDragProbe || nodeMenuProbe ? '' : 'path:"10_projects"',
-  filteredNodeIds: attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe
+  filteredNodeIds: attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe
     ? [
         '00_Home.md',
         '10_projects/Project Alpha.md',
@@ -139,7 +158,7 @@ const expected = {
   deviceScaleFactor: 1,
   drag: {
     targetNodeId:
-      attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe
+      attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe
         ? 'attachments/diagram.svg'
         : '00_Home.md',
     deltaX: 96,
@@ -192,6 +211,52 @@ async function treeDigest(directory, ignoredTopLevelDirectory = null) {
     combinedSha256: combined.digest('hex').toUpperCase(),
     files: entries
   }
+}
+
+async function optionalJsonFileState(path) {
+  try {
+    const bytes = await readFile(path)
+    const text = bytes.toString('utf8')
+    let json = null
+    let parseError = null
+    try {
+      json = JSON.parse(text)
+    } catch (error) {
+      parseError = error instanceof Error ? error.message : String(error)
+    }
+    return {
+      exists: true,
+      bytes: bytes.length,
+      sha256: createHash('sha256').update(bytes).digest('hex').toUpperCase(),
+      json,
+      parseError
+    }
+  } catch (error) {
+    if (error?.code === 'ENOENT') return { exists: false, bytes: 0, sha256: null, json: null, parseError: null }
+    throw error
+  }
+}
+
+async function snapshotBookmarkPersistence(label) {
+  return {
+    label,
+    capturedAt: new Date().toISOString(),
+    vaultContent: await treeDigest(vaultDirectory, '.obsidian'),
+    workspace: await optionalJsonFileState(resolve(vaultDirectory, '.obsidian/workspace.json')),
+    bookmarks: await optionalJsonFileState(resolve(vaultDirectory, '.obsidian/bookmarks.json'))
+  }
+}
+
+function bookmarkPathCount(json, targetPath) {
+  if (Array.isArray(json)) {
+    return json.reduce((count, value) => count + bookmarkPathCount(value, targetPath), 0)
+  }
+  if (!json || typeof json !== 'object') return 0
+  const direct = json.path === targetPath ? 1 : 0
+  return direct + Object.values(json).reduce(
+    (count, value) => count + bookmarkPathCount(value, targetPath),
+    0
+  )
 }
 
 function queryObsidianProtocol() {
@@ -506,7 +571,7 @@ async function setGraphSearch(cdp, query) {
     cdp,
     `app.workspace.getLeavesOfType('graph')[0]?.view.dataEngine.getOptions().search === ${JSON.stringify(query)}`
   )
-  if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe) {
+  if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe) {
     await waitForRenderer(
       cdp,
       `JSON.stringify(app.workspace.getLeavesOfType('graph')[0]?.view.renderer.nodes.map(${nodeIdExpression()}).filter(Boolean).sort()) === ${JSON.stringify(JSON.stringify(expected.filteredNodeIds))}`
@@ -689,17 +754,42 @@ async function openNodeContextMenu(cdp) {
     const bounds = view.renderer.interactiveEl.getBoundingClientRect()
     const x = bounds.left + (view.renderer.panX + node.x * view.renderer.scale) / devicePixelRatio
     const y = bounds.top + (view.renderer.panY + node.y * view.renderer.scale) / devicePixelRatio
-    if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) {
-      throw new Error('context menu対象nodeがGraph canvas外です。')
+    return {
+      x,
+      y,
+      inside: x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom,
+      centerX: bounds.left + bounds.width / 2,
+      centerY: bounds.top + bounds.height / 2
     }
-    return { x, y }
   })()`
-  const hoverTarget = await cdp.evaluate(targetExpression)
+  let hoverTarget = null
+  let zoomedOut = false
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    hoverTarget = await cdp.evaluate(targetExpression)
+    if (hoverTarget.inside) break
+    zoomedOut = true
+    await cdp.send('Input.dispatchMouseEvent', {
+      type: 'mouseWheel',
+      x: hoverTarget.centerX,
+      y: hoverTarget.centerY,
+      deltaX: 0,
+      deltaY: 120
+    })
+    await delay(150)
+  }
+  if (!hoverTarget?.inside) throw new Error('context menu対象nodeをGraph canvas内へ収められません。')
+  if (zoomedOut) {
+    await delay(500)
+    await waitForTargetNodeStability(cdp)
+    hoverTarget = await cdp.evaluate(targetExpression)
+    if (!hoverTarget.inside) throw new Error('context menu対象nodeがzoom安定後にGraph canvas外へ移動しました。')
+  }
   await cdp.send('Input.dispatchMouseEvent', {
     type: 'mouseMoved', x: hoverTarget.x, y: hoverTarget.y, button: 'none', buttons: 0
   })
   await delay(50)
   const target = await cdp.evaluate(targetExpression)
+  if (!target.inside) throw new Error('context menu対象nodeがhover後にGraph canvas外へ移動しました。')
   await cdp.send('Input.dispatchMouseEvent', {
     type: 'mouseMoved', x: target.x, y: target.y, button: 'none', buttons: 0
   })
@@ -878,6 +968,129 @@ async function activateAttachmentMove(cdp) {
       `document.querySelector(${JSON.stringify(moveDialogInputSelector)}) === null`
     ),
     notices,
+    menuClosed: await cdp.evaluate(`document.querySelector('.menu .menu-item') === null`)
+  }
+}
+
+async function observeBookmarkPlugin(cdp) {
+  return cdp.evaluate(`(() => {
+    const plugin = app.internalPlugins?.getPluginById?.('bookmarks') ?? null
+    const instance = plugin?.instance ?? null
+    const items = Array.isArray(instance?.items) ? instance.items : []
+    return {
+      enabled: plugin?.enabled ?? null,
+      itemCount: items.length,
+      items: items.map((item) => ({
+        type: item?.type ?? null,
+        path: item?.path ?? null,
+        title: item?.title ?? null,
+        ctime: item?.ctime ?? null,
+        subpath: item?.subpath ?? null
+      }))
+    }
+  })()`)
+}
+
+async function activateAttachmentBookmark(cdp, scenario) {
+  const clickBookmarkAction = async () => {
+    await cdp.evaluate(`(() => {
+      const item = [...document.querySelectorAll('.menu .menu-item')]
+        .find((candidate) => candidate.textContent?.replace(/\\s+/g, ' ').trim().includes('ブックマーク'))
+      if (!(item instanceof HTMLElement) || item.classList.contains('is-disabled')) {
+        throw new Error('有効なブックマーク操作が見つかりません。')
+      }
+      item.click()
+    })()`)
+    await waitForRenderer(cdp, `document.querySelector('.modal-container .modal') !== null`)
+    await delay(200)
+    return cdp.evaluate(`(() => {
+      const modal = [...document.querySelectorAll('.modal-container .modal')]
+        .find((candidate) => candidate.getClientRects().length > 0)
+      if (!(modal instanceof HTMLElement)) throw new Error('ブックマークdialogが見つかりません。')
+      const bounds = modal.getBoundingClientRect()
+      return {
+        text: modal.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+        classes: [...modal.classList].sort(),
+        bounds: { left: bounds.left, top: bounds.top, width: bounds.width, height: bounds.height },
+        headings: [...modal.querySelectorAll('.modal-title, h1, h2, h3')]
+          .map((element) => element.textContent?.replace(/\\s+/g, ' ').trim() ?? '')
+          .filter(Boolean),
+        inputs: [...modal.querySelectorAll('input')].map((input) => ({
+          type: input.type,
+          placeholder: input.placeholder,
+          value: input.value,
+          classes: [...input.classList].sort()
+        })),
+        buttons: [...modal.querySelectorAll('button')].map((button) => ({
+          text: button.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+          ariaLabel: button.getAttribute('aria-label'),
+          disabled: button.disabled || button.classList.contains('is-disabled'),
+          classes: [...button.classList].sort()
+        })),
+        suggestions: [...modal.querySelectorAll('.suggestion-item')]
+          .filter((item) => item.getClientRects().length > 0)
+          .map((item) => item.textContent?.replace(/\\s+/g, ' ').trim() ?? '')
+      }
+    })()`)
+  }
+
+  const closeDialog = async (save) => {
+    if (save) {
+      await cdp.evaluate(`(() => {
+        const modal = [...document.querySelectorAll('.modal-container .modal')]
+          .find((candidate) => candidate.getClientRects().length > 0)
+        const button = modal?.querySelector('button.mod-cta') ??
+          [...(modal?.querySelectorAll('button') ?? [])].find((candidate) => !candidate.disabled)
+        if (!(button instanceof HTMLButtonElement)) throw new Error('ブックマークdialogの確定buttonが見つかりません。')
+        button.click()
+      })()`)
+    } else {
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27
+      })
+      await cdp.send('Input.dispatchKeyEvent', {
+        type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27
+      })
+    }
+    await waitForRenderer(cdp, `document.querySelector('.modal-container .modal') === null`)
+    await delay(500)
+  }
+
+  const before = await observeBookmarkPlugin(cdp)
+  const firstDialog = await clickBookmarkAction()
+  firstDialog.screenshot = await captureScreenshot(
+    cdp,
+    resolve(outputDirectory, '02-bookmark-dialog.png')
+  )
+  await closeDialog(scenario !== 'cancel')
+  const afterFirst = await observeBookmarkPlugin(cdp)
+  let secondDialog = null
+  let afterSecond = null
+  let secondMenu = null
+  if (scenario === 'duplicate') {
+    await openNodeContextMenu(cdp)
+    secondMenu = await observeNodeContextMenu(cdp)
+    secondMenu.screenshot = await captureScreenshot(
+      cdp,
+      resolve(outputDirectory, '03-duplicate-context-menu.png')
+    )
+    secondDialog = await clickBookmarkAction()
+    secondDialog.screenshot = await captureScreenshot(
+      cdp,
+      resolve(outputDirectory, '04-duplicate-dialog.png')
+    )
+    await closeDialog(true)
+    afterSecond = await observeBookmarkPlugin(cdp)
+  }
+  return {
+    scenario,
+    before,
+    firstDialog,
+    afterFirst,
+    secondMenu,
+    secondDialog,
+    afterSecond,
+    dialogClosed: await cdp.evaluate(`document.querySelector('.modal-container .modal') === null`),
     menuClosed: await cdp.evaluate(`document.querySelector('.menu .menu-item') === null`)
   }
 }
@@ -1282,7 +1495,7 @@ async function main() {
       await first.whileChildAlive(openGlobalGraph(first.cdp))
     }
     await first.whileChildAlive(setGraphSearch(first.cdp, expected.search))
-    if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe) {
+    if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe) {
       await first.whileChildAlive(setGraphAttachmentsVisible(first.cdp))
     }
     if (nodeDragProbe || nodeMenuProbe) {
@@ -1329,6 +1542,14 @@ async function main() {
     observations.afterEntry = await first.whileChildAlive(
       observeGraph(first.cdp, nodeDragProbe ? 'after-node-release-settled' : 'after-entry')
     )
+    if (attachmentBookmarkProbe) {
+      observations.bookmarkPersistence = {
+        beforeAction: await snapshotBookmarkPersistence('before-action')
+      }
+      observations.bookmarkPluginBeforeAction = await first.whileChildAlive(
+        observeBookmarkPlugin(first.cdp)
+      )
+    }
     if (nodeMenuProbe) {
       observations.menuInput = await first.whileChildAlive(openNodeContextMenu(first.cdp))
       observations.nodeContextMenu = await first.whileChildAlive(
@@ -1362,6 +1583,22 @@ async function main() {
         observations.attachmentMove.screenshot = await first.whileChildAlive(
           captureScreenshot(first.cdp, resolve(outputDirectory, '02-after-file-move-action.png'))
         )
+      } else if (attachmentBookmarkProbe) {
+        observations.attachmentBookmark = await first.whileChildAlive(
+          activateAttachmentBookmark(first.cdp, attachmentBookmarkScenario)
+        )
+        observations.attachmentBookmark.screenshot = await first.whileChildAlive(
+          captureScreenshot(
+            first.cdp,
+            resolve(
+              outputDirectory,
+              attachmentBookmarkScenario === 'duplicate'
+                ? '05-after-bookmark-action.png'
+                : '03-after-bookmark-action.png'
+            )
+          )
+        )
+        observations.bookmarkPersistence.afterAction = await snapshotBookmarkPersistence('after-action')
       } else {
         await first.whileChildAlive(first.cdp.send('Input.dispatchKeyEvent', {
           type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27
@@ -1374,7 +1611,7 @@ async function main() {
         )
       }
     }
-    if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe) {
+    if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe) {
       observations.afterEntry.screenshot = await first.whileChildAlive(
         captureScreenshot(
           first.cdp,
@@ -1410,11 +1647,30 @@ async function main() {
         first.cdp,
         resolve(
           outputDirectory,
-          nodeDragProbe ? '03-after-graph-reopen.png' : '02-after-graph-reopen.png'
+          attachmentBookmarkProbe
+            ? attachmentBookmarkScenario === 'duplicate'
+              ? '06-after-graph-reopen.png'
+              : '04-after-graph-reopen.png'
+            : nodeDragProbe
+              ? '03-after-graph-reopen.png'
+              : '02-after-graph-reopen.png'
         )
       )
     )
+    if (attachmentBookmarkProbe) {
+      observations.bookmarkPluginAfterGraphReopen = await first.whileChildAlive(
+        observeBookmarkPlugin(first.cdp)
+      )
+      observations.bookmarkPersistence.afterGraphReopen = await snapshotBookmarkPersistence(
+        'after-graph-reopen'
+      )
+    }
     const firstExit = await first.stop()
+    if (attachmentBookmarkProbe) {
+      observations.bookmarkPersistence.afterFirstProcessExit = await snapshotBookmarkPersistence(
+        'after-first-process-exit'
+      )
+    }
 
     const second = await launchSession(2)
     sessions.push(second)
@@ -1441,11 +1697,30 @@ async function main() {
         second.cdp,
         resolve(
           outputDirectory,
-          nodeDragProbe ? '04-after-app-restart.png' : '03-after-app-restart.png'
+          attachmentBookmarkProbe
+            ? attachmentBookmarkScenario === 'duplicate'
+              ? '07-after-app-restart.png'
+              : '05-after-app-restart.png'
+            : nodeDragProbe
+              ? '04-after-app-restart.png'
+              : '03-after-app-restart.png'
         )
       )
     )
+    if (attachmentBookmarkProbe) {
+      observations.bookmarkPluginAfterAppRestart = await second.whileChildAlive(
+        observeBookmarkPlugin(second.cdp)
+      )
+      observations.bookmarkPersistence.afterAppRestart = await snapshotBookmarkPersistence(
+        'after-app-restart'
+      )
+    }
     const secondExit = await second.stop()
+    if (attachmentBookmarkProbe) {
+      observations.bookmarkPersistence.afterSecondProcessExit = await snapshotBookmarkPersistence(
+        'after-second-process-exit'
+      )
+    }
 
     observations.sessions = [
       {
@@ -1558,6 +1833,14 @@ async function main() {
       : expected.filteredNodeIds
   const exactNodeIds = (observation, nodeIds = expected.filteredNodeIds) =>
     JSON.stringify(observation.renderedNodeIds) === JSON.stringify(nodeIds)
+  const bookmarkCounts = attachmentBookmarkProbe
+    ? Object.fromEntries(
+        Object.entries(observations.bookmarkPersistence).map(([key, snapshot]) => [
+          key,
+          bookmarkPathCount(snapshot.bookmarks.json, expected.drag.targetNodeId)
+        ])
+      )
+    : null
   const assertions = {
     queryAccepted: observations.afterEntry.graphOptionsSearch === expected.search,
     queryVisibleAfterEntry: observations.afterEntry.searchInputValue === expected.search,
@@ -1704,7 +1987,32 @@ async function main() {
                           )
                         )?.sha256
                     }
-                  : {})
+                  : attachmentBookmarkProbe
+                    ? {
+                        attachmentBookmarkDialogOpened:
+                          observations.attachmentBookmark.firstDialog.text.length > 0,
+                        attachmentBookmarkDialogClosed:
+                          observations.attachmentBookmark.dialogClosed === true,
+                        nodeContextMenuClosedAfterAction:
+                          observations.attachmentBookmark.menuClosed === true,
+                        attachmentBookmarkOutcome:
+                          attachmentBookmarkScenario === 'cancel'
+                            ? bookmarkCounts.beforeAction === bookmarkCounts.afterSecondProcessExit
+                            : bookmarkCounts.beforeAction === 0 &&
+                              bookmarkCounts.afterSecondProcessExit === 1,
+                        attachmentBookmarkPersistsAfterGraphReopen:
+                          bookmarkCounts.afterGraphReopen ===
+                          (attachmentBookmarkScenario === 'cancel' ? bookmarkCounts.beforeAction : 1),
+                        attachmentBookmarkPersistsAfterAppRestart:
+                          bookmarkCounts.afterAppRestart ===
+                          (attachmentBookmarkScenario === 'cancel' ? bookmarkCounts.beforeAction : 1),
+                        duplicateBookmarkIsNotDuplicated:
+                          attachmentBookmarkScenario !== 'duplicate' ||
+                          bookmarkCounts.afterSecondProcessExit === 1,
+                        workspaceStateCaptured:
+                          observations.bookmarkPersistence.afterSecondProcessExit.workspace.exists === true
+                      }
+                    : {})
         }
       : {}),
     ...(cameraProbe
@@ -1752,7 +2060,9 @@ async function main() {
   }
   const manifest = {
     capturedAt: new Date().toISOString(),
-    stage: attachmentMoveProbe
+    stage: attachmentBookmarkProbe
+      ? 'GP0-3b-k Obsidian Global Graph attachment bookmark probe'
+      : attachmentMoveProbe
       ? 'GP0-3b-j Obsidian Global Graph attachment file-move probe'
       : attachmentNewWindowProbe
       ? 'GP0-3b-i Obsidian Global Graph attachment new-window probe'
@@ -1780,10 +2090,28 @@ async function main() {
       attachmentNewWindowProbe,
       attachmentMoveProbe,
       attachmentMoveScenario: attachmentMoveProbe ? attachmentMoveScenario : null,
+      attachmentBookmarkProbe,
+      attachmentBookmarkScenario: attachmentBookmarkProbe ? attachmentBookmarkScenario : null,
       lifecycle: ['entry', 'graph-close-reopen', 'full-app-restart'],
       fixture: relative(repoRoot, fixtureDirectory).replaceAll('\\', '/'),
       isolatedVault: relative(repoRoot, vaultDirectory).replaceAll('\\', '/'),
       observation: relative(repoRoot, observationPath).replaceAll('\\', '/')
+    },
+    evidenceBoundary: {
+      established: [
+        'Fixed Obsidian Desktop 1.13.4 runtime and recorded binary hashes',
+        'Chromium CDP Input.dispatchMouseEvent/Input.dispatchKeyEvent against an offscreen Electron window',
+        'Fresh isolated Vault and user-data directory for each scenario',
+        'Graph close/reopen and a distinct second Obsidian process restart',
+        `Light theme at ${expected.viewport.width}x${expected.viewport.height}, deviceScaleFactor ${expected.deviceScaleFactor}`
+      ],
+      notEstablished: [
+        'Physical mouse or keyboard input',
+        'Visible on-screen interaction',
+        'Touch or pen input',
+        'Screen reader or Windows High Contrast behavior',
+        'Multi-DPI or pixel-identical rendering parity'
+      ]
     },
     runtime: {
       installer: {
@@ -1810,6 +2138,9 @@ async function main() {
     attachmentNewTab: observations.attachmentNewTab ?? null,
     attachmentNewWindow: observations.attachmentNewWindow ?? null,
     attachmentMove: observations.attachmentMove ?? null,
+    attachmentBookmark: observations.attachmentBookmark ?? null,
+    bookmarkCounts,
+    bookmarkPersistence: observations.bookmarkPersistence ?? null,
     protection: {
       sourceBefore,
       sourceAfter,
@@ -1839,6 +2170,8 @@ async function main() {
         nodeContextMenu: observations.nodeContextMenu ?? null,
         nodeNewTab: observations.nodeNewTab ?? null,
         attachmentNewTab: observations.attachmentNewTab ?? null,
+        attachmentBookmark: observations.attachmentBookmark ?? null,
+        bookmarkCounts,
         observation: manifest.scope.observation,
         sourceUnchanged: assertions.sourceUnchanged,
         isolatedVaultProtectedFilesExpected: assertions.isolatedVaultProtectedFilesExpected,

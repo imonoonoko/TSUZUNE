@@ -71,4 +71,26 @@ describe('graph view state preload API', () => {
       'attachments/diagram.png'
     )
   })
+
+  it('forwards bookmark writes through dedicated trusted IPC channels', async () => {
+    electron.invoke.mockResolvedValue({ ok: true, value: null })
+    await import('../src/preload/index')
+
+    await electron.api!.saveBookmark({
+      path: 'attachments/diagram.svg',
+      title: '構成図',
+      group: '資料'
+    })
+    await electron.api!.removeBookmark('attachments/diagram.svg')
+
+    expect(electron.invoke).toHaveBeenCalledWith('bookmark:save', {
+      path: 'attachments/diagram.svg',
+      title: '構成図',
+      group: '資料'
+    })
+    expect(electron.invoke).toHaveBeenCalledWith(
+      'bookmark:remove',
+      'attachments/diagram.svg'
+    )
+  })
 })

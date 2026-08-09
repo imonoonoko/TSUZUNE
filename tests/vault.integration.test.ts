@@ -115,6 +115,56 @@ describe('VaultService path and scan boundaries', () => {
     expect(snapshot.notes[0].createdAt).not.toBeUndefined()
   })
 
+  it('persists, updates, and removes one Vault-scoped file bookmark', async () => {
+    await mkdir(absolute('attachments'), { recursive: true })
+    await writeFile(absolute('attachments/diagram.svg'), '<svg/>', 'utf8')
+
+    const created = await vault.saveBookmark({
+      path: 'attachments/diagram.svg',
+      title: ' 構成図 ',
+      group: ' 資料 '
+    })
+    expect(created).toMatchObject({
+      type: 'file',
+      path: 'attachments/diagram.svg',
+      title: '構成図',
+      group: '資料'
+    })
+    expect((await vault.scan()).bookmarks).toEqual([created])
+
+    const reopened = new VaultService()
+    await reopened.setRootPath(rootPath)
+    expect((await reopened.scan()).bookmarks).toEqual([created])
+
+    const updated = await reopened.saveBookmark({
+      path: 'attachments/diagram.svg',
+      title: '新しい構成図',
+      group: ''
+    })
+    expect(updated).toEqual({
+      type: 'file',
+      path: 'attachments/diagram.svg',
+      title: '新しい構成図',
+      ctime: created.ctime
+    })
+    expect((await reopened.scan()).bookmarks).toEqual([updated])
+
+    await reopened.removeBookmark('attachments/diagram.svg')
+    expect((await reopened.scan()).bookmarks).toEqual([])
+    expect(
+      JSON.parse(await readFile(absolute('.tsuzune/bookmarks.json'), 'utf8'))
+    ).toEqual([])
+  })
+
+  it('does not create a bookmark for a missing or outside-Vault file', async () => {
+    await expect(
+      vault.saveBookmark({ path: 'missing.svg' })
+    ).rejects.toMatchObject({ appError: { code: 'NOT_FOUND' } })
+    await expect(
+      vault.saveBookmark({ path: '../outside.svg' })
+    ).rejects.toMatchObject({ appError: { code: 'INVALID_PATH' } })
+  })
+
   it('excludes matching notes and attachments without discarding their creation times', async () => {
     await mkdir(absolute('80_excluded'), { recursive: true })
     await writeFile(absolute('Visible.md'), '# visible', 'utf8')

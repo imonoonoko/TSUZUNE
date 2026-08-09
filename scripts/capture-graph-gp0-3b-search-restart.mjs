@@ -28,18 +28,30 @@ const attachmentMoveScenario =
 if (!['cancel', 'success', 'collision'].includes(attachmentMoveScenario)) {
   throw new Error('--move-scenario は cancel、success、collision のいずれかを指定してください。')
 }
+const attachmentBookmarkProbe =
+  process.argv.includes('--attachment-bookmark') ||
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_BOOKMARK_PROBE === '1'
+const attachmentBookmarkScenario =
+  process.argv.find((argument) => argument.startsWith('--bookmark-scenario='))?.split('=')[1] ||
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_BOOKMARK_SCENARIO ||
+  'create'
+if (!['cancel', 'create', 'duplicate'].includes(attachmentBookmarkScenario)) {
+  throw new Error('--bookmark-scenario は cancel、create、duplicate のいずれかを指定してください。')
+}
 const nodeNewTabProbe =
   workspaceTabProbe ||
   process.argv.includes('--node-new-tab') ||
   process.env.TSUZUNE_GRAPH_NODE_NEW_TAB_PROBE === '1'
 const nodeMenuProbe =
-  nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe ||
+  nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe ||
   process.argv.includes('--node-menu') ||
   process.env.TSUZUNE_GRAPH_NODE_MENU_PROBE === '1'
-if ([cameraProbe, nodeDragProbe, nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe, nodeNewTabProbe, attachmentNewTabProbe, attachmentNewWindowProbe, attachmentMoveProbe].filter(Boolean).length > 1) {
-  throw new Error('--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move は同時に指定できません。')
+if ([cameraProbe, nodeDragProbe, nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe, nodeNewTabProbe, attachmentNewTabProbe, attachmentNewWindowProbe, attachmentMoveProbe, attachmentBookmarkProbe].filter(Boolean).length > 1) {
+  throw new Error('--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move、--attachment-bookmark は同時に指定できません。')
 }
-const probeKind = attachmentMoveProbe
+const probeKind = attachmentBookmarkProbe
+  ? `attachment-bookmark-${attachmentBookmarkScenario}`
+  : attachmentMoveProbe
   ? `attachment-file-move-${attachmentMoveScenario}`
   : attachmentNewWindowProbe
   ? 'attachment-new-window'
@@ -59,7 +71,9 @@ const probeKind = attachmentMoveProbe
 const sourceFixture = resolve(repoRoot, 'fixtures/obsidian-graph-parity-vault')
 const workRoot = resolve(
   repoRoot,
-  attachmentMoveProbe
+  attachmentBookmarkProbe
+    ? `work/graph-gp0-attachment-bookmark-${attachmentBookmarkScenario}-working-tree`
+    : attachmentMoveProbe
     ? `work/graph-gp0-attachment-file-move-${attachmentMoveScenario}-working-tree`
     : probeKind === 'attachment-new-window'
     ? 'work/graph-gp0-attachment-new-window-working-tree'
@@ -81,7 +95,9 @@ const vault = resolve(workRoot, 'vault')
 const userData = resolve(workRoot, 'userdata')
 const outputRoot = resolve(
   repoRoot,
-  attachmentMoveProbe
+  attachmentBookmarkProbe
+    ? `docs/reports/assets/graph-gp0-attachment-bookmark/${attachmentBookmarkScenario}/tsuzune-working-tree`
+    : attachmentMoveProbe
     ? `docs/reports/assets/graph-gp0-attachment-file-move/${attachmentMoveScenario}/tsuzune-working-tree`
     : probeKind === 'attachment-new-window'
     ? 'docs/reports/assets/graph-gp0-attachment-new-window/tsuzune-working-tree'
@@ -115,7 +131,7 @@ const expectedCameraNodePaths = [
   '90_orphan/Orphan.md',
   'Missing Note.md'
 ].concat(
-  attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe
+  attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe
     ? ['attachments/diagram.svg']
     : []
 ).concat(
@@ -225,6 +241,45 @@ async function optionalFileState(path) {
     birthtime: info.birthtime.toISOString(),
     mtime: info.mtime.toISOString()
   }
+}
+
+async function optionalJsonFileState(path) {
+  const state = await optionalFileState(path)
+  if (!state.exists) return { ...state, json: null, parseError: null }
+  try {
+    return {
+      ...state,
+      json: JSON.parse(await readFile(path, 'utf8')),
+      parseError: null
+    }
+  } catch (error) {
+    return {
+      ...state,
+      json: null,
+      parseError: error instanceof Error ? error.message : String(error)
+    }
+  }
+}
+
+async function isolatedVaultContentDigest() {
+  const files = (await listFiles(vault)).filter(
+    (file) => file.relativePath !== '.tsuzune' && !file.relativePath.startsWith('.tsuzune/')
+  )
+  return digestFiles(files)
+}
+
+async function snapshotBookmarkPersistence(label) {
+  return {
+    label,
+    capturedAt: new Date().toISOString(),
+    vaultContent: await isolatedVaultContentDigest(),
+    bookmarks: await optionalJsonFileState(resolve(vault, '.tsuzune/bookmarks.json'))
+  }
+}
+
+function bookmarkPathCount(json, targetPath) {
+  if (!Array.isArray(json)) return 0
+  return json.filter((bookmark) => bookmark?.path === targetPath).length
 }
 
 async function attachmentMoveVaultState() {
@@ -901,6 +956,151 @@ async function activateAttachmentMove(window) {
   }
 }
 
+async function observeBookmarkDialog(window) {
+  return evaluate(window, `new Promise((resolve, reject) => {
+    const deadline = performance.now() + 5000
+    const check = () => {
+      const dialog = document.querySelector('[role="dialog"][aria-labelledby="bookmark-dialog-title"]')
+      if (dialog instanceof HTMLFormElement) {
+        const active = document.activeElement
+        resolve({
+          title: dialog.querySelector('#bookmark-dialog-title')?.textContent?.trim() ?? null,
+          description: dialog.querySelector('p')?.textContent?.trim() ?? null,
+          inputs: [...dialog.querySelectorAll('input')].map((input) => ({
+            name: input.name,
+            value: input.value,
+            placeholder: input.placeholder,
+            disabled: input.disabled
+          })),
+          buttons: [...dialog.querySelectorAll('button')].map((button) => ({
+            text: button.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+            type: button.type,
+            disabled: button.disabled
+          })),
+          activeElement: active instanceof HTMLElement
+            ? { tagName: active.tagName, name: active.getAttribute('name') }
+            : null
+        })
+        return
+      }
+      if (performance.now() >= deadline) {
+        reject(new Error('ブックマークdialogが5秒以内に開きませんでした。'))
+        return
+      }
+      requestAnimationFrame(check)
+    }
+    check()
+  })`)
+}
+
+async function clickBookmarkMenuAction(window) {
+  return evaluate(window, `(() => {
+    const item = [...document.querySelectorAll('.wiki-graph-context-menu [role="menuitem"]')]
+      .find((candidate) => candidate.textContent?.replace(/\\s+/g, ' ').trim().includes('ブックマーク'))
+    if (!(item instanceof HTMLButtonElement) || item.disabled) {
+      throw new Error('有効なブックマーク操作が見つかりません。')
+    }
+    const text = item.textContent?.replace(/\\s+/g, ' ').trim() ?? ''
+    item.click()
+    return text
+  })()`)
+}
+
+async function closeBookmarkDialog(window, save) {
+  await evaluate(window, `(() => {
+    const dialog = document.querySelector('[role="dialog"][aria-labelledby="bookmark-dialog-title"]')
+    if (!(dialog instanceof HTMLFormElement)) throw new Error('ブックマークdialogが見つかりません。')
+    const button = [...dialog.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent?.trim() === ${JSON.stringify(save ? '保存' : 'キャンセル')}
+    )
+    if (!(button instanceof HTMLButtonElement) || button.disabled) {
+      throw new Error('ブックマークdialogの操作buttonが見つかりません。')
+    }
+    button.click()
+  })()`)
+}
+
+async function waitForBookmarkOutcome(window, expectedCount) {
+  const deadline = Date.now() + 15_000
+  let latest = null
+  while (Date.now() < deadline) {
+    const persistence = await snapshotBookmarkPersistence('poll')
+    const ui = await evaluate(window, `({
+      dialogOpen: Boolean(document.querySelector('[role="dialog"][aria-labelledby="bookmark-dialog-title"]')),
+      contextMenuOpen: Boolean(document.querySelector('.wiki-graph-context-menu')),
+      globalGraphVisible: Boolean(document.querySelector('.wiki-graph-view[aria-label="Vault全体グラフ"]'))
+    })`)
+    const count = bookmarkPathCount(persistence.bookmarks.json, 'attachments/diagram.svg')
+    latest = { persistence, ui, count }
+    if (!ui.dialogOpen && !ui.contextMenuOpen && count === expectedCount) return latest
+    await delay(100)
+  }
+  throw new Error(`ブックマーク操作の完了を確認できませんでした: ${JSON.stringify(latest)}`)
+}
+
+async function activateAttachmentBookmark(window) {
+  const beforeAction = await snapshotBookmarkPersistence('before-action')
+  const beforeCount = bookmarkPathCount(beforeAction.bookmarks.json, 'attachments/diagram.svg')
+  const firstMenuAction = await clickBookmarkMenuAction(window)
+  const firstDialog = await observeBookmarkDialog(window)
+  await waitForPaint(window)
+  firstDialog.screenshot = await capture(window, '02-bookmark-dialog.png')
+  await closeBookmarkDialog(window, attachmentBookmarkScenario !== 'cancel')
+  const firstOutcome = await waitForBookmarkOutcome(
+    window,
+    attachmentBookmarkScenario === 'cancel' ? beforeCount : 1
+  )
+
+  let secondMenu = null
+  let secondMenuInput = null
+  let secondMenuAction = null
+  let secondDialog = null
+  if (attachmentBookmarkScenario === 'duplicate') {
+    await waitForTargetNodeStability(window)
+    const opened = await openNodeContextMenu(window, 'attachments/diagram.svg')
+    secondMenuInput = opened.input
+    secondMenu = opened.menu
+    secondMenu.screenshot = await capture(window, '03-duplicate-node-context-menu.png')
+    secondMenuAction = await clickBookmarkMenuAction(window)
+    secondDialog = await observeBookmarkDialog(window)
+    await waitForPaint(window)
+    secondDialog.screenshot = await capture(window, '04-duplicate-bookmark-dialog.png')
+    await closeBookmarkDialog(window, true)
+    await waitForBookmarkOutcome(window, 1)
+  }
+
+  const afterAction = await snapshotBookmarkPersistence('after-action')
+  const uiAfterAction = await evaluate(window, `({
+    dialogOpen: Boolean(document.querySelector('[role="dialog"][aria-labelledby="bookmark-dialog-title"]')),
+    contextMenuOpen: Boolean(document.querySelector('.wiki-graph-context-menu')),
+    globalGraphVisible: Boolean(document.querySelector('.wiki-graph-view[aria-label="Vault全体グラフ"]'))
+  })`)
+  const actionScreenshot = await capture(
+    window,
+    attachmentBookmarkScenario === 'duplicate'
+      ? '05-after-bookmark-action.png'
+      : '03-after-bookmark-action.png'
+  )
+  return {
+    scenario: attachmentBookmarkScenario,
+    firstMenuAction,
+    firstDialog,
+    firstOutcome,
+    secondMenuInput,
+    secondMenu,
+    secondMenuAction,
+    secondDialog,
+    uiAfterAction,
+    persistence: { beforeAction, afterAction },
+    screenshots: [
+      firstDialog.screenshot,
+      secondMenu?.screenshot ?? null,
+      secondDialog?.screenshot ?? null,
+      actionScreenshot
+    ].filter(Boolean)
+  }
+}
+
 async function activateNodeNewTab(window, expectedKind = 'note') {
   const before = await evaluate(
     window,
@@ -1246,7 +1446,7 @@ async function runWorker(phase) {
     if (phase === 'initial') {
       await ensureGlobalGraphControls(window)
       await fillSearch(window, query)
-      if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe) {
+      if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe) {
         await setGraphAttachmentsVisible(window, true)
         await ensureGlobalGraphControls(window)
         await fillSearch(window, query)
@@ -1268,6 +1468,7 @@ async function runWorker(phase) {
       let attachmentNewTab = null
       let attachmentNewWindow = null
       let attachmentMove = null
+      let attachmentBookmark = null
       if (cameraProbe) {
         input = await applyCameraInput(window)
       } else if (nodeDragProbe) {
@@ -1286,13 +1487,13 @@ async function runWorker(phase) {
       if (nodeMenuProbe) {
         const openedMenu = await openNodeContextMenu(
           window,
-          attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe
+          attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe
             ? 'attachments/diagram.svg'
             : drag.targetNodePath
         )
         input = openedMenu.input
         nodeContextMenu = openedMenu.menu
-        if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe) {
+        if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe) {
           attachmentContextMenu = openedMenu.menu
         }
       }
@@ -1355,12 +1556,14 @@ async function runWorker(phase) {
         attachmentNewWindow = await activateAttachmentNewWindow(window, BrowserWindow)
       } else if (attachmentMoveProbe) {
         attachmentMove = await activateAttachmentMove(window)
+      } else if (attachmentBookmarkProbe) {
+        attachmentBookmark = await activateAttachmentBookmark(window)
       }
       const settingsAfterInput = cameraProbe
         ? await waitForSavedScale(cameraFromState(entered).scale)
         : await waitForSavedQuery(query)
 
-      if (nodeMenuProbe && !nodeNewTabProbe && !attachmentMoveProbe) {
+      if (nodeMenuProbe && !nodeNewTabProbe && !attachmentMoveProbe && !attachmentBookmarkProbe) {
         await closeNodeContextMenu(window)
       }
 
@@ -1375,9 +1578,18 @@ async function runWorker(phase) {
       let reopened = await waitForStableGraph(window, query)
       if (attachmentMoveProbe) reopened = await waitForAttachmentMoveGraph(window, 'after')
       if (nodeDragProbe || nodeMenuProbe) reopened = await waitForTargetNodeStability(window)
+      if (attachmentBookmarkProbe) {
+        attachmentBookmark.persistence.afterGraphReopen = await snapshotBookmarkPersistence(
+          'after-graph-reopen'
+        )
+      }
       const reopenedScreenshot = await capture(
         window,
-        attachmentMoveProbe
+        attachmentBookmarkProbe
+          ? attachmentBookmarkScenario === 'duplicate'
+            ? '06-after-graph-reopen.png'
+            : '04-after-graph-reopen.png'
+          : attachmentMoveProbe
           ? '04-after-graph-reopen.png'
           : nodeMenuProbe
           ? '02-after-graph-reopen.png'
@@ -1416,6 +1628,7 @@ async function runWorker(phase) {
           attachmentNewTab,
           attachmentNewWindow,
           attachmentMove,
+          attachmentBookmark,
           entered,
           reopened,
           settingsGraphViewState: settingsAfterInput.graphViewStates.vault,
@@ -1428,6 +1641,7 @@ async function runWorker(phase) {
             attachmentNewTabScreenshot,
             attachmentNewWindow?.screenshot ?? null,
             ...(attachmentMove?.screenshots ?? []),
+            ...(attachmentBookmark?.screenshots ?? []),
             reopenedScreenshot
           ].filter(Boolean)
         }, null, 2)}\n`,
@@ -1438,9 +1652,16 @@ async function runWorker(phase) {
       let restarted = await waitForStableGraph(window, query)
       if (attachmentMoveProbe) restarted = await waitForAttachmentMoveGraph(window, 'after')
       if (nodeDragProbe || nodeMenuProbe) restarted = await waitForTargetNodeStability(window)
+      const bookmarkPersistenceAfterAppRestart = attachmentBookmarkProbe
+        ? await snapshotBookmarkPersistence('after-app-restart')
+        : null
       const restartedScreenshot = await capture(
         window,
-        attachmentMoveProbe
+        attachmentBookmarkProbe
+          ? attachmentBookmarkScenario === 'duplicate'
+            ? '07-after-app-restart.png'
+            : '05-after-app-restart.png'
+          : attachmentMoveProbe
           ? '05-after-app-restart.png'
           : nodeMenuProbe
           ? '03-after-app-restart.png'
@@ -1461,6 +1682,7 @@ async function runWorker(phase) {
           processId: process.pid,
           windowGeometry,
           restarted,
+          bookmarkPersistenceAfterAppRestart,
           settingsGraphViewState: settingsAfterRestart.graphViewStates.vault,
           screenshots: [restartedScreenshot]
         }, null, 2)}\n`,
@@ -1522,6 +1744,8 @@ function runWorkerProcess(phase) {
         TSUZUNE_GRAPH_ATTACHMENT_NEW_WINDOW_PROBE: attachmentNewWindowProbe ? '1' : '',
         TSUZUNE_GRAPH_ATTACHMENT_MOVE_PROBE: attachmentMoveProbe ? '1' : '',
         TSUZUNE_GRAPH_ATTACHMENT_MOVE_SCENARIO: attachmentMoveScenario,
+        TSUZUNE_GRAPH_ATTACHMENT_BOOKMARK_PROBE: attachmentBookmarkProbe ? '1' : '',
+        TSUZUNE_GRAPH_ATTACHMENT_BOOKMARK_SCENARIO: attachmentBookmarkScenario,
         TSUZUNE_GRAPH_SEARCH_RESTART_PHASE: phase
       }
     }
@@ -1577,14 +1801,19 @@ async function runController() {
     productSource: await selectedProductSourceDigest(),
     builtApplication: await treeDigest(resolve(repoRoot, 'out')),
     isolatedMarkdown: await treeDigest(vault, { extension: '.md' }),
+    isolatedVaultContent: await isolatedVaultContentDigest(),
     isolatedVault: await treeDigest(vault)
   }
   const repository = gitIdentity()
+  let bookmarkPersistenceAfterFirstProcessExit = null
+  let bookmarkPersistenceAfterSecondProcessExit = null
 
   try {
     stage(
       nodeDragProbe
         ? 'node drag入力とGraph再表示をcaptureします。'
+        : attachmentBookmarkProbe
+          ? `添付ブックマーク（${attachmentBookmarkScenario}）とGraph再表示をcaptureします。`
         : attachmentMoveProbe
           ? `添付ファイル移動（${attachmentMoveScenario}）とGraph再表示をcaptureします。`
         : nodeMenuProbe
@@ -1594,8 +1823,18 @@ async function runController() {
           : 'query入力とGraph再表示をcaptureします。'
     )
     runWorkerProcess('initial')
+    if (attachmentBookmarkProbe) {
+      bookmarkPersistenceAfterFirstProcessExit = await snapshotBookmarkPersistence(
+        'after-first-process-exit'
+      )
+    }
     stage('別processでアプリ再起動後をcaptureします。')
     runWorkerProcess('restarted')
+    if (attachmentBookmarkProbe) {
+      bookmarkPersistenceAfterSecondProcessExit = await snapshotBookmarkPersistence(
+        'after-second-process-exit'
+      )
+    }
   } catch (error) {
     stopIsolatedProcesses()
     throw error
@@ -1606,6 +1845,7 @@ async function runController() {
     productSource: await selectedProductSourceDigest(),
     builtApplication: await treeDigest(resolve(repoRoot, 'out')),
     isolatedMarkdown: await treeDigest(vault, { extension: '.md' }),
+    isolatedVaultContent: await isolatedVaultContentDigest(),
     isolatedVault: await treeDigest(vault)
   }
   const initial = JSON.parse(await readFile(resolve(outputRoot, 'phase-initial.json'), 'utf8'))
@@ -1663,6 +1903,23 @@ async function runController() {
     ? initial.attachmentNewWindow
     : null
   const attachmentMoveContract = attachmentMoveProbe ? initial.attachmentMove : null
+  const attachmentBookmarkContract = attachmentBookmarkProbe ? initial.attachmentBookmark : null
+  const bookmarkPersistence = attachmentBookmarkProbe
+    ? {
+        ...attachmentBookmarkContract.persistence,
+        afterFirstProcessExit: bookmarkPersistenceAfterFirstProcessExit,
+        afterAppRestart: restarted.bookmarkPersistenceAfterAppRestart,
+        afterSecondProcessExit: bookmarkPersistenceAfterSecondProcessExit
+      }
+    : null
+  const bookmarkCounts = attachmentBookmarkProbe
+    ? Object.fromEntries(
+        Object.entries(bookmarkPersistence).map(([key, snapshot]) => [
+          key,
+          bookmarkPathCount(snapshot.bookmarks.json, 'attachments/diagram.svg')
+        ])
+      )
+    : null
   const postActionGraph = attachmentMoveContract?.graphAfterAction ?? initial.entered
   const sameDigest = (left, right) =>
     left?.exists === true &&
@@ -1698,10 +1955,14 @@ async function runController() {
     isolatedMarkdownUnchanged:
       protectionBefore.isolatedMarkdown.combinedSha256 ===
       protectionAfter.isolatedMarkdown.combinedSha256,
+    isolatedVaultContentUnchanged:
+      protectionBefore.isolatedVaultContent.combinedSha256 ===
+      protectionAfter.isolatedVaultContent.combinedSha256,
     isolatedVaultChangedOnlyWhenMoving:
-      (protectionBefore.isolatedVault.combinedSha256 ===
+      attachmentBookmarkProbe ||
+      ((protectionBefore.isolatedVault.combinedSha256 ===
         protectionAfter.isolatedVault.combinedSha256) ===
-      (attachmentMoveScenario === 'cancel' || !attachmentMoveProbe),
+        (attachmentMoveScenario === 'cancel' || !attachmentMoveProbe)),
     noIsolatedProcessesRemaining: processesUsingCommandLineFragment(userData).length === 0
   }
   const assertions = nodeDragProbe
@@ -1832,6 +2093,94 @@ async function runController() {
                       : '20_knowledge/diagram.svg'
                   )
                 ),
+          ...sharedAssertions
+        }
+    : attachmentBookmarkProbe
+      ? {
+          exactNodeSetAtEveryCheckpoint: [
+            initial.baseline,
+            initial.entered,
+            initial.reopened,
+            restarted.restarted
+          ].every(
+            (state) => JSON.stringify(state.nodePaths) === JSON.stringify(expectedCameraNodePaths)
+          ),
+          attachmentContextMenuOpened: Boolean(initial.attachmentContextMenu?.items?.length),
+          bookmarkMenuItemRecorded:
+            initial.attachmentContextMenu?.items?.some(
+              (item) => item.text === 'ブックマーク…'
+            ) === true,
+          bookmarkDialogRecorded:
+            attachmentBookmarkContract.firstDialog?.title === 'ブックマークを追加' &&
+            attachmentBookmarkContract.firstDialog?.description === 'attachments/diagram.svg' &&
+            attachmentBookmarkContract.firstDialog?.buttons?.some(
+              (button) => button.text === 'キャンセル'
+            ) === true &&
+            attachmentBookmarkContract.firstDialog?.buttons?.some(
+              (button) => button.text === '保存'
+            ) === true,
+          dialogAndContextMenuClosed:
+            attachmentBookmarkContract.uiAfterAction?.dialogOpen === false &&
+            attachmentBookmarkContract.uiAfterAction?.contextMenuOpen === false,
+          globalGraphRemainedVisible:
+            attachmentBookmarkContract.uiAfterAction?.globalGraphVisible === true,
+          bookmarkCountsMatchScenario:
+            bookmarkCounts.beforeAction === 0 &&
+            Object.entries(bookmarkCounts).every(([stageName, count]) =>
+              stageName === 'beforeAction'
+                ? count === 0
+                : count === (attachmentBookmarkScenario === 'cancel' ? 0 : 1)
+            ),
+          bookmarksJsonMatchesScenario:
+            attachmentBookmarkScenario === 'cancel'
+              ? Object.values(bookmarkPersistence).every(
+                  (snapshot) => snapshot.bookmarks.exists === false
+                )
+              : Object.entries(bookmarkPersistence).every(([stageName, snapshot]) =>
+                  stageName === 'beforeAction'
+                    ? snapshot.bookmarks.exists === false
+                    : snapshot.bookmarks.exists === true &&
+                      snapshot.bookmarks.parseError === null &&
+                      Array.isArray(snapshot.bookmarks.json)
+                ),
+          bookmarkPersistsAfterGraphReopen:
+            bookmarkCounts.afterGraphReopen ===
+            (attachmentBookmarkScenario === 'cancel' ? 0 : 1),
+          bookmarkPersistsAfterFirstProcessExit:
+            bookmarkCounts.afterFirstProcessExit ===
+            (attachmentBookmarkScenario === 'cancel' ? 0 : 1),
+          bookmarkPersistsAfterAppRestart:
+            bookmarkCounts.afterAppRestart ===
+            (attachmentBookmarkScenario === 'cancel' ? 0 : 1),
+          bookmarkPersistsAfterSecondProcessExit:
+            bookmarkCounts.afterSecondProcessExit ===
+            (attachmentBookmarkScenario === 'cancel' ? 0 : 1),
+          duplicateBookmarkRemainsSingle:
+            attachmentBookmarkScenario !== 'duplicate' ||
+            (attachmentBookmarkContract.secondMenu?.items?.some(
+              (item) => item.text === 'ブックマークを編集'
+            ) === true &&
+              attachmentBookmarkContract.secondDialog?.title === 'ブックマークを編集' &&
+              bookmarkCounts.afterSecondProcessExit === 1),
+          bookmarkFileStableAfterAction:
+            attachmentBookmarkScenario === 'cancel' ||
+            [
+              bookmarkPersistence.afterAction,
+              bookmarkPersistence.afterGraphReopen,
+              bookmarkPersistence.afterFirstProcessExit,
+              bookmarkPersistence.afterAppRestart,
+              bookmarkPersistence.afterSecondProcessExit
+            ].every(
+              (snapshot) =>
+                snapshot.bookmarks.sha256 ===
+                bookmarkPersistence.afterAction.bookmarks.sha256
+            ),
+          vaultContentDigestStableAtEveryCheckpoint:
+            Object.values(bookmarkPersistence).every(
+              (snapshot) =>
+                snapshot.vaultContent.combinedSha256 ===
+                bookmarkPersistence.beforeAction.vaultContent.combinedSha256
+            ),
           ...sharedAssertions
         }
     : nodeMenuProbe
@@ -1965,6 +2314,8 @@ async function runController() {
     attachmentNewWindowProbe,
     attachmentMoveProbe,
     attachmentMoveScenario: attachmentMoveProbe ? attachmentMoveScenario : null,
+    attachmentBookmarkProbe,
+    attachmentBookmarkScenario: attachmentBookmarkProbe ? attachmentBookmarkScenario : null,
     cameraContract,
     nodeDragContract,
     nodeMenuContract,
@@ -1972,6 +2323,9 @@ async function runController() {
     attachmentNewTabContract,
     attachmentNewWindowContract,
     attachmentMoveContract,
+    attachmentBookmarkContract,
+    bookmarkCounts,
+    bookmarkPersistence,
     repository,
     initial,
     restarted,
@@ -1986,7 +2340,27 @@ async function runController() {
   )
 
   const artifactPaths = [
-    ...(attachmentMoveProbe
+    ...(attachmentBookmarkProbe
+      ? attachmentBookmarkScenario === 'duplicate'
+        ? [
+            '00-baseline.png',
+            '01-node-context-menu.png',
+            '02-bookmark-dialog.png',
+            '03-duplicate-node-context-menu.png',
+            '04-duplicate-bookmark-dialog.png',
+            '05-after-bookmark-action.png',
+            '06-after-graph-reopen.png',
+            '07-after-app-restart.png'
+          ]
+        : [
+            '00-baseline.png',
+            '01-node-context-menu.png',
+            '02-bookmark-dialog.png',
+            '03-after-bookmark-action.png',
+            '04-after-graph-reopen.png',
+            '05-after-app-restart.png'
+          ]
+      : attachmentMoveProbe
       ? [
           '00-baseline.png',
           '01-node-context-menu.png',
@@ -2060,7 +2434,9 @@ async function runController() {
   ].map((name) => resolve(outputRoot, name))
   const manifest = {
     capturedAt: observation.capturedAt,
-    stage: attachmentMoveProbe
+    stage: attachmentBookmarkProbe
+      ? `GP0-3b-k Global Graph attachment bookmark (${attachmentBookmarkScenario}) working-tree evidence`
+      : attachmentMoveProbe
       ? `GP0-3b-j Global Graph attachment file move (${attachmentMoveScenario}) working-tree evidence`
       : nodeDragProbe
       ? 'GP0-3b-d Global Graph node drag lifecycle working-tree evidence'
@@ -2078,7 +2454,9 @@ async function runController() {
         ? 'GP0-3b-c Global Graph camera persistence working-tree evidence'
         : 'GP0-3b Global Graph search persistence working-tree evidence',
     status: completed ? 'captured' : 'failed',
-    comparisonStatus: attachmentMoveProbe
+    comparisonStatus: attachmentBookmarkProbe
+      ? `Compare with docs/reports/assets/graph-gp0-attachment-bookmark/${attachmentBookmarkScenario}/obsidian-1.13.4/observation.json`
+      : attachmentMoveProbe
       ? `Compare with docs/reports/assets/graph-gp0-attachment-file-move/${attachmentMoveScenario}/obsidian-1.13.4/observation.json`
       : nodeDragProbe
       ? 'Compare with docs/reports/assets/graph-gp0-node-drag-persistence/comparison.json'
@@ -2095,7 +2473,9 @@ async function runController() {
       : cameraProbe
         ? 'Compare with docs/reports/assets/graph-gp0-camera-persistence/comparison.json'
         : 'Compare with docs/reports/assets/graph-gp0-search-persistence/comparison.json',
-    command: attachmentMoveProbe
+    command: attachmentBookmarkProbe
+      ? `npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-bookmark --bookmark-scenario=${attachmentBookmarkScenario}`
+      : attachmentMoveProbe
       ? `npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-move --move-scenario=${attachmentMoveScenario}`
       : nodeDragProbe
       ? 'npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --node-drag'
@@ -2124,10 +2504,31 @@ async function runController() {
       },
       network: 'host resolver blocked except localhost'
     },
+    evidenceBoundary: attachmentBookmarkProbe
+      ? {
+          established: [
+            'Fresh isolated fixture Vault and userData profile',
+            'Public TSUZUNE graph node context menu and bookmark dialog were used',
+            'Synthetic CDP mouse input opened the node menu; DOM button activation exercised public UI handlers',
+            'Global Graph was closed and reopened before capture',
+            'A distinct Electron process reopened the same isolated Vault',
+            'Vault content and .tsuzune/bookmarks.json were hashed at each checkpoint'
+          ],
+          notEstablished: [
+            'Physical mouse or keyboard input',
+            'Visible onscreen foreground-window interaction',
+            'Touch or pen input',
+            'Screen reader or Windows High Contrast acceptance',
+            'Multi-DPI or pixel-identical parity'
+          ]
+        }
+      : null,
     processIds: [initial.processId, restarted.processId],
     assertions,
     artifacts: await Promise.all(artifactPaths.map(artifactSummary)),
-    next: attachmentMoveProbe
+    next: attachmentBookmarkProbe
+      ? `Compare the ${attachmentBookmarkScenario} scenario with the fixed Obsidian 1.13.4 evidence.`
+      : attachmentMoveProbe
       ? `Compare the ${attachmentMoveScenario} scenario with the fixed Obsidian 1.13.4 evidence.`
       : nodeDragProbe
       ? 'Document the observed Obsidian/TSUZUNE node drag lifecycle contract before the next parity slice.'

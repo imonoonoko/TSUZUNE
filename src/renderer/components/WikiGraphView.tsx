@@ -75,6 +75,8 @@ interface WikiGraphViewProps {
   onOpenInNewTab?: (path: string) => void
   onOpenInNewWindow?: (path: string) => void
   onMove?: (path: string) => void
+  bookmarkedPaths?: ReadonlySet<string>
+  onBookmark?: (path: string) => void
   onTrash?: (path: string) => void
   onOpen: (path: string) => void
 }
@@ -249,6 +251,8 @@ export default function WikiGraphView({
   onOpenInNewTab,
   onOpenInNewWindow,
   onMove,
+  bookmarkedPaths = new Set(),
+  onBookmark,
   onTrash,
   onOpen
 }: WikiGraphViewProps): React.JSX.Element {
@@ -1682,17 +1686,32 @@ export default function WikiGraphView({
                 {nodeContextMenu.node.exists !== false &&
                   nodeContextMenu.node.kind !== 'tag' &&
                   nodeContextMenu.node.kind !== 'unresolved' && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      disabled={!onMove}
-                      onClick={() => {
-                        onMove?.(nodeContextMenu.node.path)
-                        setNodeContextMenu(null)
-                      }}
-                    >
-                      ファイルを移動…
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        disabled={!onMove}
+                        onClick={() => {
+                          onMove?.(nodeContextMenu.node.path)
+                          setNodeContextMenu(null)
+                        }}
+                      >
+                        ファイルを移動…
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        disabled={!onBookmark}
+                        onClick={() => {
+                          onBookmark?.(nodeContextMenu.node.path)
+                          setNodeContextMenu(null)
+                        }}
+                      >
+                        {bookmarkedPaths.has(nodeContextMenu.node.path)
+                          ? 'ブックマークを編集'
+                          : 'ブックマーク…'}
+                      </button>
+                    </>
                   )}
                 <button
                   type="button"

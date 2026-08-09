@@ -844,6 +844,7 @@ describe('WikiGraphView', () => {
       screen.getByRole('button', { name: 'Missing（リンク先）を開く' })
     )
     expect(screen.queryByRole('menuitem', { name: 'ファイルを移動…' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'ブックマーク…' })).toBeNull()
   })
 
   it('opens the file context menu for file-backed nodes and exposes real callbacks only', async () => {
@@ -851,6 +852,7 @@ describe('WikiGraphView', () => {
     const onOpenInNewTab = vi.fn()
     const onOpenInNewWindow = vi.fn()
     const onMove = vi.fn()
+    const onBookmark = vi.fn()
     const onTrash = vi.fn()
     const graph: WikiGraph = {
       nodes: [
@@ -876,6 +878,7 @@ describe('WikiGraphView', () => {
         onOpenInNewTab={onOpenInNewTab}
         onOpenInNewWindow={onOpenInNewWindow}
         onMove={onMove}
+        onBookmark={onBookmark}
         onTrash={onTrash}
         onOpen={() => undefined}
       />
@@ -913,8 +916,17 @@ describe('WikiGraphView', () => {
       '新規タブに開く',
       '新規ウィンドウで開く',
       'ファイルを移動…',
+      'ブックマーク…',
       'ファイルを削除'
     ])
+    await user.click(screen.getByRole('menuitem', { name: 'ブックマーク…' }))
+    expect(onBookmark).toHaveBeenCalledWith('assets/diagram.png')
+
+    fireEvent.contextMenu(
+      screen.getByRole('button', {
+        name: 'diagram.png（添付書類）を開く'
+      })
+    )
     await user.click(screen.getByRole('menuitem', { name: 'ファイルを移動…' }))
     expect(onMove).toHaveBeenCalledWith('assets/diagram.png')
 
@@ -931,6 +943,39 @@ describe('WikiGraphView', () => {
     )
     await user.click(screen.getByRole('menuitem', { name: 'ファイルを移動…' }))
     expect(onMove).toHaveBeenLastCalledWith('A.md')
+  })
+
+  it('offers bookmark editing for an already-bookmarked file node', () => {
+    render(
+      <WikiGraphView
+        graph={{
+          nodes: [
+            {
+              path: 'assets/diagram.png',
+              name: 'diagram.png',
+              kind: 'attachment',
+              exists: true
+            }
+          ],
+          edges: []
+        }}
+        currentPath={null}
+        scope="vault"
+        includeOrphans
+        bookmarkedPaths={new Set(['assets/diagram.png'])}
+        onScopeChange={() => undefined}
+        onIncludeOrphansChange={() => undefined}
+        onBookmark={() => undefined}
+        onOpen={() => undefined}
+      />
+    )
+
+    fireEvent.contextMenu(
+      screen.getByRole('button', { name: 'diagram.png（添付書類）を開く' })
+    )
+    expect(
+      screen.getByRole('menuitem', { name: 'ブックマークを編集' })
+    ).toBeTruthy()
   })
 
   it('does not pretend in-place opening is a new tab', () => {

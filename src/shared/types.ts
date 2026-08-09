@@ -41,12 +41,27 @@ export interface VaultAttachment {
   size: number
 }
 
+export interface VaultBookmark {
+  type: 'file'
+  path: string
+  title?: string
+  group?: string
+  ctime: number
+}
+
+export interface SaveBookmarkInput {
+  path: string
+  title?: string
+  group?: string
+}
+
 export interface VaultSnapshot {
   rootPath: string
   rootName: string
   directories: string[]
   notes: NoteDocument[]
   attachments?: VaultAttachment[]
+  bookmarks?: VaultBookmark[]
 }
 
 export interface SaveNoteInput {
@@ -280,6 +295,8 @@ export interface TsuzuneApi {
   renameEntry(input: RenameEntryInput): Promise<Result<EntryOperationOutput>>
   moveNote(input: MoveNoteInput): Promise<Result<EntryOperationOutput>>
   trashEntry(path: string): Promise<Result<EntryOperationOutput>>
+  saveBookmark(input: SaveBookmarkInput): Promise<Result<VaultBookmark>>
+  removeBookmark(path: string): Promise<Result<null>>
   setLastNote(path: string | null): Promise<Result<null>>
   setUserIgnoreFilters(filters: string[]): Promise<Result<null>>
   setGraphForces(settings: GraphForceSettings): Promise<Result<null>>

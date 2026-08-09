@@ -19,6 +19,7 @@ import type {
   PairDriveVaultInput,
   RenameEntryInput,
   Result,
+  SaveBookmarkInput,
   SaveNoteInput
 } from '../shared/types'
 import { parseGraphForceSettings } from '../shared/graph-settings'
@@ -320,6 +321,15 @@ export function registerIpc(
 
   registerTrusted('entry:trash', async (path: string) => {
     return vault.trashEntry(path)
+  })
+
+  registerTrusted('bookmark:save', async (input: SaveBookmarkInput) => {
+    return vault.saveBookmark(input)
+  })
+
+  registerTrusted('bookmark:remove', async (path: string) => {
+    await vault.removeBookmark(path)
+    return null
   })
 
   registerTrusted('settings:setLastNote', async (path: string | null) => {

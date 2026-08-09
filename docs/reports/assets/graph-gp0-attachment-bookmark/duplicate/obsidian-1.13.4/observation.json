@@ -1,0 +1,2992 @@
+{
+  "expected": {
+    "version": "1.13.4",
+    "installerSha256": "8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0",
+    "asarSha256": "51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917",
+    "markdownCount": 7,
+    "search": "",
+    "filteredNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note",
+      "attachments/diagram.svg"
+    ],
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "drag": {
+      "targetNodeId": "attachments/diagram.svg",
+      "deltaX": 96,
+      "deltaY": 64
+    }
+  },
+  "beforeEntry": {
+    "label": "before-node-context-menu",
+    "capturedAt": "2026-08-09T04:17:47.753Z",
+    "processId": 1544,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-bookmark-duplicate-capture\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "",
+    "graphOptionsSearch": "",
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note",
+      "attachments/diagram.svg"
+    ],
+    "renderedNodeCount": 9,
+    "renderedLinkCount": 13,
+    "renderedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md"
+      },
+      {
+        "source": "00_Home.md",
+        "target": "20_knowledge/Reference.md"
+      },
+      {
+        "source": "00_Home.md",
+        "target": "attachments/diagram.svg"
+      },
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "20_knowledge/Reference.md"
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md"
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md"
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md"
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "00_Home.md"
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "20_knowledge/Distillation.md"
+      },
+      {
+        "source": "80_excluded/Hidden.md",
+        "target": "00_Home.md"
+      }
+    ],
+    "metadataResolvedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "20_knowledge/Reference.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "attachments/diagram.svg",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "20_knowledge/Reference.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "20_knowledge/Distillation.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "80_excluded/Hidden.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      }
+    ],
+    "metadataUnresolvedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note",
+        "count": 1,
+        "resolved": false
+      }
+    ],
+    "targetNode": {
+      "id": "attachments/diagram.svg",
+      "x": -45.30889129638672,
+      "y": -154.74102783203125,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 759.1911087036133,
+      "clientY": 268.22772216796875
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-attachment-bookmark/duplicate/obsidian-1.13.4/00-baseline.png",
+      "bytes": 76290,
+      "sha256": "868DF7AE9F47F41CCA5C5BC591D4E980BDFFCF4BAC6981D0F50DFFE987174F5C"
+    }
+  },
+  "afterEntry": {
+    "label": "after-entry",
+    "capturedAt": "2026-08-09T04:17:47.828Z",
+    "processId": 1544,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-bookmark-duplicate-capture\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "",
+    "graphOptionsSearch": "",
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note",
+      "attachments/diagram.svg"
+    ],
+    "renderedNodeCount": 9,
+    "renderedLinkCount": 13,
+    "renderedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md"
+      },
+      {
+        "source": "00_Home.md",
+        "target": "20_knowledge/Reference.md"
+      },
+      {
+        "source": "00_Home.md",
+        "target": "attachments/diagram.svg"
+      },
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "20_knowledge/Reference.md"
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md"
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md"
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md"
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "00_Home.md"
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "20_knowledge/Distillation.md"
+      },
+      {
+        "source": "80_excluded/Hidden.md",
+        "target": "00_Home.md"
+      }
+    ],
+    "metadataResolvedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "20_knowledge/Reference.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "attachments/diagram.svg",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "20_knowledge/Reference.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "20_knowledge/Distillation.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "80_excluded/Hidden.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      }
+    ],
+    "metadataUnresolvedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note",
+        "count": 1,
+        "resolved": false
+      }
+    ],
+    "targetNode": {
+      "id": "attachments/diagram.svg",
+      "x": -45.43235778808594,
+      "y": -154.75308227539062,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 759.0676422119141,
+      "clientY": 268.2156677246094
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true
+  },
+  "bookmarkPersistence": {
+    "beforeAction": {
+      "label": "before-action",
+      "capturedAt": "2026-08-09T04:17:47.831Z",
+      "vaultContent": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3",
+        "files": [
+          {
+            "path": ".tsuzune/graph-file-times.json",
+            "bytes": 389,
+            "sha256": "A0BD3AAB7EAB2E0A7EAF7B567986FD93257342CABA97B8AD966DC1D9D19675A8"
+          },
+          {
+            "path": "00_Home.md",
+            "bytes": 139,
+            "sha256": "6427EC7102182E41BFC3E01257DF47974411E6142E74DAF043EE0D83275E8245"
+          },
+          {
+            "path": "10_projects/Project Alpha.md",
+            "bytes": 126,
+            "sha256": "EA436466218EC04E5FE3FB980C0C461BD1BF88A040539352F386F3AEB271F151"
+          },
+          {
+            "path": "10_projects/Project Beta.md",
+            "bytes": 85,
+            "sha256": "3C64509F2D6BEEC2D671808300C0B74F2F1D013D34D771F6C95481A7BC4C5006"
+          },
+          {
+            "path": "20_knowledge/Distillation.md",
+            "bytes": 103,
+            "sha256": "0DAF1774CBED1CC3538294B379F13E8ADE4EBDDA39F240887D1ADF76866CFBAE"
+          },
+          {
+            "path": "20_knowledge/Reference.md",
+            "bytes": 58,
+            "sha256": "36A49D5209013A7B47841A3BCB51AD8EB5CF47589FE71BAE2A7064EDF6A46CB8"
+          },
+          {
+            "path": "80_excluded/Hidden.md",
+            "bytes": 35,
+            "sha256": "D939F2F96B1CC7D6AD7BA6148791DC1B3A1E9C2591570468718471C494F4470F"
+          },
+          {
+            "path": "90_orphan/Orphan.md",
+            "bytes": 71,
+            "sha256": "84BA3D8EC90330596B6DA14D61C15205D2A95ECE20A8C051626188CD1F010BAC"
+          },
+          {
+            "path": "attachments/diagram.svg",
+            "bytes": 442,
+            "sha256": "4D0C9C3B4080FB4FF53B7E327A81E65718AD7629DD1462A7815C06D8A6B322EA"
+          }
+        ]
+      },
+      "workspace": {
+        "exists": true,
+        "bytes": 5064,
+        "sha256": "DB8156AD8AEC2AEC4D30667DE1B031CCAEEE33760D986A207D438E529ABC9E32",
+        "json": {
+          "main": {
+            "id": "1d2e38355af2ee8f",
+            "type": "split",
+            "children": [
+              {
+                "id": "3e4908c025b2bb9f",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "9b7cc0353c4fdbe8",
+                    "type": "leaf",
+                    "state": {
+                      "type": "graph",
+                      "state": {},
+                      "icon": "lucide-git-fork",
+                      "title": "グラフビュー"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "vertical"
+          },
+          "left": {
+            "id": "fbaf301f59bbf455",
+            "type": "split",
+            "children": [
+              {
+                "id": "dc69bdde4fce12c8",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "625d227fa7890a02",
+                    "type": "leaf",
+                    "state": {
+                      "type": "file-explorer",
+                      "state": {
+                        "sortOrder": "alphabetical",
+                        "autoReveal": false,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-folder-closed",
+                      "title": "ファイルエクスプローラ"
+                    }
+                  },
+                  {
+                    "id": "594266494781f7f0",
+                    "type": "leaf",
+                    "state": {
+                      "type": "search",
+                      "state": {
+                        "query": "",
+                        "matchingCase": false,
+                        "explainSearch": false,
+                        "collapseAll": false,
+                        "extraContext": false,
+                        "sortOrder": "alphabetical"
+                      },
+                      "icon": "lucide-search",
+                      "title": "検索"
+                    }
+                  },
+                  {
+                    "id": "b252a33ee9a0d66e",
+                    "type": "leaf",
+                    "state": {
+                      "type": "bookmarks",
+                      "state": {
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-bookmark",
+                      "title": "ブックマーク"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "horizontal",
+            "width": 300
+          },
+          "right": {
+            "id": "2b3b0bc324aa4eda",
+            "type": "split",
+            "children": [
+              {
+                "id": "25e3f3d06870298b",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "2ac970069aeeb760",
+                    "type": "leaf",
+                    "state": {
+                      "type": "backlink",
+                      "state": {
+                        "collapseAll": false,
+                        "extraContext": false,
+                        "sortOrder": "alphabetical",
+                        "showSearch": false,
+                        "searchQuery": "",
+                        "backlinkCollapsed": false,
+                        "unlinkedCollapsed": true
+                      },
+                      "icon": "links-coming-in",
+                      "title": "バックリンク"
+                    }
+                  },
+                  {
+                    "id": "1f17ad779f10109a",
+                    "type": "leaf",
+                    "state": {
+                      "type": "outgoing-link",
+                      "state": {
+                        "linksCollapsed": false,
+                        "unlinkedCollapsed": true
+                      },
+                      "icon": "links-going-out",
+                      "title": "アウトゴーイングリンク"
+                    }
+                  },
+                  {
+                    "id": "0c8d9e7f13dac571",
+                    "type": "leaf",
+                    "state": {
+                      "type": "tag",
+                      "state": {
+                        "sortOrder": "frequency",
+                        "useHierarchy": true,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-tags",
+                      "title": "タグ"
+                    }
+                  },
+                  {
+                    "id": "540fb9d893adca21",
+                    "type": "leaf",
+                    "state": {
+                      "type": "all-properties",
+                      "state": {
+                        "sortOrder": "frequency",
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-archive",
+                      "title": "すべてのプロパティ"
+                    }
+                  },
+                  {
+                    "id": "04ea223f079afdc2",
+                    "type": "leaf",
+                    "state": {
+                      "type": "outline",
+                      "state": {
+                        "followCursor": false,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-list",
+                      "title": "アウトライン"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "horizontal",
+            "width": 300,
+            "collapsed": true
+          },
+          "left-ribbon": {
+            "hiddenItems": {
+              "switcher:クイックスイッチャーを開く": false,
+              "graph:グラフビューを開く": false,
+              "canvas:新規キャンバスを作成": false,
+              "daily-notes:今日のデイリーノートを開く": false,
+              "templates:テンプレートを挿入": false,
+              "command-palette:コマンドパレットを開く": false,
+              "bases:新規ベースを作成": false
+            }
+          },
+          "active": "9b7cc0353c4fdbe8",
+          "lastOpenFiles": [
+            "00_Home.md"
+          ]
+        },
+        "parseError": null
+      },
+      "bookmarks": {
+        "exists": false,
+        "bytes": 0,
+        "sha256": null,
+        "json": null,
+        "parseError": null
+      }
+    },
+    "afterAction": {
+      "label": "after-action",
+      "capturedAt": "2026-08-09T04:17:50.262Z",
+      "vaultContent": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3",
+        "files": [
+          {
+            "path": ".tsuzune/graph-file-times.json",
+            "bytes": 389,
+            "sha256": "A0BD3AAB7EAB2E0A7EAF7B567986FD93257342CABA97B8AD966DC1D9D19675A8"
+          },
+          {
+            "path": "00_Home.md",
+            "bytes": 139,
+            "sha256": "6427EC7102182E41BFC3E01257DF47974411E6142E74DAF043EE0D83275E8245"
+          },
+          {
+            "path": "10_projects/Project Alpha.md",
+            "bytes": 126,
+            "sha256": "EA436466218EC04E5FE3FB980C0C461BD1BF88A040539352F386F3AEB271F151"
+          },
+          {
+            "path": "10_projects/Project Beta.md",
+            "bytes": 85,
+            "sha256": "3C64509F2D6BEEC2D671808300C0B74F2F1D013D34D771F6C95481A7BC4C5006"
+          },
+          {
+            "path": "20_knowledge/Distillation.md",
+            "bytes": 103,
+            "sha256": "0DAF1774CBED1CC3538294B379F13E8ADE4EBDDA39F240887D1ADF76866CFBAE"
+          },
+          {
+            "path": "20_knowledge/Reference.md",
+            "bytes": 58,
+            "sha256": "36A49D5209013A7B47841A3BCB51AD8EB5CF47589FE71BAE2A7064EDF6A46CB8"
+          },
+          {
+            "path": "80_excluded/Hidden.md",
+            "bytes": 35,
+            "sha256": "D939F2F96B1CC7D6AD7BA6148791DC1B3A1E9C2591570468718471C494F4470F"
+          },
+          {
+            "path": "90_orphan/Orphan.md",
+            "bytes": 71,
+            "sha256": "84BA3D8EC90330596B6DA14D61C15205D2A95ECE20A8C051626188CD1F010BAC"
+          },
+          {
+            "path": "attachments/diagram.svg",
+            "bytes": 442,
+            "sha256": "4D0C9C3B4080FB4FF53B7E327A81E65718AD7629DD1462A7815C06D8A6B322EA"
+          }
+        ]
+      },
+      "workspace": {
+        "exists": true,
+        "bytes": 5064,
+        "sha256": "DB8156AD8AEC2AEC4D30667DE1B031CCAEEE33760D986A207D438E529ABC9E32",
+        "json": {
+          "main": {
+            "id": "1d2e38355af2ee8f",
+            "type": "split",
+            "children": [
+              {
+                "id": "3e4908c025b2bb9f",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "9b7cc0353c4fdbe8",
+                    "type": "leaf",
+                    "state": {
+                      "type": "graph",
+                      "state": {},
+                      "icon": "lucide-git-fork",
+                      "title": "グラフビュー"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "vertical"
+          },
+          "left": {
+            "id": "fbaf301f59bbf455",
+            "type": "split",
+            "children": [
+              {
+                "id": "dc69bdde4fce12c8",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "625d227fa7890a02",
+                    "type": "leaf",
+                    "state": {
+                      "type": "file-explorer",
+                      "state": {
+                        "sortOrder": "alphabetical",
+                        "autoReveal": false,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-folder-closed",
+                      "title": "ファイルエクスプローラ"
+                    }
+                  },
+                  {
+                    "id": "594266494781f7f0",
+                    "type": "leaf",
+                    "state": {
+                      "type": "search",
+                      "state": {
+                        "query": "",
+                        "matchingCase": false,
+                        "explainSearch": false,
+                        "collapseAll": false,
+                        "extraContext": false,
+                        "sortOrder": "alphabetical"
+                      },
+                      "icon": "lucide-search",
+                      "title": "検索"
+                    }
+                  },
+                  {
+                    "id": "b252a33ee9a0d66e",
+                    "type": "leaf",
+                    "state": {
+                      "type": "bookmarks",
+                      "state": {
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-bookmark",
+                      "title": "ブックマーク"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "horizontal",
+            "width": 300
+          },
+          "right": {
+            "id": "2b3b0bc324aa4eda",
+            "type": "split",
+            "children": [
+              {
+                "id": "25e3f3d06870298b",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "2ac970069aeeb760",
+                    "type": "leaf",
+                    "state": {
+                      "type": "backlink",
+                      "state": {
+                        "collapseAll": false,
+                        "extraContext": false,
+                        "sortOrder": "alphabetical",
+                        "showSearch": false,
+                        "searchQuery": "",
+                        "backlinkCollapsed": false,
+                        "unlinkedCollapsed": true
+                      },
+                      "icon": "links-coming-in",
+                      "title": "バックリンク"
+                    }
+                  },
+                  {
+                    "id": "1f17ad779f10109a",
+                    "type": "leaf",
+                    "state": {
+                      "type": "outgoing-link",
+                      "state": {
+                        "linksCollapsed": false,
+                        "unlinkedCollapsed": true
+                      },
+                      "icon": "links-going-out",
+                      "title": "アウトゴーイングリンク"
+                    }
+                  },
+                  {
+                    "id": "0c8d9e7f13dac571",
+                    "type": "leaf",
+                    "state": {
+                      "type": "tag",
+                      "state": {
+                        "sortOrder": "frequency",
+                        "useHierarchy": true,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-tags",
+                      "title": "タグ"
+                    }
+                  },
+                  {
+                    "id": "540fb9d893adca21",
+                    "type": "leaf",
+                    "state": {
+                      "type": "all-properties",
+                      "state": {
+                        "sortOrder": "frequency",
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-archive",
+                      "title": "すべてのプロパティ"
+                    }
+                  },
+                  {
+                    "id": "04ea223f079afdc2",
+                    "type": "leaf",
+                    "state": {
+                      "type": "outline",
+                      "state": {
+                        "followCursor": false,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-list",
+                      "title": "アウトライン"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "horizontal",
+            "width": 300,
+            "collapsed": true
+          },
+          "left-ribbon": {
+            "hiddenItems": {
+              "switcher:クイックスイッチャーを開く": false,
+              "graph:グラフビューを開く": false,
+              "canvas:新規キャンバスを作成": false,
+              "daily-notes:今日のデイリーノートを開く": false,
+              "templates:テンプレートを挿入": false,
+              "command-palette:コマンドパレットを開く": false,
+              "bases:新規ベースを作成": false
+            }
+          },
+          "active": "9b7cc0353c4fdbe8",
+          "lastOpenFiles": [
+            "00_Home.md"
+          ]
+        },
+        "parseError": null
+      },
+      "bookmarks": {
+        "exists": true,
+        "bytes": 124,
+        "sha256": "3034B28FE4A1628214CDCECC167800EE6FE77FAD2968E18D4478AB063F03B837",
+        "json": {
+          "items": [
+            {
+              "type": "file",
+              "ctime": 1786249068212,
+              "path": "attachments/diagram.svg"
+            }
+          ]
+        },
+        "parseError": null
+      }
+    },
+    "afterGraphReopen": {
+      "label": "after-graph-reopen",
+      "capturedAt": "2026-08-09T04:17:51.714Z",
+      "vaultContent": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3",
+        "files": [
+          {
+            "path": ".tsuzune/graph-file-times.json",
+            "bytes": 389,
+            "sha256": "A0BD3AAB7EAB2E0A7EAF7B567986FD93257342CABA97B8AD966DC1D9D19675A8"
+          },
+          {
+            "path": "00_Home.md",
+            "bytes": 139,
+            "sha256": "6427EC7102182E41BFC3E01257DF47974411E6142E74DAF043EE0D83275E8245"
+          },
+          {
+            "path": "10_projects/Project Alpha.md",
+            "bytes": 126,
+            "sha256": "EA436466218EC04E5FE3FB980C0C461BD1BF88A040539352F386F3AEB271F151"
+          },
+          {
+            "path": "10_projects/Project Beta.md",
+            "bytes": 85,
+            "sha256": "3C64509F2D6BEEC2D671808300C0B74F2F1D013D34D771F6C95481A7BC4C5006"
+          },
+          {
+            "path": "20_knowledge/Distillation.md",
+            "bytes": 103,
+            "sha256": "0DAF1774CBED1CC3538294B379F13E8ADE4EBDDA39F240887D1ADF76866CFBAE"
+          },
+          {
+            "path": "20_knowledge/Reference.md",
+            "bytes": 58,
+            "sha256": "36A49D5209013A7B47841A3BCB51AD8EB5CF47589FE71BAE2A7064EDF6A46CB8"
+          },
+          {
+            "path": "80_excluded/Hidden.md",
+            "bytes": 35,
+            "sha256": "D939F2F96B1CC7D6AD7BA6148791DC1B3A1E9C2591570468718471C494F4470F"
+          },
+          {
+            "path": "90_orphan/Orphan.md",
+            "bytes": 71,
+            "sha256": "84BA3D8EC90330596B6DA14D61C15205D2A95ECE20A8C051626188CD1F010BAC"
+          },
+          {
+            "path": "attachments/diagram.svg",
+            "bytes": 442,
+            "sha256": "4D0C9C3B4080FB4FF53B7E327A81E65718AD7629DD1462A7815C06D8A6B322EA"
+          }
+        ]
+      },
+      "workspace": {
+        "exists": true,
+        "bytes": 5064,
+        "sha256": "967C05B688FCD78335DABD6F2CA90E10A935DED262D471770497DE107CD3D2B4",
+        "json": {
+          "main": {
+            "id": "1d2e38355af2ee8f",
+            "type": "split",
+            "children": [
+              {
+                "id": "ad1e753cff4050ab",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "32e4ae5ce1c691fd",
+                    "type": "leaf",
+                    "state": {
+                      "type": "graph",
+                      "state": {},
+                      "icon": "lucide-git-fork",
+                      "title": "グラフビュー"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "vertical"
+          },
+          "left": {
+            "id": "fbaf301f59bbf455",
+            "type": "split",
+            "children": [
+              {
+                "id": "dc69bdde4fce12c8",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "625d227fa7890a02",
+                    "type": "leaf",
+                    "state": {
+                      "type": "file-explorer",
+                      "state": {
+                        "sortOrder": "alphabetical",
+                        "autoReveal": false,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-folder-closed",
+                      "title": "ファイルエクスプローラ"
+                    }
+                  },
+                  {
+                    "id": "594266494781f7f0",
+                    "type": "leaf",
+                    "state": {
+                      "type": "search",
+                      "state": {
+                        "query": "",
+                        "matchingCase": false,
+                        "explainSearch": false,
+                        "collapseAll": false,
+                        "extraContext": false,
+                        "sortOrder": "alphabetical"
+                      },
+                      "icon": "lucide-search",
+                      "title": "検索"
+                    }
+                  },
+                  {
+                    "id": "b252a33ee9a0d66e",
+                    "type": "leaf",
+                    "state": {
+                      "type": "bookmarks",
+                      "state": {
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-bookmark",
+                      "title": "ブックマーク"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "horizontal",
+            "width": 300
+          },
+          "right": {
+            "id": "2b3b0bc324aa4eda",
+            "type": "split",
+            "children": [
+              {
+                "id": "25e3f3d06870298b",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "2ac970069aeeb760",
+                    "type": "leaf",
+                    "state": {
+                      "type": "backlink",
+                      "state": {
+                        "collapseAll": false,
+                        "extraContext": false,
+                        "sortOrder": "alphabetical",
+                        "showSearch": false,
+                        "searchQuery": "",
+                        "backlinkCollapsed": false,
+                        "unlinkedCollapsed": true
+                      },
+                      "icon": "links-coming-in",
+                      "title": "バックリンク"
+                    }
+                  },
+                  {
+                    "id": "1f17ad779f10109a",
+                    "type": "leaf",
+                    "state": {
+                      "type": "outgoing-link",
+                      "state": {
+                        "linksCollapsed": false,
+                        "unlinkedCollapsed": true
+                      },
+                      "icon": "links-going-out",
+                      "title": "アウトゴーイングリンク"
+                    }
+                  },
+                  {
+                    "id": "0c8d9e7f13dac571",
+                    "type": "leaf",
+                    "state": {
+                      "type": "tag",
+                      "state": {
+                        "sortOrder": "frequency",
+                        "useHierarchy": true,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-tags",
+                      "title": "タグ"
+                    }
+                  },
+                  {
+                    "id": "540fb9d893adca21",
+                    "type": "leaf",
+                    "state": {
+                      "type": "all-properties",
+                      "state": {
+                        "sortOrder": "frequency",
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-archive",
+                      "title": "すべてのプロパティ"
+                    }
+                  },
+                  {
+                    "id": "04ea223f079afdc2",
+                    "type": "leaf",
+                    "state": {
+                      "type": "outline",
+                      "state": {
+                        "followCursor": false,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-list",
+                      "title": "アウトライン"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "horizontal",
+            "width": 300,
+            "collapsed": true
+          },
+          "left-ribbon": {
+            "hiddenItems": {
+              "switcher:クイックスイッチャーを開く": false,
+              "graph:グラフビューを開く": false,
+              "canvas:新規キャンバスを作成": false,
+              "daily-notes:今日のデイリーノートを開く": false,
+              "templates:テンプレートを挿入": false,
+              "command-palette:コマンドパレットを開く": false,
+              "bases:新規ベースを作成": false
+            }
+          },
+          "active": "32e4ae5ce1c691fd",
+          "lastOpenFiles": [
+            "00_Home.md"
+          ]
+        },
+        "parseError": null
+      },
+      "bookmarks": {
+        "exists": true,
+        "bytes": 124,
+        "sha256": "3034B28FE4A1628214CDCECC167800EE6FE77FAD2968E18D4478AB063F03B837",
+        "json": {
+          "items": [
+            {
+              "type": "file",
+              "ctime": 1786249068212,
+              "path": "attachments/diagram.svg"
+            }
+          ]
+        },
+        "parseError": null
+      }
+    },
+    "afterFirstProcessExit": {
+      "label": "after-first-process-exit",
+      "capturedAt": "2026-08-09T04:17:51.946Z",
+      "vaultContent": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3",
+        "files": [
+          {
+            "path": ".tsuzune/graph-file-times.json",
+            "bytes": 389,
+            "sha256": "A0BD3AAB7EAB2E0A7EAF7B567986FD93257342CABA97B8AD966DC1D9D19675A8"
+          },
+          {
+            "path": "00_Home.md",
+            "bytes": 139,
+            "sha256": "6427EC7102182E41BFC3E01257DF47974411E6142E74DAF043EE0D83275E8245"
+          },
+          {
+            "path": "10_projects/Project Alpha.md",
+            "bytes": 126,
+            "sha256": "EA436466218EC04E5FE3FB980C0C461BD1BF88A040539352F386F3AEB271F151"
+          },
+          {
+            "path": "10_projects/Project Beta.md",
+            "bytes": 85,
+            "sha256": "3C64509F2D6BEEC2D671808300C0B74F2F1D013D34D771F6C95481A7BC4C5006"
+          },
+          {
+            "path": "20_knowledge/Distillation.md",
+            "bytes": 103,
+            "sha256": "0DAF1774CBED1CC3538294B379F13E8ADE4EBDDA39F240887D1ADF76866CFBAE"
+          },
+          {
+            "path": "20_knowledge/Reference.md",
+            "bytes": 58,
+            "sha256": "36A49D5209013A7B47841A3BCB51AD8EB5CF47589FE71BAE2A7064EDF6A46CB8"
+          },
+          {
+            "path": "80_excluded/Hidden.md",
+            "bytes": 35,
+            "sha256": "D939F2F96B1CC7D6AD7BA6148791DC1B3A1E9C2591570468718471C494F4470F"
+          },
+          {
+            "path": "90_orphan/Orphan.md",
+            "bytes": 71,
+            "sha256": "84BA3D8EC90330596B6DA14D61C15205D2A95ECE20A8C051626188CD1F010BAC"
+          },
+          {
+            "path": "attachments/diagram.svg",
+            "bytes": 442,
+            "sha256": "4D0C9C3B4080FB4FF53B7E327A81E65718AD7629DD1462A7815C06D8A6B322EA"
+          }
+        ]
+      },
+      "workspace": {
+        "exists": true,
+        "bytes": 5064,
+        "sha256": "967C05B688FCD78335DABD6F2CA90E10A935DED262D471770497DE107CD3D2B4",
+        "json": {
+          "main": {
+            "id": "1d2e38355af2ee8f",
+            "type": "split",
+            "children": [
+              {
+                "id": "ad1e753cff4050ab",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "32e4ae5ce1c691fd",
+                    "type": "leaf",
+                    "state": {
+                      "type": "graph",
+                      "state": {},
+                      "icon": "lucide-git-fork",
+                      "title": "グラフビュー"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "vertical"
+          },
+          "left": {
+            "id": "fbaf301f59bbf455",
+            "type": "split",
+            "children": [
+              {
+                "id": "dc69bdde4fce12c8",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "625d227fa7890a02",
+                    "type": "leaf",
+                    "state": {
+                      "type": "file-explorer",
+                      "state": {
+                        "sortOrder": "alphabetical",
+                        "autoReveal": false,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-folder-closed",
+                      "title": "ファイルエクスプローラ"
+                    }
+                  },
+                  {
+                    "id": "594266494781f7f0",
+                    "type": "leaf",
+                    "state": {
+                      "type": "search",
+                      "state": {
+                        "query": "",
+                        "matchingCase": false,
+                        "explainSearch": false,
+                        "collapseAll": false,
+                        "extraContext": false,
+                        "sortOrder": "alphabetical"
+                      },
+                      "icon": "lucide-search",
+                      "title": "検索"
+                    }
+                  },
+                  {
+                    "id": "b252a33ee9a0d66e",
+                    "type": "leaf",
+                    "state": {
+                      "type": "bookmarks",
+                      "state": {
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-bookmark",
+                      "title": "ブックマーク"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "horizontal",
+            "width": 300
+          },
+          "right": {
+            "id": "2b3b0bc324aa4eda",
+            "type": "split",
+            "children": [
+              {
+                "id": "25e3f3d06870298b",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "2ac970069aeeb760",
+                    "type": "leaf",
+                    "state": {
+                      "type": "backlink",
+                      "state": {
+                        "collapseAll": false,
+                        "extraContext": false,
+                        "sortOrder": "alphabetical",
+                        "showSearch": false,
+                        "searchQuery": "",
+                        "backlinkCollapsed": false,
+                        "unlinkedCollapsed": true
+                      },
+                      "icon": "links-coming-in",
+                      "title": "バックリンク"
+                    }
+                  },
+                  {
+                    "id": "1f17ad779f10109a",
+                    "type": "leaf",
+                    "state": {
+                      "type": "outgoing-link",
+                      "state": {
+                        "linksCollapsed": false,
+                        "unlinkedCollapsed": true
+                      },
+                      "icon": "links-going-out",
+                      "title": "アウトゴーイングリンク"
+                    }
+                  },
+                  {
+                    "id": "0c8d9e7f13dac571",
+                    "type": "leaf",
+                    "state": {
+                      "type": "tag",
+                      "state": {
+                        "sortOrder": "frequency",
+                        "useHierarchy": true,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-tags",
+                      "title": "タグ"
+                    }
+                  },
+                  {
+                    "id": "540fb9d893adca21",
+                    "type": "leaf",
+                    "state": {
+                      "type": "all-properties",
+                      "state": {
+                        "sortOrder": "frequency",
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-archive",
+                      "title": "すべてのプロパティ"
+                    }
+                  },
+                  {
+                    "id": "04ea223f079afdc2",
+                    "type": "leaf",
+                    "state": {
+                      "type": "outline",
+                      "state": {
+                        "followCursor": false,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-list",
+                      "title": "アウトライン"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "horizontal",
+            "width": 300,
+            "collapsed": true
+          },
+          "left-ribbon": {
+            "hiddenItems": {
+              "switcher:クイックスイッチャーを開く": false,
+              "graph:グラフビューを開く": false,
+              "canvas:新規キャンバスを作成": false,
+              "daily-notes:今日のデイリーノートを開く": false,
+              "templates:テンプレートを挿入": false,
+              "command-palette:コマンドパレットを開く": false,
+              "bases:新規ベースを作成": false
+            }
+          },
+          "active": "32e4ae5ce1c691fd",
+          "lastOpenFiles": [
+            "00_Home.md"
+          ]
+        },
+        "parseError": null
+      },
+      "bookmarks": {
+        "exists": true,
+        "bytes": 124,
+        "sha256": "3034B28FE4A1628214CDCECC167800EE6FE77FAD2968E18D4478AB063F03B837",
+        "json": {
+          "items": [
+            {
+              "type": "file",
+              "ctime": 1786249068212,
+              "path": "attachments/diagram.svg"
+            }
+          ]
+        },
+        "parseError": null
+      }
+    },
+    "afterAppRestart": {
+      "label": "after-app-restart",
+      "capturedAt": "2026-08-09T04:17:54.417Z",
+      "vaultContent": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3",
+        "files": [
+          {
+            "path": ".tsuzune/graph-file-times.json",
+            "bytes": 389,
+            "sha256": "A0BD3AAB7EAB2E0A7EAF7B567986FD93257342CABA97B8AD966DC1D9D19675A8"
+          },
+          {
+            "path": "00_Home.md",
+            "bytes": 139,
+            "sha256": "6427EC7102182E41BFC3E01257DF47974411E6142E74DAF043EE0D83275E8245"
+          },
+          {
+            "path": "10_projects/Project Alpha.md",
+            "bytes": 126,
+            "sha256": "EA436466218EC04E5FE3FB980C0C461BD1BF88A040539352F386F3AEB271F151"
+          },
+          {
+            "path": "10_projects/Project Beta.md",
+            "bytes": 85,
+            "sha256": "3C64509F2D6BEEC2D671808300C0B74F2F1D013D34D771F6C95481A7BC4C5006"
+          },
+          {
+            "path": "20_knowledge/Distillation.md",
+            "bytes": 103,
+            "sha256": "0DAF1774CBED1CC3538294B379F13E8ADE4EBDDA39F240887D1ADF76866CFBAE"
+          },
+          {
+            "path": "20_knowledge/Reference.md",
+            "bytes": 58,
+            "sha256": "36A49D5209013A7B47841A3BCB51AD8EB5CF47589FE71BAE2A7064EDF6A46CB8"
+          },
+          {
+            "path": "80_excluded/Hidden.md",
+            "bytes": 35,
+            "sha256": "D939F2F96B1CC7D6AD7BA6148791DC1B3A1E9C2591570468718471C494F4470F"
+          },
+          {
+            "path": "90_orphan/Orphan.md",
+            "bytes": 71,
+            "sha256": "84BA3D8EC90330596B6DA14D61C15205D2A95ECE20A8C051626188CD1F010BAC"
+          },
+          {
+            "path": "attachments/diagram.svg",
+            "bytes": 442,
+            "sha256": "4D0C9C3B4080FB4FF53B7E327A81E65718AD7629DD1462A7815C06D8A6B322EA"
+          }
+        ]
+      },
+      "workspace": {
+        "exists": true,
+        "bytes": 5064,
+        "sha256": "967C05B688FCD78335DABD6F2CA90E10A935DED262D471770497DE107CD3D2B4",
+        "json": {
+          "main": {
+            "id": "1d2e38355af2ee8f",
+            "type": "split",
+            "children": [
+              {
+                "id": "ad1e753cff4050ab",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "32e4ae5ce1c691fd",
+                    "type": "leaf",
+                    "state": {
+                      "type": "graph",
+                      "state": {},
+                      "icon": "lucide-git-fork",
+                      "title": "グラフビュー"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "vertical"
+          },
+          "left": {
+            "id": "fbaf301f59bbf455",
+            "type": "split",
+            "children": [
+              {
+                "id": "dc69bdde4fce12c8",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "625d227fa7890a02",
+                    "type": "leaf",
+                    "state": {
+                      "type": "file-explorer",
+                      "state": {
+                        "sortOrder": "alphabetical",
+                        "autoReveal": false,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-folder-closed",
+                      "title": "ファイルエクスプローラ"
+                    }
+                  },
+                  {
+                    "id": "594266494781f7f0",
+                    "type": "leaf",
+                    "state": {
+                      "type": "search",
+                      "state": {
+                        "query": "",
+                        "matchingCase": false,
+                        "explainSearch": false,
+                        "collapseAll": false,
+                        "extraContext": false,
+                        "sortOrder": "alphabetical"
+                      },
+                      "icon": "lucide-search",
+                      "title": "検索"
+                    }
+                  },
+                  {
+                    "id": "b252a33ee9a0d66e",
+                    "type": "leaf",
+                    "state": {
+                      "type": "bookmarks",
+                      "state": {
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-bookmark",
+                      "title": "ブックマーク"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "horizontal",
+            "width": 300
+          },
+          "right": {
+            "id": "2b3b0bc324aa4eda",
+            "type": "split",
+            "children": [
+              {
+                "id": "25e3f3d06870298b",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "2ac970069aeeb760",
+                    "type": "leaf",
+                    "state": {
+                      "type": "backlink",
+                      "state": {
+                        "collapseAll": false,
+                        "extraContext": false,
+                        "sortOrder": "alphabetical",
+                        "showSearch": false,
+                        "searchQuery": "",
+                        "backlinkCollapsed": false,
+                        "unlinkedCollapsed": true
+                      },
+                      "icon": "links-coming-in",
+                      "title": "バックリンク"
+                    }
+                  },
+                  {
+                    "id": "1f17ad779f10109a",
+                    "type": "leaf",
+                    "state": {
+                      "type": "outgoing-link",
+                      "state": {
+                        "linksCollapsed": false,
+                        "unlinkedCollapsed": true
+                      },
+                      "icon": "links-going-out",
+                      "title": "アウトゴーイングリンク"
+                    }
+                  },
+                  {
+                    "id": "0c8d9e7f13dac571",
+                    "type": "leaf",
+                    "state": {
+                      "type": "tag",
+                      "state": {
+                        "sortOrder": "frequency",
+                        "useHierarchy": true,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-tags",
+                      "title": "タグ"
+                    }
+                  },
+                  {
+                    "id": "540fb9d893adca21",
+                    "type": "leaf",
+                    "state": {
+                      "type": "all-properties",
+                      "state": {
+                        "sortOrder": "frequency",
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-archive",
+                      "title": "すべてのプロパティ"
+                    }
+                  },
+                  {
+                    "id": "04ea223f079afdc2",
+                    "type": "leaf",
+                    "state": {
+                      "type": "outline",
+                      "state": {
+                        "followCursor": false,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-list",
+                      "title": "アウトライン"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "horizontal",
+            "width": 300,
+            "collapsed": true
+          },
+          "left-ribbon": {
+            "hiddenItems": {
+              "switcher:クイックスイッチャーを開く": false,
+              "graph:グラフビューを開く": false,
+              "canvas:新規キャンバスを作成": false,
+              "daily-notes:今日のデイリーノートを開く": false,
+              "templates:テンプレートを挿入": false,
+              "command-palette:コマンドパレットを開く": false,
+              "bases:新規ベースを作成": false
+            }
+          },
+          "active": "32e4ae5ce1c691fd",
+          "lastOpenFiles": [
+            "00_Home.md"
+          ]
+        },
+        "parseError": null
+      },
+      "bookmarks": {
+        "exists": true,
+        "bytes": 124,
+        "sha256": "3034B28FE4A1628214CDCECC167800EE6FE77FAD2968E18D4478AB063F03B837",
+        "json": {
+          "items": [
+            {
+              "type": "file",
+              "ctime": 1786249068212,
+              "path": "attachments/diagram.svg"
+            }
+          ]
+        },
+        "parseError": null
+      }
+    },
+    "afterSecondProcessExit": {
+      "label": "after-second-process-exit",
+      "capturedAt": "2026-08-09T04:17:54.537Z",
+      "vaultContent": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3",
+        "files": [
+          {
+            "path": ".tsuzune/graph-file-times.json",
+            "bytes": 389,
+            "sha256": "A0BD3AAB7EAB2E0A7EAF7B567986FD93257342CABA97B8AD966DC1D9D19675A8"
+          },
+          {
+            "path": "00_Home.md",
+            "bytes": 139,
+            "sha256": "6427EC7102182E41BFC3E01257DF47974411E6142E74DAF043EE0D83275E8245"
+          },
+          {
+            "path": "10_projects/Project Alpha.md",
+            "bytes": 126,
+            "sha256": "EA436466218EC04E5FE3FB980C0C461BD1BF88A040539352F386F3AEB271F151"
+          },
+          {
+            "path": "10_projects/Project Beta.md",
+            "bytes": 85,
+            "sha256": "3C64509F2D6BEEC2D671808300C0B74F2F1D013D34D771F6C95481A7BC4C5006"
+          },
+          {
+            "path": "20_knowledge/Distillation.md",
+            "bytes": 103,
+            "sha256": "0DAF1774CBED1CC3538294B379F13E8ADE4EBDDA39F240887D1ADF76866CFBAE"
+          },
+          {
+            "path": "20_knowledge/Reference.md",
+            "bytes": 58,
+            "sha256": "36A49D5209013A7B47841A3BCB51AD8EB5CF47589FE71BAE2A7064EDF6A46CB8"
+          },
+          {
+            "path": "80_excluded/Hidden.md",
+            "bytes": 35,
+            "sha256": "D939F2F96B1CC7D6AD7BA6148791DC1B3A1E9C2591570468718471C494F4470F"
+          },
+          {
+            "path": "90_orphan/Orphan.md",
+            "bytes": 71,
+            "sha256": "84BA3D8EC90330596B6DA14D61C15205D2A95ECE20A8C051626188CD1F010BAC"
+          },
+          {
+            "path": "attachments/diagram.svg",
+            "bytes": 442,
+            "sha256": "4D0C9C3B4080FB4FF53B7E327A81E65718AD7629DD1462A7815C06D8A6B322EA"
+          }
+        ]
+      },
+      "workspace": {
+        "exists": true,
+        "bytes": 5064,
+        "sha256": "967C05B688FCD78335DABD6F2CA90E10A935DED262D471770497DE107CD3D2B4",
+        "json": {
+          "main": {
+            "id": "1d2e38355af2ee8f",
+            "type": "split",
+            "children": [
+              {
+                "id": "ad1e753cff4050ab",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "32e4ae5ce1c691fd",
+                    "type": "leaf",
+                    "state": {
+                      "type": "graph",
+                      "state": {},
+                      "icon": "lucide-git-fork",
+                      "title": "グラフビュー"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "vertical"
+          },
+          "left": {
+            "id": "fbaf301f59bbf455",
+            "type": "split",
+            "children": [
+              {
+                "id": "dc69bdde4fce12c8",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "625d227fa7890a02",
+                    "type": "leaf",
+                    "state": {
+                      "type": "file-explorer",
+                      "state": {
+                        "sortOrder": "alphabetical",
+                        "autoReveal": false,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-folder-closed",
+                      "title": "ファイルエクスプローラ"
+                    }
+                  },
+                  {
+                    "id": "594266494781f7f0",
+                    "type": "leaf",
+                    "state": {
+                      "type": "search",
+                      "state": {
+                        "query": "",
+                        "matchingCase": false,
+                        "explainSearch": false,
+                        "collapseAll": false,
+                        "extraContext": false,
+                        "sortOrder": "alphabetical"
+                      },
+                      "icon": "lucide-search",
+                      "title": "検索"
+                    }
+                  },
+                  {
+                    "id": "b252a33ee9a0d66e",
+                    "type": "leaf",
+                    "state": {
+                      "type": "bookmarks",
+                      "state": {
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-bookmark",
+                      "title": "ブックマーク"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "horizontal",
+            "width": 300
+          },
+          "right": {
+            "id": "2b3b0bc324aa4eda",
+            "type": "split",
+            "children": [
+              {
+                "id": "25e3f3d06870298b",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "2ac970069aeeb760",
+                    "type": "leaf",
+                    "state": {
+                      "type": "backlink",
+                      "state": {
+                        "collapseAll": false,
+                        "extraContext": false,
+                        "sortOrder": "alphabetical",
+                        "showSearch": false,
+                        "searchQuery": "",
+                        "backlinkCollapsed": false,
+                        "unlinkedCollapsed": true
+                      },
+                      "icon": "links-coming-in",
+                      "title": "バックリンク"
+                    }
+                  },
+                  {
+                    "id": "1f17ad779f10109a",
+                    "type": "leaf",
+                    "state": {
+                      "type": "outgoing-link",
+                      "state": {
+                        "linksCollapsed": false,
+                        "unlinkedCollapsed": true
+                      },
+                      "icon": "links-going-out",
+                      "title": "アウトゴーイングリンク"
+                    }
+                  },
+                  {
+                    "id": "0c8d9e7f13dac571",
+                    "type": "leaf",
+                    "state": {
+                      "type": "tag",
+                      "state": {
+                        "sortOrder": "frequency",
+                        "useHierarchy": true,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-tags",
+                      "title": "タグ"
+                    }
+                  },
+                  {
+                    "id": "540fb9d893adca21",
+                    "type": "leaf",
+                    "state": {
+                      "type": "all-properties",
+                      "state": {
+                        "sortOrder": "frequency",
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-archive",
+                      "title": "すべてのプロパティ"
+                    }
+                  },
+                  {
+                    "id": "04ea223f079afdc2",
+                    "type": "leaf",
+                    "state": {
+                      "type": "outline",
+                      "state": {
+                        "followCursor": false,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-list",
+                      "title": "アウトライン"
+                    }
+                  }
+                ]
+              }
+            ],
+            "direction": "horizontal",
+            "width": 300,
+            "collapsed": true
+          },
+          "left-ribbon": {
+            "hiddenItems": {
+              "switcher:クイックスイッチャーを開く": false,
+              "graph:グラフビューを開く": false,
+              "canvas:新規キャンバスを作成": false,
+              "daily-notes:今日のデイリーノートを開く": false,
+              "templates:テンプレートを挿入": false,
+              "command-palette:コマンドパレットを開く": false,
+              "bases:新規ベースを作成": false
+            }
+          },
+          "active": "32e4ae5ce1c691fd",
+          "lastOpenFiles": [
+            "00_Home.md"
+          ]
+        },
+        "parseError": null
+      },
+      "bookmarks": {
+        "exists": true,
+        "bytes": 124,
+        "sha256": "3034B28FE4A1628214CDCECC167800EE6FE77FAD2968E18D4478AB063F03B837",
+        "json": {
+          "items": [
+            {
+              "type": "file",
+              "ctime": 1786249068212,
+              "path": "attachments/diagram.svg"
+            }
+          ]
+        },
+        "parseError": null
+      }
+    }
+  },
+  "bookmarkPluginBeforeAction": {
+    "enabled": true,
+    "itemCount": 0,
+    "items": []
+  },
+  "menuInput": {
+    "x": 758.8935508728027,
+    "y": 268.19903564453125,
+    "inside": true,
+    "centerX": 804.5,
+    "centerY": 422.984375
+  },
+  "nodeContextMenu": {
+    "targetNodeId": "attachments/diagram.svg",
+    "bounds": {
+      "left": 760.890625,
+      "top": 270.1875,
+      "width": 239.375,
+      "height": 364.5
+    },
+    "items": [
+      {
+        "index": 0,
+        "text": "diagram.svg",
+        "disabled": false,
+        "classes": [
+          "is-label",
+          "menu-item"
+        ]
+      },
+      {
+        "index": 1,
+        "text": "新規タブに開く",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 2,
+        "text": "新規ウィンドウで開く",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 3,
+        "text": "ファイルを移動…",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 4,
+        "text": "ブックマーク…",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 5,
+        "text": "パスをコピー",
+        "disabled": false,
+        "classes": [
+          "has-submenu",
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 6,
+        "text": "リンクされたビューを開く",
+        "disabled": false,
+        "classes": [
+          "has-submenu",
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 7,
+        "text": "デフォルトアプリで開く",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 8,
+        "text": "フォルダで表示",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 9,
+        "text": "ファイルエクスプローラでファイルを表示",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 10,
+        "text": "ファイルを削除",
+        "disabled": false,
+        "classes": [
+          "is-warning",
+          "menu-item",
+          "tappable"
+        ]
+      }
+    ],
+    "separators": [],
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-attachment-bookmark/duplicate/obsidian-1.13.4/01-node-context-menu.png",
+      "bytes": 88539,
+      "sha256": "4346707563986CD7F47BF5BD4CCB516FB9290DEC14139828374791DC2291DA89"
+    }
+  },
+  "attachmentBookmark": {
+    "scenario": "duplicate",
+    "before": {
+      "enabled": true,
+      "itemCount": 0,
+      "items": []
+    },
+    "firstDialog": {
+      "text": "ブックマークを追加パスタイトルブックマークグループキャンセル保存",
+      "classes": [
+        "mod-bookmark",
+        "mod-lg",
+        "modal"
+      ],
+      "bounds": {
+        "left": 352.5,
+        "top": 244.125,
+        "width": 560,
+        "height": 279.75
+      },
+      "headings": [
+        "ブックマークを追加"
+      ],
+      "inputs": [
+        {
+          "type": "text",
+          "placeholder": "",
+          "value": "attachments/diagram.svg",
+          "classes": []
+        },
+        {
+          "type": "text",
+          "placeholder": "diagram.svg",
+          "value": "",
+          "classes": []
+        }
+      ],
+      "buttons": [
+        {
+          "text": "キャンセル",
+          "ariaLabel": null,
+          "disabled": false,
+          "classes": [
+            "mod-cancel"
+          ]
+        },
+        {
+          "text": "保存",
+          "ariaLabel": null,
+          "disabled": false,
+          "classes": [
+            "mod-cta"
+          ]
+        }
+      ],
+      "suggestions": [],
+      "screenshot": {
+        "path": "docs/reports/assets/graph-gp0-attachment-bookmark/duplicate/obsidian-1.13.4/02-bookmark-dialog.png",
+        "bytes": 80246,
+        "sha256": "CD614D9E9E018DA19950125C94790571FE4B67072011E873023E9C1B119248D9"
+      }
+    },
+    "afterFirst": {
+      "enabled": true,
+      "itemCount": 1,
+      "items": [
+        {
+          "type": "file",
+          "path": "attachments/diagram.svg",
+          "title": null,
+          "ctime": 1786249068212,
+          "subpath": null
+        }
+      ]
+    },
+    "secondMenu": {
+      "targetNodeId": "attachments/diagram.svg",
+      "bounds": {
+        "left": 759.484375,
+        "top": 270.078125,
+        "width": 239.375,
+        "height": 364.5
+      },
+      "items": [
+        {
+          "index": 0,
+          "text": "diagram.svg",
+          "disabled": false,
+          "classes": [
+            "is-label",
+            "menu-item"
+          ]
+        },
+        {
+          "index": 1,
+          "text": "新規タブに開く",
+          "disabled": false,
+          "classes": [
+            "menu-item",
+            "tappable"
+          ]
+        },
+        {
+          "index": 2,
+          "text": "新規ウィンドウで開く",
+          "disabled": false,
+          "classes": [
+            "menu-item",
+            "tappable"
+          ]
+        },
+        {
+          "index": 3,
+          "text": "ファイルを移動…",
+          "disabled": false,
+          "classes": [
+            "menu-item",
+            "tappable"
+          ]
+        },
+        {
+          "index": 4,
+          "text": "ブックマークを編集",
+          "disabled": false,
+          "classes": [
+            "menu-item",
+            "tappable"
+          ]
+        },
+        {
+          "index": 5,
+          "text": "パスをコピー",
+          "disabled": false,
+          "classes": [
+            "has-submenu",
+            "menu-item",
+            "tappable"
+          ]
+        },
+        {
+          "index": 6,
+          "text": "リンクされたビューを開く",
+          "disabled": false,
+          "classes": [
+            "has-submenu",
+            "menu-item",
+            "tappable"
+          ]
+        },
+        {
+          "index": 7,
+          "text": "デフォルトアプリで開く",
+          "disabled": false,
+          "classes": [
+            "menu-item",
+            "tappable"
+          ]
+        },
+        {
+          "index": 8,
+          "text": "フォルダで表示",
+          "disabled": false,
+          "classes": [
+            "menu-item",
+            "tappable"
+          ]
+        },
+        {
+          "index": 9,
+          "text": "ファイルエクスプローラでファイルを表示",
+          "disabled": false,
+          "classes": [
+            "menu-item",
+            "tappable"
+          ]
+        },
+        {
+          "index": 10,
+          "text": "ファイルを削除",
+          "disabled": false,
+          "classes": [
+            "is-warning",
+            "menu-item",
+            "tappable"
+          ]
+        }
+      ],
+      "separators": [],
+      "screenshot": {
+        "path": "docs/reports/assets/graph-gp0-attachment-bookmark/duplicate/obsidian-1.13.4/03-duplicate-context-menu.png",
+        "bytes": 89328,
+        "sha256": "46B44B034DADB66BEC7315E6BB01D17C08C46D89169EC54F3DE20381E81E1032"
+      }
+    },
+    "secondDialog": {
+      "text": "ブックマークを編集パスタイトルブックマークグループ削除キャンセル保存",
+      "classes": [
+        "mod-bookmark",
+        "mod-lg",
+        "modal"
+      ],
+      "bounds": {
+        "left": 352.5,
+        "top": 244.125,
+        "width": 560,
+        "height": 279.75
+      },
+      "headings": [
+        "ブックマークを編集"
+      ],
+      "inputs": [
+        {
+          "type": "text",
+          "placeholder": "",
+          "value": "attachments/diagram.svg",
+          "classes": []
+        },
+        {
+          "type": "text",
+          "placeholder": "diagram.svg",
+          "value": "",
+          "classes": []
+        }
+      ],
+      "buttons": [
+        {
+          "text": "削除",
+          "ariaLabel": null,
+          "disabled": false,
+          "classes": [
+            "mod-destructive",
+            "mod-secondary"
+          ]
+        },
+        {
+          "text": "キャンセル",
+          "ariaLabel": null,
+          "disabled": false,
+          "classes": [
+            "mod-cancel"
+          ]
+        },
+        {
+          "text": "保存",
+          "ariaLabel": null,
+          "disabled": false,
+          "classes": [
+            "mod-cta"
+          ]
+        }
+      ],
+      "suggestions": [],
+      "screenshot": {
+        "path": "docs/reports/assets/graph-gp0-attachment-bookmark/duplicate/obsidian-1.13.4/04-duplicate-dialog.png",
+        "bytes": 82045,
+        "sha256": "5E2D579AA7E5FDDAC3D3CF07B3BE43945DCB3965059779BFDC40BDDEDDDAED86"
+      }
+    },
+    "afterSecond": {
+      "enabled": true,
+      "itemCount": 1,
+      "items": [
+        {
+          "type": "file",
+          "path": "attachments/diagram.svg",
+          "title": null,
+          "ctime": 1786249068212,
+          "subpath": null
+        }
+      ]
+    },
+    "dialogClosed": true,
+    "menuClosed": true,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-attachment-bookmark/duplicate/obsidian-1.13.4/05-after-bookmark-action.png",
+      "bytes": 74886,
+      "sha256": "66F14AD6BB76946B7DC97545231241A60E1D30ADEC6AFD53E386F22D82777945"
+    }
+  },
+  "afterGraphReopen": {
+    "label": "after-graph-reopen",
+    "capturedAt": "2026-08-09T04:17:51.652Z",
+    "processId": 1544,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-bookmark-duplicate-capture\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "",
+    "graphOptionsSearch": "",
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note",
+      "attachments/diagram.svg"
+    ],
+    "renderedNodeCount": 9,
+    "renderedLinkCount": 13,
+    "renderedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md"
+      },
+      {
+        "source": "00_Home.md",
+        "target": "20_knowledge/Reference.md"
+      },
+      {
+        "source": "00_Home.md",
+        "target": "attachments/diagram.svg"
+      },
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "20_knowledge/Reference.md"
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md"
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md"
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md"
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "00_Home.md"
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "20_knowledge/Distillation.md"
+      },
+      {
+        "source": "80_excluded/Hidden.md",
+        "target": "00_Home.md"
+      }
+    ],
+    "metadataResolvedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "20_knowledge/Reference.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "attachments/diagram.svg",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "20_knowledge/Reference.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "20_knowledge/Distillation.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "80_excluded/Hidden.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      }
+    ],
+    "metadataUnresolvedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note",
+        "count": 1,
+        "resolved": false
+      }
+    ],
+    "targetNode": {
+      "id": "attachments/diagram.svg",
+      "x": -45.721988677978516,
+      "y": -144.06886291503906,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 758.7780113220215,
+      "clientY": 278.89988708496094
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-attachment-bookmark/duplicate/obsidian-1.13.4/06-after-graph-reopen.png",
+      "bytes": 68101,
+      "sha256": "972996E437A65412E0EF5E75802113EE160FEEE139065E003E5B26747310F4D5"
+    }
+  },
+  "bookmarkPluginAfterGraphReopen": {
+    "enabled": true,
+    "itemCount": 1,
+    "items": [
+      {
+        "type": "file",
+        "path": "attachments/diagram.svg",
+        "title": null,
+        "ctime": 1786249068212,
+        "subpath": null
+      }
+    ]
+  },
+  "afterAppRestart": {
+    "label": "after-app-restart",
+    "capturedAt": "2026-08-09T04:17:54.368Z",
+    "processId": 17308,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-bookmark-duplicate-capture\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "",
+    "graphOptionsSearch": "",
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note",
+      "attachments/diagram.svg"
+    ],
+    "renderedNodeCount": 9,
+    "renderedLinkCount": 13,
+    "renderedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md"
+      },
+      {
+        "source": "00_Home.md",
+        "target": "20_knowledge/Reference.md"
+      },
+      {
+        "source": "00_Home.md",
+        "target": "attachments/diagram.svg"
+      },
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "20_knowledge/Reference.md"
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md"
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md"
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md"
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "00_Home.md"
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "20_knowledge/Distillation.md"
+      },
+      {
+        "source": "80_excluded/Hidden.md",
+        "target": "00_Home.md"
+      }
+    ],
+    "metadataResolvedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "20_knowledge/Reference.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "attachments/diagram.svg",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "20_knowledge/Reference.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "20_knowledge/Distillation.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "80_excluded/Hidden.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      }
+    ],
+    "metadataUnresolvedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note",
+        "count": 1,
+        "resolved": false
+      }
+    ],
+    "targetNode": {
+      "id": "attachments/diagram.svg",
+      "x": 177.96463012695312,
+      "y": 126.75653839111328,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 982.4646301269531,
+      "clientY": 549.7252883911133
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "graphLeafCountAtRestart": 1,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-attachment-bookmark/duplicate/obsidian-1.13.4/07-after-app-restart.png",
+      "bytes": 69290,
+      "sha256": "5AFE1A31C0D5BDE7E503D7BF912748EC419F1EC2949FB1473483DF6FA0F047B6"
+    }
+  },
+  "bookmarkPluginAfterAppRestart": {
+    "enabled": true,
+    "itemCount": 1,
+    "items": [
+      {
+        "type": "file",
+        "path": "attachments/diagram.svg",
+        "title": null,
+        "ctime": 1786249068212,
+        "subpath": null
+      }
+    ]
+  },
+  "sessions": [
+    {
+      "sessionNumber": 1,
+      "pid": 336,
+      "cdpPort": 63062,
+      "startedAt": "2026-08-09T04:17:42.723Z",
+      "exited": {
+        "code": 0,
+        "signal": null,
+        "at": "2026-08-09T04:17:51.882Z"
+      },
+      "starterUsed": false,
+      "isolation": {
+        "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-bookmark-duplicate-capture\\obsidian-1.13.4\\userdata",
+        "vault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-bookmark-duplicate-capture\\obsidian-1.13.4\\vault",
+        "bounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "skipTaskbarRequested": true
+      }
+    },
+    {
+      "sessionNumber": 2,
+      "pid": 5772,
+      "cdpPort": 63613,
+      "startedAt": "2026-08-09T04:17:53.146Z",
+      "exited": {
+        "code": 0,
+        "signal": null,
+        "at": "2026-08-09T04:17:54.524Z"
+      },
+      "starterUsed": false,
+      "isolation": {
+        "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-bookmark-duplicate-capture\\obsidian-1.13.4\\userdata",
+        "vault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-bookmark-duplicate-capture\\obsidian-1.13.4\\vault",
+        "bounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "skipTaskbarRequested": true
+      }
+    }
+  ]
+}

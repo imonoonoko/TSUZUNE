@@ -63,6 +63,7 @@ import HumanNoteCaptureDialog, {
 import Icon from './components/Icon'
 import MarkdownEditor from './components/MarkdownEditor'
 import MarkdownPreview from './components/MarkdownPreview'
+import BookmarkDialog from './components/BookmarkDialog'
 import MoveDialog from './components/MoveDialog'
 import RelatedNotes from './components/RelatedNotes'
 import TemporalDetails from './components/TemporalDetails'
@@ -174,6 +175,7 @@ export default function App(): React.JSX.Element {
   const [conflict, setConflict] = useState<ConflictState | null>(null)
   const conflictRef = useRef<ConflictState | null>(null)
   const [movePath, setMovePath] = useState<string | null>(null)
+  const [bookmarkPath, setBookmarkPath] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [updateBusy, setUpdateBusy] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<AppUpdateStatus>({
@@ -760,6 +762,10 @@ export default function App(): React.JSX.Element {
   }, [])
 
   const savedNotes = snapshot?.notes ?? []
+  const bookmarkedPaths = useMemo(
+    () => new Set((snapshot?.bookmarks ?? []).map((bookmark) => bookmark.path)),
+    [snapshot?.bookmarks]
+  )
   const templates = useMemo(() => listTemplates(savedNotes), [savedNotes])
   useEffect(() => {
     if (templates.some((template) => template.path === selectedTemplatePath)) {
@@ -1231,6 +1237,36 @@ export default function App(): React.JSX.Element {
     } finally {
       finishOperation()
     }
+  }
+
+  const saveGraphBookmark = async (title: string, group: string): Promise<void> => {
+    if (!bookmarkPath) {
+      return
+    }
+    const result = await window.tsuzune.saveBookmark({
+      path: bookmarkPath,
+      title,
+      group
+    })
+    if (!result.ok) {
+      setMessage(errorMessage(result.error))
+      return
+    }
+    await refreshSnapshot()
+    setBookmarkPath(null)
+  }
+
+  const removeGraphBookmark = async (): Promise<void> => {
+    if (!bookmarkPath) {
+      return
+    }
+    const result = await window.tsuzune.removeBookmark(bookmarkPath)
+    if (!result.ok) {
+      setMessage(errorMessage(result.error))
+      return
+    }
+    await refreshSnapshot()
+    setBookmarkPath(null)
   }
 
   const trashPath = async (path: string): Promise<void> => {
@@ -1960,7 +1996,11 @@ export default function App(): React.JSX.Element {
   }
 
   const modalOpen =
-    settingsDialogOpen || googleDialogOpen || Boolean(movePath) || Boolean(captureKind)
+    settingsDialogOpen ||
+    googleDialogOpen ||
+    Boolean(movePath) ||
+    Boolean(bookmarkPath) ||
+    Boolean(captureKind)
 
   return (
     <div className={`app-shell${busy ? ' is-busy' : ''}`} aria-busy={busy}>
@@ -2244,6 +2284,8 @@ export default function App(): React.JSX.Element {
                   }
                   onSearchTag={searchGraphTag}
                   onMove={setMovePath}
+                  bookmarkedPaths={bookmarkedPaths}
+                  onBookmark={setBookmarkPath}
                   onTrash={(path) => void trashPath(path)}
                   onOpen={openGraphNode}
                   onOpenInNewTab={(path) => void openGraphNodeInNewTab(path)}
@@ -2401,6 +2443,8 @@ export default function App(): React.JSX.Element {
                     }
                     onSearchTag={searchGraphTag}
                     onMove={setMovePath}
+                    bookmarkedPaths={bookmarkedPaths}
+                    onBookmark={setBookmarkPath}
                     onTrash={(path) => void trashPath(path)}
                     onOpen={openGraphNode}
                     onOpenInNewTab={(path) => void openGraphNodeInNewTab(path)}
@@ -2458,6 +2502,18 @@ export default function App(): React.JSX.Element {
           currentDirectory={dirnameRelative(movePath)}
           onCancel={() => setMovePath(null)}
           onConfirm={(directory) => void moveSelectedFile(directory)}
+        />
+      )}
+
+      {bookmarkPath && snapshot && (
+        <BookmarkDialog
+          path={bookmarkPath}
+          bookmark={snapshot.bookmarks?.find(
+            (bookmark) => bookmark.path === bookmarkPath
+          )}
+          onCancel={() => setBookmarkPath(null)}
+          onSave={saveGraphBookmark}
+          onDelete={removeGraphBookmark}
         />
       )}
 

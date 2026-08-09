@@ -534,10 +534,11 @@ GP6-0Pではインストール済み本番TSUZUNE 0.5.0を同じfixture／viewpo
 9. [x] GP0-3b-h: 公開フィルタからattachment nodeを表示し、`新規タブに開く`で内部preview tabを作成・active化する動作、元Global Graph tabの保持・復帰をObsidian 1.13.4と比較して`matched`にした。添付context menuの項目数はObsidian 11対TSUZUNE 2であり、残る9操作は未達のまま明示する。証拠は`docs/reports/assets/graph-gp0-attachment-new-tab/comparison.json`、人間向けレポートは`docs/reports/graph-gp0-attachment-new-tab-2026-08-09.html`とする
 10. [x] GP0-3b-i: 添付nodeの`新規ウィンドウで開く`を固定参照版から採取し、TSUZUNEへ同じ公開操作を実装した。両製品とも2つ目のトップレベルウィンドウでSVGを内部画像表示し、元Global Graphを保持して操作後にcontext menuを閉じるため、対象動作を`matched`とする。独立ウィンドウのworkspace装飾と添付context menu全体は未一致として残す。証拠は`docs/reports/assets/graph-gp0-attachment-new-window/comparison.json`、人間向けレポートは`docs/reports/graph-gp0-attachment-new-window-2026-08-09.html`とする
 11. [x] GP0-3b-j: 添付nodeの`ファイルを移動…`を固定参照版から採取し、取消、通常移動、同名衝突の3シナリオをTSUZUNEへ実装した。両製品とも埋め込み`![[attachments/diagram.svg]]`を自動書換えせず、旧pathを未解決node、新pathを実在する孤立attachment nodeとして再表示・再起動後まで保持する。同名衝突では既存`diagram.svg`を上書きせず、移動元を`diagram 1.svg`へ自動採番する。中核動作は`matched-core-behavior`、移動先UIはtypeahead対select/button、menu全体は11対4の既知差とする。証拠は`docs/reports/assets/graph-gp0-attachment-file-move/comparison.json`、人間向けレポートは`docs/reports/graph-gp0-attachment-file-move-2026-08-09.html`とする
-12. 次の一項目はGP0-3b-kとして、添付nodeの`ブックマーク…`を固定参照版で採取し、作成、取消、重複時、再表示／再起動後の公開挙動を確定してからTSUZUNEとの差を判定する。残るmenu操作、Groups、Animate開始・途中・終了、Restore defaultsはその後に一項目ずつ採取する
-13. 両者の画像、操作結果、node／directed edge／settings JSON、Markdown SHAを同じ比較表へ並べ、各項目を`matched`、`different`、`missing`、唯一の`intentional exception`へ分類する
-14. `different`または`missing`になった公開挙動だけを1件ずつ修正し、同一captureを再実行する
-15. GP6の計測で必要性が確認された場合だけ、大規模Vaultの性能改善とviewport cullingを追加する。未計測の推測だけではWebGL、独自DB、固定表示上限を導入しない
+12. [x] GP0-3b-k: 添付nodeの`ブックマーク…`を作成、取消、同一path再編集の3シナリオで固定比較した。両製品ともpathあたり1件へupsertし、編集時に最初の`ctime`を保持し、Graph再表示／別プロセス再起動後も結果を維持する。Markdown・添付原本も不変であるため、中核動作を`matched-core-behavior`とする。Obsidianのグループselectorに対するTSUZUNEのplain text input、添付context menu 11対5、Bookmarks side panel全体は既知差または未証明として残す。証拠は`docs/reports/assets/graph-gp0-attachment-bookmark/comparison.json`、人間向けレポートは`docs/reports/graph-gp0-attachment-bookmark-2026-08-09.html`とする
+13. 次の一項目はGP0-3b-lとして、添付nodeの`パスをコピー`を固定参照版で採取し、clipboard内容、menu close、Graph保持を確定してからTSUZUNEとの差を判定する。残るmenu操作、Groups、Animate開始・途中・終了、Restore defaultsはその後に一項目ずつ採取する
+14. 両者の画像、操作結果、node／directed edge／settings JSON、Markdown SHAを同じ比較表へ並べ、各項目を`matched`、`different`、`missing`、唯一の`intentional exception`へ分類する
+15. `different`または`missing`になった公開挙動だけを1件ずつ修正し、同一captureを再実行する
+16. GP6の計測で必要性が確認された場合だけ、大規模Vaultの性能改善とviewport cullingを追加する。未計測の推測だけではWebGL、独自DB、固定表示上限を導入しない
 
 Google Calendarの追加認可基盤とGoogle Tasks／Drive選択取込／YouTube／Data Portabilityの長期計画は残すが、Graph parityのCurrent Transition Queueを閉じて次の優先順位を再選択するまで保留する。Google Drive同期の往復確認は既存データ保護の確認として残すが、新機能開発の主トラックにはしない。この順序は長期の機能範囲を狭めるものではなく、未完了sliceを増やさないための実行順である。
 
@@ -893,6 +894,8 @@ Gate:
 
 状態: 実装・隔離fixture検証・このPCの本番反映を完了した。Graph検索条件保持は`ad26532`へ収録して同名originへpushし、2026-08-03 20:11 JSTに同コミットのclean sourceから本番へ導入した。Windows本番環境への最新反映結果は`docs/reports/production-update-latest.json`を正とする。500件／2000件のcontrolled sparse fixtureを各3回、隔離copy／fresh profileで実測して性能baselineを固定した。GP6-0Wでは採取時のdirty working treeを同一fixture／viewport／themeで採取し、7 Markdown、8 node、12 directed edge、8 undirected pairの構造一致を確認した。Global Graph検索条件、camera保存境界、node drag保存境界は固定条件で一致した。GP0-3b-eのnode context menuは6比較中3一致・3差分で、操作数がObsidian 11対TSUZUNE 2の`different`である。GP0-3b-fではnoteの新規tab作成・active化を一致させ、attachment内部previewを追加した。GP0-3b-gでは残っていた元Global Graph保持の差を閉じ、Graph tabの保持・復帰を`matched`にした。GP0-3b-hでは両製品のattachment新規内部preview tabとGraph tab保持・復帰を`matched`にした。GP0-3b-iでは両製品とも2つ目のトップレベルウィンドウでSVGを内部表示し、元Graphを保持する公開動作を`matched`にした。GP0-3b-jでは取消、通常移動、同名衝突、自動採番、リンク非書換え、旧未解決／新実在node、再表示／再起動保持の中核挙動を`matched-core-behavior`にした。GP0-3b-jは`b47671a`、production testの2-worker gateは`9bec872`／`4051f9f`として同名originへpushした。2026-08-09 12:54 JSTにcommit `4051f9f`のclean sourceから全430 tests、packaged／installed smoke、hash一致、production profile不変、MCP再登録を確認し、GP0-3b-jまでこのPCの本番へ反映した。移動先UI、独立ウィンドウのworkspace装飾、添付context menu全体、物理マウス／trusted event、性能基準の合格、Obsidian完全互換、実OSアクセシビリティは未完了。次はGP0-3b-kで`ブックマーク…`を固定採取する。
 
+GP0-3b-k更新: 添付ブックマークの作成、取消、同一path再編集upsert、`ctime`保持、Graph再表示／別プロセス再起動保持、Markdown／Vault内容不変の中核挙動をworking tree証拠で`matched-core-behavior`にした。GP0-3b-kは未commit・未本番反映であり、本番反映済み範囲は引き続きGP0-3b-jまでである。ブックマークのgroup selector対plain text input、添付context menu全体11対5、Bookmarks side panel／一覧／並べ替え／group階層は未一致または未証明として残す。次はGP0-3b-lで`パスをコピー`を固定採取する。
+
 - [x] 100ms以内のVault外部変更をpath単位で集約し、20イベントを1回のsnapshot refreshへまとめる
 - [x] 外部エディタのunlink→add形式のファイル置換を選択中ノートへ再読込し、更新を取りこぼさない
 - [x] 編集中本文と保存済みVaultの派生計算を分離し、検索・バックリンク・グラフ向け全体計算を毎打鍵から外す
@@ -947,7 +950,8 @@ Electron capture            PASS: brand mark / 14 icons / focus / inert / embedd
 - [x] GP0-3b-hでattachment nodeの`新規タブに開く`を比較し、両製品の内部preview tab作成・active化、元Global Graph tab保持・復帰を`matched`にする
 - [x] GP0-3b-iでattachment nodeの`新規ウィンドウで開く`を比較し、両製品の別トップレベル内部画像window作成、元Global Graph保持、menu closeを`matched`にする
 - [x] GP0-3b-jでattachment nodeの`ファイルを移動…`を比較し、取消、通常移動、同名衝突、自動採番、リンク非書換え、旧未解決／新実在node、再表示／再起動保持を`matched-core-behavior`にする
-- [ ] 次: GP0-3b-kでattachment nodeの`ブックマーク…`をObsidian 1.13.4から固定採取し、作成・取消・重複・再表示／再起動時の公開挙動を判定する
+- [x] GP0-3b-kでattachment nodeの`ブックマーク…`を比較し、作成、取消、同一path再編集、`ctime`保持、Graph再表示／別プロセス再起動保持、Vault内容不変を`matched-core-behavior`にする
+- [ ] 次: GP0-3b-lでattachment nodeの`パスをコピー`をObsidian 1.13.4から固定採取し、clipboard内容、menu close、Graph保持を判定する
 - [ ] 720px未満と200% zoomはsidebar・関連欄の折畳みを含めて別sliceで対応する
 - [ ] ファイルツリーへtreeitem semanticsと矢印キー操作を追加する
 - [ ] 標準prompt／confirmをアプリ内ダイアログへ段階的に置換する
@@ -2142,7 +2146,7 @@ Status（2026-08-09）:
 Result:
 
 - C1-Cの安全回帰は完了。候補本文とreview表はGit管理外の`work/`に限定し、公開集計だけを[耐久report](docs/reports/chatgpt-candidate-eligibility-c1c-2026-08-09.md)へ残した
-- Supporting Trackはここで停止した。GP0-3b-j attachment nodeファイル移動比較も完了し、次の比較sliceはGP0-3b-kの`ブックマーク…`固定参照採取とする
+- Supporting Trackはここで停止した。GP0-3b-k attachment nodeブックマーク比較も完了し、次の比較sliceはGP0-3b-lの`パスをコピー`固定参照採取とする
 
 Work:
 
