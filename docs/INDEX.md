@@ -1,6 +1,6 @@
 # TSUZUNE Documentation Index
 
-更新日: 2026-08-09
+更新日: 2026-08-10
 
 ## まず読む
 

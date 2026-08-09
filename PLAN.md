@@ -1,6 +1,6 @@
 # TSUZUNE Product Plan
 
-更新日: 2026-08-09（JST）
+更新日: 2026-08-10（JST）
 
 この文書は、TSUZUNEの「今から何を、どの順序で、どこまで作るか」を決める実行計画です。現在の本番状態と最新検証は[PROJECT_STATUS.md](PROJECT_STATUS.md)、変わりにくい製品原則は[PRODUCT.md](PRODUCT.md)、画面規約は[DESIGN.md](DESIGN.md)、日付付き証拠は[docs/INDEX.md](docs/INDEX.md)を正本とします。
 

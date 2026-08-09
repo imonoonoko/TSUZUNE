@@ -1,6 +1,6 @@
 # Obsidian Graph Parity Reference
 
-更新日: 2026-08-03
+更新日: 2026-08-10
 固定参照版: Obsidian Desktop 1.13.4 / Windows 11 / Default theme
 
 ## 目的と互換性の定義

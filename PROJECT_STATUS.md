@@ -1,6 +1,6 @@
 # TSUZUNE Project Status
 
-更新日: 2026-08-09（JST）
+更新日: 2026-08-10（JST）
 
 この文書は、TSUZUNEの「今」を一枚で確認するための入口です。実行順と将来計画は[PLAN.md](PLAN.md)、製品の不変条件は[PRODUCT.md](PRODUCT.md)、画面・ブランド規約は[DESIGN.md](DESIGN.md)を正本とします。完了証拠は[docs/INDEX.md](docs/INDEX.md)から辿ります。
 
@@ -8,8 +8,8 @@
 
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
-| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-09 19:58 JSTにcommit `efe52ea`から更新し、GP0-3b-k、全438 tests、packaged／installed smoke、build／installed hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`。GP0-3b-kまではcommit・push・本番反映済み。GP0-3b-lはworking treeで3形式の固定比較まで完了。同じworking treeには、通常ノート／Daily／IdeaのMarkdown不要な自由入力拡張、書式ボタン、Vaultノート選択、round-trip guard、同名衝突／作成失敗／アプリ終了時の入力保護も含まれる。いずれもcommit・push・本番反映前 | Git |
+| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-10 00:25 JSTにcommit `b927171`から更新し、GP0-3b-l、人間向け入力拡張、全453 tests、packaged／installed smoke、build／installed hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。GP0-3b-lと、通常ノート／Daily／IdeaのMarkdown不要な自由入力拡張、書式ボタン、Vaultノート選択、round-trip guard、同名／同期競合／作成失敗／アプリ終了時の入力保護をcommit `b927171`としてpushし、このPCの本番へ反映済み | Git |
 | 直近slice | GP0-3b-lでattachment nodeのpath copy 3形式、menu lifecycle、Graph検索条件・node集合・Vault内容の再表示／別プロセス再起動までの保持を比較し、`matched-core-behavior`にした | [比較report](docs/reports/graph-gp0-attachment-path-copy-2026-08-09.html) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
 | 最優先Track | v0.6 Obsidian Graph Parity | [PLAN.md](PLAN.md#active-track-v06-obsidian-graph-parity) |
@@ -105,7 +105,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 2. retained heap比較は未測定。cacheを要求境界より長寿命化する提案が出た場合だけ、GCを分離したharnessを先に作る。永続DBやbackground cacheは追加しない。
 3. GP0-3b-lのpath copy 3形式は`matched-core-behavior`で完了。次はGP0-3b-mでObsidian attachment nodeの`リンクされたビューを開く`を同じfixtureから採取し、固定参照で実在を確認した先頭の有効な子操作1件だけをTSUZUNEと比較する。
 4. 公開差が確認できた場合だけ一件を修正し、同じcaptureで回帰を確認する。
-5. O1-W1の本番baselineはDaily／Ideaフォーム、新規ノート作成修正、最小書式ツールバーまで反映済み。通常ノート／Daily／Ideaの自由入力拡張、Vaultノート選択、round-trip guard、同名衝突／作成失敗／アプリ終了時の入力保護はworking treeにあり、commit・push・本番反映前。
+5. O1-W1の通常ノート／Daily／Idea自由入力、最小書式ツールバー、Vaultノート選択、round-trip guard、同名／同期競合／作成失敗／アプリ終了時の入力保護はcommit `b927171`として本番反映済み。
 6. node context menuの残差分を一項目ずつ閉じた後、720px／200% zoom、tree semantics、実Windows accessibilityを別sliceで扱う。
 7. さらにGoogle Tasks、Drive選択取込、YouTube、Data Portabilityから一つを再選択する。
 8. ChatGPT候補は新しい高信頼例が10件以上たまるまで自動適用を解禁せず、C1-Dへ進まない。
@@ -113,7 +113,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 
 ## CheckpointとWorking treeの扱い
 
-Graph検索保持の製品コード、tests、fixture、再現script、report assetsは`ad26532`へ収録済みです。GP0-3b-cとGP0-3b-dは比較harness、raw observation、画像、比較表、HTMLレポートだけを追加し、製品sourceは変更していません。C0-A〜C1-CはGit管理外の`work/`へ個人本文とreviewを出す開発用CLI／純粋coreであり、Electron本番UI・packaged runtimeへは接続していません。C1-Cは既知誤検出を止めた一方、rule別review 10件未満のため自動適用を解禁せず、人物プロフィール5ノートへのwriteは0です。O1-W0／O1-W1のbaselineはElectron UIへ接続し、2026-08-09のproduction update gateでこのPCの本番へ反映済みです。今回のMarkdown不要な自由入力拡張、Vaultノート選択、round-trip guard、同名衝突／作成失敗／アプリ終了時の入力保護はworking treeにあり、本番には未反映です。GP0-3b-jは`b47671a`、production testの2-worker gateは`9bec872`／`4051f9f`として同名originへpushし、12:54 JSTにclean sourceから本番へ反映済みです。GP0-3b-kは`efe52ea`として同名originへpushし、19:58 JSTに同commitのclean sourceから全438 tests、packaged／installed smoke、hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。GP0-3b-lはworking treeで3形式のraw observation、画像、comparison JSON、HTML reportまで生成済みで、commit・push・production updateは未実施です。
+Graph検索保持の製品コード、tests、fixture、再現script、report assetsは`ad26532`へ収録済みです。GP0-3b-cとGP0-3b-dは比較harness、raw observation、画像、比較表、HTMLレポートだけを追加し、製品sourceは変更していません。C0-A〜C1-CはGit管理外の`work/`へ個人本文とreviewを出す開発用CLI／純粋coreであり、Electron本番UI・packaged runtimeへは接続していません。C1-Cは既知誤検出を止めた一方、rule別review 10件未満のため自動適用を解禁せず、人物プロフィール5ノートへのwriteは0です。O1-W0／O1-W1のbaselineはElectron UIへ接続し、2026-08-09のproduction update gateでこのPCの本番へ反映済みです。GP0-3b-jは`b47671a`、production testの2-worker gateは`9bec872`／`4051f9f`として同名originへpushし、12:54 JSTにclean sourceから本番へ反映済みです。GP0-3b-kは`efe52ea`として同名originへpushし、19:58 JSTに同commitのclean sourceから全438 tests、packaged／installed smoke、hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。GP0-3b-lとMarkdown不要な自由入力拡張は`b927171`としてpushし、2026-08-10 00:25 JSTにclean sourceから全453 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。
 
 - 次のsliceでも、sourceだけ、reportだけの機械的な分割commitをせず、共有型、App、Vault、testsを含む機能契約単位で切る。
 - fixture、日付付きreport、machine-readable artifactは比較の証拠として保持し、生成ゴミと決めつけて一括削除しない。
