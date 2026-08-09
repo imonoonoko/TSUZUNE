@@ -1,0 +1,285 @@
+{
+  "phase": "initial",
+  "processId": 28544,
+  "windowGeometry": {
+    "frame": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "electronContentBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "rendererViewport": {
+      "width": 1265,
+      "height": 768,
+      "devicePixelRatio": 1
+    }
+  },
+  "graphClosed": true,
+  "baseline": {
+    "query": "",
+    "graphLabel": "Vault全体グラフ",
+    "settingsPanelVisible": true,
+    "filterSectionVisible": true,
+    "nodePaths": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note.md"
+    ],
+    "edgeCount": 8,
+    "stageTransform": "translate(0px, 0px) scale(1)",
+    "targetNode": {
+      "path": "00_Home.md",
+      "x": 114.47,
+      "y": 35.6859,
+      "clientX": 756.96875,
+      "clientY": 460.171875,
+      "dotWidth": 16,
+      "dotHeight": 16,
+      "styleLeft": "calc(50% + 114.47px)",
+      "styleTop": "calc(50% + 35.6859px)"
+    },
+    "canvasRect": {
+      "x": 260,
+      "y": 111,
+      "width": 765,
+      "height": 627
+    },
+    "dimensions": {
+      "innerWidth": 1265,
+      "innerHeight": 768,
+      "devicePixelRatio": 1
+    }
+  },
+  "input": {
+    "x": 756.96875,
+    "y": 460.171875
+  },
+  "duringDrag": null,
+  "afterReleaseImmediate": null,
+  "afterRelease250ms": null,
+  "nodeContextMenu": {
+    "targetNodePath": "00_Home.md",
+    "bounds": {
+      "left": 756,
+      "top": 460,
+      "width": 190,
+      "height": 111
+    },
+    "items": [
+      {
+        "index": 0,
+        "text": "新規タブに開く",
+        "disabled": false,
+        "classes": []
+      },
+      {
+        "index": 1,
+        "text": "ファイルを削除",
+        "disabled": false,
+        "classes": [
+          "is-danger"
+        ]
+      }
+    ],
+    "title": "00_Home"
+  },
+  "nodeNewTab": {
+    "beforeTabCount": 0,
+    "afterTabCount": 2,
+    "activeTab": "00_Home",
+    "tabLabels": [
+      "00_Home",
+      "00_Home"
+    ],
+    "editorVisible": true,
+    "attachmentVisible": false,
+    "graphClosed": true,
+    "contextMenuClosed": true
+  },
+  "attachmentContextMenu": {
+    "targetNodePath": "attachments/diagram.svg",
+    "bounds": {
+      "left": 507,
+      "top": 457,
+      "width": 190,
+      "height": 111
+    },
+    "items": [
+      {
+        "index": 0,
+        "text": "新規タブに開く",
+        "disabled": false,
+        "classes": []
+      },
+      {
+        "index": 1,
+        "text": "ファイルを削除",
+        "disabled": false,
+        "classes": [
+          "is-danger"
+        ]
+      }
+    ],
+    "title": "diagram.svg"
+  },
+  "attachmentNewTab": {
+    "beforeTabCount": 2,
+    "afterTabCount": 3,
+    "activeTab": "diagram.svg",
+    "tabLabels": [
+      "00_Home",
+      "00_Home",
+      "diagram.svg"
+    ],
+    "editorVisible": false,
+    "attachmentVisible": true,
+    "graphClosed": true,
+    "contextMenuClosed": true
+  },
+  "entered": {
+    "query": "",
+    "graphLabel": "Vault全体グラフ",
+    "settingsPanelVisible": true,
+    "filterSectionVisible": true,
+    "nodePaths": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note.md"
+    ],
+    "edgeCount": 8,
+    "stageTransform": "translate(0px, 0px) scale(1)",
+    "targetNode": {
+      "path": "00_Home.md",
+      "x": 114.47,
+      "y": 35.6859,
+      "clientX": 756.96875,
+      "clientY": 460.171875,
+      "dotWidth": 16,
+      "dotHeight": 16,
+      "styleLeft": "calc(50% + 114.47px)",
+      "styleTop": "calc(50% + 35.6859px)"
+    },
+    "canvasRect": {
+      "x": 260,
+      "y": 111,
+      "width": 765,
+      "height": 627
+    },
+    "dimensions": {
+      "innerWidth": 1265,
+      "innerHeight": 768,
+      "devicePixelRatio": 1
+    }
+  },
+  "reopened": {
+    "query": "",
+    "graphLabel": "Vault全体グラフ",
+    "settingsPanelVisible": true,
+    "filterSectionVisible": true,
+    "nodePaths": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note.md"
+    ],
+    "edgeCount": 8,
+    "stageTransform": "translate(0px, 0px) scale(1)",
+    "targetNode": {
+      "path": "00_Home.md",
+      "x": 114.47,
+      "y": 35.6859,
+      "clientX": 756.96875,
+      "clientY": 478.671875,
+      "dotWidth": 16,
+      "dotHeight": 16,
+      "styleLeft": "calc(50% + 114.47px)",
+      "styleTop": "calc(50% + 35.6859px)"
+    },
+    "canvasRect": {
+      "x": 260,
+      "y": 148,
+      "width": 765,
+      "height": 590
+    },
+    "dimensions": {
+      "innerWidth": 1265,
+      "innerHeight": 768,
+      "devicePixelRatio": 1
+    }
+  },
+  "settingsGraphViewState": {
+    "scale": 1,
+    "query": "",
+    "settingsOpen": true,
+    "settingsSections": {
+      "filters": false,
+      "groups": false,
+      "display": false,
+      "forces": false
+    }
+  },
+  "screenshots": [
+    {
+      "file": "00-baseline.png",
+      "bytes": 122013,
+      "sha256": "7EC26FCF29102B4F8626AF4644CDCA9E44B19DBF9947CBA6F508EDD9188DDE98",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "file": "01-node-context-menu.png",
+      "bytes": 128358,
+      "sha256": "44C420977281778A3FD67F186BB45897E70F391D3FB4EF99096AE85C2DC230F5",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "file": "02-note-new-tab.png",
+      "bytes": 113202,
+      "sha256": "C4BFDB7982D068B2DED87FD2718D5F336971CCADD6F128FE75B552C7DCB289C6",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "file": "03-attachment-context-menu.png",
+      "bytes": 118715,
+      "sha256": "7ABAA05E96B3799D0B5DA0590E7A5BF857CC06B2B714AF8F49C5009A82755429",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "file": "04-attachment-new-tab.png",
+      "bytes": 94846,
+      "sha256": "DAC2EA07187249066BD75306A1434C6668310CF73F3C46C3A4C314AF2096B68C",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "file": "02-after-graph-reopen.png",
+      "bytes": 125866,
+      "sha256": "74C32C6C7D7EE9027AC1CE4BE18BB8A02E5D95B279FE598DA43A3E4FC254DCC8",
+      "width": 1265,
+      "height": 768
+    }
+  ]
+}

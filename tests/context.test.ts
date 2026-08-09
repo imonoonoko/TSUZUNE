@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildContextBundle } from '../src/core/context'
+import {
+  buildContextBundle,
+  buildContextBundleFromSnapshot,
+  createContextSnapshotIndex
+} from '../src/core/context'
 import type { NoteDocument } from '../src/shared/types'
 
 function note(path: string, content: string): NoteDocument {
@@ -976,6 +980,28 @@ describe('context bundle', () => {
 
     expect(second).toEqual(first)
     expect(deterministicNotes).toEqual(before)
+  })
+
+  it('builds the same bundle from a reusable snapshot index', () => {
+    const indexedNotes = [
+      note('Project.md', '# Project\n\n[[Decision]]'),
+      note('Decision.md', '# Decision\n\nphase-lumen'),
+      note('Backlink.md', '# Backlink\n\n[[Project]]')
+    ]
+    const options = {
+      asOf: '2026-07-30',
+      generatedAt: '2026-07-30T12:00:00+09:00',
+      query: 'phase-lumen'
+    }
+
+    const direct = buildContextBundle('Project.md', indexedNotes, options)
+    const indexed = buildContextBundleFromSnapshot(
+      'Project.md',
+      createContextSnapshotIndex(indexedNotes),
+      options
+    )
+
+    expect(indexed).toEqual(direct)
   })
 
   it('keeps the character limit even when temporal warnings are numerous', () => {

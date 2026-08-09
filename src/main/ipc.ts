@@ -181,7 +181,8 @@ export function registerIpc(
   google: GoogleIpcServices,
   updates: AppUpdateIpcService,
   getWindow: () => BrowserWindow | null,
-  approveClose: () => void
+  approveClose: () => void,
+  openVaultFileWindow?: (path: string) => Promise<void>
 ): void {
   const isTrusted = (event: IpcMainInvokeEvent): boolean =>
     trustedSender(event, getWindow)
@@ -461,6 +462,17 @@ export function registerIpc(
         message: error
       })
     }
+    return null
+  })
+
+  registerTrusted('system:openVaultFileWindow', async (path: string) => {
+    if (!openVaultFileWindow) {
+      throw new VaultError({
+        code: 'UNKNOWN',
+        message: '新規ウィンドウを開けません。'
+      })
+    }
+    await openVaultFileWindow(path)
     return null
   })
 

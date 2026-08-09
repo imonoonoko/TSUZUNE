@@ -9,6 +9,7 @@ import {
   evaluateKnowledgeTime,
   evaluateTemporal,
   parseTemporalNote,
+  type ParsedTemporalNote,
   type TemporalPerspective,
   type TemporalTimelineEntry
 } from './temporal'
@@ -75,6 +76,14 @@ export interface ContextBundleOptions {
   includeHistory?: boolean
   query?: string
   temporalPerspective?: TemporalPerspective
+}
+
+export interface ContextSnapshotIndex {
+  notes: NoteDocument[]
+  noteByPath: ReadonlyMap<string, NoteDocument>
+  outgoingByPath: ReadonlyMap<string, ResolvedWikiLink[]>
+  backlinksByPath: ReadonlyMap<string, NoteDocument[]>
+  temporalByPath: ReadonlyMap<string, ParsedTemporalNote>
 }
 
 const DEFAULT_MAX_CHARACTERS = 15_000
@@ -158,12 +167,73 @@ function sourceSectionParts(
   }
 }
 
+export function createContextSnapshotIndex(
+  notes: NoteDocument[]
+): ContextSnapshotIndex {
+  const noteByPath = new Map(notes.map((note) => [note.path, note]))
+  const outgoingByPath = new Map<string, ResolvedWikiLink[]>()
+  const backlinkPaths = new Map<string, string[]>()
+
+  for (const note of notes) {
+    const outgoing = getOutgoingLinks(note.content, notes)
+    outgoingByPath.set(note.path, outgoing)
+    for (const link of outgoing) {
+      if (
+        link.status !== 'resolved' ||
+        !link.resolvedPath ||
+        link.resolvedPath === note.path
+      ) {
+        continue
+      }
+      const sources = backlinkPaths.get(link.resolvedPath) ?? []
+      sources.push(note.path)
+      backlinkPaths.set(link.resolvedPath, sources)
+    }
+  }
+
+  return {
+    notes,
+    noteByPath,
+    outgoingByPath,
+    backlinksByPath: new Map(
+      [...backlinkPaths].map(([path, sources]) => [
+        path,
+        sources.flatMap((source) => {
+          const note = noteByPath.get(source)
+          return note ? [note] : []
+        })
+      ])
+    ),
+    temporalByPath: new Map(
+      notes.map((note) => [note.path, parseTemporalNote(note)])
+    )
+  }
+}
+
 export function buildContextBundle(
   seedPath: string,
   notes: NoteDocument[],
   options: ContextBundleOptions = {}
 ): ContextBundle {
-  const seed = notes.find((note) => note.path === seedPath)
+  return buildContextBundleInternal(seedPath, notes, options)
+}
+
+export function buildContextBundleFromSnapshot(
+  seedPath: string,
+  snapshot: ContextSnapshotIndex,
+  options: ContextBundleOptions = {}
+): ContextBundle {
+  return buildContextBundleInternal(seedPath, snapshot.notes, options, snapshot)
+}
+
+function buildContextBundleInternal(
+  seedPath: string,
+  notes: NoteDocument[],
+  options: ContextBundleOptions,
+  snapshot?: ContextSnapshotIndex
+): ContextBundle {
+  const seed = snapshot?.noteByPath.get(seedPath) ??
+    notes.find((note) => note.path === seedPath)
   if (!seed) {
     throw new Error(`ノートが見つかりません: ${seedPath}`)
   }
@@ -178,7 +248,11 @@ export function buildContextBundle(
   const temporalPerspective = options.temporalPerspective ?? 'valid-time'
   const query = options.query?.trim()
   const warnings: ContextWarning[] = []
-  const seedTemporal = parseContextTemporalNote(seed, warnings)
+  const seedTemporal = parseContextTemporalNote(
+    seed,
+    warnings,
+    snapshot?.temporalByPath.get(seed.path)
+  )
   const historicalRequest = isHistoricalRequest(asOf, generatedAt)
   const omittedNormalPaths = new Set<string>()
   const selectionOmittedPaths = new Set<string>()
@@ -268,16 +342,26 @@ export function buildContextBundle(
 
   const allowRelatedNormalMetadata =
     !seedContentOmitted || seedTemporal.kind === 'normal'
-  const outgoingNotes = getOutgoingLinks(
-    allowRelatedNormalMetadata ? seed.content : '',
-    notes
+  const outgoingNotes = (
+    allowRelatedNormalMetadata
+      ? snapshot?.outgoingByPath.get(seed.path) ??
+        getOutgoingLinks(seed.content, notes)
+      : []
   )
     .flatMap((link) => {
       if (link.status !== 'resolved' || !link.resolvedPath) {
         return []
       }
-      const note = notes.find((item) => item.path === link.resolvedPath)
-      return note && isSafeNormalContextNote(note, warnings) ? [note] : []
+      const note = snapshot?.noteByPath.get(link.resolvedPath) ??
+        notes.find((item) => item.path === link.resolvedPath)
+      return note &&
+        isSafeNormalContextNote(
+          note,
+          warnings,
+          snapshot?.temporalByPath.get(note.path)
+        )
+        ? [note]
+        : []
     })
   const allRankedOutgoing = rankByQuery(outgoingNotes, query)
   const rankedOutgoing = allRankedOutgoing.slice(0, maxOutgoing)
@@ -308,8 +392,13 @@ export function buildContextBundle(
   }
 
   const backlinkNotes = allowRelatedNormalMetadata
-    ? getBacklinks(seed.path, notes).filter((note) =>
-        isSafeNormalContextNote(note, warnings)
+    ? (snapshot?.backlinksByPath.get(seed.path) ??
+        getBacklinks(seed.path, notes)).filter((note) =>
+        isSafeNormalContextNote(
+          note,
+          warnings,
+          snapshot?.temporalByPath.get(note.path)
+        )
       )
     : []
   const allRankedBacklinks = rankByQuery(backlinkNotes, query)
@@ -351,7 +440,15 @@ export function buildContextBundle(
   }
 
   const subject = `[[${seed.path.replace(/\.md$/i, '')}]]`
-  const allTemporalEntries = buildTemporalTimeline(subject, notes, asOf)
+  const parsedTemporalNotes = snapshot
+    ? [...snapshot.temporalByPath.values()]
+    : undefined
+  const allTemporalEntries = buildTemporalTimeline(
+    subject,
+    notes,
+    asOf,
+    parsedTemporalNotes
+  )
   for (const entry of allTemporalEntries) {
     if (entry.warnings.length > 0) {
       addTemporalMetadataWarning(
@@ -382,10 +479,17 @@ export function buildContextBundle(
     unavailableKnowledgePaths.size === 0
       ? notes
       : notes.filter((note) => !unavailableKnowledgePaths.has(note.path))
-  const matchingTemporalEntries = buildTemporalTimeline(
-    subject,
-    timelineNotes,
-    asOf
+  const matchingTemporalEntries = (
+    unavailableKnowledgePaths.size === 0
+      ? allTemporalEntries
+      : buildTemporalTimeline(
+          subject,
+          timelineNotes,
+          asOf,
+          parsedTemporalNotes?.filter(
+            (parsed) => !unavailableKnowledgePaths.has(parsed.path)
+          )
+        )
   )
     .filter((entry) => {
       if (
@@ -450,7 +554,8 @@ export function buildContextBundle(
     .slice(0, maxTemporal)
 
   for (const entry of temporalEntries) {
-    const note = notes.find((candidate) => candidate.path === entry.path)
+    const note = snapshot?.noteByPath.get(entry.path) ??
+      notes.find((candidate) => candidate.path === entry.path)
     if (!note || selected.has(note.path)) {
       continue
     }
@@ -598,20 +703,21 @@ function omitContextBody(
 
 function isSafeNormalContextNote(
   note: NoteDocument,
-  warnings: ContextWarning[]
+  warnings: ContextWarning[],
+  parsed?: ParsedTemporalNote
 ): boolean {
   if (note.path.startsWith('50_履歴/AI更新/')) {
     return false
   }
-  const parsed = parseContextTemporalNote(note, warnings)
-  return parsed.warnings.length === 0 && parsed.kind === 'normal'
+  const temporal = parseContextTemporalNote(note, warnings, parsed)
+  return temporal.warnings.length === 0 && temporal.kind === 'normal'
 }
 
 function parseContextTemporalNote(
   note: NoteDocument,
-  warnings: ContextWarning[]
+  warnings: ContextWarning[],
+  parsed: ParsedTemporalNote = parseTemporalNote(note)
 ): ReturnType<typeof parseTemporalNote> {
-  const parsed = parseTemporalNote(note)
   if (parsed.warnings.length > 0) {
     addTemporalMetadataWarning(
       note.path,

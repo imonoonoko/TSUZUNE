@@ -73,6 +73,7 @@ interface WikiGraphViewProps {
   onViewStateCommit?: (state: GraphViewState) => void
   onSearchTag?: (tag: string) => void
   onOpenInNewTab?: (path: string) => void
+  onOpenInNewWindow?: (path: string) => void
   onTrash?: (path: string) => void
   onOpen: (path: string) => void
 }
@@ -245,6 +246,7 @@ export default function WikiGraphView({
   onViewStateCommit = () => undefined,
   onSearchTag = () => undefined,
   onOpenInNewTab,
+  onOpenInNewWindow,
   onTrash,
   onOpen
 }: WikiGraphViewProps): React.JSX.Element {
@@ -1655,7 +1657,25 @@ export default function WikiGraphView({
                     setNodeContextMenu(null)
                   }}
                 >
-                  新しいタブで開く
+                  新規タブに開く
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={
+                    nodeContextMenu.node.kind !== 'attachment' || !onOpenInNewWindow
+                  }
+                  title={
+                    nodeContextMenu.node.kind === 'attachment' && onOpenInNewWindow
+                      ? undefined
+                      : '添付ファイル以外の新規ウィンドウ表示は未実装です'
+                  }
+                  onClick={() => {
+                    onOpenInNewWindow?.(nodeContextMenu.node.path)
+                    setNodeContextMenu(null)
+                  }}
+                >
+                  新規ウィンドウで開く
                 </button>
                 <button
                   type="button"

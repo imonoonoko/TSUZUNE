@@ -172,6 +172,7 @@ Local Graphの可変Depthは、過去の明示指示により撤廃したまま�
 - 現行Search files入力はimplicit AND、OR、括弧、否定、phrase、regex、file／path／content／tag／case、line／block／section／task、scalar・配列propertyのpresence／value／null／数値比較、入力途中のquote／括弧／operator／regex／propertyを寛容に扱う解釈まで実装済みである。binary attachmentは通常termでは一致せず、`file:`／`path:`では一致する。malformed queryを含む同一fixtureで固定参照版と比較していないため、Search全体を`matched`とはしない。
 - GP0-3b-cではGlobal Graph、空query、8 node、1265×768、DPR 1、light theme、隔離profileを固定し、制御された論理wheel `deltaY=-120`と背景drag `+96,+64 CSS px`を入力した。Obsidian側はCDPマウス入力、TSUZUNE側は隔離オフスクリーンのDOM合成入力であり、物理マウス／trusted event parityは未証明である。Obsidian 1.13.4とTSUZUNEはいずれもzoom `1.5`をGraph再表示後・アプリ完全再起動後まで保持し、panは両時点で中央へ戻った。これは6比較項目を`matched`にする狭い証拠であり、pan永続化を互換仕様にしてはならない。正本は`docs/reports/assets/graph-gp0-camera-persistence/comparison.json`とする。
 - GP0-3b-dでは同じ画面条件で`00_Home.md`を`+96,+64 CSS px`ドラッグし、押下中、pointerup直後、250ms後、settled、Graph再表示後、アプリ完全再起動後を比較した。両製品とも押下中だけ一時固定し、pointerup後は固定を解除してForce simulationへ戻り、Graph再表示／再起動へnode座標・pinを保存しなかったため、意味契約5/5を`matched`とする。Obsidianの再シード座標とTSUZUNEの決定的baselineは永続化契約の差ではない。物理マウス／trusted event、ピクセル単位のForce軌跡、Local Graph、touch／penは未証明である。正本は`docs/reports/assets/graph-gp0-node-drag-persistence/comparison.json`とする。
+- GP0-3b-eではGlobal Graph node context menuを同条件比較し、Obsidian 1.13.4の11操作に対してTSUZUNEは2操作、6比較中3一致・3差分の`different`を固定した。GP0-3b-fでは先頭の`新規タブに開く`を実動作へ接続し、note tabの作成・active化を一致させ、TSUZUNEのattachment内部previewも固定した。GP0-3b-gでは残っていた元Global Graph保持の差を閉じ、Graph workspace tabの保持とTSUZUNEでの復帰を確認した。GP0-3b-hでは公開フィルタからattachment nodeを表示し、新規内部preview tabと元Graph tab保持・復帰を`matched`にした。GP0-3b-iでは両製品で2つ目のトップレベルウィンドウを生成し、SVGを内部画像ビューで表示し、元Global Graphを保持してmenuを閉じる公開動作を`matched`にした。独立ウィンドウのworkspace装飾と添付context menu全体は未一致である。最新正本は`docs/reports/assets/graph-gp0-attachment-new-window/comparison.json`とする。
 
 ## Current gap and reopened boundary
 
@@ -181,7 +182,7 @@ Surface／Filter／Unresolved／tag／attachment／Local・Global独立入口／
 
 1. Animate中の増分graph feed、Force再加熱、通常のノート／リンク変更を含むlive topology更新は実装済みである。狭いtestと隔離Electron captureでは、開始0件、途中1件、終了7件のMarkdown表示と、終了時に8辺へ戻ることを確認した。固定参照版との順序・速度・操作結果比較は未完了である。
 2. 隔離したuserDataと比較fixtureでForce既定値・最大値・fit・time-lapse開始／途中／終了の観測証拠を固定した。Global node dragの一時固定、pointerup解放、再表示／再起動後の非永続化は固定参照版と一致した。通常のlive更新と収束方向、Local Graphは同条件captureが未完了である。
-3. 次のGP0-3b-eではGlobal Graph context menuの項目・順序・無効状態・種別別openを固定参照版と比較する。その後、Excluded filesのManage UIと全機能共通効果、Searchのmalformed query境界を比較する。
+3. GP0-3b-eのcontext menu項目比較、GP0-3b-fの`新規タブに開く`実動作比較、GP0-3b-gのGlobal Graph workspace tab保持、GP0-3b-hのattachment新規tab比較、GP0-3b-iのattachment新規window比較は完了した。次のGP0-3b-jではattachment nodeの`ファイルを移動…`を固定参照版から採取する。その後、残るmenu操作、Excluded filesのManage UIと全機能共通効果、Searchのmalformed query境界を一項目ずつ比較する。
 4. unique neighbor数、Local root特別値、zoom連動のnode／label／line／arrow式、相互edge、色、dim、fade、arrow alpha、余白、sliderを同一viewport／DPI／themeの画像で比較する。
 5. Global Graphの未保存初回状態で設定パネルが開く点、非空queryのGraph再表示／再起動保持、Global cameraのzoom保持／pan中央復帰、Global node dragの一時固定／release／非永続化は固定fixtureで`matched`にした。Localのcamera、他query、panel／section、context menu、fit／reset、zoom限界、workspace leaf自動復元は固定参照版で引き続き判定する。
 6. Windows版ElectronでGroup色スウォッチdragを実操作確認する。

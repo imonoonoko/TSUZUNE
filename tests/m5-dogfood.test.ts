@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  benchmarkM5Notes,
   evaluateM5Notes,
   parseM5Arguments
 } from '../scripts/m5-dogfood'
@@ -154,5 +155,42 @@ describe('M5 dogfood evaluator', () => {
       unknownObservedAtOmitted: true,
       unknownObservedAtWarningPresent: true
     })
+  })
+
+  it('compares seed-only and temporal context without exposing note bodies', () => {
+    const result = benchmarkM5Notes(
+      notes,
+      {
+        seedPaths: [tsuzuneSeed, onokoSeed, frozenSeed],
+        currentAsOf: '2026-07-31',
+        pastAsOf: '2026-07-22',
+        generatedAt: '2026-07-31T03:00:00+09:00'
+      },
+      { warmupRuns: 0, measuredRuns: 2 }
+    )
+
+    expect(result.scope).toBe('context-build-and-analysis-only')
+    expect(result.arms.withoutTsuzune.measuredRuns).toBe(2)
+    expect(result.arms.withoutTsuzune.current.includedNoteCount).toBe(3)
+    expect(result.arms.withTsuzune.current.includedNoteCount).toBeGreaterThan(3)
+    expect(result.arms.withTsuzune.past.futureLeakCount).toBe(0)
+    expect(result.arms.withTsuzune.current.resolvedProvenanceCount).toBe(3)
+    expect(result.arms.withTsuzune.latencyMs.median).toBeGreaterThanOrEqual(0)
+    expect(JSON.stringify(result)).not.toContain('FUTURE_SENTINEL')
+  })
+
+  it('rejects invalid benchmark run counts', () => {
+    expect(() =>
+      benchmarkM5Notes(
+        notes,
+        {
+          seedPaths: [tsuzuneSeed, onokoSeed, frozenSeed],
+          currentAsOf: '2026-07-31',
+          pastAsOf: '2026-07-22',
+          generatedAt: '2026-07-31T03:00:00+09:00'
+        },
+        { warmupRuns: 0, measuredRuns: 0 }
+      )
+    ).toThrow('measuredRuns must be a positive integer.')
   })
 })

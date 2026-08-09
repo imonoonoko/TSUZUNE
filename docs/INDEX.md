@@ -1,6 +1,6 @@
 # TSUZUNE Documentation Index
 
-更新日: 2026-08-08
+更新日: 2026-08-09
 
 ## まず読む
 
@@ -15,6 +15,7 @@
 - [Product Plan](../PLAN.md) — 長期計画、完了履歴、Active v0.6 Track。
 - [Obsidian Graph Parity Reference](obsidian-graph-parity-reference.md) — 固定比較対象と受入契約。
 - [MCP Integration](mcp-integration.md) — Codex／ChatGPTデスクトップ連携と書込境界。
+- [Templates and Freshness](templates-and-freshness.md) — Markdown雛形、placeholder、最終更新日、再確認表示の使い方。
 - [ChatGPT Export Intake](chatgpt-export-intake.md) — 公式Exportの読み取り専用preview、正規化、個人データ境界。
 - [Windows Production](windows-production.md) — build、installer、更新、受入手順。
 
@@ -30,11 +31,25 @@
 - [GP0 camera comparison JSON](reports/assets/graph-gp0-camera-persistence/comparison.json) — 固定条件、正規化、4観測点、safeguard、未証明範囲を固定した機械可読比較。
 - [GP0-3b-d Global node drag persistence](reports/graph-gp0-node-drag-persistence-2026-08-04.html) — 押下中の一時固定、pointerup後のForce復帰、Graph再表示／アプリ再起動への座標・pin非永続化を比較した5/5一致証拠。
 - [GP0-3b-d node drag comparison JSON](reports/assets/graph-gp0-node-drag-persistence/comparison.json) — 8 node固定fixture、drag lifecycle、safeguard、未証明範囲を固定した機械可読比較。
+- [GP0-3b-e Global node context menu](reports/graph-gp0-node-context-menu-2026-08-09.html) — Obsidian 1.13.4の11操作とTSUZUNEの2操作を固定比較し、3/6一致の`different`を示す画面証拠。
+- [GP0-3b-e node context menu comparison JSON](reports/assets/graph-gp0-node-context-menu/comparison.json) — 項目、順序、無効状態、今回の一項目修正、未証明範囲を固定した機械可読比較。
+- [GP0-3b-f Global node new tab](reports/graph-gp0-node-new-tab-2026-08-09.html) — `新規タブに開く`のnote実動作をObsidian 1.13.4と比較し、TSUZUNEのattachment内部previewも固定した画面証拠。
+- [GP0-3b-f node new tab comparison JSON](reports/assets/graph-gp0-node-new-tab/comparison.json) — note作成・active化は一致、Graph workspace leaf保持は差分、attachmentの参照版境界は未証明とした機械可読比較。
+- [GP0-3b-g Global Graph workspace tab](reports/graph-gp0-workspace-tab-2026-08-09.html) — note新規tab後も元Global Graphを保持し、TSUZUNEでGraph tabへ戻れることを固定した画面証拠。
+- [GP0-3b-g workspace tab comparison JSON](reports/assets/graph-gp0-workspace-tab/comparison.json) — ObsidianのGraph leaf保持とTSUZUNEのGraph tab保持を`matched`とした機械可読比較。
+- [GP0-3b-h attachment new tab](reports/graph-gp0-attachment-new-tab-2026-08-09.html) — attachment nodeを新しい内部preview tabへ開き、元Global Graph tabを保持・復帰できることを両製品で固定した画面証拠。
+- [GP0-3b-h attachment new tab comparison JSON](reports/assets/graph-gp0-attachment-new-tab/comparison.json) — 対象動作を`matched`とし、添付context menu 11対2の残差をslice外の既知差として残した機械可読比較。
+- [GP0-3b-i attachment new window](reports/graph-gp0-attachment-new-window-2026-08-09.html) — attachment nodeを独立した内部画像windowへ開き、元Global Graphを保持する公開動作を両製品で固定した画面証拠。
+- [GP0-3b-i attachment new window comparison JSON](reports/assets/graph-gp0-attachment-new-window/comparison.json) — 対象動作を`matched`とし、独立windowの視覚shellと添付context menu全体を既知差として残した機械可読比較。
 - [Large Vault performance](reports/tsuzune-large-vault-performance-2026-08-03.html) — 500件／2000件baseline。
 - [Large Vault public summary](reports/assets/large-vault-performance-2026-08-03/summary-public.json) — 性能値の耐久する機械可読版。
 - [Product optimization](reports/tsuzune-product-optimization-2026-08-03.html) — GUI、icon、画像preview、watcher、更新gate。
 - [Graph edge viewport](reports/graph-edge-viewport-2026-08-03.html) — 低倍率Canvas線描画の修正証拠。
 - [Temporal M5 dogfood](m5-dogfood.md) — 時点付きContextの固定比較。
+- [TSUZUNEあり／なし benchmark](reports/tsuzune-with-without-benchmark-2026-08-09.md) — 固定課題の品質差と本番VaultのContext構築コストを分離した比較。
+- [TSUZUNE benchmark public summary](reports/assets/tsuzune-with-without-benchmark-2026-08-09/summary-public.json) — 本文を含まない機械可読集計。
+- [ChatGPT Candidate Quality C1-B](reports/chatgpt-candidate-quality-c1b-2026-08-09.md) — 57件の層化review、出典追跡、3 ruleの自動適用精度gate。
+- [ChatGPT Candidate Eligibility C1-C](reports/chatgpt-candidate-eligibility-c1c-2026-08-09.md) — 候補適格性、本文由来privacy、固定57件回帰、7件再review、10件gate未達の停止判断。
 
 HTMLは閲覧用、`.artifact.json`と`assets/**/*.json`は機械可読な証拠、`assets/**/*.png`は画面証拠です。役割が異なるため、同名内容に見えても一括削除しません。
 
@@ -52,7 +67,7 @@ HTMLは閲覧用、`.artifact.json`と`assets/**/*.json`は機械可読な証拠
 ## 将来計画
 
 - Google Tasks、Drive選択取込、YouTube、Data Portability: `PLAN.md`のPersonal Google Intake。
-- ChatGPT export取込: `PLAN.md`のFuture Track。
+- ChatGPT export取込: C1-Cの安全回帰は完了。rule別reviewが10件未満のためC1-D自動適用は停止中。
 - Context Compiler 2.0、AI時間モデル、GraphRAG、Plugin API、独自DB: 固定評価または計測で導入条件を満たしてから着手。
 
 ## 証拠の保管規則

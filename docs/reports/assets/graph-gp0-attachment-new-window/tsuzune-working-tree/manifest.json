@@ -1,0 +1,136 @@
+{
+  "capturedAt": "2026-08-08T20:49:04.249Z",
+  "stage": "GP0-3b-i Global Graph attachment new-window working-tree evidence",
+  "status": "captured",
+  "comparisonStatus": "Compare with docs/reports/assets/graph-gp0-attachment-new-window/comparison.json",
+  "command": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-new-window",
+  "isolation": {
+    "sourceFixture": "fixtures/obsidian-graph-parity-vault",
+    "copiedVault": "work/graph-gp0-attachment-new-window-working-tree/vault",
+    "userData": "work/graph-gp0-attachment-new-window-working-tree/userdata",
+    "requestedContentViewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "offscreenOrigin": {
+      "x": -32000,
+      "y": -32000
+    },
+    "observedWindowGeometry": {
+      "initial": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      },
+      "restarted": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      }
+    },
+    "network": "host resolver blocked except localhost"
+  },
+  "processIds": [
+    18912,
+    12980
+  ],
+  "assertions": {
+    "exactNodeSetAtEveryCheckpoint": true,
+    "nodeContextMenuOpened": true,
+    "nodeContextMenuItemsHaveText": true,
+    "attachmentContextMenuOpened": true,
+    "attachmentWindowCreated": true,
+    "attachmentWindowActivated": true,
+    "sourceGraphKeptOpen": true,
+    "attachmentContextMenuClosedAfterAction": true,
+    "contentViewportStable": true,
+    "filteredNodeSetStable": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "noIsolatedProcessesRemaining": true
+  },
+  "artifacts": [
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-new-window/tsuzune-working-tree/00-baseline.png",
+      "bytes": 126446,
+      "sha256": "2137666DCB0AA681786BDF5C198084B43C7A1A51C6CE2BCF959FBB7FC0C7FAE9",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-new-window/tsuzune-working-tree/01-node-context-menu.png",
+      "bytes": 125690,
+      "sha256": "CB99BDB80EF6ADB3C4CA80FB41DE3B9AFCE7E549F73530FB198804B80B06BBF0",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-new-window/tsuzune-working-tree/02-attachment-new-window.png",
+      "bytes": 13243,
+      "sha256": "59227E5C80192C2322C96E00E0ADEEDB64C5B4BBEB5B1AA7889461BFA5B40749",
+      "width": 1249,
+      "height": 729
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-new-window/tsuzune-working-tree/02-after-graph-reopen.png",
+      "bytes": 128900,
+      "sha256": "FC1179D1D02EE16983DB98A30CF10BEC4E78C6BD7666A52AEE7B8883171B1F22",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-new-window/tsuzune-working-tree/03-after-app-restart.png",
+      "bytes": 128900,
+      "sha256": "FC1179D1D02EE16983DB98A30CF10BEC4E78C6BD7666A52AEE7B8883171B1F22",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-new-window/tsuzune-working-tree/phase-initial.json",
+      "bytes": 6582,
+      "sha256": "51FECDCDC07A0868723CC037CA5486AB469A6B819EF8BB4681B51E8356F9F7A4"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-new-window/tsuzune-working-tree/phase-restarted.json",
+      "bytes": 1863,
+      "sha256": "D9E55AF575862FFF83866B8905A3287FA5EBC686C37056AFD319440F30BBCE35"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-new-window/tsuzune-working-tree/observation.json",
+      "bytes": 13134,
+      "sha256": "24E5BDA86F3ED364A4CC32501E359EFDDBA0613FEAF7ED4870C52B6B4E5898A8"
+    }
+  ],
+  "next": "Document the observed Obsidian/TSUZUNE attachment new-window behavior."
+}

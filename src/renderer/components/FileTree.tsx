@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { getNoteFreshness } from '../../core/freshness'
 import { basenameRelative, dirnameRelative } from '../../core/paths'
 import type { SearchResult, VaultSnapshot } from '../../shared/types'
 
@@ -26,6 +27,25 @@ export default function FileTree({
   onSelectEntry
 }: FileTreeProps): React.JSX.Element {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
+  const noteAges = useMemo(() => {
+    const now = new Date()
+    return new Map(
+      snapshot.notes.map((note) => {
+        const freshness = getNoteFreshness(note, now)
+        const exact = note.modifiedAt
+          ? new Date(note.modifiedAt).toLocaleString('ja-JP')
+          : '不明'
+        const compact = note.modifiedAt
+          ? new Date(note.modifiedAt).toLocaleDateString('ja-JP', {
+              year: '2-digit',
+              month: '2-digit',
+              day: '2-digit'
+            })
+          : '—'
+        return [note.path, { freshness, exact, compact }] as const
+      })
+    )
+  }, [snapshot.notes])
 
   const notesByDirectory = useMemo(() => {
     const result = new Map<string, typeof snapshot.notes>()
@@ -98,6 +118,10 @@ export default function FileTree({
           const isSelected = selectedNotePath === note.path
           const isTreeSelected =
             treeSelection?.kind === 'note' && treeSelection.path === note.path
+          const age = noteAges.get(note.path)
+          if (!age) {
+            return null
+          }
           return (
             <button
               type="button"
@@ -110,10 +134,19 @@ export default function FileTree({
                 onSelectEntry({ kind: 'note', path: note.path })
                 onSelectNote(note.path)
               }}
-              title={note.path}
+              title={`${note.path}\n最終更新: ${age.exact}\n${age.freshness.statusLabel}（${age.freshness.relativeLabel}）`}
             >
               <span aria-hidden="true">◇</span>
               <span className="tree-label">{note.name}</span>
+              <time
+                className={`tree-updated freshness-${age.freshness.level}`}
+                dateTime={
+                  note.modifiedAt ? new Date(note.modifiedAt).toISOString() : undefined
+                }
+                aria-label={`${note.name}の最終更新: ${age.exact}。${age.freshness.statusLabel}、${age.freshness.relativeLabel}`}
+              >
+                {age.compact}
+              </time>
             </button>
           )
         })}
@@ -129,18 +162,26 @@ export default function FileTree({
             「{query}」は見つかりませんでした。
           </div>
         ) : (
-          searchResults.map((result) => (
-            <button
-              type="button"
-              className="search-result"
-              key={result.path}
-              onClick={() => onSelectNote(result.path)}
-            >
-              <strong>{result.name}</strong>
-              <span>{result.path}</span>
-              <small>{result.excerpt || '本文は空です。'}</small>
-            </button>
-          ))
+          searchResults.map((result) => {
+            const age = noteAges.get(result.path)
+            return (
+              <button
+                type="button"
+                className="search-result"
+                key={result.path}
+                onClick={() => onSelectNote(result.path)}
+              >
+                <strong>{result.name}</strong>
+                <span>{result.path}</span>
+                {age ? (
+                  <small className={`freshness-${age.freshness.level}`}>
+                    最終更新: {age.exact} · {age.freshness.statusLabel}
+                  </small>
+                ) : null}
+                <small>{result.excerpt || '本文は空です。'}</small>
+              </button>
+            )
+          })
         )}
       </div>
     )

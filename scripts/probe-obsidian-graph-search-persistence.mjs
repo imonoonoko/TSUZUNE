@@ -10,10 +10,46 @@ const cameraProbe =
   process.argv.includes('--camera') || process.env.TSUZUNE_GRAPH_CAMERA_PROBE === '1'
 const nodeDragProbe =
   process.argv.includes('--node-drag') || process.env.TSUZUNE_GRAPH_NODE_DRAG_PROBE === '1'
-if (cameraProbe && nodeDragProbe) {
-  throw new Error('--camera と --node-drag は同時に指定できません。')
+const attachmentNewTabProbe =
+  process.argv.includes('--attachment-new-tab') ||
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_NEW_TAB_PROBE === '1'
+const attachmentNewWindowProbe =
+  process.argv.includes('--attachment-new-window') ||
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_NEW_WINDOW_PROBE === '1'
+const nodeNewTabProbe =
+  process.argv.includes('--node-new-tab') ||
+  process.env.TSUZUNE_GRAPH_NODE_NEW_TAB_PROBE === '1'
+const nodeMenuProbe =
+  nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe ||
+  process.argv.includes('--node-menu') ||
+  process.env.TSUZUNE_GRAPH_NODE_MENU_PROBE === '1'
+if (
+  [
+    cameraProbe,
+    nodeDragProbe,
+    nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe,
+    nodeNewTabProbe,
+    attachmentNewTabProbe,
+    attachmentNewWindowProbe
+  ].filter(Boolean).length > 1
+) {
+  throw new Error(
+    '--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window は同時に指定できません。'
+  )
 }
-const probeKind = nodeDragProbe ? 'node-drag' : cameraProbe ? 'camera' : 'search'
+const probeKind = attachmentNewWindowProbe
+  ? 'attachment-new-window'
+  : attachmentNewTabProbe
+  ? 'attachment-new-tab'
+  : nodeNewTabProbe
+  ? 'node-new-tab'
+  : nodeMenuProbe
+  ? 'node-context-menu'
+  : nodeDragProbe
+    ? 'node-drag'
+    : cameraProbe
+      ? 'camera'
+      : 'search'
 const fixtureDirectory = resolve(repoRoot, 'fixtures/obsidian-graph-parity-vault')
 const workRoot = resolve(repoRoot, `work/gp0-${probeKind}`)
 const referenceWorkDirectory = resolve(workRoot, 'obsidian-1.13.4')
@@ -21,8 +57,16 @@ const vaultDirectory = resolve(referenceWorkDirectory, 'vault')
 const userDataDirectory = resolve(referenceWorkDirectory, 'userdata')
 const outputRoot = resolve(
   repoRoot,
-  probeKind === 'node-drag'
-    ? 'docs/reports/assets/graph-gp0-node-drag-persistence'
+  probeKind === 'attachment-new-window'
+    ? 'docs/reports/assets/graph-gp0-attachment-new-window'
+    : probeKind === 'attachment-new-tab'
+    ? 'docs/reports/assets/graph-gp0-attachment-new-tab'
+    : probeKind === 'node-new-tab'
+    ? 'docs/reports/assets/graph-gp0-node-new-tab'
+    : probeKind === 'node-context-menu'
+    ? 'docs/reports/assets/graph-gp0-node-context-menu'
+    : probeKind === 'node-drag'
+      ? 'docs/reports/assets/graph-gp0-node-drag-persistence'
     : cameraProbe
       ? 'docs/reports/assets/graph-gp0-camera-persistence'
       : 'docs/reports/assets/graph-gp0-search-persistence'
@@ -45,8 +89,20 @@ const expected = {
   installerSha256: '8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0',
   asarSha256: '51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917',
   markdownCount: 7,
-  search: cameraProbe || nodeDragProbe ? '' : 'path:"10_projects"',
-  filteredNodeIds: cameraProbe || nodeDragProbe
+  search: cameraProbe || nodeDragProbe || nodeMenuProbe ? '' : 'path:"10_projects"',
+  filteredNodeIds: attachmentNewTabProbe || attachmentNewWindowProbe
+    ? [
+        '00_Home.md',
+        '10_projects/Project Alpha.md',
+        '10_projects/Project Beta.md',
+        '20_knowledge/Distillation.md',
+        '20_knowledge/Reference.md',
+        '80_excluded/Hidden.md',
+        '90_orphan/Orphan.md',
+        'Missing Note',
+        'attachments/diagram.svg'
+      ].sort()
+    : cameraProbe || nodeDragProbe || nodeMenuProbe
     ? [
         '00_Home.md',
         '10_projects/Project Alpha.md',
@@ -60,7 +116,14 @@ const expected = {
     : ['10_projects/Project Alpha.md', '10_projects/Project Beta.md'],
   viewport: { width: 1265, height: 768 },
   deviceScaleFactor: 1,
-  drag: { targetNodeId: '00_Home.md', deltaX: 96, deltaY: 64 }
+  drag: {
+    targetNodeId:
+      attachmentNewTabProbe || attachmentNewWindowProbe
+        ? 'attachments/diagram.svg'
+        : '00_Home.md',
+    deltaX: 96,
+    deltaY: 64
+  }
 }
 
 const delay = (milliseconds) => new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds))
@@ -403,6 +466,38 @@ async function setGraphSearch(cdp, query) {
     cdp,
     `app.workspace.getLeavesOfType('graph')[0]?.view.dataEngine.getOptions().search === ${JSON.stringify(query)}`
   )
+  if (!attachmentNewTabProbe && !attachmentNewWindowProbe) {
+    await waitForRenderer(
+      cdp,
+      `JSON.stringify(app.workspace.getLeavesOfType('graph')[0]?.view.renderer.nodes.map(${nodeIdExpression()}).filter(Boolean).sort()) === ${JSON.stringify(JSON.stringify(expected.filteredNodeIds))}`
+    )
+  }
+  await delay(500)
+}
+
+async function setGraphAttachmentsVisible(cdp) {
+  await cdp.evaluate(`(() => {
+    const sections = [...document.querySelectorAll('.graph-control-section')]
+    if (sections.length === 0) throw new Error('Graph control sectionが見つかりません。')
+    for (const section of sections) {
+      if (section.classList.contains('is-collapsed')) section.querySelector('.tree-item-self')?.click()
+    }
+  })()`)
+  await delay(200)
+  await cdp.evaluate(`(() => {
+    const settings = [...document.querySelectorAll('.graph-control-section .setting-item')]
+    const setting = settings
+      .find((item) => item.querySelector('.setting-item-name')?.textContent?.trim() === '添付書類')
+    const checkbox = setting?.querySelector('input[type="checkbox"]')
+    if (!(checkbox instanceof HTMLInputElement)) {
+      throw new Error('Graphの「添付書類」設定が見つかりません。')
+    }
+    if (!checkbox.checked) checkbox.click()
+  })()`)
+  await waitForRenderer(
+    cdp,
+    `app.workspace.getLeavesOfType('graph')[0]?.view.dataEngine.getOptions().showAttachments === true`
+  )
   await waitForRenderer(
     cdp,
     `JSON.stringify(app.workspace.getLeavesOfType('graph')[0]?.view.renderer.nodes.map(${nodeIdExpression()}).filter(Boolean).sort()) === ${JSON.stringify(JSON.stringify(expected.filteredNodeIds))}`
@@ -540,6 +635,233 @@ async function releaseNodeDragInput(cdp, target) {
     buttons: 0,
     clickCount: 1
   })
+}
+
+async function openNodeContextMenu(cdp) {
+  const targetExpression = `(() => {
+    const view = app.workspace.getLeavesOfType('graph')[0]?.view
+    if (!view) throw new Error('Global Graphが開いていません。')
+    const nodeId = ${nodeIdExpression()}
+    const node = view.renderer.nodes.find(
+      (candidate) => nodeId(candidate) === ${JSON.stringify(expected.drag.targetNodeId)}
+    )
+    if (!node) throw new Error('context menu対象nodeが見つかりません。')
+    const bounds = view.renderer.interactiveEl.getBoundingClientRect()
+    const x = bounds.left + (view.renderer.panX + node.x * view.renderer.scale) / devicePixelRatio
+    const y = bounds.top + (view.renderer.panY + node.y * view.renderer.scale) / devicePixelRatio
+    if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) {
+      throw new Error('context menu対象nodeがGraph canvas外です。')
+    }
+    return { x, y }
+  })()`
+  const hoverTarget = await cdp.evaluate(targetExpression)
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved', x: hoverTarget.x, y: hoverTarget.y, button: 'none', buttons: 0
+  })
+  await delay(50)
+  const target = await cdp.evaluate(targetExpression)
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved', x: target.x, y: target.y, button: 'none', buttons: 0
+  })
+  await delay(20)
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mousePressed', x: target.x, y: target.y, button: 'right', buttons: 2, clickCount: 1
+  })
+  await delay(20)
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseReleased', x: target.x, y: target.y, button: 'right', buttons: 0, clickCount: 1
+  })
+  await waitForRenderer(cdp, `document.querySelector('.menu .menu-item') !== null`)
+  await delay(150)
+  return target
+}
+
+async function observeNodeContextMenu(cdp) {
+  return cdp.evaluate(`(() => {
+    const menu = [...document.querySelectorAll('.menu')].find((element) => {
+      const style = getComputedStyle(element)
+      const bounds = element.getBoundingClientRect()
+      return style.display !== 'none' && style.visibility !== 'hidden' && bounds.width > 0 && bounds.height > 0
+    })
+    if (!menu) throw new Error('表示中のnode context menuが見つかりません。')
+    const bounds = menu.getBoundingClientRect()
+    return {
+      targetNodeId: ${JSON.stringify(expected.drag.targetNodeId)},
+      bounds: { left: bounds.left, top: bounds.top, width: bounds.width, height: bounds.height },
+      items: [...menu.querySelectorAll('.menu-item')].map((item, index) => ({
+        index,
+        text: item.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+        disabled:
+          item.classList.contains('is-disabled') ||
+          item.getAttribute('aria-disabled') === 'true' ||
+          item.hasAttribute('disabled'),
+        classes: [...item.classList].sort()
+      })),
+      separators: [...menu.children]
+        .map((child, index) => child.classList.contains('menu-separator') ? index : null)
+        .filter((index) => index !== null)
+    }
+  })()`)
+}
+
+async function activateNodeNewTab(cdp) {
+  const before = await cdp.evaluate(`(() => ({
+    markdownLeafCount: app.workspace.getLeavesOfType('markdown').length,
+    graphLeafCount: app.workspace.getLeavesOfType('graph').length,
+    activeFile: app.workspace.getActiveFile()?.path ?? null
+  }))()`)
+  await cdp.evaluate(`(() => {
+    const item = [...document.querySelectorAll('.menu .menu-item')]
+      .find((candidate) => candidate.textContent?.replace(/\\s+/g, ' ').trim() === '新規タブに開く')
+    if (!(item instanceof HTMLElement) || item.classList.contains('is-disabled')) {
+      throw new Error('有効な「新規タブに開く」が見つかりません。')
+    }
+    item.click()
+  })()`)
+  await waitForRenderer(
+    cdp,
+    `app.workspace.getLeavesOfType('markdown').length > ${before.markdownLeafCount}`
+  )
+  return cdp.evaluate(`(() => ({
+    before: ${JSON.stringify(before)},
+    after: {
+      markdownLeafCount: app.workspace.getLeavesOfType('markdown').length,
+      graphLeafCount: app.workspace.getLeavesOfType('graph').length,
+      activeFile: app.workspace.getActiveFile()?.path ?? null,
+      menuClosed: document.querySelector('.menu .menu-item') === null
+    }
+  }))()`)
+}
+
+async function activateAttachmentNewTab(cdp) {
+  const observeLeaves = `(() => {
+    return {
+      graphLeafCount: app.workspace.getLeavesOfType('graph').length,
+      activeFile: app.workspace.getActiveFile()?.path ?? null,
+      activeLeaf: app.workspace.activeLeaf
+        ? {
+            id: app.workspace.activeLeaf.id ?? null,
+            viewType: app.workspace.activeLeaf.view?.getViewType?.() ?? null,
+            filePath: app.workspace.activeLeaf.view?.file?.path ?? null
+          }
+        : null,
+      tabHeaders: [...document.querySelectorAll('.workspace-tab-header')].map((header) => ({
+        ariaLabel: header.getAttribute('aria-label'),
+        title: header.getAttribute('title'),
+        text: header.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+        classes: [...header.classList].sort()
+      }))
+    }
+  })()`
+  const before = await cdp.evaluate(observeLeaves)
+  await cdp.evaluate(`(() => {
+    const item = [...document.querySelectorAll('.menu .menu-item')]
+      .find((candidate) => candidate.textContent?.replace(/\s+/g, ' ').trim() === '新規タブに開く')
+    if (!(item instanceof HTMLElement) || item.classList.contains('is-disabled')) {
+      throw new Error('有効な「新規タブに開く」が見つかりません。')
+    }
+    item.click()
+  })()`)
+  await waitForRenderer(
+    cdp,
+    `app.workspace.getActiveFile()?.path === ${JSON.stringify(expected.drag.targetNodeId)}`
+  )
+  await waitForRenderer(cdp, `(() => {
+    let fileViewReady = false
+    app.workspace.iterateAllLeaves((leaf) => {
+      if (
+        leaf.view?.file?.path === ${JSON.stringify(expected.drag.targetNodeId)} &&
+        leaf.view?.getViewType?.() !== 'backlink'
+      ) fileViewReady = true
+    })
+    return fileViewReady
+  })()`)
+  await delay(1_000)
+  const after = await cdp.evaluate(observeLeaves)
+  return {
+    before,
+    after: {
+      ...after,
+      addedTabHeaders: after.tabHeaders.filter(
+        (header) => !before.tabHeaders.some((candidate) => candidate.ariaLabel === header.ariaLabel)
+      ),
+      menuClosed: await cdp.evaluate(`document.querySelector('.menu .menu-item') === null`)
+    }
+  }
+}
+
+async function activateAttachmentNewWindow(session) {
+  const beforeTargets = await listCdpTargets(session.cdpPort)
+  const beforeTargetIds = new Set(beforeTargets.map((target) => target.id))
+  const before = await session.cdp.evaluate(`(() => ({
+    browserWindowCount: require('@electron/remote').BrowserWindow.getAllWindows().length,
+    graphLeafCount: app.workspace.getLeavesOfType('graph').length,
+    activeFile: app.workspace.getActiveFile()?.path ?? null
+  }))()`)
+  await session.cdp.evaluate(`(() => {
+    const item = [...document.querySelectorAll('.menu .menu-item')]
+      .find((candidate) => candidate.textContent?.replace(/\s+/g, ' ').trim() === '新規ウィンドウで開く')
+    if (!(item instanceof HTMLElement) || item.classList.contains('is-disabled')) {
+      throw new Error('有効な「新規ウィンドウで開く」が見つかりません。')
+    }
+    item.click()
+  })()`)
+
+  const newTarget = await waitForCdpTarget(
+    session.cdpPort,
+    (target) =>
+      target.type === 'page' &&
+      !beforeTargetIds.has(target.id)
+  )
+  const newCdp = await connectCdp(newTarget)
+  try {
+    await waitForRenderer(
+      newCdp,
+      `typeof app === 'object' && app.workspace.getActiveFile()?.path === ${JSON.stringify(expected.drag.targetNodeId)}`
+    )
+    const newWindow = await newCdp.evaluate(`(() => {
+      const remote = require('@electron/remote')
+      const window = remote.getCurrentWindow()
+      window.setBounds({ x: -32000, y: -32000, width: ${expected.viewport.width}, height: ${expected.viewport.height} })
+      window.setSkipTaskbar(true)
+      if (window.isMinimized()) window.restore()
+      return {
+        id: window.id,
+        bounds: window.getBounds(),
+        visible: window.isVisible(),
+        activeFile: app.workspace.getActiveFile()?.path ?? null,
+        activeLeaf: app.workspace.activeLeaf
+          ? {
+              id: app.workspace.activeLeaf.id ?? null,
+              viewType: app.workspace.activeLeaf.view?.getViewType?.() ?? null,
+              filePath: app.workspace.activeLeaf.view?.file?.path ?? null
+            }
+          : null,
+        graphLeafCount: app.workspace.getLeavesOfType('graph').length,
+        tabHeaders: [...document.querySelectorAll('.workspace-tab-header')].map((header) => ({
+          ariaLabel: header.getAttribute('aria-label'),
+          title: header.getAttribute('title'),
+          text: header.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          classes: [...header.classList].sort()
+        }))
+      }
+    })()`)
+    await delay(500)
+    const screenshot = await captureScreenshot(
+      newCdp,
+      resolve(outputDirectory, '02-attachment-new-window.png')
+    )
+    const sourceAfter = await session.cdp.evaluate(`(() => ({
+      browserWindowCount: require('@electron/remote').BrowserWindow.getAllWindows().length,
+      graphLeafCount: app.workspace.getLeavesOfType('graph').length,
+      activeFile: app.workspace.getActiveFile()?.path ?? null,
+      menuClosed: document.querySelector('.menu .menu-item') === null
+    }))()`)
+    await newCdp.evaluate(`require('@electron/remote').getCurrentWindow().close()`)
+    return { before, newWindow: { ...newWindow, screenshot }, sourceAfter }
+  } finally {
+    newCdp.socket.close()
+  }
 }
 
 async function launchSession(sessionNumber) {
@@ -775,12 +1097,22 @@ async function main() {
       await first.whileChildAlive(openGlobalGraph(first.cdp))
     }
     await first.whileChildAlive(setGraphSearch(first.cdp, expected.search))
-    if (nodeDragProbe) {
+    if (attachmentNewTabProbe || attachmentNewWindowProbe) {
+      await first.whileChildAlive(setGraphAttachmentsVisible(first.cdp))
+    }
+    if (nodeDragProbe || nodeMenuProbe) {
       await first.whileChildAlive(waitForTargetNodeStability(first.cdp))
     }
-    if (cameraProbe || nodeDragProbe) {
+    if (cameraProbe || nodeDragProbe || nodeMenuProbe) {
       observations.beforeEntry = await first.whileChildAlive(
-        observeGraph(first.cdp, nodeDragProbe ? 'before-node-drag' : 'before-camera-input')
+        observeGraph(
+          first.cdp,
+          nodeMenuProbe
+            ? 'before-node-context-menu'
+            : nodeDragProbe
+              ? 'before-node-drag'
+              : 'before-camera-input'
+        )
       )
       observations.beforeEntry.screenshot = await first.whileChildAlive(
         captureScreenshot(first.cdp, resolve(outputDirectory, '00-baseline.png'))
@@ -812,19 +1144,63 @@ async function main() {
     observations.afterEntry = await first.whileChildAlive(
       observeGraph(first.cdp, nodeDragProbe ? 'after-node-release-settled' : 'after-entry')
     )
-    observations.afterEntry.screenshot = await first.whileChildAlive(
-      captureScreenshot(
-        first.cdp,
-        resolve(
-          outputDirectory,
-          nodeDragProbe
-            ? '02-after-node-release.png'
-            : cameraProbe
-              ? '01-after-camera-input.png'
-              : '01-after-entry.png'
+    if (nodeMenuProbe) {
+      observations.menuInput = await first.whileChildAlive(openNodeContextMenu(first.cdp))
+      observations.nodeContextMenu = await first.whileChildAlive(
+        observeNodeContextMenu(first.cdp)
+      )
+      observations.nodeContextMenu.screenshot = await first.whileChildAlive(
+        captureScreenshot(first.cdp, resolve(outputDirectory, '01-node-context-menu.png'))
+      )
+      if (nodeNewTabProbe) {
+        observations.nodeNewTab = await first.whileChildAlive(
+          activateNodeNewTab(first.cdp)
+        )
+        observations.nodeNewTab.screenshot = await first.whileChildAlive(
+          captureScreenshot(first.cdp, resolve(outputDirectory, '02-note-new-tab.png'))
+        )
+      } else if (attachmentNewTabProbe) {
+        observations.attachmentNewTab = await first.whileChildAlive(
+          activateAttachmentNewTab(first.cdp)
+        )
+        observations.attachmentNewTab.screenshot = await first.whileChildAlive(
+          captureScreenshot(first.cdp, resolve(outputDirectory, '02-attachment-new-tab.png'))
+        )
+      } else if (attachmentNewWindowProbe) {
+        observations.attachmentNewWindow = await first.whileChildAlive(
+          activateAttachmentNewWindow(first)
+        )
+      } else {
+        await first.whileChildAlive(first.cdp.send('Input.dispatchKeyEvent', {
+          type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27
+        }))
+        await first.whileChildAlive(first.cdp.send('Input.dispatchKeyEvent', {
+          type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27
+        }))
+        await first.whileChildAlive(
+          waitForRenderer(first.cdp, `document.querySelector('.menu .menu-item') === null`)
+        )
+      }
+    }
+    if (!attachmentNewTabProbe && !attachmentNewWindowProbe) {
+      observations.afterEntry.screenshot = await first.whileChildAlive(
+        captureScreenshot(
+          first.cdp,
+          resolve(
+            outputDirectory,
+            nodeNewTabProbe
+              ? '02-note-new-tab.png'
+              : nodeMenuProbe
+              ? '00-baseline.png'
+              : nodeDragProbe
+              ? '02-after-node-release.png'
+              : cameraProbe
+                ? '01-after-camera-input.png'
+                : '01-after-entry.png'
+          )
         )
       )
-    )
+    }
 
     await first.whileChildAlive(first.cdp.evaluate(`(() => {
       const leaf = app.workspace.getLeavesOfType('graph')[0]
@@ -998,6 +1374,67 @@ async function main() {
       observations.afterAppRestart.graphOptionsSearch === expected.search &&
       observations.afterAppRestart.searchInputValue === expected.search,
     filteredNodesAfterAppRestart: exactNodeIds(observations.afterAppRestart),
+    ...(nodeMenuProbe
+      ? {
+          nodeContextMenuOpened: observations.nodeContextMenu.items.length > 0,
+          nodeContextMenuItemsHaveText: observations.nodeContextMenu.items.every(
+            (item) => item.text.length > 0
+          ),
+          ...(nodeNewTabProbe
+            ? {
+                newTabCreated:
+                  observations.nodeNewTab.after.markdownLeafCount ===
+                  observations.nodeNewTab.before.markdownLeafCount + 1,
+                newTabActivated:
+                  observations.nodeNewTab.after.activeFile === expected.drag.targetNodeId,
+                graphKeptOpenInBackground:
+                  observations.nodeNewTab.after.graphLeafCount ===
+                  observations.nodeNewTab.before.graphLeafCount,
+                nodeContextMenuClosedAfterAction:
+                  observations.nodeNewTab.after.menuClosed === true
+              }
+            : attachmentNewTabProbe
+              ? {
+                  attachmentTabCreated:
+                    observations.attachmentNewTab.after.activeLeaf?.id !==
+                      observations.attachmentNewTab.before.activeLeaf?.id &&
+                    observations.attachmentNewTab.after.addedTabHeaders.length === 1,
+                  attachmentTabActivated:
+                    observations.attachmentNewTab.after.activeFile === expected.drag.targetNodeId &&
+                    observations.attachmentNewTab.after.activeLeaf?.filePath ===
+                      expected.drag.targetNodeId,
+                  attachmentViewCreated:
+                    observations.attachmentNewTab.after.activeLeaf?.viewType === 'image',
+                  graphKeptOpenInBackground:
+                    observations.attachmentNewTab.after.graphLeafCount ===
+                      observations.attachmentNewTab.before.graphLeafCount &&
+                    observations.attachmentNewTab.after.tabHeaders.some(
+                      (header) => header.ariaLabel === 'グラフビュー'
+                    ),
+                  nodeContextMenuClosedAfterAction:
+                    observations.attachmentNewTab.after.menuClosed === true
+                }
+              : attachmentNewWindowProbe
+                ? {
+                    attachmentWindowCreated:
+                      observations.attachmentNewWindow.sourceAfter.browserWindowCount ===
+                      observations.attachmentNewWindow.before.browserWindowCount + 1,
+                    attachmentWindowActivated:
+                      observations.attachmentNewWindow.newWindow.activeFile ===
+                        expected.drag.targetNodeId &&
+                      observations.attachmentNewWindow.newWindow.activeLeaf?.filePath ===
+                        expected.drag.targetNodeId,
+                    attachmentViewCreated:
+                      observations.attachmentNewWindow.newWindow.activeLeaf?.viewType === 'image',
+                    sourceGraphKeptOpen:
+                      observations.attachmentNewWindow.sourceAfter.graphLeafCount ===
+                      observations.attachmentNewWindow.before.graphLeafCount,
+                    nodeContextMenuClosedAfterAction:
+                      observations.attachmentNewWindow.sourceAfter.menuClosed === true
+                  }
+              : {})
+        }
+      : {}),
     ...(cameraProbe
       ? {
           cameraInputChanged: cameraChanged,
@@ -1041,7 +1478,15 @@ async function main() {
   }
   const manifest = {
     capturedAt: new Date().toISOString(),
-    stage: nodeDragProbe
+    stage: attachmentNewWindowProbe
+      ? 'GP0-3b-i Obsidian Global Graph attachment new-window probe'
+      : attachmentNewTabProbe
+      ? 'GP0-3b-h Obsidian Global Graph attachment new-tab probe'
+      : nodeNewTabProbe
+      ? 'GP0-3b-f Obsidian Global Graph node new-tab probe'
+      : nodeMenuProbe
+      ? 'GP0-3b-e Obsidian Global Graph node context menu probe'
+      : nodeDragProbe
       ? 'GP0-3b-d Obsidian Global Graph node drag lifecycle probe'
       : cameraProbe
         ? 'GP0-3b-c Obsidian Global Graph camera persistence probe'
@@ -1053,6 +1498,10 @@ async function main() {
       query: expected.search,
       cameraProbe,
       nodeDragProbe,
+      nodeMenuProbe,
+      nodeNewTabProbe,
+      attachmentNewTabProbe,
+      attachmentNewWindowProbe,
       lifecycle: ['entry', 'graph-close-reopen', 'full-app-restart'],
       fixture: relative(repoRoot, fixtureDirectory).replaceAll('\\', '/'),
       isolatedVault: relative(repoRoot, vaultDirectory).replaceAll('\\', '/'),
@@ -1078,6 +1527,10 @@ async function main() {
     assertions,
     cameraContract,
     nodeDragContract,
+    nodeContextMenu: observations.nodeContextMenu ?? null,
+    nodeNewTab: observations.nodeNewTab ?? null,
+    attachmentNewTab: observations.attachmentNewTab ?? null,
+    attachmentNewWindow: observations.attachmentNewWindow ?? null,
     protection: {
       sourceBefore,
       sourceAfter,
@@ -1104,6 +1557,9 @@ async function main() {
         filteredNodeIds: observations.afterAppRestart.renderedNodeIds,
         cameraContract,
         nodeDragContract,
+        nodeContextMenu: observations.nodeContextMenu ?? null,
+        nodeNewTab: observations.nodeNewTab ?? null,
+        attachmentNewTab: observations.attachmentNewTab ?? null,
         observation: manifest.scope.observation,
         sourceUnchanged: assertions.sourceUnchanged,
         isolatedVaultProtectedFilesUnchanged: assertions.isolatedVaultProtectedFilesUnchanged,

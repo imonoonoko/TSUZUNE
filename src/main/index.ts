@@ -1,7 +1,7 @@
 import { app, BrowserWindow, Menu, safeStorage, shell } from 'electron'
 import electronUpdater from 'electron-updater'
 import { writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { DriveSyncService } from './drive-sync-service'
 import { GoogleConnectionService } from './google-connection'
 import { runGoogleOAuthLoopback } from './google-oauth-flow'
@@ -19,9 +19,48 @@ let mainWindow: BrowserWindow | null = null
 let closeApproved = false
 
 const vault = new VaultService()
+const attachmentWindows = new Set<BrowserWindow>()
 const watcher = new VaultWatcher((change) => {
   mainWindow?.webContents.send('vault:changed', change)
 })
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+}
+
+async function openAttachmentWindow(path: string): Promise<void> {
+  const dataUrl = await vault.readImageDataUrl(path)
+  const name = basename(path)
+  const attachmentWindow = new BrowserWindow({
+    width: 1000,
+    height: 720,
+    minWidth: 560,
+    minHeight: 420,
+    show: false,
+    title: `${name} - TSUZUNE`,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  })
+  attachmentWindows.add(attachmentWindow)
+  attachmentWindow.once('ready-to-show', () => {
+    if (process.env.TSUZUNE_HEADLESS_SMOKE !== '1') attachmentWindow.show()
+  })
+  attachmentWindow.on('closed', () => attachmentWindows.delete(attachmentWindow))
+  attachmentWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  attachmentWindow.webContents.on('will-navigate', (event) => event.preventDefault())
+
+  const html = `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'"><title>${escapeHtml(name)}</title><style>*{box-sizing:border-box}body{margin:0;background:#fff;color:#262626;font:14px "Segoe UI","Noto Sans JP",sans-serif}.tabs{height:40px;border-bottom:1px solid #ddd;display:flex;align-items:center}.tab{height:40px;min-width:180px;padding:10px 16px;border-right:1px solid #ddd;font-weight:600}.path{height:40px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:center;color:#555}.preview{height:calc(100vh - 80px);display:flex;align-items:flex-start;justify-content:center;padding:50px 24px;overflow:auto}.preview img{max-width:100%;height:auto}</style></head><body><div class="tabs"><div class="tab">${escapeHtml(name)}</div></div><div class="path">${escapeHtml(path)}</div><main class="preview"><img src="${dataUrl}" alt="${escapeHtml(name)}"></main></body></html>`
+  await attachmentWindow.loadURL(
+    `data:text/html;charset=utf-8,${encodeURIComponent(html)}`
+  )
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -154,7 +193,8 @@ app.whenReady().then(() => {
     () => {
       closeApproved = true
       mainWindow?.close()
-    }
+    },
+    openAttachmentWindow
   )
   createWindow()
   if (app.isPackaged) {

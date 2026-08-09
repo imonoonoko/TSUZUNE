@@ -325,13 +325,13 @@ export function evaluateKnowledgeTime(
 export function buildTemporalTimeline(
   subject: string,
   notes: NoteDocument[],
-  asOf: string
+  asOf: string,
+  parsedNotes: ParsedTemporalNote[] = notes.map(parseTemporalNote)
 ): TemporalTimelineEntry[] {
   const entries: TemporalTimelineEntry[] = []
   const normalizedSubject = normalizeSubject(subject)
 
-  for (const note of notes) {
-    const parsed = parseTemporalNote(note)
+  for (const parsed of parsedNotes) {
     if (
       parsed.kind === 'normal' ||
       !parsed.metadata ||

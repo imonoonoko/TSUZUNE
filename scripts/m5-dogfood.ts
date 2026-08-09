@@ -1,6 +1,13 @@
 import { mkdir, writeFile } from 'node:fs/promises'
+import { performance } from 'node:perf_hooks'
 import { resolve } from 'node:path'
-import { buildContextBundle, type ContextBundle } from '../src/core/context'
+import {
+  buildContextBundle,
+  buildContextBundleFromSnapshot,
+  createContextSnapshotIndex,
+  type ContextBundle,
+  type ContextSnapshotIndex
+} from '../src/core/context'
 import { getBacklinks, getOutgoingLinks } from '../src/core/links'
 import {
   evaluateTemporal,
@@ -46,6 +53,42 @@ export interface M5EvaluationResult {
   }
 }
 
+export interface M5BenchmarkOptions {
+  warmupRuns: number
+  measuredRuns: number
+}
+
+export interface M5BenchmarkPeriodMetrics {
+  characters: number
+  utf8Bytes: number
+  includedNoteCount: number
+  futureLeakCount: number
+  unscopedNormalBodyCount: number
+  reviewWarningCount: number
+  resolvedProvenanceCount: number
+}
+
+export interface M5BenchmarkArmMetrics {
+  warmupRuns: number
+  measuredRuns: number
+  latencyMs: {
+    median: number
+    p95: number
+    min: number
+    max: number
+  }
+  current: M5BenchmarkPeriodMetrics
+  past: M5BenchmarkPeriodMetrics
+}
+
+export interface M5BenchmarkResult {
+  scope: 'context-build-and-analysis-only'
+  arms: {
+    withoutTsuzune: M5BenchmarkArmMetrics
+    withTsuzune: M5BenchmarkArmMetrics
+  }
+}
+
 interface RawPeriod {
   markdown: string
   includedPaths: string[]
@@ -71,6 +114,7 @@ export function evaluateM5Notes(
   notes: NoteDocument[],
   options: M5EvaluationOptions
 ): M5EvaluationResult {
+  const snapshot = createContextSnapshotIndex(notes)
   const seedCurrent = buildSeedOnly(notes, options.seedPaths)
   const seedPast = buildSeedOnly(notes, options.seedPaths)
   const legacyCurrent = buildLegacyOneHop(
@@ -85,12 +129,14 @@ export function evaluateM5Notes(
   )
   const temporalCurrent = buildTemporal(
     notes,
+    snapshot,
     options.seedPaths,
     options.currentAsOf,
     options.generatedAt
   )
   const temporalPast = buildTemporal(
     notes,
+    snapshot,
     options.seedPaths,
     options.pastAsOf,
     options.generatedAt
@@ -100,28 +146,183 @@ export function evaluateM5Notes(
     options,
     arms: {
       seedOnly: {
-        current: analyzePeriod(seedCurrent, notes, options.currentAsOf),
-        past: analyzePeriod(seedPast, notes, options.pastAsOf)
+        current: analyzePeriod(
+          seedCurrent,
+          notes,
+          options.currentAsOf,
+          snapshot
+        ),
+        past: analyzePeriod(
+          seedPast,
+          notes,
+          options.pastAsOf,
+          snapshot
+        )
       },
       legacyOneHop: {
         current: analyzePeriod(
           legacyCurrent,
           notes,
-          options.currentAsOf
+          options.currentAsOf,
+          snapshot
         ),
-        past: analyzePeriod(legacyPast, notes, options.pastAsOf)
+        past: analyzePeriod(
+          legacyPast,
+          notes,
+          options.pastAsOf,
+          snapshot
+        )
       },
       temporal: {
         current: analyzePeriod(
           temporalCurrent,
           notes,
-          options.currentAsOf
+          options.currentAsOf,
+          snapshot
         ),
-        past: analyzePeriod(temporalPast, notes, options.pastAsOf)
+        past: analyzePeriod(
+          temporalPast,
+          notes,
+          options.pastAsOf,
+          snapshot
+        )
       }
     },
     safetyProbes: runSafetyProbes(options.generatedAt)
   }
+}
+
+export function benchmarkM5Notes(
+  notes: NoteDocument[],
+  options: M5EvaluationOptions,
+  benchmarkOptions: M5BenchmarkOptions
+): M5BenchmarkResult {
+  assertBenchmarkCount('warmupRuns', benchmarkOptions.warmupRuns, true)
+  assertBenchmarkCount('measuredRuns', benchmarkOptions.measuredRuns, false)
+
+  return {
+    scope: 'context-build-and-analysis-only',
+    arms: {
+      withoutTsuzune: measureArm(
+        () => ({
+          current: analyzePeriod(
+            buildSeedOnly(notes, options.seedPaths),
+            notes,
+            options.currentAsOf
+          ),
+          past: analyzePeriod(
+            buildSeedOnly(notes, options.seedPaths),
+            notes,
+            options.pastAsOf
+          )
+        }),
+        benchmarkOptions
+      ),
+      withTsuzune: measureArm(
+        () => {
+          const snapshot = createContextSnapshotIndex(notes)
+          return {
+            current: analyzePeriod(
+              buildTemporal(
+                notes,
+                snapshot,
+                options.seedPaths,
+                options.currentAsOf,
+                options.generatedAt
+              ),
+              notes,
+              options.currentAsOf,
+              snapshot
+            ),
+            past: analyzePeriod(
+              buildTemporal(
+                notes,
+                snapshot,
+                options.seedPaths,
+                options.pastAsOf,
+                options.generatedAt
+              ),
+              notes,
+              options.pastAsOf,
+              snapshot
+            )
+          }
+        },
+        benchmarkOptions
+      )
+    }
+  }
+}
+
+function measureArm(
+  build: () => M5ArmResult,
+  options: M5BenchmarkOptions
+): M5BenchmarkArmMetrics {
+  for (let index = 0; index < options.warmupRuns; index += 1) {
+    build()
+  }
+
+  const durations: number[] = []
+  let result: M5ArmResult | undefined
+  for (let index = 0; index < options.measuredRuns; index += 1) {
+    const startedAt = performance.now()
+    result = build()
+    durations.push(performance.now() - startedAt)
+  }
+
+  if (!result) {
+    throw new Error('M5 benchmark produced no result.')
+  }
+  const sorted = [...durations].sort((left, right) => left - right)
+  return {
+    warmupRuns: options.warmupRuns,
+    measuredRuns: options.measuredRuns,
+    latencyMs: {
+      median: roundMilliseconds(median(sorted)),
+      p95: roundMilliseconds(
+        sorted[Math.max(0, Math.ceil(sorted.length * 0.95) - 1)]
+      ),
+      min: roundMilliseconds(sorted[0]),
+      max: roundMilliseconds(sorted.at(-1) ?? 0)
+    },
+    current: benchmarkPeriodMetrics(result.current),
+    past: benchmarkPeriodMetrics(result.past)
+  }
+}
+
+function benchmarkPeriodMetrics(
+  period: M5PeriodResult
+): M5BenchmarkPeriodMetrics {
+  return {
+    characters: period.markdown.length,
+    utf8Bytes: Buffer.byteLength(period.markdown),
+    includedNoteCount: period.includedPaths.length,
+    futureLeakCount: period.futureLeakPaths.length,
+    unscopedNormalBodyCount: period.unscopedNormalBodyPaths.length,
+    reviewWarningCount: period.reviewWarningPaths.length,
+    resolvedProvenanceCount: period.resolvedProvenancePairs.length
+  }
+}
+
+function assertBenchmarkCount(
+  name: string,
+  value: number,
+  allowZero: boolean
+): void {
+  if (!Number.isInteger(value) || value < (allowZero ? 0 : 1)) {
+    throw new Error(`${name} must be ${allowZero ? 'a non-negative' : 'a positive'} integer.`)
+  }
+}
+
+function median(sorted: number[]): number {
+  const middle = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 0
+    ? (sorted[middle - 1] + sorted[middle]) / 2
+    : sorted[middle]
+}
+
+function roundMilliseconds(value: number): number {
+  return Math.round(value * 1000) / 1000
 }
 
 function buildSeedOnly(
@@ -234,12 +435,13 @@ function buildLegacyOneHop(
 
 function buildTemporal(
   notes: NoteDocument[],
+  snapshot: ContextSnapshotIndex,
   seedPaths: string[],
   asOf: string,
   generatedAt: string
 ): RawPeriod {
   const bundles = seedPaths.map((seedPath) =>
-    buildContextBundle(seedPath, notes, {
+    buildContextBundleFromSnapshot(seedPath, snapshot, {
       asOf,
       generatedAt,
       includeHistory: false
@@ -261,11 +463,9 @@ function buildTemporal(
     unscopedNormalBodyPaths: unique(
       bundles.flatMap((bundle) =>
         bundle.included.flatMap((source) => {
-          const note = notes.find(
-            (candidate) => candidate.path === source.path
-          )
+          const note = snapshot.noteByPath.get(source.path)
           return note &&
-            parseTemporalNote(note).kind === 'normal' &&
+            snapshot.temporalByPath.get(note.path)?.kind === 'normal' &&
             !source.contentOmitted
             ? [source.path]
             : []
@@ -289,14 +489,17 @@ function buildTemporal(
 function analyzePeriod(
   raw: RawPeriod,
   notes: NoteDocument[],
-  asOf: string
+  asOf: string,
+  snapshot?: ContextSnapshotIndex
 ): M5PeriodResult {
   const futureLeakPaths = raw.includedPaths.filter((path) => {
-    const note = notes.find((candidate) => candidate.path === path)
+    const note = snapshot?.noteByPath.get(path) ??
+      notes.find((candidate) => candidate.path === path)
     if (!note) {
       return false
     }
-    const parsed = parseTemporalNote(note)
+    const parsed = snapshot?.temporalByPath.get(note.path) ??
+      parseTemporalNote(note)
     if (!parsed.metadata) {
       return false
     }
@@ -488,6 +691,11 @@ export async function runM5Dogfood(args: string[]): Promise<void> {
     pastAsOf: options.pastAsOf,
     generatedAt
   })
+  const benchmark = benchmarkM5Notes(
+    snapshot.notes,
+    result.options,
+    { warmupRuns: 20, measuredRuns: 200 }
+  )
 
   await mkdir(options.output, { recursive: true })
   const armFiles: Array<{
@@ -531,7 +739,8 @@ export async function runM5Dogfood(args: string[]): Promise<void> {
         }
       ])
     ),
-    safetyProbes: result.safetyProbes
+    safetyProbes: result.safetyProbes,
+    benchmark
   }
   await writeFile(
     resolve(options.output, 'metrics.json'),
@@ -558,7 +767,8 @@ export async function runM5Dogfood(args: string[]): Promise<void> {
           result.arms.legacyOneHop.past.unscopedNormalBodyPaths.length,
         temporalReviewWarnings:
           result.arms.temporal.current.reviewWarningPaths.length,
-        safetyProbes: result.safetyProbes
+        safetyProbes: result.safetyProbes,
+        benchmark
       },
       null,
       2

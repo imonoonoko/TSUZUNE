@@ -1,6 +1,6 @@
 # ChatGPT Export Intake
 
-更新日: 2026-08-08
+更新日: 2026-08-09
 
 ## 現在の範囲
 
@@ -70,6 +70,10 @@ npm run preview:chatgpt-export -- `
 
 5件のmissingはpayloadを推測生成せずwarningとして残します。preview outputは個人データを含むためローカルstagingだけに置き、Gitと本番TSUZUNEへ複製しません。
 
-## 次の段階: C1-A
+## C1-A〜C1-Cの現在地
 
-C0-Aの843件を直接プロフィールへ書かず、まず出典付き候補previewへ整理します。候補ID、元message、時刻、content hash、抽出ruleを保持し、現在プロフィール5ノートへの適用差分だけを表示します。raw source、派生成果物、確定知識を分離し、このsliceでもVault writeは0です。
+C0-Aの843件を直接プロフィールへ書かず、出典付き候補previewと決定的な品質sampleを作成しました。C1-Cでは候補を自動適用、要確認、プロフィール除外へ分け、本文からprivacy reviewも判定します。候補ID、元message、時刻、content hash、抽出rule、全source referenceは維持します。
+
+2026-08-09の公式Export再評価では799候補、863 source reference、追跡率100%、構造的混入0でした。C1-B固定57件の既知誤検出・unsafe自動適用は0件です。強化後の自動候補7件は全件reviewで安全でしたが、ruleごとの最低10件を満たさないため合格ruleは0件です。人物プロフィールへのwriteは0を維持し、C1-D Vault Applyへは進みません。
+
+詳細は[C1-B品質較正](reports/chatgpt-candidate-quality-c1b-2026-08-09.md)と[C1-C適格性強化](reports/chatgpt-candidate-eligibility-c1c-2026-08-09.md)を参照してください。個人本文とreview表は引き続きGit管理外の`work/`だけに置きます。

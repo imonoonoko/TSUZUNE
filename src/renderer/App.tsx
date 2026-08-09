@@ -21,6 +21,18 @@ import {
   withoutMarkdownExtension
 } from '../core/paths'
 import { searchNotes } from '../core/search'
+import { getNoteFreshness } from '../core/freshness'
+import {
+  dailyNoteLocation,
+  ideaNoteLocation,
+  listTemplates,
+  parseDailyNote,
+  parseIdeaNote,
+  renderDailyNote,
+  renderIdeaNote,
+  renderTemplate,
+  TEMPLATE_DIRECTORY
+} from '../core/templates'
 import type {
   AppError,
   AppUpdateStatus,
@@ -34,6 +46,7 @@ import type {
   GraphViewState,
   GraphViewStates,
   NoteDocument,
+  VaultAttachment,
   VaultChangeEvent,
   VaultSnapshot
 } from '../shared/types'
@@ -43,6 +56,10 @@ import { DEFAULT_GRAPH_FILTER_SETTINGS } from '../shared/graph-filters'
 import { DEFAULT_GRAPH_GROUPS } from '../shared/graph-groups'
 import { DEFAULT_GRAPH_VIEW_STATES } from '../shared/graph-view-state'
 import FileTree, { type TreeSelection } from './components/FileTree'
+import AttachmentPreview from './components/AttachmentPreview'
+import HumanNoteCaptureDialog, {
+  type HumanNoteCaptureSubmission
+} from './components/HumanNoteCaptureDialog'
 import Icon from './components/Icon'
 import MarkdownEditor from './components/MarkdownEditor'
 import MarkdownPreview from './components/MarkdownPreview'
@@ -53,6 +70,17 @@ import WikiGraphView from './components/WikiGraphView'
 import tsuzuneMark from './assets/tsuzune-woven-loop.png'
 
 type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict'
+
+type WorkspaceTab =
+  | {
+      id: number
+      kind: 'note' | 'attachment'
+      path: string
+    }
+  | {
+      id: number
+      kind: 'global-graph'
+    }
 
 type ConflictState =
   | {
@@ -101,6 +129,10 @@ export default function App(): React.JSX.Element {
   const [loading, setLoading] = useState(true)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const selectedPathRef = useRef<string | null>(null)
+  const [workspaceTabs, setWorkspaceTabs] = useState<WorkspaceTab[]>([])
+  const [activeTabId, setActiveTabId] = useState<number | null>(null)
+  const [activeAttachmentPath, setActiveAttachmentPath] = useState<string | null>(null)
+  const nextTabIdRef = useRef(1)
   const [treeSelection, setTreeSelection] = useState<TreeSelection | null>(null)
   const [content, setContent] = useState('')
   const contentRef = useRef('')
@@ -134,6 +166,10 @@ export default function App(): React.JSX.Element {
   const [settingsBusy, setSettingsBusy] = useState(false)
   const [excludedFilesDraft, setExcludedFilesDraft] = useState('')
   const [query, setQuery] = useState('')
+  const [selectedTemplatePath, setSelectedTemplatePath] = useState('')
+  const [captureKind, setCaptureKind] = useState<'note' | 'daily' | 'idea' | null>(null)
+  const [captureEditPath, setCaptureEditPath] = useState<string | null>(null)
+  const [noteCreationTemplate, setNoteCreationTemplate] = useState<NoteDocument | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
   const conflictRef = useRef<ConflictState | null>(null)
@@ -270,6 +306,7 @@ export default function App(): React.JSX.Element {
     setSaveStatus('saved')
     setCurrentConflict(null)
     setMessage(null)
+    setActiveAttachmentPath(null)
     if (path) {
       setTreeSelection({ kind: 'note', path })
     }
@@ -431,6 +468,36 @@ export default function App(): React.JSX.Element {
     return result.value
   }
 
+  const activateNoteWorkspace = (path: string): void => {
+    if (activeTabId === null) {
+      return
+    }
+    const activeTab = workspaceTabs.find((tab) => tab.id === activeTabId)
+    if (activeTab?.kind === 'global-graph') {
+      const existing = workspaceTabs.find(
+        (tab) => tab.kind === 'note' && tab.path === path
+      )
+      if (existing) {
+        setActiveTabId(existing.id)
+      } else {
+        const nextTab: WorkspaceTab = {
+          id: nextTabIdRef.current++,
+          kind: 'note',
+          path
+        }
+        setWorkspaceTabs([...workspaceTabs, nextTab])
+        setActiveTabId(nextTab.id)
+      }
+      setViewMode('edit')
+      return
+    }
+    setWorkspaceTabs((current) =>
+      current.map((tab) =>
+        tab.id === activeTabId ? { ...tab, kind: 'note', path } : tab
+      )
+    )
+  }
+
   const openNote = async (path: string): Promise<void> => {
     if (path === selectedPathRef.current || !beginOperation()) {
       return
@@ -444,6 +511,7 @@ export default function App(): React.JSX.Element {
       const note = snapshotRef.current?.notes.find((candidate) => candidate.path === path)
       if (note) {
         loadNoteState(note)
+        activateNoteWorkspace(path)
         return
       }
 
@@ -453,6 +521,7 @@ export default function App(): React.JSX.Element {
         return
       }
       loadNoteState(result.value)
+      activateNoteWorkspace(path)
     } finally {
       finishOperation()
     }
@@ -691,6 +760,13 @@ export default function App(): React.JSX.Element {
   }, [])
 
   const savedNotes = snapshot?.notes ?? []
+  const templates = useMemo(() => listTemplates(savedNotes), [savedNotes])
+  useEffect(() => {
+    if (templates.some((template) => template.path === selectedTemplatePath)) {
+      return
+    }
+    setSelectedTemplatePath(templates[0]?.path ?? '')
+  }, [selectedTemplatePath, templates])
   const graphNotes = useMemo(() => {
     if (viewMode !== 'graph' || !selectedPath) {
       return savedNotes
@@ -719,6 +795,27 @@ export default function App(): React.JSX.Element {
         : null,
     [savedNotes, selectedPath]
   )
+  const selectedFreshness = useMemo(
+    () =>
+      selectedPath
+        ? getNoteFreshness({ content, modifiedAt })
+        : null,
+    [content, modifiedAt, selectedPath]
+  )
+  const structuredCapture = useMemo((): HumanNoteCaptureSubmission | null => {
+    if (!selectedPath) {
+      return null
+    }
+    if (/^02_デイリー\/\d{4}-\d{2}-\d{2}\.md$/.test(selectedPath)) {
+      const values = parseDailyNote(content)
+      return values ? { kind: 'daily', ...values } : null
+    }
+    if (selectedPath.startsWith('01_受信箱/アイデア/')) {
+      const values = parseIdeaNote(content)
+      return values ? { kind: 'idea', ...values } : null
+    }
+    return null
+  }, [content, selectedPath])
   const wikiGraph = useMemo(
     () =>
       buildWikiGraphForView(graphNotes, viewMode, {
@@ -802,38 +899,154 @@ export default function App(): React.JSX.Element {
     }
   }
 
-  const createNote = async (): Promise<void> => {
+  const createNote = (template?: NoteDocument): void => {
     if (!snapshot) {
       return
     }
-    const name = window.prompt('新しいノート名', '無題のノート')
-    if (!name) {
-      return
+    setNoteCreationTemplate(template ?? null)
+    setCaptureEditPath(null)
+    setCaptureKind('note')
+  }
+
+  const ensureDirectory = async (directory: string): Promise<boolean> => {
+    const known = new Set(snapshotRef.current?.directories ?? [])
+    let parent = ''
+    for (const name of directory.split('/').filter(Boolean)) {
+      const path = joinRelative(parent, name)
+      if (!known.has(path)) {
+        const result = await window.tsuzune.createDirectory({ parent, name })
+        if (!result.ok && result.error.code !== 'ALREADY_EXISTS') {
+          setMessage(errorMessage(result.error))
+          return false
+        }
+        known.add(path)
+      }
+      parent = path
+    }
+    return true
+  }
+
+  const createCapturedNote = async (
+    submission: HumanNoteCaptureSubmission
+  ): Promise<boolean> => {
+    if (!snapshot) {
+      return false
+    }
+
+    const now = new Date()
+    const capturedDailyDate = captureEditPath?.match(
+      /^02_デイリー\/(\d{4})-(\d{2})-(\d{2})\.md$/
+    )
+    const dailyDate = capturedDailyDate
+      ? new Date(
+          Number(capturedDailyDate[1]),
+          Number(capturedDailyDate[2]) - 1,
+          Number(capturedDailyDate[3]),
+          12
+        )
+      : now
+    const content =
+      submission.kind === 'note'
+        ? noteCreationTemplate
+          ? renderTemplate(noteCreationTemplate.content, {
+              title: submission.title,
+              now
+            })
+          : undefined
+        : submission.kind === 'daily'
+          ? renderDailyNote({ now: dailyDate, ...submission })
+          : renderIdeaNote(submission)
+
+    if (captureEditPath) {
+      if (
+        selectedPathRef.current !== captureEditPath ||
+        content === undefined ||
+        !(await flushSave())
+      ) {
+        return false
+      }
+      handleContentChange(content)
+      if (!(await flushSave())) {
+        return false
+      }
+      setCaptureKind(null)
+      setCaptureEditPath(null)
+      setViewMode('preview')
+      return true
+    }
+
+    const location =
+      submission.kind === 'daily'
+        ? dailyNoteLocation(now)
+        : submission.kind === 'idea'
+          ? ideaNoteLocation(submission.title)
+          : null
+    const existing = location
+      ? snapshotRef.current?.notes.find((note) => note.path === location.path)
+      : null
+    if (existing) {
+      await openNote(existing.path)
+      setCaptureKind(null)
+      setCaptureEditPath(null)
+      setViewMode('preview')
+      return true
     }
     if (!beginOperation()) {
-      return
+      return false
     }
 
     try {
       if (!(await flushSave())) {
-        return
+        return false
       }
-      const result = await window.tsuzune.createNote({
-        directory: targetDirectory(),
-        name
-      })
+
+      const selectedDirectory = targetDirectory()
+      const directory =
+        submission.kind === 'note'
+          ? noteCreationTemplate &&
+            (selectedDirectory === TEMPLATE_DIRECTORY ||
+              selectedDirectory.startsWith(`${TEMPLATE_DIRECTORY}/`))
+            ? ''
+            : selectedDirectory
+          : location?.directory ?? ''
+      if (!(await ensureDirectory(directory))) {
+        return false
+      }
+
+      const name = submission.kind === 'note' ? submission.title : location?.name ?? ''
+      const result = await window.tsuzune.createNote({ directory, name, content })
       if (!result.ok) {
         setMessage(errorMessage(result.error))
-        return
+        return false
       }
       const next = await refreshSnapshot()
       const note = next?.notes.find((candidate) => candidate.path === result.value.path)
       if (note) {
         loadNoteState(note)
+        setViewMode(submission.kind === 'note' ? 'edit' : 'preview')
       }
+      setCaptureKind(null)
+      setCaptureEditPath(null)
+      setNoteCreationTemplate(null)
+      return true
     } finally {
       finishOperation()
     }
+  }
+
+  const openTodayNote = async (): Promise<void> => {
+    if (!snapshot) {
+      return
+    }
+    const path = dailyNoteLocation(new Date()).path
+    const existing = snapshot.notes.find((note) => note.path === path)
+    if (existing) {
+      await openNote(existing.path)
+      setViewMode('preview')
+      return
+    }
+    setCaptureKind('daily')
+    setCaptureEditPath(null)
   }
 
   const createDirectory = async (): Promise<void> => {
@@ -1131,6 +1344,145 @@ export default function App(): React.JSX.Element {
     }
     void openNote(path)
   }
+
+  const loadWorkspaceTab = async (tab: WorkspaceTab): Promise<void> => {
+    if (!beginOperation()) {
+      return
+    }
+    try {
+      if (!(await flushSave())) {
+        return
+      }
+      setActiveTabId(tab.id)
+      if (tab.kind === 'global-graph') {
+        setActiveAttachmentPath(null)
+        setGraphScope('vault')
+        setViewMode('graph')
+        setMessage(null)
+        return
+      }
+      if (tab.kind === 'attachment') {
+        setActiveAttachmentPath(tab.path)
+        setMessage(null)
+        return
+      }
+      const note = snapshotRef.current?.notes.find(
+        (candidate) => candidate.path === tab.path
+      )
+      if (!note) {
+        setMessage('このノートは現在のVaultにありません。')
+        return
+      }
+      loadNoteState(note)
+      setViewMode('edit')
+    } finally {
+      finishOperation()
+    }
+  }
+
+  const openGlobalGraphWorkspace = (): void => {
+    const existing = workspaceTabs.find((tab) => tab.kind === 'global-graph')
+    if (existing) {
+      setActiveTabId(existing.id)
+    } else {
+      const currentTabs = workspaceTabs.length > 0
+        ? workspaceTabs
+        : selectedPathRef.current
+          ? [{ id: nextTabIdRef.current++, kind: 'note' as const, path: selectedPathRef.current }]
+          : []
+      const graphTab: WorkspaceTab = {
+        id: nextTabIdRef.current++,
+        kind: 'global-graph'
+      }
+      setWorkspaceTabs([...currentTabs, graphTab])
+      setActiveTabId(graphTab.id)
+    }
+    setActiveAttachmentPath(null)
+    setGraphScope('vault')
+    setViewMode('graph')
+  }
+
+  const openGraphNodeInNewTab = async (path: string): Promise<void> => {
+    const node = visibleGraph.nodes.find((candidate) => candidate.path === path)
+    if (!node || node.kind === 'tag' || node.exists === false) {
+      return
+    }
+    if (!beginOperation()) {
+      return
+    }
+    try {
+      if (!(await flushSave())) {
+        return
+      }
+
+      const currentTabs = workspaceTabs.length > 0
+        ? workspaceTabs
+        : viewMode === 'graph' && graphScope === 'vault'
+          ? [{ id: nextTabIdRef.current++, kind: 'global-graph' as const }]
+          : selectedPathRef.current
+            ? [{ id: nextTabIdRef.current++, kind: 'note' as const, path: selectedPathRef.current }]
+            : []
+      const nextTab: WorkspaceTab = {
+        id: nextTabIdRef.current++,
+        kind: node.kind === 'attachment' ? 'attachment' : 'note',
+        path
+      }
+      setWorkspaceTabs([...currentTabs, nextTab])
+      setActiveTabId(nextTab.id)
+
+      if (nextTab.kind === 'attachment') {
+        setActiveAttachmentPath(path)
+        setMessage(null)
+        return
+      }
+      const note = snapshotRef.current?.notes.find((candidate) => candidate.path === path)
+      if (!note) {
+        setMessage('このノートは現在のVaultにありません。')
+        return
+      }
+      loadNoteState(note)
+      setActiveTabId(nextTab.id)
+      setViewMode('edit')
+    } finally {
+      finishOperation()
+    }
+  }
+
+  const openGraphNodeInNewWindow = async (path: string): Promise<void> => {
+    if (!(await flushSave())) {
+      return
+    }
+    const result = await window.tsuzune.openVaultFileWindow(path)
+    if (!result.ok) {
+      setMessage(errorMessage(result.error))
+    }
+  }
+
+  const closeWorkspaceTab = async (tabId: number): Promise<void> => {
+    const index = workspaceTabs.findIndex((tab) => tab.id === tabId)
+    if (index < 0) {
+      return
+    }
+    const remaining = workspaceTabs.filter((tab) => tab.id !== tabId)
+    setWorkspaceTabs(remaining)
+    if (tabId !== activeTabId) {
+      return
+    }
+    const next = remaining[Math.min(index, remaining.length - 1)]
+    if (next) {
+      await loadWorkspaceTab(next)
+    } else {
+      setActiveTabId(null)
+      setActiveAttachmentPath(null)
+      if (workspaceTabs[index].kind === 'global-graph') {
+        setViewMode('edit')
+      }
+    }
+  }
+
+  const activeAttachment: VaultAttachment | null = activeAttachmentPath
+    ? snapshot?.attachments?.find((item) => item.path === activeAttachmentPath) ?? null
+    : null
 
   const searchGraphTag = (tag: string): void => {
     setQuery(`tag:${tag}`)
@@ -1554,6 +1906,36 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  const workspaceTabBar = workspaceTabs.length > 0 ? (
+    <div className="workspace-tabs" role="tablist" aria-label="開いているタブ">
+      {workspaceTabs.map((tab) => (
+        <div className="workspace-tab" key={tab.id}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab.id === activeTabId}
+            className={tab.id === activeTabId ? 'is-active' : ''}
+            onClick={() => void loadWorkspaceTab(tab)}
+          >
+            {tab.kind === 'global-graph'
+              ? 'グラフビュー'
+              : tab.kind === 'note'
+                ? withoutMarkdownExtension(basenameRelative(tab.path))
+                : basenameRelative(tab.path)}
+          </button>
+          <button
+            type="button"
+            className="workspace-tab-close"
+            aria-label={`${tab.kind === 'global-graph' ? 'グラフビュー' : basenameRelative(tab.path)}を閉じる`}
+            onClick={() => void closeWorkspaceTab(tab.id)}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+    </div>
+  ) : null
+
   if (loading) {
     return (
       <div className="app-loading" role="status" aria-live="polite">
@@ -1563,7 +1945,8 @@ export default function App(): React.JSX.Element {
     )
   }
 
-  const modalOpen = settingsDialogOpen || googleDialogOpen || Boolean(movePath)
+  const modalOpen =
+    settingsDialogOpen || googleDialogOpen || Boolean(movePath) || Boolean(captureKind)
 
   return (
     <div className={`app-shell${busy ? ' is-busy' : ''}`} aria-busy={busy}>
@@ -1701,6 +2084,20 @@ export default function App(): React.JSX.Element {
             </label>
 
             <div className="tree-toolbar">
+              <button type="button" onClick={() => void openTodayNote()}>
+                <Icon name="note" />
+                今日のノート
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCaptureEditPath(null)
+                  setCaptureKind('idea')
+                }}
+              >
+                <Icon name="note" />
+                アイデアを追加
+              </button>
               <button type="button" onClick={() => void createNote()}>
                 <Icon name="note" />
                 ノート
@@ -1712,14 +2109,46 @@ export default function App(): React.JSX.Element {
               <button
                 type="button"
                 className="graph-view-entry"
-                onClick={() => {
-                  setGraphScope('vault')
-                  setViewMode('graph')
-                }}
+                onClick={openGlobalGraphWorkspace}
               >
                 <Icon name="graph" />
                 グラフビュー
               </button>
+              <div className="template-create">
+                <label>
+                  <span className="sr-only">テンプレート</span>
+                  <select
+                    aria-label="テンプレート"
+                    value={selectedTemplatePath}
+                    onChange={(event) => setSelectedTemplatePath(event.target.value)}
+                    title={`${TEMPLATE_DIRECTORY}内のMarkdownを雛形として使います`}
+                  >
+                    {templates.length === 0 ? (
+                      <option value="">テンプレートなし</option>
+                    ) : (
+                      templates.map((template) => (
+                        <option key={template.path} value={template.path}>
+                          {template.path.slice(`${TEMPLATE_DIRECTORY}/`.length)}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  disabled={!selectedTemplatePath}
+                  onClick={() => {
+                    const template = templates.find(
+                      (candidate) => candidate.path === selectedTemplatePath
+                    )
+                    if (template) {
+                      void createNote(template)
+                    }
+                  }}
+                >
+                  テンプレートから作成
+                </button>
+              </div>
             </div>
 
             <FileTree
@@ -1764,51 +2193,80 @@ export default function App(): React.JSX.Element {
 
           <section className="note-panel">
             {!selectedPath && viewMode === 'graph' && graphScope === 'vault' ? (
-              <WikiGraphView
-                graph={visibleGraph}
-                notes={graphNotes}
-                currentPath={null}
-                scope="vault"
-                includeOrphans={graphFilters.showOrphans}
-                filterSettings={graphFilters}
-                forceSettings={graphForces}
-                displaySettings={graphDisplay}
-                groups={graphGroups}
-                viewState={graphViewStates.vault}
-                onScopeChange={setGraphScope}
-                onIncludeOrphansChange={(showOrphans) =>
-                  setGraphFilters((current) => ({
-                    ...current,
-                    showOrphans
-                  }))
-                }
-                onFilterSettingsChange={setGraphFilters}
-                onFilterSettingsCommit={(next) =>
-                  void persistGraphFilters(next)
-                }
-                onForceSettingsChange={setGraphForces}
-                onForceSettingsCommit={(next) => void persistGraphForces(next)}
-                onDisplaySettingsChange={setGraphDisplay}
-                onDisplaySettingsCommit={(next) =>
-                  void persistGraphDisplay(next)
-                }
-                onGroupsChange={setGraphGroups}
-                onGroupsCommit={(next) => void persistGraphGroups(next)}
-                onViewStateCommit={(next) =>
-                  void persistGraphViewState('vault', next)
-                }
-                onSearchTag={searchGraphTag}
-                onTrash={(path) => void trashPath(path)}
-                onOpen={openGraphNode}
-              />
+              <>
+                <div className="note-top">{workspaceTabBar}</div>
+                <WikiGraphView
+                  graph={visibleGraph}
+                  notes={graphNotes}
+                  currentPath={null}
+                  scope="vault"
+                  includeOrphans={graphFilters.showOrphans}
+                  filterSettings={graphFilters}
+                  forceSettings={graphForces}
+                  displaySettings={graphDisplay}
+                  groups={graphGroups}
+                  viewState={graphViewStates.vault}
+                  onScopeChange={setGraphScope}
+                  onIncludeOrphansChange={(showOrphans) =>
+                    setGraphFilters((current) => ({
+                      ...current,
+                      showOrphans
+                    }))
+                  }
+                  onFilterSettingsChange={setGraphFilters}
+                  onFilterSettingsCommit={(next) =>
+                    void persistGraphFilters(next)
+                  }
+                  onForceSettingsChange={setGraphForces}
+                  onForceSettingsCommit={(next) => void persistGraphForces(next)}
+                  onDisplaySettingsChange={setGraphDisplay}
+                  onDisplaySettingsCommit={(next) =>
+                    void persistGraphDisplay(next)
+                  }
+                  onGroupsChange={setGraphGroups}
+                  onGroupsCommit={(next) => void persistGraphGroups(next)}
+                  onViewStateCommit={(next) =>
+                    void persistGraphViewState('vault', next)
+                  }
+                  onSearchTag={searchGraphTag}
+                  onTrash={(path) => void trashPath(path)}
+                  onOpen={openGraphNode}
+                  onOpenInNewTab={(path) => void openGraphNodeInNewTab(path)}
+                  onOpenInNewWindow={(path) => void openGraphNodeInNewWindow(path)}
+                />
+              </>
+            ) : activeAttachment ? (
+              <>
+                <div className="note-top">
+                  {workspaceTabBar}
+                  <header className="note-header">
+                    <div>
+                      <strong>{activeAttachment.name}</strong>
+                      <span>{activeAttachment.path}</span>
+                    </div>
+                  </header>
+                </div>
+                <AttachmentPreview
+                  attachment={activeAttachment}
+                  onOpenExternally={() => void openGraphNode(activeAttachment.path)}
+                />
+                <footer className="note-footer">
+                  <span>{activeAttachment.size.toLocaleString()} bytes</span>
+                  <span>
+                    更新: {new Date(activeAttachment.modifiedAt).toLocaleString('ja-JP')}
+                  </span>
+                </footer>
+              </>
             ) : selectedPath ? (
               <>
-                <header className="note-header">
-                  <div>
-                    <strong>{withoutMarkdownExtension(basenameRelative(selectedPath))}</strong>
-                    <span>{selectedPath}</span>
-                  </div>
-                  <div className="note-actions">
+                <div className="note-top">
+                  {workspaceTabBar}
+                  <header className="note-header">
+                    <div>
+                      <strong>{withoutMarkdownExtension(basenameRelative(selectedPath))}</strong>
+                      <span>{selectedPath}</span>
+                    </div>
+                    <div className="note-actions">
                     <span
                       className={`save-status is-${saveStatus}`}
                       role="status"
@@ -1817,6 +2275,18 @@ export default function App(): React.JSX.Element {
                       <span className="save-status-dot" aria-hidden="true" />
                       {saveStatusLabel(saveStatus)}
                     </span>
+                    {structuredCapture && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCaptureEditPath(selectedPath)
+                          setCaptureKind(structuredCapture.kind)
+                        }}
+                      >
+                        <Icon name="edit" />
+                        内容を編集
+                      </button>
+                    )}
                     <button
                       type="button"
                       className={viewMode === 'edit' ? 'is-active' : ''}
@@ -1824,7 +2294,7 @@ export default function App(): React.JSX.Element {
                       onClick={() => setViewMode('edit')}
                     >
                       <Icon name="edit" />
-                      編集
+                      {structuredCapture ? 'Markdownソース' : '編集'}
                     </button>
                     <button
                       type="button"
@@ -1859,16 +2329,14 @@ export default function App(): React.JSX.Element {
                           : ''
                       }
                       aria-pressed={viewMode === 'graph' && graphScope === 'vault'}
-                      onClick={() => {
-                        setGraphScope('vault')
-                        setViewMode('graph')
-                      }}
+                      onClick={openGlobalGraphWorkspace}
                     >
                       <Icon name="graph" />
                       グラフビュー
                     </button>
-                  </div>
-                </header>
+                    </div>
+                  </header>
+                </div>
                 {viewMode === 'edit' ? (
                   <MarkdownEditor
                     value={content}
@@ -1919,12 +2387,17 @@ export default function App(): React.JSX.Element {
                     onSearchTag={searchGraphTag}
                     onTrash={(path) => void trashPath(path)}
                     onOpen={openGraphNode}
+                    onOpenInNewTab={(path) => void openGraphNodeInNewTab(path)}
+                    onOpenInNewWindow={(path) => void openGraphNodeInNewWindow(path)}
                   />
                 )}
                 <footer className="note-footer">
                   <span>{content.length.toLocaleString()}文字</span>
                   <span>
                     更新: {modifiedAt ? new Date(modifiedAt).toLocaleString('ja-JP') : '—'}
+                    {selectedFreshness
+                      ? ` · ${selectedFreshness.statusLabel}（${selectedFreshness.relativeLabel}）`
+                      : ''}
                   </span>
                 </footer>
               </>
@@ -1969,6 +2442,28 @@ export default function App(): React.JSX.Element {
           currentDirectory={dirnameRelative(movePath)}
           onCancel={() => setMovePath(null)}
           onConfirm={(directory) => void moveSelectedNote(directory)}
+        />
+      )}
+
+      {captureKind && snapshot && (
+        <HumanNoteCaptureDialog
+          key={`${captureKind}:${captureEditPath ?? noteCreationTemplate?.path ?? ''}`}
+          kind={captureKind}
+          dateLabel={
+            captureEditPath?.match(/^02_デイリー\/(\d{4}-\d{2}-\d{2})\.md$/)?.[1] ??
+            localCalendarDate(new Date())
+          }
+          initialTitle={captureKind === 'note' ? '無題のノート' : undefined}
+          initialValues={captureEditPath ? structuredCapture ?? undefined : undefined}
+          projectNotes={savedNotes.filter((note) =>
+            note.path.startsWith('10_プロジェクト/')
+          )}
+          onCancel={() => {
+            setCaptureKind(null)
+            setCaptureEditPath(null)
+            setNoteCreationTemplate(null)
+          }}
+          onSubmit={createCapturedNote}
         />
       )}
 

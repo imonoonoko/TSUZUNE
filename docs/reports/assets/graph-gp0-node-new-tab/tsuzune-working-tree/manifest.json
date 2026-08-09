@@ -1,0 +1,154 @@
+{
+  "capturedAt": "2026-08-08T19:39:06.608Z",
+  "stage": "GP0-3b-f Global Graph node new-tab working-tree evidence",
+  "status": "captured",
+  "comparisonStatus": "Compare with docs/reports/assets/graph-gp0-node-new-tab/comparison.json",
+  "command": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --node-new-tab",
+  "isolation": {
+    "sourceFixture": "fixtures/obsidian-graph-parity-vault",
+    "copiedVault": "work/graph-gp0-node-new-tab-working-tree/vault",
+    "userData": "work/graph-gp0-node-new-tab-working-tree/userdata",
+    "requestedContentViewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "offscreenOrigin": {
+      "x": -32000,
+      "y": -32000
+    },
+    "observedWindowGeometry": {
+      "initial": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      },
+      "restarted": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      }
+    },
+    "network": "host resolver blocked except localhost"
+  },
+  "processIds": [
+    28544,
+    12936
+  ],
+  "assertions": {
+    "exactNodeSetAtEveryCheckpoint": true,
+    "nodeContextMenuOpened": true,
+    "nodeContextMenuItemsHaveText": true,
+    "newTabCreated": true,
+    "newTabActivated": true,
+    "newTabEditorVisible": true,
+    "graphClosedAfterNewTabAction": true,
+    "nodeContextMenuClosedAfterAction": true,
+    "attachmentContextMenuOpened": true,
+    "attachmentNewTabCreated": true,
+    "attachmentNewTabActivated": true,
+    "attachmentGraphClosedAfterAction": true,
+    "contentViewportStable": true,
+    "filteredNodeSetStable": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "noIsolatedProcessesRemaining": true
+  },
+  "artifacts": [
+    {
+      "path": "docs/reports/assets/graph-gp0-node-new-tab/tsuzune-working-tree/00-baseline.png",
+      "bytes": 122013,
+      "sha256": "7EC26FCF29102B4F8626AF4644CDCA9E44B19DBF9947CBA6F508EDD9188DDE98",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-new-tab/tsuzune-working-tree/01-node-context-menu.png",
+      "bytes": 128358,
+      "sha256": "44C420977281778A3FD67F186BB45897E70F391D3FB4EF99096AE85C2DC230F5",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-new-tab/tsuzune-working-tree/02-note-new-tab.png",
+      "bytes": 113202,
+      "sha256": "C4BFDB7982D068B2DED87FD2718D5F336971CCADD6F128FE75B552C7DCB289C6",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-new-tab/tsuzune-working-tree/03-attachment-context-menu.png",
+      "bytes": 118715,
+      "sha256": "7ABAA05E96B3799D0B5DA0590E7A5BF857CC06B2B714AF8F49C5009A82755429",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-new-tab/tsuzune-working-tree/04-attachment-new-tab.png",
+      "bytes": 94846,
+      "sha256": "DAC2EA07187249066BD75306A1434C6668310CF73F3C46C3A4C314AF2096B68C",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-new-tab/tsuzune-working-tree/02-after-graph-reopen.png",
+      "bytes": 125866,
+      "sha256": "74C32C6C7D7EE9027AC1CE4BE18BB8A02E5D95B279FE598DA43A3E4FC254DCC8",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-new-tab/tsuzune-working-tree/03-after-app-restart.png",
+      "bytes": 122013,
+      "sha256": "7EC26FCF29102B4F8626AF4644CDCA9E44B19DBF9947CBA6F508EDD9188DDE98",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-new-tab/tsuzune-working-tree/phase-initial.json",
+      "bytes": 6555,
+      "sha256": "5D8242312ED2FD59ED0E57B42048F3DB136768175E5907190EE7E09F3EB163E3"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-new-tab/tsuzune-working-tree/phase-restarted.json",
+      "bytes": 1827,
+      "sha256": "6840EDA40246E9AAB2066FF24D5EB62BB659CFD1EB298D222336AA2CEFFC152F"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-new-tab/tsuzune-working-tree/observation.json",
+      "bytes": 12960,
+      "sha256": "E0D1078C58A629E85FF777C772B887FD5258BC17DB457AD630FBD7B2A98FEC95"
+    }
+  ],
+  "next": "Document the observed Obsidian/TSUZUNE node new-tab behavior before the next parity slice."
+}

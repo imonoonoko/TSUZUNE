@@ -114,12 +114,39 @@ Bの未来State/Eventが0件なのは安全性を示さない。1段リンクの
 
 入力所要時間は計測していない。8件のfrontmatter手入力は日常運用では負担になり得るが、M5中に入力UIは追加しなかった。
 
+## 2026-08-09 Context構築ベンチマーク
+
+現在の本番Vaultを読み取り専用で使い、起点3件だけのArmと時間対応Context Armを各trial 20回warm-up、200回測定、3 trialで比較した。
+
+- TSUZUNEなし: median 0.021 ms、p95 0.031 ms
+- TSUZUNEあり: median 149.685 ms、p95 173.339 ms
+- 絶対追加時間: median 149.664 ms
+- 過去Context: 7,391文字から3,585文字へ減少し、時間未指定本文3件から0件へ減少
+- 現在Context: 7,391文字／3ノートから33,412文字／24ノートへ増加し、出典6組と再確認警告3件を追加
+
+相対倍率は約7,128倍だが、比較元が文字列連結だけで約0.02msのため、意思決定には約150msという絶対値を使う。詳細は[TSUZUNEあり／なし ベンチマーク](reports/tsuzune-with-without-benchmark-2026-08-09.md)を参照する。
+
 ## 残る制限
 
 - Context Compilerは1つのsubjectを起点にする。今回の全プロジェクト比較は3 bundleを集約した。
 - 過去時点では時間範囲のない通常本文を保守的に省略するため、背景情報が不足する場合がある。その場合は通常ノートを無理に推測せず、必要な事実だけState/Event化する。
 - `review_after`超過は誤りや無効を意味せず、再確認要求だけを表す。
 - 時間メタデータ入力の自動化、グラフ、同期、プラグイン、独自DBはこのM5へ追加していない。
+
+## 2026-08-09 M5-C snapshot index
+
+CPU profileで、同じVault snapshotに対するMarkdown走査、backlink計算、Wikiリンク解決、Temporal解析の繰り返しが主要コストであることを確認した。そこで永続cacheやDBを追加せず、1回の要求内だけでpath、outgoing／backlink、解析済みTemporal metadataを共有した。
+
+同じ本番Vault、20回warm-up、200回測定で再計測した結果:
+
+- 改善前: median 151.123ms、p95 180.404ms
+- 改善後: median 35.934ms、p95 47.798ms
+- median 76.2%短縮、4.21倍
+- p95 73.5%短縮
+- A／B／CのMarkdown SHA-256は改善前後で完全一致
+- 未来情報混入0、安全判定、出典件数など意味指標も一致
+
+retained heapの改善前後比較は、GCとmixed working treeの他処理を分離した再現可能なharnessがないため未測定とした。推定値でPASSにはせず、要求境界を越える長寿命cacheを検討する場合の必須Gateとして残す。
 
 ## 再現
 

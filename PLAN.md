@@ -93,7 +93,7 @@ TSUZUNEを、Obsidianの主要機能を可能な限り備えたローカルフ�
 | 検索 | 本文検索、演算子、property/tag/task検索、履歴、埋込query | P1 | P2 |
 | Properties・Tags | 型付きYAML、properties view、tag view、rename、絞込 | P1 | P3 |
 | Graph | local直接リンク／global全`.md`、filter、groups、display、forces、navigation、Canvas＋DOM描画 | P1 | P3 |
-| 日常運用 | templates、daily notes、unique note、bookmarks、random note | P0 | P2 |
+| 日常運用 | templates、daily notes、unique note、bookmarks、random note | P1 | P2 |
 | 文脈内タスク・Capture | Markdown checkbox、Today／Upcoming／Inbox、元ノート更新、quick capture、自然言語期限 | P0 | P3 |
 | 構造化ビュー | Basesのtable/list/cards/map、sort、filter、group、formula | P0 | P3 |
 | Visual thinking | JSON Canvas、cards、groups、labels、media/web、embed | P0 | P3 |
@@ -348,9 +348,171 @@ Gate:
 
 Temporal Memory Liteは完了済みの基盤として保持する。以下のM0〜M5は履歴と回帰条件であり、上記の長期方向によって削除しない。`docs/v0.1-scope.md`も初期スコープの履歴として残す。
 
+### M5-B. TSUZUNE有無ベンチマーク
+
+更新日: 2026-08-09
+状態: 完了
+
+目的は、同じ固定質問へ回答する前段で、TSUZUNEの時間対応Context Compilerを使う場合と使わない場合の差を、品質と処理コストに分けて測ることである。
+
+比較条件:
+
+1. `TSUZUNEなし`は、同じ3件の起点Markdownだけを人手で渡す。空入力や一般知識だけの架空baselineにはしない。
+2. `TSUZUNEあり`は、同じ3件を起点に本番Vaultから時間、有効期間、再確認期限、出典を解決したContextを構築する。
+3. 両Armで現在時点と過去時点を同じ日付に固定し、同じ質問と同じ安全規則を使う。
+4. 品質は既存M5のblind fixed-question評価、処理コストは現在の本番Vaultを読み取り専用で反復した実測として分離する。
+
+測定項目:
+
+- 固定4問の時間整合性正答数
+- State NoteからSourceへの追跡一致数
+- 過去時点への未来情報漏洩と時間未指定本文の露出
+- 現在／過去Contextの文字数、UTF-8 byte数、収録ノート数、解決済み出典数、再確認警告数
+- Context構築時間のmedian／p95。warm-up後に同一processで反復し、Vault scan、AI生成、MCP通信、UI描画は別コストとして混ぜない
+
+Gate:
+
+- 匿名fixtureで両Armの計測値と安全判定を検証する
+- 本番Vaultの本文、個人情報、絶対pathをGit管理reportへ出さず、集計値だけを残す
+- 測定回数、Node／OS／CPU、日付、比較定義をmachine-readable reportへ記録する
+- 「モデル本体が賢くなった」「一般知能が何倍」とは主張せず、固定課題の回答品質とContext構築コストの差だけを結論にする
+- 計測完了後はSupporting Trackを閉じ、次の製品sliceをGP0-3b-eへ戻す
+
+Result（2026-08-09 PASS）:
+
+- [x] 匿名fixtureでTSUZUNEなし／ありのContext量、安全判定、本文非露出を検証
+- [x] 本番Vaultで各trial 20回warm-up、200回測定を3 trial実施
+- [x] Context構築medianは0.021ms対149.685ms、絶対追加149.664ms
+- [x] 固定blind評価の厳密正答1/4対4/4、State Note→Source 0/3対3/3を性能値と分離して記録
+- [x] 過去Contextの時間未指定本文3件対0件、本文文字数7,391対3,585を確認
+- [x] 測定前後の本番Vault 247ファイル、9,397,940 bytes、snapshot digest一致を確認
+- [x] 個人本文と絶対pathをGit管理外`work/`に限定し、集計だけを[耐久report](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md)へ記録
+- Supporting Trackはここで停止し、次の製品sliceをGP0-3b-eへ戻す
+
+### O1-W0. Human Note Capture: Template + Freshness
+
+更新日: 2026-08-09
+状態: working tree実装・全回帰・このPCの本番反映完了
+
+人間が毎回同じ見出しや日付を手入力せず、既存ノートが現在も確認に値するかを一覧から判断できるようにする。Markdownを正本とし、新規DB、常駐index、外部依存、独自テンプレート形式は追加しない。
+
+実装契約:
+
+1. `90_テンプレート/`配下のMarkdownを通常ノートのまま雛形として列挙する。入れ子フォルダを許可し、雛形原本は変更しない。
+2. `{{title}}`、`{{date}}`、`{{time}}`、`{{datetime}}`だけを新規作成時に展開し、未知のplaceholderは原文のまま残す。
+3. 全ノートのfilesystem最終更新時刻をファイル一覧と検索結果へ表示し、開いているノートのfooterには正確な日時、相対経過、状態を表示する。
+4. 30日以上を`要確認候補`、90日以上を`古い可能性`として示す。これは真偽判定ではなく、再確認の優先度である。
+5. frontmatterに有効な`review_after: YYYY-MM-DD`があり期限を過ぎた場合は、更新日による段階より`再確認期限超過`を優先する。
+6. このsliceではDaily Note自動命名、既存ノートへのtemplate挿入、properties editor、通知、鮮度の自動書換えを追加しない。
+
+Gate:
+
+- template列挙とplaceholder展開を純粋関数で検証する
+- 雛形から作成した新規ノートだけが変化し、雛形原本が不変であることをUI経路で検証する
+- 30日、90日、`review_after`超過の境界を固定日fixtureで検証する
+- 既存の通常作成、autosave、外部変更、Temporal、Graph、MCP回帰を通す
+
+Result（2026-08-09 PASS）:
+
+- [x] `90_テンプレート`の入れ子列挙と4 placeholderの決定的展開
+- [x] UI経路で新規ノートだけを作成し、雛形原本を不変に保持
+- [x] 全ファイル一覧、検索結果、選択ノートfooterへ最終更新と鮮度を表示
+- [x] 30日、90日、`review_after`超過、古い情報を誤りと断定しない境界を固定test化
+- [x] typecheck、全410 tests、production build、MCP smoke、diff checkを通過
+- [x] `npm run production:update`でtypecheck、全422 tests、MCP、installer、packaged／installed smoke、hash一致、profile不変、MCP再登録を確認
+
+### O1-W1. Markdown-Transparent Daily / Idea Capture（2026-08-09 PASS）
+
+対象利用者はMarkdown記法を知らないことを既定とする。Markdownは可搬な保存形式として維持するが、日常の記録で見出し記号、checkbox記法、Wikiリンク記法、YAML frontmatter、placeholderを手入力させない。初期テンプレートはデイリーノートとアイデアノートの2種類だけに絞る。
+
+Goal:
+
+1. 利用者が「今日のノート」と「アイデアを追加」から迷わず記録を開始できる。
+2. 入力は通常のラベル、複数行欄、checkbox、候補選択で行い、保存時に既存のMarkdownへ決定的に変換する。
+3. 外部エディタ、MCP、Wikiリンク、Graph、検索からは従来どおり通常Markdownとして扱える。
+
+Initial templates:
+
+- `デイリーノート`: 日付、今日やったこと、気づき、次にすることを持つ。既定pathは`02_デイリー/YYYY-MM-DD.md`。同じ日付が既に存在する場合は重複作成せず開く。
+- `アイデアノート`: タイトル、アイデア本文、なぜ気になったか、関連プロジェクト、次の一歩を持つ。既定pathは`01_受信箱/アイデア/<タイトル>.md`。関連プロジェクトは既存ノート選択からWikiリンクへ変換する。
+
+Primary UX:
+
+1. 左サイドバーへ`今日のノート`と`アイデアを追加`を常設し、template pathやplaceholderを主操作から隠す。
+2. 作成画面は項目名付きフォームとし、空欄の任意項目は保存Markdownへ不要な見出しとして出力しない。
+3. 保存後は読みやすい表示を既定とし、`内容を編集`から同じフォームへ戻れるようにする。
+4. 高度な利用者向けに`Markdownソースを編集`を副操作として残し、逃げ道を失わせない。
+5. 一般ノートの編集には最小の書式ツールバーとして、見出し、太字、箇条書き、チェック項目、リンクを用意する。選択範囲へ標準Markdownを挿入するだけとし、独自リッチテキスト形式は作らない。
+6. Wikiリンクは`ノートを関連付ける`選択UIから生成し、`[[...]]`の手入力を必須にしない。
+7. frontmatterの`review_after`などは将来のproperties formで扱う。初版Daily／Ideaフォームへ関係のないmetadata editorを同時投入しない。
+
+Non-goals:
+
+- Notion級の独自リッチテキストエディタ
+- HTMLや独自JSONを正本にすること
+- AIによる入力内容の無断補完・自動公開
+- 初版で多数のテンプレート、slash command、template scriptingを導入すること
+- 既存Markdownの表示や外部編集を制限すること
+
+Acceptance criteria:
+
+1. Markdownを知らない利用者が、記法を入力せず3操作以内に当日のDaily Noteを作成または再表示できる。
+2. Ideaフォームの必須項目はタイトルと本文だけで、保存後のMarkdownは通常検索、Wikiリンク、Graph、MCPで利用できる。
+3. 同日のDaily Noteは同一pathへ収束し、既存本文を黙って初期化しない。
+4. フォーム→Markdown→フォームの往復で入力済み項目を失わない。対応外Markdownはソース表示で保持し、フォーム保存時に黙って削除しない。
+5. キーボードだけで入口、入力、保存、取消を操作でき、ラベルとエラーを支援技術へ公開する。
+6. 作成前後で既存ノート、テンプレート原本、添付を変更しない。
+7. 既存の通常作成、autosave、外部変更、検索、Graph、MCP、Google同期の回帰を通す。
+
+Suggested implementation order:
+
+1. 2種類のMarkdown雛形と純粋なform↔Markdown変換、固定fixture。
+2. `今日のノート`の重複防止create-or-open経路。
+3. `アイデアを追加`フォームと既存ノートからの関連付け。
+4. 一般ノート向け最小書式ツールバー。
+5. 本番Vaultで7日間dogfoodし、記法を直接入力した回数、作成時間、保存損失、フォームを避けた理由を記録する。
+
+Execution order:
+
+2026-08-09の利用者指示でGP0-3b-eより先に実施した。O1-W1を独立delivery sliceとして閉じた後、次の製品sliceをGP0-3b-eへ戻す。
+
+Result（2026-08-09 PASS）:
+
+- [x] `今日のノート`、`アイデアを追加`、通常`ノート`をアプリ内フォームへ統一し、新規ノート作成でOS promptへ依存しない
+- [x] Dailyを`02_デイリー/YYYY-MM-DD.md`へcreate-or-openし、同日ノートを重複作成しない
+- [x] Ideaのタイトル、本文、理由、関連プロジェクト、次の一歩を通常Markdownへ保存し、既存プロジェクトをWikiリンク化
+- [x] TSUZUNEが生成した定型Daily／Ideaは`内容を編集`からフォームへ戻し、フォーム→Markdown→フォームで値を保持
+- [x] 未知の見出しなど対応外Markdownがある場合はフォーム再保存を提示せず、`Markdownソース`へフォールバックして本文を保持
+- [x] 一般Markdown編集へ見出し、太字、箇条書き、チェック項目、リンクの最小ツールバーを追加
+- [x] targeted 46 tests、全422 tests、typecheck、production build、MCP smokeを通過
+- [x] 2026-08-09に`npm run production:update`でこのPCの本番へ反映し、全422 tests、MCP、installer、packaged／installed smoke、hash一致、profile不変、MCP再登録を確認
+
+### M5-C. Context Build Snapshot Index（2026-08-09 PASS）
+
+M5-Bで観測した約150msは、同じVault snapshotに対して3起点×現在／過去の計6 bundleを組み立てる間に、path解決、backlink走査、frontmatter／Temporal解析を繰り返す処理を含む。これはVault scan、MCP通信、AI生成、UI描画を含まないため、まず同一process内の重複計算だけを対象にする。
+
+実装する場合は、1回の要求またはsnapshotに限定したpath map、outgoing／backlink、解析済みTemporal metadataを既存coreから組み立て、6 bundleで再利用する。永続DB、background daemon、watcher cache、新規依存関係は導入しない。
+
+Gate:
+
+1. M5-Bの固定4問、安全判定、bundle digest、出典件数を完全維持する。
+2. 同じ本番Vault、warm-up、trial条件で再計測し、median／p95とメモリ増分を改善前後で報告する。
+3. profileで重複解析が主因でない場合はindexを採用せず、測定結果だけを残す。
+4. O1-W0を全回帰で閉じてから別delivery sliceとして開始する。
+
+Result:
+
+- CPU profileでMarkdown走査、backlink計算、Wikiリンク解決、Temporal解析の繰り返しが支配的であることを確認した。
+- 1回のContext要求に限るsnapshot indexを追加し、3起点×現在／過去の6 bundleでpath、outgoing／backlink、解析済みTemporal metadataを再利用した。永続DB、watcher cache、新規依存関係は追加していない。
+- 本番Vault、20 warm-up、200 measured runsの同条件で、medianは151.123msから35.934msへ76.2%短縮（4.21倍）、p95は180.404msから47.798msへ73.5%短縮した。
+- A／B／CのMarkdownは改善前後でSHA-256完全一致、意味指標、安全判定、未来情報混入0、出典件数も一致した。
+- retained heapの改善前後比較は、GCと他のmixed working tree処理を分離した再現可能なharnessがないため未測定。未測定値を推定で埋めず、将来さらにcacheを長寿命化する場合の必須Gateとして残す。
+- [x] targeted tests、typecheck、同一本番Vault再計測、artifact digest比較を通過
+- [ ] mixed working treeのためcommit、push、このPCの本番更新は未実施
+
 ## Active Track: v0.6 Obsidian Graph Parity
 
-更新日: 2026-08-04
+更新日: 2026-08-09
 状態: 継続Force runtime、円形ノード、Canvas辺、Display 4項目、Obsidian準拠の白いGraph surface、右上浮動設定パネル、Local／Globalの独立入口、未解決リンク、tag、attachment、Search filesの主要構文・配列property・入力途中の寛容な解釈・binary attachment境界、Files and links共通のExcluded files設定、順序付きGroups、論理createdAt、node右クリックと種別別open、Local／Global別のscale・panel・section状態、unique neighbor数とLocal root特別値を使うnode径、zoom連動のnode／label／line／arrow描画、Animate／time-lapse、選択ノートなしのGlobal Graphまで実装済み。Animate中は表示prefixだけをsimulationへ渡し、通常のlive topology更新でも生存node座標を保持してForceを再加熱する。狭いtestと隔離Electron captureで`0 → 1 → 7`件のMarkdown増分表示まで検証済み。これは実装状況であり、Obsidian 1.13.4固定参照版とのGP6比較を通過した`matched`判定ではない。固定版との操作比較、保存境界、性能値を引き続き検証する
 
 ### Current Transition Queue
@@ -366,10 +528,15 @@ GP6-0Pではインストール済み本番TSUZUNE 0.5.0を同じfixture／viewpo
 3. [x] GP0-3b-b: Global GraphのSearch filesへ`path:"10_projects"`を入力し、Graphを閉じて再表示した後と、別プロセスによるアプリ完全再起動後に同じ検索条件が復元される公開挙動を比較した。Obsidian 1.13.4とTSUZUNEはいずれも3観測点で2 node／1 unique visible edgeを維持し、この検索条件保持だけを`matched`とする。TSUZUNEは`GraphViewState.query`をLocal／Global別に保存し、旧設定では空文字へ補完する。全368 tests、build、MCP smoke、隔離capture 11/11を通し、比較レポートは`docs/reports/graph-gp0-search-persistence-2026-08-03.html`とする。ピクセル一致、他query、起動時のGraph workspace自動復元は未証明。
 4. [x] GP0-3b-c: 空query、8 node、1265×768、DPR 1、light theme、隔離profileを固定し、Global Graphへ制御された論理wheel `deltaY=-120`と背景drag `+96,+64 CSS px`を与えた。Obsidian側はCDPマウス入力、TSUZUNE側は隔離オフスクリーンのDOM合成入力である。Obsidian 1.13.4とTSUZUNEはいずれもzoom `1.5`をGraph再表示後・別プロセスのアプリ完全再起動後まで保持し、panは両時点で中央へ戻った。比較6項目がすべて`matched`であり、panを永続化すると参照版から乖離するため製品コードは変更していない。証拠は`docs/reports/assets/graph-gp0-camera-persistence/comparison.json`、人間向けレポートは`docs/reports/graph-gp0-camera-persistence-2026-08-03.html`とする。物理マウス／trusted event、ピクセル一致、zoom easing、Local Graph、fit／reset、zoom限界、workspace leaf自動復元は未証明。
 5. [x] GP0-3b-d: 同じ固定条件で`00_Home.md`を`+96,+64 CSS px` dragし、押下中、pointerup直後、250ms後、settled、Graph再表示後、アプリ再起動後を比較した。両製品とも押下中だけnodeを一時固定し、pointerup後は固定を解除してForce simulationへ戻し、Graph再表示／アプリ再起動へnode座標・pinを保存しなかった。意味契約5/5を`matched`とし、製品sourceは変更していない。Obsidianの再シード座標とTSUZUNEの決定的baselineという座標値の差は、保存されないForce座標そのものを互換条件にしない既存契約に従い不一致とはしない。証拠は`docs/reports/assets/graph-gp0-node-drag-persistence/comparison.json`、人間向けレポートは`docs/reports/graph-gp0-node-drag-persistence-2026-08-04.html`とする。物理マウス／trusted event、ピクセル単位のForce軌跡、Local Graph、touch／penは未証明。
-6. 次の一項目はGP0-3b-eとして、Global Graphのnode context menuを同条件で採取し、項目、順序、無効状態、種別別openを比較する。その後、Groups、Animate開始・途中・終了、Restore defaultsの保存境界を一項目ずつ採取する
-7. 両者の画像、操作結果、node／directed edge／settings JSON、Markdown SHAを同じ比較表へ並べ、各項目を`matched`、`different`、`missing`、唯一の`intentional exception`へ分類する
-8. `different`または`missing`になった公開挙動だけを1件ずつ修正し、同一captureを再実行する
-9. GP6の計測で必要性が確認された場合だけ、大規模Vaultの性能改善とviewport cullingを追加する。未計測の推測だけではWebGL、独自DB、固定表示上限を導入しない
+6. [x] GP0-3b-e: Global Graphの`00_Home.md` node context menuを同条件で採取した。Obsidian 1.13.4はラベルを除いて11操作、TSUZUNEは2操作で、6比較中3一致・3差分の`different`だった。最初の公開差だけを閉じ、TSUZUNEの文言を`新規タブに開く`へ一致させた。操作数、先頭操作の有効状態、残る9操作と2 submenuは未達のまま明示する。証拠は`docs/reports/assets/graph-gp0-node-context-menu/comparison.json`、人間向けレポートは`docs/reports/graph-gp0-node-context-menu-2026-08-09.html`とする
+7. [x] GP0-3b-f: 既存callbackを再利用して`新規タブに開く`を実動作へ接続した。noteは編集可能なworkspace tabとして作成・active化し、attachmentはアプリ内preview tabとして開き、必要な場合だけ既定アプリへ明示的に渡す。Obsidian 1.13.4とのnote比較ではtab作成・active化が一致した一方、Obsidianは元Graph leafを保持し、TSUZUNEはGraph表示を閉じるため全体判定は`partial`とする。Obsidian側attachment nodeの同操作は未証明。証拠は`docs/reports/assets/graph-gp0-node-new-tab/comparison.json`、人間向けレポートは`docs/reports/graph-gp0-node-new-tab-2026-08-09.html`とする
+8. [x] GP0-3b-g: Global Graph自体をworkspace tabとして保持し、noteを新規タブで開いた後も元Graph tabへ戻れるようにした。Obsidian 1.13.4はnote新規tab後もGraph leaf 1、TSUZUNEはGraph tab保持・再選択・Global Graph再表示を固定fixtureで確認し、対象差を`matched`とする。証拠は`docs/reports/assets/graph-gp0-workspace-tab/comparison.json`、人間向けレポートは`docs/reports/graph-gp0-workspace-tab-2026-08-09.html`とする
+9. [x] GP0-3b-h: 公開フィルタからattachment nodeを表示し、`新規タブに開く`で内部preview tabを作成・active化する動作、元Global Graph tabの保持・復帰をObsidian 1.13.4と比較して`matched`にした。添付context menuの項目数はObsidian 11対TSUZUNE 2であり、残る9操作は未達のまま明示する。証拠は`docs/reports/assets/graph-gp0-attachment-new-tab/comparison.json`、人間向けレポートは`docs/reports/graph-gp0-attachment-new-tab-2026-08-09.html`とする
+10. [x] GP0-3b-i: 添付nodeの`新規ウィンドウで開く`を固定参照版から採取し、TSUZUNEへ同じ公開操作を実装した。両製品とも2つ目のトップレベルウィンドウでSVGを内部画像表示し、元Global Graphを保持して操作後にcontext menuを閉じるため、対象動作を`matched`とする。独立ウィンドウのworkspace装飾と添付context menu全体は未一致として残す。証拠は`docs/reports/assets/graph-gp0-attachment-new-window/comparison.json`、人間向けレポートは`docs/reports/graph-gp0-attachment-new-window-2026-08-09.html`とする
+11. 次の一項目はGP0-3b-jとして、添付nodeの`ファイルを移動…`を固定参照版で採取し、Vault内移動、リンク追従、取消・衝突時の公開挙動を確定してからTSUZUNEとの差を判定する。残るmenu操作、Groups、Animate開始・途中・終了、Restore defaultsはその後に一項目ずつ採取する
+12. 両者の画像、操作結果、node／directed edge／settings JSON、Markdown SHAを同じ比較表へ並べ、各項目を`matched`、`different`、`missing`、唯一の`intentional exception`へ分類する
+13. `different`または`missing`になった公開挙動だけを1件ずつ修正し、同一captureを再実行する
+14. GP6の計測で必要性が確認された場合だけ、大規模Vaultの性能改善とviewport cullingを追加する。未計測の推測だけではWebGL、独自DB、固定表示上限を導入しない
 
 Google Calendarの追加認可基盤とGoogle Tasks／Drive選択取込／YouTube／Data Portabilityの長期計画は残すが、Graph parityのCurrent Transition Queueを閉じて次の優先順位を再選択するまで保留する。Google Drive同期の往復確認は既存データ保護の確認として残すが、新機能開発の主トラックにはしない。この順序は長期の機能範囲を狭めるものではなく、未完了sliceを増やさないための実行順である。
 
@@ -410,7 +577,7 @@ P0-3／P0-4当時は力学シミュレーション、グラフDB、GraphRAG、�
 - [x] GP1-5: Vault全体で孤立ノートを既定表示し、固定描画上限による`.md`の欠落をなくす
 - [x] GP2-1: 全辺を単一Canvas層へ集約し、操作可能なDOMノートと同期する
 - [x] GP2-2: 円形ノード、円周間の接続線、表示中ノードの実寸に基づくfit-to-boundsを実装する
-- [ ] GP0-3b: Obsidian Desktop 1.13.4の実機操作を採取し、node drag、camera、context menu、Animate、保存境界を固定する（初回設定パネル、Global検索条件保持、Global camera zoom／pan保持境界、Global node drag保持境界は完了）
+- [ ] GP0-3b: Obsidian Desktop 1.13.4の実機操作を採取し、node drag、camera、context menu、Animate、保存境界を固定する（初回設定パネル、Global検索条件保持、Global camera zoom／pan保持境界、Global node drag保持境界、Global node context menu初回比較は完了。menu全操作の互換は未完了）
 - [x] GP1-6: path順、黄金角、固定tick、対称正規化を廃止し、継続Force runtimeへ置換する
 - [ ] GP1-7: slider、node drag、graph更新、再起動復元の観測可能な操作結果を参照版と一致させる（Global node dragの一時固定／release／非永続化は一致、slider・live update・Local Graphは実機一致証拠待ち）
 - [x] GP2-3: Arrows、Text fade threshold、Node size、Link thicknessと保存を追加する
@@ -723,7 +890,7 @@ Gate:
 
 更新日: 2026-08-03
 
-状態: 実装・隔離fixture検証・このPCの本番反映を完了した。Graph検索条件保持は`ad26532`へ収録して同名originへpushし、2026-08-03 20:11 JSTに同コミットのclean sourceから本番へ導入した。Windows本番環境への反映結果は`docs/reports/production-update-latest.json`を正とする。500件／2000件のcontrolled sparse fixtureを各3回、隔離copy／fresh profileで実測して性能baselineを固定した。GP6-0Wでは採取時のdirty working treeを同一fixture／viewport／themeで採取し、7 Markdown、8 node、12 directed edge、8 undirected pairの構造一致を確認した。Global Graph検索条件`path:"10_projects"`は入力直後、Graph再表示、アプリ完全再起動後の3点でObsidian 1.13.4と同じ保持結果になった。GP0-3b-cではGlobal cameraへ同じ制御論理wheel／背景dragを与え、両製品ともzoomをGraph再表示・アプリ再起動後まで保持し、panを中央へ戻すことを6/6比較で確認したため製品修正は不要だった。ただし物理マウス／trusted event、性能基準の合格、Obsidian完全互換、実OSアクセシビリティは未完了。次はnode dragの保存境界を同条件で比較する。
+状態: 実装・隔離fixture検証・このPCの本番反映を完了した。Graph検索条件保持は`ad26532`へ収録して同名originへpushし、2026-08-03 20:11 JSTに同コミットのclean sourceから本番へ導入した。Windows本番環境への最新反映結果は`docs/reports/production-update-latest.json`を正とする。500件／2000件のcontrolled sparse fixtureを各3回、隔離copy／fresh profileで実測して性能baselineを固定した。GP6-0Wでは採取時のdirty working treeを同一fixture／viewport／themeで採取し、7 Markdown、8 node、12 directed edge、8 undirected pairの構造一致を確認した。Global Graph検索条件、camera保存境界、node drag保存境界は固定条件で一致した。GP0-3b-eのnode context menuは6比較中3一致・3差分で、操作数がObsidian 11対TSUZUNE 2の`different`である。GP0-3b-fではnoteの新規tab作成・active化を一致させ、attachment内部previewを追加した。GP0-3b-gでは残っていた元Global Graph保持の差を閉じ、Graph tabの保持・復帰を`matched`にした。GP0-3b-hでは両製品のattachment新規内部preview tabとGraph tab保持・復帰を`matched`にした。GP0-3b-iでは両製品とも2つ目のトップレベルウィンドウでSVGを内部表示し、元Graphを保持する公開動作を`matched`にした。2026-08-09 05:51 JSTに全426 tests、packaged／installed smoke、hash一致、production profile不変、MCP再登録を確認してこのPCの本番へ反映した。独立ウィンドウのworkspace装飾、添付context menu全体、物理マウス／trusted event、性能基準の合格、Obsidian完全互換、実OSアクセシビリティは未完了。次はGP0-3b-jで`ファイルを移動…`を固定採取する。
 
 - [x] 100ms以内のVault外部変更をpath単位で集約し、20イベントを1回のsnapshot refreshへまとめる
 - [x] 外部エディタのunlink→add形式のファイル置換を選択中ノートへ再読込し、更新を取りこぼさない
@@ -773,7 +940,12 @@ Electron capture            PASS: brand mark / 14 icons / focus / inert / embedd
 - [x] GP0-3b-bでGlobal Graph検索条件のGraph再表示／アプリ再起動後保持を同条件で採取し、狭い`matched`判定を固定する
 - [x] GP0-3b-cでcamera zoom／panのGraph再表示／アプリ再起動後の保存境界を同条件で採取し、zoom保持／pan中央復帰の6/6比較を`matched`として固定する
 - [x] GP0-3b-dでnode drag直後／Graph再表示後／アプリ再起動後のnode位置・固定状態を同条件比較し、意味契約5/5を`matched`として固定する
-- [ ] 次: GP0-3b-eでGlobal Graphのnode context menuを同条件比較する
+- [x] GP0-3b-eでGlobal Graphのnode context menuを同条件比較し、3/6一致、操作数11対2の`different`を固定する
+- [x] GP0-3b-fで`新規タブに開く`を有効化し、note tab作成・active化の一致、attachment内部preview、元Graph leaf保持の差分を固定する
+- [x] GP0-3b-gでGlobal Graphをworkspace tabとして保持し、noteを新規タブで開いた後も元Graphへ戻れるようにする
+- [x] GP0-3b-hでattachment nodeの`新規タブに開く`を比較し、両製品の内部preview tab作成・active化、元Global Graph tab保持・復帰を`matched`にする
+- [x] GP0-3b-iでattachment nodeの`新規ウィンドウで開く`を比較し、両製品の別トップレベル内部画像window作成、元Global Graph保持、menu closeを`matched`にする
+- [ ] 次: GP0-3b-jでattachment nodeの`ファイルを移動…`をObsidian 1.13.4から固定採取し、Vault内移動・リンク追従・取消・衝突時の公開挙動を判定する
 - [ ] 720px未満と200% zoomはsidebar・関連欄の折畳みを含めて別sliceで対応する
 - [ ] ファイルツリーへtreeitem semanticsと矢印キー操作を追加する
 - [ ] 標準prompt／confirmをアプリ内ダイアログへ段階的に置換する
@@ -1850,9 +2022,26 @@ Gate:
 
 ### C1. Provenance-Backed Candidate Notes
 
-次の縦切りはC1-Aとし、C0-Aが出力した843件のeligible user textから、ローカルstaging内だけに出典付き候補previewを作る。TSUZUNE Vaultはまだ変更しない。
+C1-Aでは、C0-Aが出力した843件のeligible user textから、ローカルstaging内だけに出典付き候補previewを作る。TSUZUNE Vaultは変更しない。
 
 #### C1-A. Candidate Preview Without Vault Writes
+
+Execution order（2026-08-09）:
+
+1. C0-Aの`manifest.json`と`messages.jsonl`を入力契約として固定し、eligibleな現行user text以外をfail-closedで除外する
+2. 候補schema、複合source key、決定的candidate ID、複数label、privacy状態、訂正signalを匿名fixtureで固定する
+3. 明示ruleだけで候補を抽出し、同一の正規化主張はsource referenceを失わず集約する
+4. 本番プロフィール5ノートを読み取り専用比較元として受け取り、既存／追加候補／privacy確認対象の差分を作る
+5. `candidates.jsonl`、`candidate-summary.json`、`profile-diff.json`、Markdown previewをGit管理外のstagingへ出力する
+6. 匿名fixture、typecheck、全test、同一入力2回のdigest一致、入力とVaultの前後SHA-256一致を確認する
+7. 検証が通った時だけ`PROJECT_STATUS.md`と本番TSUZUNEへ結果・証拠・残課題を書き戻す
+
+Stop conditions:
+
+- C1-Aでは候補の表示までとし、Vaultノートの作成・更新・削除は行わない
+- ruleで現在事実と安全に判断できない内容は`unconfirmed`へ残し、推測で補完しない
+- profile比較元が不足または途中で変化した場合は差分を無効として終了する
+- 原本、C0-A出力、本番プロフィールのいずれかへwriteが発生した場合は失敗とする
 
 Work:
 
@@ -1870,6 +2059,88 @@ Gate:
 - 現在／過去／未確認／訂正候補を同一のactive factへ潰さない
 - privacy review対象を自動承認しない
 - 人物プロフィール5ノートへの適用差分は表示だけで、承認前にwriteしない
+
+Implementation status（2026-08-09 PASS）:
+
+- [x] C0-Aの4095 messageを読み、843 eligible user text以外を候補抽出から除外
+- [x] 793候補へ857 source referenceを保持し、privacy確認130件、訂正signal 21件を分離
+- [x] `candidates.jsonl`、`candidate-summary.json`、`profile-diff.json`、`candidate-preview.md`を`work/`だけへ生成
+- [x] 同じ公式入力とプロフィール5ノートで2回実行し、4出力のbyte hashとcandidate digestが一致
+- [x] C0-A入力とプロフィール5ノートの前後hash一致、Vault write 0
+- [x] C1-A匿名fixture 7件、typecheck、全390 test、MCP smoke、`git diff --check`がPASS
+
+Known boundary:
+
+- ルール抽出は候補発見器であり、本人情報の正しさやAI回答品質の向上をまだ証明しない
+- 346候補が`unconfirmed`で、既存プロフィールとの機械的一致は0件だったため、適用前に層化sampleで精度を評価する
+- 候補本文を含むpreviewは個人情報を含み得るので、`work/`からGitや同期領域へ移さない
+
+#### C1-B. Stratified Candidate Quality Calibration
+
+Work:
+
+- label、privacy、past、correctionごとに層化sampleを取り、元messageと既存プロフィールを並べて判定する
+- 正しい候補、誤検出、文脈不足、過去情報、訂正情報、重複へ判定理由を付ける
+- 高信頼で自動適用できるruleと、本人確認が必要なruleを分離する
+- 個人情報を含むsample本文や判定表はGit管理外に置き、公開集計だけを耐久資料へ残す
+
+Gate:
+
+- source trace 100%、assistant／old branch／internal reasoning混入0
+- privacy、past、unconfirmed、correction候補の自動active化0
+- 自動適用候補に採用するruleは層化sampleでprecision 90%以上
+- 目標未達ならVault適用へ進まず、rule修正または本人確認候補へ降格する
+
+Status（2026-08-09）:
+
+- [x] 793候補からlabel 7種、privacy、past、correction、unconfirmed、自動適用候補rule 3種を覆う57件の決定的sampleを作成
+- [x] 857/857 source referenceをC0-A messageへ追跡し、role／branch／content kind／eligibilityの構造的混入0件を確認
+- [x] privacy、past、unconfirmed、correction候補の自動active化0件を確認
+- [x] 57/57件へ`correct_candidate`、`false_positive`、`needs_context`とactive memory安全性を判定
+- [x] 同じ入力とreviewで2回実行し、sample、review template、summary、reportのbyte hash一致を確認
+- [ ] `profile.explicit_self_statement`は1/10、10.0%で90% gate未達
+- [ ] `preference.explicit_expression`は3/11、27.3%で90% gate未達
+- [ ] `life.explicit_consideration`は0/10、0.0%で90% gate未達
+- [x] 全ruleを自動適用対象から降格し、Vaultの人物プロフィールへのwriteを0件に維持
+
+Finding:
+
+- C0-Aのrole／branch境界は正しくても、user message内へ貼られたAI回答、コード、創作prompt、単発の依頼を本人の耐久情報と誤認し得る
+- `is_do_not_remember`だけでは健康、移動制約、金融、関係性など本文由来の機微性を検出できない
+- 「候補として意味がある」と「現在のactive memoryへ自動保存して安全」は別の判定にする必要がある
+
+#### C1-C. Candidate Eligibility Hardening
+
+Work:
+
+- fenced／inline code、JSX、resource path、過去AI回答の引用、自問ではないAI一人称を候補から除外する
+- 質問、単発依頼、創作prompt、作業指示、瞬間的状態を耐久プロフィール候補から分離する
+- 健康、障害・移動制約、金融、家族・関係性を本文由来のprivacy reviewへ送る
+- 本人の明示的で持続する好み、制約、開発原則だけを再sampleし、同じC1-B harnessで再評価する
+
+Gate:
+
+- C1-Bの57件を回帰fixtureとして使い、既知のAI引用／コード／単発依頼を自動適用候補へ戻さない
+- source trace 100%、構造的混入0、機微候補の自動active化0を維持する
+- precision 90%以上かつ10件以上のreviewを満たすruleだけを後続の履歴付きVault適用候補にする
+- gate未達時は人間確認候補のままとし、C1-D Vault Applyへ進まない
+
+Status（2026-08-09）:
+
+- [x] 候補を`auto_apply_candidate`、`human_review`、`excluded_from_profile`へ分離し、判定理由を保持
+- [x] 貼付AI回答、コード／JSX／resource path、質問、単発依頼、創作prompt、文脈依存断片を自動適用経路から除外
+- [x] 健康、障害・移動制約、金融、関係性、個人アカウントを本文由来のprivacy reviewへ追加
+- [x] C1-Bの候補ID 793/793件と固定review 57/57件を再照合し、既知false positive／unsafeの自動適用0件を確認
+- [x] 863/863 source reference追跡、構造的混入0件、機微候補の自動active化0件を確認
+- [x] 強化後の自動候補7件を全件reviewし、7/7件をactive memoryへ安全と判定
+- [ ] `profile.explicit_self_statement`は2/2、`preference.explicit_expression`は7/7でprecision 100%だが、各10件未満のためgate未達
+- [ ] `life.explicit_consideration`は自動候補0件でgate未達
+- [x] 合格rule 0件、人物プロフィールへのwrite 0件を維持し、C1-Dへ進まない
+
+Result:
+
+- C1-Cの安全回帰は完了。候補本文とreview表はGit管理外の`work/`に限定し、公開集計だけを[耐久report](docs/reports/chatgpt-candidate-eligibility-c1c-2026-08-09.md)へ残した
+- Supporting Trackはここで停止した。GP0-3b-i attachment node新規window比較も完了し、次の比較sliceはGP0-3b-jの`ファイルを移動…`固定参照採取とする
 
 Work:
 

@@ -59,4 +59,16 @@ describe('graph view state preload API', () => {
       'attachments/diagram.png'
     )
   })
+
+  it('requests an internal Vault attachment window through trusted IPC', async () => {
+    electron.invoke.mockResolvedValue({ ok: true, value: null })
+    await import('../src/preload/index')
+
+    await electron.api!.openVaultFileWindow('attachments/diagram.png')
+
+    expect(electron.invoke).toHaveBeenCalledWith(
+      'system:openVaultFileWindow',
+      'attachments/diagram.png'
+    )
+  })
 })

@@ -1,0 +1,397 @@
+{
+  "capturedAt": "2026-08-08T19:06:47.769Z",
+  "query": "",
+  "cameraProbe": false,
+  "nodeDragProbe": false,
+  "nodeMenuProbe": true,
+  "cameraContract": null,
+  "nodeDragContract": null,
+  "nodeMenuContract": {
+    "targetNodePath": "00_Home.md",
+    "bounds": {
+      "left": 756,
+      "top": 460,
+      "width": 190,
+      "height": 111
+    },
+    "items": [
+      {
+        "index": 0,
+        "text": "新規タブに開く",
+        "disabled": true,
+        "classes": []
+      },
+      {
+        "index": 1,
+        "text": "ファイルを削除",
+        "disabled": false,
+        "classes": [
+          "is-danger"
+        ]
+      }
+    ],
+    "title": "00_Home"
+  },
+  "repository": {
+    "head": "5c419dfd423ba799021a3af09a85ce5b0ab11d7b",
+    "dirty": true,
+    "changedEntryCount": 47,
+    "porcelainSha256": "FDCE6DE67177AAF396BF441A4A0FF69F40F2C4F220AEF4CE0DD031362E0D698D"
+  },
+  "initial": {
+    "phase": "initial",
+    "processId": 11064,
+    "windowGeometry": {
+      "frame": {
+        "x": -32000,
+        "y": -32000,
+        "width": 1265,
+        "height": 768
+      },
+      "electronContentBounds": {
+        "x": -32000,
+        "y": -32000,
+        "width": 1265,
+        "height": 768
+      },
+      "rendererViewport": {
+        "width": 1265,
+        "height": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "graphClosed": true,
+    "baseline": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md"
+      ],
+      "edgeCount": 8,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 114.47,
+        "y": 35.6859,
+        "clientX": 756.96875,
+        "clientY": 460.171875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 114.47px)",
+        "styleTop": "calc(50% + 35.6859px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 111,
+        "width": 765,
+        "height": 627
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "input": {
+      "x": 756.96875,
+      "y": 460.171875
+    },
+    "duringDrag": null,
+    "afterReleaseImmediate": null,
+    "afterRelease250ms": null,
+    "nodeContextMenu": {
+      "targetNodePath": "00_Home.md",
+      "bounds": {
+        "left": 756,
+        "top": 460,
+        "width": 190,
+        "height": 111
+      },
+      "items": [
+        {
+          "index": 0,
+          "text": "新規タブに開く",
+          "disabled": true,
+          "classes": []
+        },
+        {
+          "index": 1,
+          "text": "ファイルを削除",
+          "disabled": false,
+          "classes": [
+            "is-danger"
+          ]
+        }
+      ],
+      "title": "00_Home"
+    },
+    "entered": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md"
+      ],
+      "edgeCount": 8,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 114.47,
+        "y": 35.6859,
+        "clientX": 756.96875,
+        "clientY": 460.171875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 114.47px)",
+        "styleTop": "calc(50% + 35.6859px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 111,
+        "width": 765,
+        "height": 627
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "reopened": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md"
+      ],
+      "edgeCount": 8,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 114.47,
+        "y": 35.6859,
+        "clientX": 756.96875,
+        "clientY": 460.171875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 114.47px)",
+        "styleTop": "calc(50% + 35.6859px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 111,
+        "width": 765,
+        "height": 627
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "settingsGraphViewState": {
+      "scale": 1,
+      "query": "",
+      "settingsOpen": true,
+      "settingsSections": {
+        "filters": true,
+        "groups": false,
+        "display": false,
+        "forces": false
+      }
+    },
+    "screenshots": [
+      {
+        "file": "00-baseline.png",
+        "bytes": 122013,
+        "sha256": "7EC26FCF29102B4F8626AF4644CDCA9E44B19DBF9947CBA6F508EDD9188DDE98",
+        "width": 1265,
+        "height": 768
+      },
+      {
+        "file": "01-node-context-menu.png",
+        "bytes": 127866,
+        "sha256": "4E0AABD074EBF8DB0619286B1D3693146C832AE4B395C0D7130F46FDD322DD65",
+        "width": 1265,
+        "height": 768
+      },
+      {
+        "file": "02-after-graph-reopen.png",
+        "bytes": 124073,
+        "sha256": "60D0243EEA05BFBDC44B9BFDD0D00A57DE09980F72CB4A24831CF61A05B23136",
+        "width": 1265,
+        "height": 768
+      }
+    ]
+  },
+  "restarted": {
+    "phase": "restarted",
+    "processId": 28056,
+    "windowGeometry": {
+      "frame": {
+        "x": -32000,
+        "y": -32000,
+        "width": 1265,
+        "height": 768
+      },
+      "electronContentBounds": {
+        "x": -32000,
+        "y": -32000,
+        "width": 1265,
+        "height": 768
+      },
+      "rendererViewport": {
+        "width": 1265,
+        "height": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "restarted": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md"
+      ],
+      "edgeCount": 8,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 114.47,
+        "y": 35.6859,
+        "clientX": 756.96875,
+        "clientY": 460.171875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 114.47px)",
+        "styleTop": "calc(50% + 35.6859px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 111,
+        "width": 765,
+        "height": 627
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "settingsGraphViewState": {
+      "scale": 1,
+      "query": "",
+      "settingsOpen": true,
+      "settingsSections": {
+        "filters": true,
+        "groups": false,
+        "display": false,
+        "forces": false
+      }
+    },
+    "screenshots": [
+      {
+        "file": "03-after-app-restart.png",
+        "bytes": 122013,
+        "sha256": "7EC26FCF29102B4F8626AF4644CDCA9E44B19DBF9947CBA6F508EDD9188DDE98",
+        "width": 1265,
+        "height": 768
+      }
+    ]
+  },
+  "persistedGraphViewState": {
+    "scale": 1,
+    "query": "",
+    "settingsOpen": true,
+    "settingsSections": {
+      "filters": true,
+      "groups": false,
+      "display": false,
+      "forces": false
+    }
+  },
+  "protection": {
+    "before": {
+      "sourceFixture": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3"
+      },
+      "productSource": {
+        "fileCount": 73,
+        "combinedSha256": "C08DB728C0BF05B6CABDECD2FB5E798448ACD5C9894627E370EF2F4CE762BDAD"
+      },
+      "builtApplication": {
+        "fileCount": 10,
+        "combinedSha256": "FB74CB5065593209D526F4F7DF1FAE27645DCEA0F63DDFF3E1A26E2EE245D97E"
+      },
+      "isolatedMarkdown": {
+        "fileCount": 7,
+        "combinedSha256": "54B472FF4C646CF8858BBAF700F562CD001927123A18B72FE98398BCDBDBC59B"
+      }
+    },
+    "after": {
+      "sourceFixture": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3"
+      },
+      "productSource": {
+        "fileCount": 73,
+        "combinedSha256": "C08DB728C0BF05B6CABDECD2FB5E798448ACD5C9894627E370EF2F4CE762BDAD"
+      },
+      "builtApplication": {
+        "fileCount": 10,
+        "combinedSha256": "FB74CB5065593209D526F4F7DF1FAE27645DCEA0F63DDFF3E1A26E2EE245D97E"
+      },
+      "isolatedMarkdown": {
+        "fileCount": 7,
+        "combinedSha256": "54B472FF4C646CF8858BBAF700F562CD001927123A18B72FE98398BCDBDBC59B"
+      }
+    }
+  },
+  "assertions": {
+    "exactNodeSetAtEveryCheckpoint": true,
+    "nodeContextMenuOpened": true,
+    "nodeContextMenuItemsHaveText": true,
+    "contentViewportStable": true,
+    "filteredNodeSetStable": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "noIsolatedProcessesRemaining": true
+  }
+}

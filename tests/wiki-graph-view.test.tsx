@@ -843,6 +843,7 @@ describe('WikiGraphView', () => {
   it('opens the file context menu for file-backed nodes and exposes real callbacks only', async () => {
     const user = userEvent.setup()
     const onOpenInNewTab = vi.fn()
+    const onOpenInNewWindow = vi.fn()
     const onTrash = vi.fn()
     const graph: WikiGraph = {
       nodes: [
@@ -866,6 +867,7 @@ describe('WikiGraphView', () => {
         onScopeChange={() => undefined}
         onIncludeOrphansChange={() => undefined}
         onOpenInNewTab={onOpenInNewTab}
+        onOpenInNewWindow={onOpenInNewWindow}
         onTrash={onTrash}
         onOpen={() => undefined}
       />
@@ -882,8 +884,16 @@ describe('WikiGraphView', () => {
     expect(menu.querySelector('.wiki-graph-context-title')?.textContent).toBe(
       'diagram.png'
     )
-    await user.click(screen.getByRole('menuitem', { name: '新しいタブで開く' }))
+    await user.click(screen.getByRole('menuitem', { name: '新規タブに開く' }))
     expect(onOpenInNewTab).toHaveBeenCalledWith('assets/diagram.png')
+
+    fireEvent.contextMenu(
+      screen.getByRole('button', {
+        name: 'diagram.png（添付書類）を開く'
+      })
+    )
+    await user.click(screen.getByRole('menuitem', { name: '新規ウィンドウで開く' }))
+    expect(onOpenInNewWindow).toHaveBeenCalledWith('assets/diagram.png')
 
     fireEvent.contextMenu(
       screen.getByRole('button', {
@@ -915,7 +925,10 @@ describe('WikiGraphView', () => {
       screen.getByRole('button', { name: 'A（現在のノート）' })
     )
     expect(
-      screen.getByRole('menuitem', { name: '新しいタブで開く' })
+      screen.getByRole('menuitem', { name: '新規タブに開く' })
+    ).toHaveProperty('disabled', true)
+    expect(
+      screen.getByRole('menuitem', { name: '新規ウィンドウで開く' })
     ).toHaveProperty('disabled', true)
   })
 

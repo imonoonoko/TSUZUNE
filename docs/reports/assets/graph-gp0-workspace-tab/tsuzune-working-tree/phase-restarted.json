@@ -1,0 +1,83 @@
+{
+  "phase": "restarted",
+  "processId": 14976,
+  "windowGeometry": {
+    "frame": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "electronContentBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "rendererViewport": {
+      "width": 1265,
+      "height": 768,
+      "devicePixelRatio": 1
+    }
+  },
+  "restarted": {
+    "query": "",
+    "graphLabel": "Vault全体グラフ",
+    "settingsPanelVisible": true,
+    "filterSectionVisible": true,
+    "nodePaths": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note.md"
+    ],
+    "edgeCount": 8,
+    "stageTransform": "translate(0px, 0px) scale(1)",
+    "targetNode": {
+      "path": "00_Home.md",
+      "x": 114.47,
+      "y": 35.6859,
+      "clientX": 756.96875,
+      "clientY": 478.671875,
+      "dotWidth": 16,
+      "dotHeight": 16,
+      "styleLeft": "calc(50% + 114.47px)",
+      "styleTop": "calc(50% + 35.6859px)"
+    },
+    "canvasRect": {
+      "x": 260,
+      "y": 148,
+      "width": 765,
+      "height": 590
+    },
+    "dimensions": {
+      "innerWidth": 1265,
+      "innerHeight": 768,
+      "devicePixelRatio": 1
+    }
+  },
+  "settingsGraphViewState": {
+    "scale": 1,
+    "query": "",
+    "settingsOpen": true,
+    "settingsSections": {
+      "filters": true,
+      "groups": false,
+      "display": false,
+      "forces": false
+    }
+  },
+  "screenshots": [
+    {
+      "file": "03-after-app-restart.png",
+      "bytes": 124304,
+      "sha256": "901CF40A0DE797D0DD61FA2306050328A46A1A8B644A37991B5579DC55505AED",
+      "width": 1265,
+      "height": 768
+    }
+  ]
+}

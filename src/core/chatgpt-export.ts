@@ -94,7 +94,7 @@ function canonicalize(value: unknown): unknown {
   return value
 }
 
-function stableJson(value: unknown): string {
+export function stableJson(value: unknown): string {
   return JSON.stringify(canonicalize(value)) ?? 'null'
 }
 
@@ -118,7 +118,7 @@ function rotateRight(value: number, bits: number): number {
   return (value >>> bits) | (value << (32 - bits))
 }
 
-function sha256(value: unknown): string {
+export function sha256(value: unknown): string {
   const bytes = new TextEncoder().encode(stableJson(value))
   const paddedLength = Math.ceil((bytes.length + 9) / 64) * 64
   const padded = new Uint8Array(paddedLength)
