@@ -1,14 +1,14 @@
 {
   "status": "installed-and-verified",
-  "verifiedAt": "2026-08-08T20:51:50.494Z",
+  "verifiedAt": "2026-08-09T03:54:25.838Z",
   "packageVersion": "0.5.0",
   "git": {
-    "commit": "5c419dfd423ba799021a3af09a85ce5b0ab11d7b",
-    "dirty": true
+    "commit": "4051f9f8ff6c4d9e1ed7bcc14e400379d20c1b9c",
+    "dirty": false
   },
   "sourceFingerprint": {
-    "fileCount": 423,
-    "digest": "c55db08853c5d71450117b367630e08273d966ed786943f081c1a15380dcfafe",
+    "fileCount": 477,
+    "digest": "1fc8ebe2619b388f2654a218e1da31dd60a07421d2e2557bc16c2e2f72f0e227",
     "excludedPaths": [
       "docs/reports/production-update-latest.json"
     ]
@@ -16,17 +16,17 @@
   "oauthBuildSource": "installed-bundle",
   "installer": {
     "path": "dist/TSUZUNE-Setup-0.5.0.exe",
-    "sha256": "e2e6836122b2db5318df9743b7889fa6a0082e5be085c9a459804c05df6f7821"
+    "sha256": "1a54aeff0baee3480845cf254ade681695472e2aaa12ba4cf2b049672d2972c5"
   },
   "built": {
-    "executableSha256": "005a49b44f9f62b81be2ef0e1be7dde77a468342d81d23e724768de360d73973",
-    "appAsarSha256": "e75b39f5a7e490d26b2a753dbc9ff01b4c39319d3f925f785b0141474946697c"
+    "executableSha256": "08fe67cbcce911a7e19c6a7c4e55ea091eb9e893010d1dd60374ad388059f47a",
+    "appAsarSha256": "a335ba78adbbecf1f025c389b4312617e5138c0694577bfbe9b9933ad35369fc"
   },
   "installed": {
     "executable": "C:\\Users\\Humin\\AppData\\Local\\Programs\\tsuzune\\TSUZUNE.exe",
     "version": "0.5.0",
-    "executableSha256": "005a49b44f9f62b81be2ef0e1be7dde77a468342d81d23e724768de360d73973",
-    "appAsarSha256": "e75b39f5a7e490d26b2a753dbc9ff01b4c39319d3f925f785b0141474946697c",
+    "executableSha256": "08fe67cbcce911a7e19c6a7c4e55ea091eb9e893010d1dd60374ad388059f47a",
+    "appAsarSha256": "a335ba78adbbecf1f025c389b4312617e5138c0694577bfbe9b9933ad35369fc",
     "rendererReady": true
   },
   "productionProfile": {

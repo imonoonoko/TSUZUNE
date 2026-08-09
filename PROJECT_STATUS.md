@@ -8,8 +8,8 @@
 
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
-| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-09 05:51 JSTにGP0-3b-iを含む検証済みworking treeから更新し、全426 tests、packaged／installed smoke、hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`。C0-A〜C1-C、O1-W0、O1-W1、GP0-3b-jをworking treeで実装・検証済み | Git |
+| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-09 12:54 JSTにcommit `4051f9f`から更新し、GP0-3b-j、全430 tests、packaged／installed smoke、hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。C0-A〜C1-C、O1-W0、O1-W1、GP0-3b-jを実装・検証・commit・push・本番反映済み | Git |
 | 直近slice | GP0-3b-jでattachment nodeのファイル移動を比較。取消、通常移動、同名衝突、自動採番、リンク非書換え、旧未解決／新実在node、再表示／再起動保持を`matched-core-behavior`にした | [比較report](docs/reports/graph-gp0-attachment-file-move-2026-08-09.html) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
 | 最優先Track | v0.6 Obsidian Graph Parity | [PLAN.md](PLAN.md#active-track-v06-obsidian-graph-parity) |
@@ -89,7 +89,7 @@ M5固定dogfoodでは時間整合性が1/4から4/4、State NoteからSourceへ�
 4. 実行順: `PLAN.md`のActive TrackとCurrent Transition Queue。
 5. 本番TSUZUNE Vault: 現在地への検索導線、判断履歴、日付付きEvidence。repo仕様の複製ではない。
 
-SemVerやHEADだけで同一性を判断しません。現在の本番v0.5.0は2026-08-09の検証済みworking treeから導入され、receiptはsource fingerprintと`dirty: true`を保持しています。本番同一性はreceiptのsource fingerprint、EXE／`app.asar` hashを併用して確認します。
+SemVerやHEADだけで同一性を判断しません。現在の本番v0.5.0は2026-08-09 12:54 JSTにcommit `4051f9f`のclean sourceから導入され、receiptはsource fingerprintと`dirty: false`を保持しています。本番同一性はreceiptのsource fingerprint、EXE／`app.asar` hashを併用して確認します。
 
 ## 優先キュー
 
@@ -105,7 +105,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番v0.5.0は2
 
 ## CheckpointとWorking treeの扱い
 
-Graph検索保持の製品コード、tests、fixture、再現script、report assetsは`ad26532`へ収録済みです。GP0-3b-cとGP0-3b-dは比較harness、raw observation、画像、比較表、HTMLレポートだけを追加し、製品sourceは変更していません。C0-A〜C1-CはGit管理外の`work/`へ個人本文とreviewを出す開発用CLI／純粋coreであり、Electron本番UI・packaged runtimeへは接続していません。C1-Cは既知誤検出を止めた一方、rule別review 10件未満のため自動適用を解禁せず、人物プロフィール5ノートへのwriteは0です。O1-W0／O1-W1はElectron UIへ接続し、2026-08-09のproduction update gateでこのPCの本番へ反映済みです。既存の他未コミット変更と混在するためcommit、pushはまだ行っていません。
+Graph検索保持の製品コード、tests、fixture、再現script、report assetsは`ad26532`へ収録済みです。GP0-3b-cとGP0-3b-dは比較harness、raw observation、画像、比較表、HTMLレポートだけを追加し、製品sourceは変更していません。C0-A〜C1-CはGit管理外の`work/`へ個人本文とreviewを出す開発用CLI／純粋coreであり、Electron本番UI・packaged runtimeへは接続していません。C1-Cは既知誤検出を止めた一方、rule別review 10件未満のため自動適用を解禁せず、人物プロフィール5ノートへのwriteは0です。O1-W0／O1-W1はElectron UIへ接続し、2026-08-09のproduction update gateでこのPCの本番へ反映済みです。GP0-3b-jは`b47671a`、production testの2-worker gateは`9bec872`／`4051f9f`として同名originへpushし、12:54 JSTにclean sourceから本番へ反映済みです。
 
 - 次のsliceでも、sourceだけ、reportだけの機械的な分割commitをせず、共有型、App、Vault、testsを含む機能契約単位で切る。
 - fixture、日付付きreport、machine-readable artifactは比較の証拠として保持し、生成ゴミと決めつけて一括削除しない。
