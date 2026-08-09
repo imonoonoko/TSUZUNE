@@ -457,6 +457,41 @@ button:hover:not(:disabled) {
   min-width: 0;
 }
 
+.linked-view-panel {
+  min-width: 0;
+  overflow: auto;
+  padding: 22px 24px 28px;
+  background: var(--paper);
+}
+
+.linked-view-panel h2 {
+  margin: 0 0 14px;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.linked-view-list {
+  display: grid;
+  gap: 6px;
+  max-width: 720px;
+}
+
+.linked-view-list .related-link {
+  padding: 10px 12px;
+  background: #fffdf8;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.linked-view-list .related-link strong {
+  color: var(--ink);
+}
+
+.linked-view-list .related-link span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .workspace-tabs {
   display: flex;
   min-width: 0;

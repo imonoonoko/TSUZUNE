@@ -1,0 +1,175 @@
+{
+  "capturedAt": "2026-08-09T18:51:20.381Z",
+  "stage": "GP0-3b-m Global Graph attachment linked-view working-tree evidence",
+  "status": "captured",
+  "comparisonStatus": "Compare with docs/reports/assets/graph-gp0-attachment-linked-view/obsidian-1.13.4/observation.json",
+  "command": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-linked-view",
+  "isolation": {
+    "sourceFixture": "fixtures/obsidian-graph-parity-vault",
+    "copiedVault": "work/graph-gp0-attachment-linked-view-working-tree/vault",
+    "userData": "work/graph-gp0-attachment-linked-view-working-tree/userdata",
+    "requestedContentViewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "offscreenOrigin": {
+      "x": -32000,
+      "y": -32000
+    },
+    "observedWindowGeometry": {
+      "initial": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      },
+      "restarted": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      }
+    },
+    "network": "host resolver blocked except localhost"
+  },
+  "evidenceBoundary": {
+    "established": [
+      "Fresh isolated fixture Vault and userData profile",
+      "Public TSUZUNE graph node context menu and linked-view submenu were used",
+      "Parent menu remained open while the linked-view submenu was visible",
+      "The enabled backlink action opened a backlink view for the selected attachment",
+      "The Global Graph tab was retained and its query, camera, nodes, edges, and tabs were compared after reopening and restart",
+      "Source fixture and isolated Vault were hashed before and after the capture"
+    ],
+    "notEstablished": [
+      "Physical mouse or keyboard input",
+      "Visible onscreen foreground-window interaction",
+      "Touch or pen input",
+      "Screen reader or Windows High Contrast acceptance",
+      "Multi-DPI or pixel-identical parity",
+      "Backlink ordering beyond the captured fixture"
+    ]
+  },
+  "processIds": [
+    14004,
+    15380
+  ],
+  "assertions": {
+    "exactNodeSetAtEveryCheckpoint": true,
+    "attachmentContextMenuOpened": true,
+    "linkedViewMenuItemRecorded": true,
+    "parentHoverKeptMenusOpen": true,
+    "submenuItemsExact": true,
+    "submenuItemsEnabled": true,
+    "firstActionIsBacklinks": true,
+    "linkedViewOpened": true,
+    "linkedViewShowsBacklinks": true,
+    "actionClosedMenus": true,
+    "graphTabRetained": true,
+    "graphSurfacePreservedImmediately": true,
+    "queryCameraNodesLinksTabsPreservedAcrossReopenAndRestart": true,
+    "contentViewportStable": true,
+    "filteredNodeSetStable": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "isolatedVaultContentUnchanged": true,
+    "isolatedVaultChangedOnlyWhenMoving": true,
+    "noIsolatedProcessesRemaining": true
+  },
+  "artifacts": [
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-linked-view/tsuzune-working-tree/00-baseline.png",
+      "bytes": 126345,
+      "sha256": "8A81A8938B448FFB60ACB86553DE5AC31449931650D6E2FDFEB8AB1DD0648ED2",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-linked-view/tsuzune-working-tree/01-node-context-menu.png",
+      "bytes": 131008,
+      "sha256": "A3C25DA8FBD5944826E19A0D36EE066B7AF7F32AAC04DF7817054C64CA17C236",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-linked-view/tsuzune-working-tree/02-after-linked-view-hover.png",
+      "bytes": 133840,
+      "sha256": "E2058129CFA77ECF3E1C08C997205613FD184558C2DA481F0077ADB12729237B",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-linked-view/tsuzune-working-tree/03-after-linked-view-click.png",
+      "bytes": 133840,
+      "sha256": "E2058129CFA77ECF3E1C08C997205613FD184558C2DA481F0077ADB12729237B",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-linked-view/tsuzune-working-tree/04-after-linked-view-action.png",
+      "bytes": 71963,
+      "sha256": "F8298383C6525BE2BB6DFCE1431C0A3043582BE42F5E7FF5B202ADF0CAE55C2B",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-linked-view/tsuzune-working-tree/05-after-graph-reopen.png",
+      "bytes": 131460,
+      "sha256": "4D3117D62CEEDDC392853144BF6B2360B7B3149EE343BED7140B6031EEA8E3E6",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-linked-view/tsuzune-working-tree/06-after-app-restart.png",
+      "bytes": 128687,
+      "sha256": "3032B318C7EB443ECC6EB15E03C862C19A8EAE4E3A87C2C879F7FD42582018BC",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-linked-view/tsuzune-working-tree/phase-initial.json",
+      "bytes": 21869,
+      "sha256": "57430FDB87A6BD04B8417AAEF7AE0E5E0DD4D170EE46DB200947BED8C853C6D1"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-linked-view/tsuzune-working-tree/phase-restarted.json",
+      "bytes": 3955,
+      "sha256": "D8A1E90948FA4BAC866B7AE0FA9C1B1D4F0464A9AFC0FD1C880FB042D326D673"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-linked-view/tsuzune-working-tree/observation.json",
+      "bytes": 41855,
+      "sha256": "1C279B38A4F2BC085D5595CFA128FE297AC89FB5CC2A6A648DD9C16058C17C29"
+    }
+  ],
+  "next": "Compare the linked-view submenu and backlink workspace behavior with the fixed Obsidian 1.13.4 evidence."
+}

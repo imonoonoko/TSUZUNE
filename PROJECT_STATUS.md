@@ -9,11 +9,11 @@
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
 | インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-10 02:16 JSTにcommit `df9146e`から更新し、O2-P1 Path Alias Foundation、全486 tests、packaged／installed smoke、build／installed hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`。O2-P1はcommit `0aacecf`／`df9146e`としてpush・本番反映済み。O2-P2のread-only CLI、明示plan、検証証拠はworking treeで完了 | Git |
-| 直近slice | O2-P2で5ノートの分類移行を本番Vaultへ適用せず2回dry-runし、同一manifest、全Vault fingerprint不変、Graph／Wiki／Context同値を確認 | [O2-P2 report](docs/reports/o2-p2-classification-migration-dry-run-2026-08-10.md) |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。O2-P2はcommit `8037c31`としてpush済み。GP0-3b-mの実装、固定比較、証拠を現在の開発checkpointへ収録 | Git |
+| 直近slice | GP0-3b-mで添付nodeの`リンクされたビューを開く`からバックリンクビューを追加し、元のGlobal Graphを保持する中核挙動を固定比較 | [GP0-3b-m report](docs/reports/graph-gp0-attachment-linked-view-2026-08-10.html) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
-| 最優先Track | v0.6 Obsidian Graph Parity。既定の再開点GP0-3b-mでattachment nodeの`リンクされたビューを開く`を固定比較する | [PLAN.md](PLAN.md#current-transition-queue) |
-| 次の縦切り | GP0-3b-m。分類Trackを再選択する場合は匿名一時VaultのO2-P3 apply／rollbackか、Drive sidecar契約を先に決め、本番applyは行わない | [PLAN.md](PLAN.md) |
+| 最優先Track | v0.6 Obsidian Graph Parity。GP0-3b-mを完了し、次の未比較menu操作へ進む | [PLAN.md](PLAN.md#current-transition-queue) |
+| 次の縦切り | GP0-3b-n。attachment nodeの`デフォルトアプリで開く`を安全な外部起動intercept付きで固定比較する | [PLAN.md](PLAN.md) |
 
 ## 実装済みの基盤
 
@@ -68,6 +68,8 @@ GP0-3b-kでは、添付nodeの`ブックマーク…`を取消、作成、同一
 
 GP0-3b-lでは、添付nodeの`パスをコピー`をURL、Vault相対path、system絶対pathの3シナリオで比較しました。親menuと3件のsubmenuの文言・順序・有効状態、選択ごとのplain-text write 1回、選択後のmenu close、共通検証範囲であるGraph検索条件・node集合・Vault内容のGraph再表示／別プロセス再起動までの保持を満たし、中核挙動は`matched-core-behavior`です。URLとVault相対pathは完全一致し、system pathは各隔離Vault rootから同じ相対suffixでした。両captureともOS clipboard実writeをinterceptしたため別applicationへのpaste roundtripは未証明です。固定参照は右端から左、TSUZUNE captureは中央から右へsubmenuを開いており、TSUZUNE実画面の右端左開きはこのcaptureでは未観測です。context menu全体も11対6の既知差です。
 
+GP0-3b-mでは、添付nodeの`リンクされたビューを開く`を比較しました。両製品のsubmenuは唯一の有効操作`バックリンクを開く`で一致し、対象添付pathと参照元を示すviewを開いた後もGlobal Graphを保持しました。起動中の操作と、Graph再表示／別プロセス再起動後のGraph構造保持を`matched-core-behavior`としています。linked-view自体はTSUZUNEで再起動後に復元せず、Obsidianは`バックリンク`tab shellを保持するものの対象添付へのbindingは未証明です。全496 tests、typecheck、build、MCP smokeをPASSしました。TSUZUNEはworkspace tab、Obsidianはbacklink leafを使うため分割paneと視覚shellの1:1一致は未証明です。context menu全体は11対7の既知差です。
+
 - [GP6 comparison report](docs/reports/graph-gp6-production-comparison-2026-08-02.html)
 - [GP6 working-tree evidence](docs/reports/assets/graph-gp6/tsuzune-working-tree/manifest.json)
 - [GP7 initial settings comparison](docs/reports/graph-gp7-global-settings-default-2026-08-03.html)
@@ -116,7 +118,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 1. M5-Cは要求単位snapshot indexで完了。Context構築median 151.123ms→35.934ms、p95 180.404ms→47.798ms、改善前後のMarkdown SHA-256と意味指標は一致した。
 2. retained heap比較は未測定。cacheを要求境界より長寿命化する提案が出た場合だけ、GCを分離したharnessを先に作る。永続DBやbackground cacheは追加しない。
 3. O2-P1 Path Alias Foundationは全486 tests、build、MCP検査をPASS。旧pathはWiki、backlink、Graph、Context、時間情報、MCP、bookmark、起動復元でcanonical pathへ解決され、実在する旧pathを優先する。
-4. O2-P2移行dry-runは完了。5 movesのpath、hash、参照、Graph、MCP、全Vault不変条件をmanifest化した。3 blockerが残るため物理移動とDrive applyは禁止し、GP0-3b-mへ戻る。
+4. O2-P2移行dry-runは完了。5 movesのpath、hash、参照、Graph、MCP、全Vault不変条件をmanifest化した。3 blockerが残るため物理移動とDrive applyは禁止する。GraphはGP0-3b-mを完了し、次はGP0-3b-nへ進む。
 5. O1-W1の通常ノート／Daily／Idea自由入力、最小書式ツールバー、Vaultノート選択、round-trip guard、同名／同期競合／作成失敗／アプリ終了時の入力保護はcommit `b927171`として本番反映済み。
 6. node context menuの残差分を一項目ずつ閉じた後、720px／200% zoom、tree semantics、実Windows accessibilityを別sliceで扱う。
 7. さらにGoogle Tasks、Drive選択取込、YouTube、Data Portabilityから一つを再選択する。

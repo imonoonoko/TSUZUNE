@@ -7,6 +7,7 @@ import {
   resolveWikiLink
 } from '../core/links'
 import {
+  buildWikiGraph,
   buildWikiGraphForView,
   getLocalWikiGraph,
   getVaultWikiGraph,
@@ -84,6 +85,11 @@ type WorkspaceTab =
     }
   | {
       id: number
+      kind: 'linked-view'
+      path: string
+    }
+  | {
+      id: number
       kind: 'global-graph'
     }
 
@@ -119,6 +125,24 @@ function saveStatusLabel(status: SaveStatus): string {
 
 function errorMessage(error: AppError): string {
   return error.message || '操作を完了できませんでした。'
+}
+
+function withoutFileExtension(value: string): string {
+  const name = basenameRelative(value)
+  const separator = name.lastIndexOf('.')
+  return separator > 0 ? name.slice(0, separator) : name
+}
+
+function workspaceTabLabel(tab: WorkspaceTab): string {
+  if (tab.kind === 'global-graph') {
+    return 'グラフビュー'
+  }
+  if (tab.kind === 'linked-view') {
+    return `${withoutFileExtension(tab.path)} へのバックリンク`
+  }
+  return tab.kind === 'note'
+    ? withoutMarkdownExtension(basenameRelative(tab.path))
+    : basenameRelative(tab.path)
 }
 
 function localCalendarDate(date: Date): string {
@@ -164,6 +188,7 @@ export default function App(): React.JSX.Element {
   const [workspaceTabs, setWorkspaceTabs] = useState<WorkspaceTab[]>([])
   const [activeTabId, setActiveTabId] = useState<number | null>(null)
   const [activeAttachmentPath, setActiveAttachmentPath] = useState<string | null>(null)
+  const [activeLinkedViewPath, setActiveLinkedViewPath] = useState<string | null>(null)
   const nextTabIdRef = useRef(1)
   const [treeSelection, setTreeSelection] = useState<TreeSelection | null>(null)
   const [content, setContent] = useState('')
@@ -348,6 +373,7 @@ export default function App(): React.JSX.Element {
     setCurrentConflict(null)
     setMessage(null)
     setActiveAttachmentPath(null)
+    setActiveLinkedViewPath(null)
     if (path) {
       setTreeSelection({ kind: 'note', path })
     }
@@ -911,6 +937,22 @@ export default function App(): React.JSX.Element {
       graphFilters.showOrphans
     )
   }, [wikiGraph, selectedPath, graphScope, graphFilters])
+  const linkedViewBacklinks = useMemo(() => {
+    if (!activeLinkedViewPath) {
+      return []
+    }
+    const linkedViewGraph = buildWikiGraph(savedNotes, {
+      includeAttachments: true,
+      attachments: snapshot?.attachments ?? [],
+      pathAliases
+    })
+    const sourcePaths = new Set(
+      linkedViewGraph.edges
+        .filter((edge) => edge.targetPath === activeLinkedViewPath)
+        .map((edge) => edge.sourcePath)
+    )
+    return savedNotes.filter((note) => sourcePaths.has(note.path))
+  }, [activeLinkedViewPath, pathAliases, savedNotes, snapshot?.attachments])
   const temporalAsOf = useMemo(() => localCalendarDate(new Date()), [])
 
   const targetDirectory = (): string => {
@@ -1471,36 +1513,92 @@ export default function App(): React.JSX.Element {
     void openNote(path)
   }
 
-  const loadWorkspaceTab = async (tab: WorkspaceTab): Promise<void> => {
-    if (!beginOperation()) {
+  const openGraphNodeLinkedView = async (path: string): Promise<void> => {
+    const node = visibleGraph.nodes.find((candidate) => candidate.path === path)
+    if (!node || node.kind === 'tag' || node.exists === false || !beginOperation()) {
       return
     }
     try {
       if (!(await flushSave())) {
         return
       }
-      setActiveTabId(tab.id)
+
+      const existing = workspaceTabs.find(
+        (tab) => tab.kind === 'linked-view' && tab.path === path
+      )
+      if (existing) {
+        setActiveTabId(existing.id)
+      } else {
+        const currentTabs = workspaceTabs.length > 0
+          ? workspaceTabs
+          : viewMode === 'graph' && graphScope === 'vault'
+            ? [{ id: nextTabIdRef.current++, kind: 'global-graph' as const }]
+            : selectedPathRef.current
+              ? [{
+                  id: nextTabIdRef.current++,
+                  kind: 'note' as const,
+                  path: selectedPathRef.current
+                }]
+              : []
+        const nextTab: WorkspaceTab = {
+          id: nextTabIdRef.current++,
+          kind: 'linked-view',
+          path
+        }
+        setWorkspaceTabs([...currentTabs, nextTab])
+        setActiveTabId(nextTab.id)
+      }
+
+      loadNoteState(null, false)
+      setActiveLinkedViewPath(path)
+      setMessage(null)
+    } finally {
+      finishOperation()
+    }
+  }
+
+  const loadWorkspaceTab = async (tab: WorkspaceTab): Promise<boolean> => {
+    if (!beginOperation()) {
+      return false
+    }
+    try {
+      if (!(await flushSave())) {
+        return false
+      }
       if (tab.kind === 'global-graph') {
+        setActiveTabId(tab.id)
         setActiveAttachmentPath(null)
+        setActiveLinkedViewPath(null)
         setGraphScope('vault')
         setViewMode('graph')
         setMessage(null)
-        return
+        return true
       }
       if (tab.kind === 'attachment') {
+        setActiveTabId(tab.id)
         setActiveAttachmentPath(tab.path)
+        setActiveLinkedViewPath(null)
         setMessage(null)
-        return
+        return true
+      }
+      if (tab.kind === 'linked-view') {
+        setActiveTabId(tab.id)
+        loadNoteState(null, false)
+        setActiveLinkedViewPath(tab.path)
+        setMessage(null)
+        return true
       }
       const note = snapshotRef.current?.notes.find(
         (candidate) => candidate.path === tab.path
       )
       if (!note) {
         setMessage('このノートは現在のVaultにありません。')
-        return
+        return false
       }
+      setActiveTabId(tab.id)
       loadNoteState(note)
       setViewMode('edit')
+      return true
     } finally {
       finishOperation()
     }
@@ -1524,6 +1622,7 @@ export default function App(): React.JSX.Element {
       setActiveTabId(graphTab.id)
     }
     setActiveAttachmentPath(null)
+    setActiveLinkedViewPath(null)
     setGraphScope('vault')
     setViewMode('graph')
   }
@@ -1555,6 +1654,7 @@ export default function App(): React.JSX.Element {
       }
       setWorkspaceTabs([...currentTabs, nextTab])
       setActiveTabId(nextTab.id)
+      setActiveLinkedViewPath(null)
 
       if (nextTab.kind === 'attachment') {
         setActiveAttachmentPath(path)
@@ -1605,19 +1705,33 @@ export default function App(): React.JSX.Element {
       return
     }
     const remaining = workspaceTabs.filter((tab) => tab.id !== tabId)
-    setWorkspaceTabs(remaining)
     if (tabId !== activeTabId) {
+      setWorkspaceTabs(remaining)
       return
     }
     const next = remaining[Math.min(index, remaining.length - 1)]
     if (next) {
-      await loadWorkspaceTab(next)
-    } else {
+      if (await loadWorkspaceTab(next)) {
+        setWorkspaceTabs(remaining)
+      }
+      return
+    }
+    if (!beginOperation()) {
+      return
+    }
+    try {
+      if (!(await flushSave())) {
+        return
+      }
+      setWorkspaceTabs(remaining)
       setActiveTabId(null)
       setActiveAttachmentPath(null)
+      setActiveLinkedViewPath(null)
       if (workspaceTabs[index].kind === 'global-graph') {
         setViewMode('edit')
       }
+    } finally {
+      finishOperation()
     }
   }
 
@@ -2058,16 +2172,12 @@ export default function App(): React.JSX.Element {
             className={tab.id === activeTabId ? 'is-active' : ''}
             onClick={() => void loadWorkspaceTab(tab)}
           >
-            {tab.kind === 'global-graph'
-              ? 'グラフビュー'
-              : tab.kind === 'note'
-                ? withoutMarkdownExtension(basenameRelative(tab.path))
-                : basenameRelative(tab.path)}
+            {workspaceTabLabel(tab)}
           </button>
           <button
             type="button"
             className="workspace-tab-close"
-            aria-label={`${tab.kind === 'global-graph' ? 'グラフビュー' : basenameRelative(tab.path)}を閉じる`}
+            aria-label={`${workspaceTabLabel(tab)}を閉じる`}
             onClick={() => void closeWorkspaceTab(tab.id)}
           >
             ×
@@ -2338,7 +2448,52 @@ export default function App(): React.JSX.Element {
           </aside>
 
           <section className="note-panel">
-            {!selectedPath && viewMode === 'graph' && graphScope === 'vault' ? (
+            {activeLinkedViewPath ? (
+              <>
+                <div className="note-top">
+                  {workspaceTabBar}
+                  <header className="note-header">
+                    <div>
+                      <strong>{workspaceTabLabel({
+                        id: 0,
+                        kind: 'linked-view',
+                        path: activeLinkedViewPath
+                      })}</strong>
+                      <span>{activeLinkedViewPath}</span>
+                    </div>
+                  </header>
+                </div>
+                <section
+                  className="linked-view-panel"
+                  role="region"
+                  aria-label="バックリンクビュー"
+                >
+                  <h2>バックリンク</h2>
+                  {linkedViewBacklinks.length > 0 ? (
+                    <div className="linked-view-list">
+                      {linkedViewBacklinks.map((note) => (
+                        <button
+                          key={note.path}
+                          type="button"
+                          className="related-link"
+                          aria-label={note.path}
+                          onClick={() => void openNote(note.path)}
+                        >
+                          <strong>{note.name}</strong>
+                          <span>{note.path}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="related-empty">バックリンクはありません。</p>
+                  )}
+                </section>
+                <footer className="note-footer">
+                  <span>{linkedViewBacklinks.length}件のバックリンク</span>
+                  <span>{activeLinkedViewPath}</span>
+                </footer>
+              </>
+            ) : !selectedPath && viewMode === 'graph' && graphScope === 'vault' ? (
               <>
                 <div className="note-top">{workspaceTabBar}</div>
                 <WikiGraphView
@@ -2383,6 +2538,7 @@ export default function App(): React.JSX.Element {
                   onOpen={openGraphNode}
                   onOpenInNewTab={(path) => void openGraphNodeInNewTab(path)}
                   onOpenInNewWindow={(path) => void openGraphNodeInNewWindow(path)}
+                  onOpenLinkedView={(path) => void openGraphNodeLinkedView(path)}
                 />
               </>
             ) : activeAttachment ? (
@@ -2545,6 +2701,7 @@ export default function App(): React.JSX.Element {
                     onOpen={openGraphNode}
                     onOpenInNewTab={(path) => void openGraphNodeInNewTab(path)}
                     onOpenInNewWindow={(path) => void openGraphNodeInNewWindow(path)}
+                    onOpenLinkedView={(path) => void openGraphNodeLinkedView(path)}
                   />
                 )}
                 <footer className="note-footer">

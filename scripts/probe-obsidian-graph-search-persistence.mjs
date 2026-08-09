@@ -25,6 +25,9 @@ const attachmentBookmarkProbe =
 const attachmentPathCopyProbe =
   process.argv.includes('--attachment-path-copy') ||
   process.env.TSUZUNE_GRAPH_ATTACHMENT_PATH_COPY_PROBE === '1'
+const attachmentLinkedViewProbe =
+  process.argv.includes('--attachment-linked-view') ||
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_LINKED_VIEW_PROBE === '1'
 const attachmentPathCopyScenario =
   process.argv.find((argument) => argument.startsWith('--path-copy-scenario='))?.split('=', 2)[1] ??
   process.env.TSUZUNE_GRAPH_ATTACHMENT_PATH_COPY_SCENARIO ??
@@ -57,28 +60,31 @@ const nodeNewTabProbe =
   process.env.TSUZUNE_GRAPH_NODE_NEW_TAB_PROBE === '1'
 const nodeMenuProbe =
   nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe ||
-  attachmentBookmarkProbe || attachmentPathCopyProbe ||
+  attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe ||
   process.argv.includes('--node-menu') ||
   process.env.TSUZUNE_GRAPH_NODE_MENU_PROBE === '1'
 if (
   [
     cameraProbe,
     nodeDragProbe,
-    nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe,
+    nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe,
     nodeNewTabProbe,
     attachmentNewTabProbe,
     attachmentNewWindowProbe,
     attachmentMoveProbe,
     attachmentBookmarkProbe,
-    attachmentPathCopyProbe
+    attachmentPathCopyProbe,
+    attachmentLinkedViewProbe
   ].filter(Boolean).length > 1
 ) {
   throw new Error(
-    '--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move、--attachment-bookmark、--attachment-path-copy は同時に指定できません。'
+    '--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move、--attachment-bookmark、--attachment-path-copy、--attachment-linked-view は同時に指定できません。'
   )
 }
 const probeKind = attachmentPathCopyProbe
   ? `attachment-path-copy-${attachmentPathCopyScenario}`
+  : attachmentLinkedViewProbe
+  ? 'attachment-linked-view'
   : attachmentBookmarkProbe
   ? `attachment-bookmark-${attachmentBookmarkScenario}`
   : attachmentMoveProbe
@@ -110,6 +116,8 @@ const outputRoot = resolve(
   repoRoot,
   attachmentPathCopyProbe
     ? `docs/reports/assets/graph-gp0-attachment-path-copy/${attachmentPathCopyScenario}`
+    : attachmentLinkedViewProbe
+    ? 'docs/reports/assets/graph-gp0-attachment-linked-view'
     : attachmentBookmarkProbe
     ? `docs/reports/assets/graph-gp0-attachment-bookmark/${attachmentBookmarkScenario}`
     : attachmentMoveProbe
@@ -147,7 +155,7 @@ const expected = {
   asarSha256: '51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917',
   markdownCount: 7,
   search: cameraProbe || nodeDragProbe || nodeMenuProbe ? '' : 'path:"10_projects"',
-  filteredNodeIds: attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe
+  filteredNodeIds: attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe
     ? [
         '00_Home.md',
         '10_projects/Project Alpha.md',
@@ -206,9 +214,26 @@ const expected = {
       'ファイルを削除'
     ]
   },
+  attachmentLinkedView: {
+    targetNodeId: 'attachments/diagram.svg',
+    parentLabel: 'リンクされたビューを開く',
+    menuItems: [
+      'diagram.svg',
+      '新規タブに開く',
+      '新規ウィンドウで開く',
+      'ファイルを移動…',
+      'ブックマーク…',
+      'パスをコピー',
+      'リンクされたビューを開く',
+      'デフォルトアプリで開く',
+      'フォルダで表示',
+      'ファイルエクスプローラでファイルを表示',
+      'ファイルを削除'
+    ]
+  },
   drag: {
     targetNodeId:
-      attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe
+      attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe
         ? 'attachments/diagram.svg'
         : '00_Home.md',
     deltaX: 96,
@@ -248,7 +273,9 @@ const pathCopyEvidenceReplacements = [
 ].sort(([left], [right]) => right.length - left.length)
 
 const repositoryEvidence = (value) =>
-  attachmentPathCopyProbe ? sanitizeEvidence(value, pathCopyEvidenceReplacements) : value
+  attachmentPathCopyProbe || attachmentLinkedViewProbe
+    ? sanitizeEvidence(value, pathCopyEvidenceReplacements)
+    : value
 
 function assertWithin(directory, path) {
   if (path !== directory && !path.startsWith(`${directory}${sep}`)) {
@@ -667,7 +694,7 @@ async function setGraphSearch(cdp, query) {
     cdp,
     `app.workspace.getLeavesOfType('graph')[0]?.view.dataEngine.getOptions().search === ${JSON.stringify(query)}`
   )
-  if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe) {
+  if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe) {
     await waitForRenderer(
       cdp,
       `JSON.stringify(app.workspace.getLeavesOfType('graph')[0]?.view.renderer.nodes.map(${nodeIdExpression()}).filter(Boolean).sort()) === ${JSON.stringify(JSON.stringify(expected.filteredNodeIds))}`
@@ -839,6 +866,20 @@ async function releaseNodeDragInput(cdp, target) {
 }
 
 async function openNodeContextMenu(cdp) {
+  if (attachmentLinkedViewProbe) {
+    await cdp.evaluate(`(() => {
+      const view = app.workspace.getLeavesOfType('graph')[0]?.view
+      const renderer = view?.renderer
+      const nodeId = ${nodeIdExpression()}
+      const node = renderer?.nodes.find((candidate) => nodeId(candidate) === ${JSON.stringify(expected.drag.targetNodeId)})
+      if (!renderer || !node || typeof renderer.setPan !== 'function') return false
+      renderer.setPan(renderer.width * devicePixelRatio / 2 - node.x * renderer.scale,
+        renderer.height * devicePixelRatio / 2 - node.y * renderer.scale)
+      renderer.queueRender?.()
+      return true
+    })()`)
+    await delay(250)
+  }
   const targetExpression = `(() => {
     const view = app.workspace.getLeavesOfType('graph')[0]?.view
     if (!view) throw new Error('Global Graphが開いていません。')
@@ -1155,6 +1196,138 @@ async function activateAttachmentPathCopy(cdp) {
   })()`)
   if (actionError) throw actionError
   return { beforeGraph, afterGraph, clipboardSetup, clipboardCapture, menuClosed, parentActivation }
+}
+
+async function activateAttachmentLinkedView(cdp) {
+  const beforeGraph = await observeGraph(cdp, 'before-attachment-linked-view')
+  const visibleMenuExpression = `(() => [...document.querySelectorAll('.menu')].filter((menu) => {
+    const style = getComputedStyle(menu)
+    const bounds = menu.getBoundingClientRect()
+    return style.display !== 'none' && style.visibility !== 'hidden' && bounds.width > 0 && bounds.height > 0
+  }))()`
+  const parentTarget = await cdp.evaluate(`(() => {
+    const item = [...document.querySelectorAll('.menu .menu-item')]
+      .find((candidate) => candidate.textContent?.replace(/\\s+/g, ' ').trim() === ${JSON.stringify(expected.attachmentLinkedView.parentLabel)})
+    if (!(item instanceof HTMLElement) || item.classList.contains('is-disabled')) {
+      throw new Error('有効な「リンクされたビューを開く」が見つかりません。')
+    }
+    const bounds = item.getBoundingClientRect()
+    return { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 }
+  })()`)
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved', x: parentTarget.x, y: parentTarget.y, button: 'none', buttons: 0
+  })
+  await delay(500)
+  const afterHover = await cdp.evaluate(`(() => {
+    const visibleMenus = ${visibleMenuExpression}
+    const itemText = (item) => item.textContent?.replace(/\\s+/g, ' ').trim() ?? ''
+    return {
+      visibleMenuCount: visibleMenus.length,
+      parentMenuVisible: visibleMenus.some((menu) =>
+        [...menu.querySelectorAll('.menu-item')].some((item) => itemText(item) === ${JSON.stringify(expected.attachmentLinkedView.parentLabel)})
+      ),
+      menus: visibleMenus.map((menu) => [...menu.querySelectorAll('.menu-item')].map((item, index) => ({
+        index,
+        text: itemText(item),
+        disabled:
+          item.classList.contains('is-disabled') ||
+          item.getAttribute('aria-disabled') === 'true' ||
+          item.hasAttribute('disabled')
+      })))
+    }
+  })()`)
+  const hoverScreenshot = await captureScreenshot(
+    cdp,
+    resolve(outputDirectory, '02-after-linked-view-hover.png')
+  )
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mousePressed', x: parentTarget.x, y: parentTarget.y, button: 'left', buttons: 1, clickCount: 1
+  })
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseReleased', x: parentTarget.x, y: parentTarget.y, button: 'left', buttons: 0, clickCount: 1
+  })
+  await waitForRenderer(cdp, `${visibleMenuExpression}.length >= 2`)
+  await delay(200)
+  const submenu = await cdp.evaluate(`(() => {
+    const visibleMenus = ${visibleMenuExpression}
+    const itemText = (item) => item.textContent?.replace(/\\s+/g, ' ').trim() ?? ''
+    const menu = visibleMenus.find((candidate) =>
+      ![...candidate.querySelectorAll('.menu-item')].some((item) => itemText(item) === ${JSON.stringify(expected.attachmentLinkedView.parentLabel)})
+    )
+    if (!menu) throw new Error('リンクされたビューのsubmenuが見つかりません。')
+    const bounds = menu.getBoundingClientRect()
+    return {
+      bounds: { left: bounds.left, top: bounds.top, width: bounds.width, height: bounds.height },
+      items: [...menu.querySelectorAll('.menu-item')].map((item, index) => ({
+        index,
+        text: itemText(item),
+        disabled:
+          item.classList.contains('is-disabled') ||
+          item.getAttribute('aria-disabled') === 'true' ||
+          item.hasAttribute('disabled')
+      }))
+    }
+  })()`)
+  const submenuScreenshot = await captureScreenshot(
+    cdp,
+    resolve(outputDirectory, '03-after-linked-view-click.png')
+  )
+  const firstEnabled = submenu.items.find((item) => !item.disabled)
+  if (!firstEnabled) throw new Error('リンクされたビューsubmenuに有効な操作がありません。')
+  const childTarget = await cdp.evaluate(`(() => {
+    const visibleMenus = ${visibleMenuExpression}
+    const itemText = (item) => item.textContent?.replace(/\\s+/g, ' ').trim() ?? ''
+    const menu = visibleMenus.find((candidate) =>
+      ![...candidate.querySelectorAll('.menu-item')].some((item) => itemText(item) === ${JSON.stringify(expected.attachmentLinkedView.parentLabel)})
+    )
+    const item = [...(menu?.querySelectorAll('.menu-item') ?? [])].find((candidate) => itemText(candidate) === ${JSON.stringify(firstEnabled.text)})
+    if (!(item instanceof HTMLElement)) throw new Error('先頭のリンクされたビュー操作が見つかりません。')
+    const bounds = item.getBoundingClientRect()
+    return { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 }
+  })()`)
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved', x: childTarget.x, y: childTarget.y, button: 'none', buttons: 0
+  })
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mousePressed', x: childTarget.x, y: childTarget.y, button: 'left', buttons: 1, clickCount: 1
+  })
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseReleased', x: childTarget.x, y: childTarget.y, button: 'left', buttons: 0, clickCount: 1
+  })
+  await delay(750)
+  const after = await cdp.evaluate(`(() => ({
+    menuClosed: [...document.querySelectorAll('.menu')].every((menu) => {
+      const style = getComputedStyle(menu)
+      const bounds = menu.getBoundingClientRect()
+      return style.display === 'none' || style.visibility === 'hidden' || bounds.width === 0 || bounds.height === 0
+    }),
+    graphLeafCount: app.workspace.getLeavesOfType('graph').length,
+    markdownLeafCount: app.workspace.getLeavesOfType('markdown').length,
+    activeFile: app.workspace.getActiveFile()?.path ?? null,
+    activeLeaf: app.workspace.activeLeaf ? {
+      id: app.workspace.activeLeaf.id ?? null,
+      viewType: app.workspace.activeLeaf.view?.getViewType?.() ?? null,
+      filePath: app.workspace.activeLeaf.view?.file?.path ?? null
+    } : null,
+    tabHeaders: [...document.querySelectorAll('.workspace-tab-header')].map((header) => ({
+      ariaLabel: header.getAttribute('aria-label'),
+      title: header.getAttribute('title'),
+      text: header.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+      classes: [...header.classList].sort()
+    }))
+  }))()`)
+  const afterGraph = await observeGraph(cdp, 'after-attachment-linked-view')
+  return {
+    beforeGraph,
+    afterHover,
+    hoverScreenshot,
+    submenu,
+    submenuScreenshot,
+    firstEnabled,
+    after,
+    afterGraph,
+    screenshot: await captureScreenshot(cdp, resolve(outputDirectory, '04-after-linked-view-action.png'))
+  }
 }
 
 async function activateAttachmentMove(cdp) {
@@ -1818,7 +1991,7 @@ async function main() {
       await first.whileChildAlive(openGlobalGraph(first.cdp))
     }
     await first.whileChildAlive(setGraphSearch(first.cdp, expected.search))
-    if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe) {
+    if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe) {
       await first.whileChildAlive(setGraphAttachmentsVisible(first.cdp))
     }
     if (nodeDragProbe || nodeMenuProbe) {
@@ -1929,6 +2102,10 @@ async function main() {
         observations.attachmentPathCopy.screenshot = await first.whileChildAlive(
           captureScreenshot(first.cdp, resolve(outputDirectory, '04-after-path-copy.png'))
         )
+      } else if (attachmentLinkedViewProbe) {
+        observations.attachmentLinkedView = await first.whileChildAlive(
+          activateAttachmentLinkedView(first.cdp)
+        )
       } else {
         await first.whileChildAlive(first.cdp.send('Input.dispatchKeyEvent', {
           type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27
@@ -1941,7 +2118,7 @@ async function main() {
         )
       }
     }
-    if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe) {
+    if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe) {
       observations.afterEntry.screenshot = await first.whileChildAlive(
         captureScreenshot(
           first.cdp,
@@ -1978,6 +2155,8 @@ async function main() {
         resolve(
           outputDirectory,
           attachmentPathCopyProbe
+            ? '05-after-graph-reopen.png'
+            : attachmentLinkedViewProbe
             ? '05-after-graph-reopen.png'
             : attachmentBookmarkProbe
             ? attachmentBookmarkScenario === 'duplicate'
@@ -2030,6 +2209,8 @@ async function main() {
         resolve(
           outputDirectory,
           attachmentPathCopyProbe
+            ? '06-after-app-restart.png'
+            : attachmentLinkedViewProbe
             ? '06-after-app-restart.png'
             : attachmentBookmarkProbe
             ? attachmentBookmarkScenario === 'duplicate'
@@ -2196,6 +2377,24 @@ async function main() {
         }
       }
     : null
+  const attachmentLinkedViewContract = attachmentLinkedViewProbe
+    ? {
+        targetNodeId: expected.attachmentLinkedView.targetNodeId,
+        menuItems: observations.nodeContextMenu.items.map((item) => item.text),
+        parentEnabled:
+          observations.nodeContextMenu.items.find(
+            (item) => item.text === expected.attachmentLinkedView.parentLabel
+          )?.disabled === false,
+        afterHover: observations.attachmentLinkedView.afterHover,
+        submenu: observations.attachmentLinkedView.submenu,
+        firstEnabled: observations.attachmentLinkedView.firstEnabled,
+        after: observations.attachmentLinkedView.after,
+        graphBefore: observations.attachmentLinkedView.beforeGraph,
+        graphAfter: observations.attachmentLinkedView.afterGraph,
+        afterGraphReopen: observations.afterGraphReopen,
+        afterAppRestart: observations.afterAppRestart
+      }
+    : null
   const assertions = {
     queryAccepted: observations.afterEntry.graphOptionsSearch === expected.search,
     queryVisibleAfterEntry: observations.afterEntry.searchInputValue === expected.search,
@@ -2235,7 +2434,31 @@ async function main() {
                 nodeContextMenuClosedAfterAction:
                   observations.nodeNewTab.after.menuClosed === true
               }
-            : attachmentPathCopyProbe
+            : attachmentLinkedViewProbe
+              ? {
+                  attachmentLinkedViewTargetExact:
+                    observations.nodeContextMenu.targetNodeId ===
+                    expected.attachmentLinkedView.targetNodeId,
+                  attachmentLinkedViewMenuOrderExact:
+                    JSON.stringify(observations.nodeContextMenu.items.map((item) => item.text)) ===
+                    JSON.stringify(expected.attachmentLinkedView.menuItems),
+                  attachmentLinkedViewParentEnabled:
+                    attachmentLinkedViewContract.parentEnabled,
+                  attachmentLinkedViewSubmenuObserved:
+                    attachmentLinkedViewContract.submenu.items.length > 0,
+                  attachmentLinkedViewFirstEnabledObserved:
+                    attachmentLinkedViewContract.firstEnabled?.text?.length > 0 &&
+                    attachmentLinkedViewContract.firstEnabled?.disabled === false,
+                  attachmentLinkedViewHoverKeepsParent:
+                    attachmentLinkedViewContract.afterHover.visibleMenuCount >= 1 &&
+                    attachmentLinkedViewContract.afterHover.parentMenuVisible === true,
+                  attachmentLinkedViewActionClosedMenu:
+                    attachmentLinkedViewContract.after.menuClosed === true,
+                  attachmentLinkedViewActionRecorded:
+                    attachmentLinkedViewContract.graphAfter?.label ===
+                    'after-attachment-linked-view'
+                }
+              : attachmentPathCopyProbe
               ? {
                   attachmentPathCopyTargetExact:
                     observations.nodeContextMenu.targetNodeId ===
@@ -2482,7 +2705,9 @@ async function main() {
   }
   const manifest = {
     capturedAt: new Date().toISOString(),
-    stage: attachmentPathCopyProbe
+    stage: attachmentLinkedViewProbe
+      ? 'GP0-3b-m Obsidian Global Graph attachment linked-view probe'
+      : attachmentPathCopyProbe
       ? 'GP0-3b-l Obsidian Global Graph attachment path-copy probe'
       : attachmentBookmarkProbe
       ? 'GP0-3b-k Obsidian Global Graph attachment bookmark probe'
@@ -2518,6 +2743,7 @@ async function main() {
       attachmentBookmarkScenario: attachmentBookmarkProbe ? attachmentBookmarkScenario : null,
       attachmentPathCopyProbe,
       attachmentPathCopyScenario: attachmentPathCopyProbe ? attachmentPathCopyScenario : null,
+      attachmentLinkedViewProbe,
       lifecycle: ['entry', 'graph-close-reopen', 'full-app-restart'],
       fixture: relative(repoRoot, fixtureDirectory).replaceAll('\\', '/'),
       isolatedVault: relative(repoRoot, vaultDirectory).replaceAll('\\', '/'),
@@ -2573,6 +2799,8 @@ async function main() {
     attachmentBookmark: observations.attachmentBookmark ?? null,
     attachmentPathCopy: observations.attachmentPathCopy ?? null,
     attachmentPathCopyContract,
+    attachmentLinkedView: observations.attachmentLinkedView ?? null,
+    attachmentLinkedViewContract,
     bookmarkCounts,
     bookmarkPersistence: observations.bookmarkPersistence ?? null,
     protection: {
@@ -2614,6 +2842,7 @@ async function main() {
         attachmentNewTab: observations.attachmentNewTab ?? null,
         attachmentBookmark: observations.attachmentBookmark ?? null,
         attachmentPathCopyContract,
+        attachmentLinkedViewContract,
         bookmarkCounts,
         observation: manifest.scope.observation,
         sourceUnchanged: assertions.sourceUnchanged,

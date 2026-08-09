@@ -1002,6 +1002,56 @@ describe('WikiGraphView', () => {
     expect(onMove).toHaveBeenLastCalledWith('A.md')
   })
 
+  it('opens a linked-view submenu for existing file-backed nodes', async () => {
+    const user = userEvent.setup()
+    const onOpenLinkedView = vi.fn()
+
+    render(
+      <WikiGraphView
+        graph={{
+          nodes: [
+            { path: 'A.md', name: 'A', kind: 'note', exists: true },
+            {
+              path: 'assets/diagram.png',
+              name: 'diagram.png',
+              kind: 'attachment',
+              exists: true
+            }
+          ],
+          edges: [{ sourcePath: 'A.md', targetPath: 'assets/diagram.png' }]
+        }}
+        currentPath="A.md"
+        scope="vault"
+        includeOrphans
+        onScopeChange={() => undefined}
+        onIncludeOrphansChange={() => undefined}
+        onOpenLinkedView={onOpenLinkedView}
+        onOpen={() => undefined}
+      />
+    )
+
+    fireEvent.contextMenu(
+      screen.getByRole('button', {
+        name: 'diagram.png（添付書類）を開く'
+      }),
+      { clientX: 240, clientY: 160 }
+    )
+
+    await user.click(
+      screen.getByRole('menuitem', { name: 'リンクされたビューを開く' })
+    )
+    const linkedMenu = screen.getByRole('menu', { name: 'リンクされたビュー' })
+    expect(
+      within(linkedMenu).getByRole('menuitem', { name: 'バックリンクを開く' })
+    ).toBeTruthy()
+
+    await user.click(
+      within(linkedMenu).getByRole('menuitem', { name: 'バックリンクを開く' })
+    )
+    expect(onOpenLinkedView).toHaveBeenCalledWith('assets/diagram.png')
+    expect(screen.queryByRole('menu', { name: 'diagram.png' })).toBeNull()
+  })
+
   it('offers bookmark editing for an already-bookmarked file node', () => {
     render(
       <WikiGraphView

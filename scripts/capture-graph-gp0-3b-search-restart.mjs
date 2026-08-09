@@ -48,19 +48,24 @@ const attachmentPathCopyScenario =
 if (!['url', 'vault', 'system'].includes(attachmentPathCopyScenario)) {
   throw new Error('--path-copy-scenario は url、vault、system のいずれかを指定してください。')
 }
+const attachmentLinkedViewProbe =
+  process.argv.includes('--attachment-linked-view') ||
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_LINKED_VIEW_PROBE === '1'
 const nodeNewTabProbe =
   workspaceTabProbe ||
   process.argv.includes('--node-new-tab') ||
   process.env.TSUZUNE_GRAPH_NODE_NEW_TAB_PROBE === '1'
 const nodeMenuProbe =
-  nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe ||
+  nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe ||
   process.argv.includes('--node-menu') ||
   process.env.TSUZUNE_GRAPH_NODE_MENU_PROBE === '1'
-if ([cameraProbe, nodeDragProbe, nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe, nodeNewTabProbe, attachmentNewTabProbe, attachmentNewWindowProbe, attachmentMoveProbe, attachmentBookmarkProbe, attachmentPathCopyProbe].filter(Boolean).length > 1) {
-  throw new Error('--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move、--attachment-bookmark、--attachment-path-copy は同時に指定できません。')
+if ([cameraProbe, nodeDragProbe, nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe, nodeNewTabProbe, attachmentNewTabProbe, attachmentNewWindowProbe, attachmentMoveProbe, attachmentBookmarkProbe, attachmentPathCopyProbe, attachmentLinkedViewProbe].filter(Boolean).length > 1) {
+  throw new Error('--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move、--attachment-bookmark、--attachment-path-copy、--attachment-linked-view は同時に指定できません。')
 }
 const probeKind = attachmentPathCopyProbe
   ? `attachment-path-copy-${attachmentPathCopyScenario}`
+  : attachmentLinkedViewProbe
+  ? 'attachment-linked-view'
   : attachmentBookmarkProbe
   ? `attachment-bookmark-${attachmentBookmarkScenario}`
   : attachmentMoveProbe
@@ -85,6 +90,8 @@ const workRoot = resolve(
   repoRoot,
   attachmentPathCopyProbe
     ? 'work/graph-gp0-attachment-path-copy-working-tree'
+    : attachmentLinkedViewProbe
+    ? 'work/graph-gp0-attachment-linked-view-working-tree'
     : attachmentBookmarkProbe
     ? `work/graph-gp0-attachment-bookmark-${attachmentBookmarkScenario}-working-tree`
     : attachmentMoveProbe
@@ -111,6 +118,8 @@ const outputRoot = resolve(
   repoRoot,
   attachmentPathCopyProbe
     ? `docs/reports/assets/graph-gp0-attachment-path-copy/${attachmentPathCopyScenario}/tsuzune-working-tree`
+    : attachmentLinkedViewProbe
+    ? 'docs/reports/assets/graph-gp0-attachment-linked-view/tsuzune-working-tree'
     : attachmentBookmarkProbe
     ? `docs/reports/assets/graph-gp0-attachment-bookmark/${attachmentBookmarkScenario}/tsuzune-working-tree`
     : attachmentMoveProbe
@@ -147,7 +156,7 @@ const expectedCameraNodePaths = [
   '90_orphan/Orphan.md',
   'Missing Note.md'
 ].concat(
-  attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe
+  attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe
     ? ['attachments/diagram.svg']
     : []
 ).concat(
@@ -201,7 +210,9 @@ const pathCopyEvidenceReplacements = [
 ].sort(([left], [right]) => right.length - left.length)
 
 const repositoryEvidence = (value) =>
-  attachmentPathCopyProbe ? sanitizeEvidence(value, pathCopyEvidenceReplacements) : value
+  attachmentPathCopyProbe || attachmentLinkedViewProbe
+    ? sanitizeEvidence(value, pathCopyEvidenceReplacements)
+    : value
 
 function clipboardTextFingerprint(value) {
   return {
@@ -1260,6 +1271,122 @@ async function activateAttachmentPathCopy(window, clipboardCapture) {
   }
 }
 
+async function activateAttachmentLinkedView(window) {
+  const beforeGraph = await graphState(window)
+  const hover = await evaluate(window, `new Promise((resolve, reject) => {
+    const item = [...document.querySelectorAll('.wiki-graph-context-menu [role="menuitem"]')]
+      .find((candidate) => candidate.textContent?.replace(/\\s+/g, ' ').trim().startsWith('リンクされたビューを開く'))
+    if (!(item instanceof HTMLButtonElement) || item.disabled) {
+      reject(new Error('有効な「リンクされたビューを開く」が見つかりません。'))
+      return
+    }
+    item.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }))
+    item.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
+    const deadline = performance.now() + 5000
+    const check = () => {
+      const menus = [...document.querySelectorAll('.wiki-graph-context-menu [role="menu"], .wiki-graph-context-menu')]
+        .filter((menu) => menu instanceof HTMLElement && menu.getBoundingClientRect().width > 0)
+      const submenu = document.querySelector('.wiki-graph-context-menu [role="menu"][aria-label="リンクされたビュー"]')
+      if (submenu instanceof HTMLElement) {
+        resolve({
+          visibleMenuCount: menus.length,
+          parentMenuVisible: Boolean(document.querySelector('.wiki-graph-context-menu')),
+          items: [...submenu.querySelectorAll('[role="menuitem"]')].map((candidate, index) => ({
+            index,
+            text: candidate.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+            disabled: candidate instanceof HTMLButtonElement ? candidate.disabled : candidate.getAttribute('aria-disabled') === 'true'
+          }))
+        })
+        return
+      }
+      if (performance.now() >= deadline) {
+        reject(new Error('リンクされたビューsubmenuが5秒以内に開きませんでした。'))
+        return
+      }
+      requestAnimationFrame(check)
+    }
+    check()
+  })`)
+  const hoverScreenshot = await capture(window, '02-after-linked-view-hover.png')
+  await evaluate(window, `(() => {
+    const parent = [...document.querySelectorAll('.wiki-graph-context-menu [role="menuitem"]')]
+      .find((candidate) => candidate.textContent?.replace(/\\s+/g, ' ').trim().startsWith('リンクされたビューを開く'))
+    if (!(parent instanceof HTMLButtonElement)) throw new Error('リンクされたビュー親項目が見つかりません。')
+    parent.click()
+  })()`)
+  const submenu = await evaluate(window, `new Promise((resolve, reject) => {
+    const deadline = performance.now() + 5000
+    const check = () => {
+      const menu = document.querySelector('.wiki-graph-context-menu [role="menu"][aria-label="リンクされたビュー"]')
+      if (menu instanceof HTMLElement) {
+        const bounds = menu.getBoundingClientRect()
+        resolve({
+          bounds: { left: bounds.left, top: bounds.top, width: bounds.width, height: bounds.height },
+          items: [...menu.querySelectorAll('[role="menuitem"]')].map((candidate, index) => ({
+            index,
+            text: candidate.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+            disabled: candidate instanceof HTMLButtonElement ? candidate.disabled : candidate.getAttribute('aria-disabled') === 'true'
+          }))
+        })
+        return
+      }
+      if (performance.now() >= deadline) {
+        reject(new Error('リンクされたビューsubmenuが5秒以内に開きませんでした。'))
+        return
+      }
+      requestAnimationFrame(check)
+    }
+    check()
+  })`)
+  const submenuScreenshot = await capture(window, '03-after-linked-view-click.png')
+  const firstEnabled = submenu.items.find((item) => !item.disabled)
+  if (!firstEnabled) throw new Error('リンクされたビューsubmenuに有効な操作がありません。')
+  await evaluate(window, `(() => {
+    const item = [...document.querySelectorAll('.wiki-graph-context-menu [role="menu"][aria-label="リンクされたビュー"] [role="menuitem"]')]
+      .find((candidate) => candidate.textContent?.replace(/\\s+/g, ' ').trim() === ${JSON.stringify(firstEnabled.text)})
+    if (!(item instanceof HTMLButtonElement) || item.disabled) throw new Error('バックリンク操作が見つかりません。')
+    item.click()
+  })()`)
+  const after = await evaluate(window, `new Promise((resolve, reject) => {
+    const deadline = performance.now() + 5000
+    const check = () => {
+      const region = document.querySelector('[aria-label="バックリンクビュー"]')
+      if (region instanceof HTMLElement) {
+        resolve({
+          menuClosed: !document.querySelector('.wiki-graph-context-menu'),
+          graphVisible: Boolean(document.querySelector('.wiki-graph-view[aria-label="Vault全体グラフ"]')),
+          linkedViewVisible: true,
+          linkedPath: [...document.querySelectorAll('.note-footer span')].at(-1)?.textContent?.replace(/\\s+/g, ' ').trim() ?? null,
+          backlinks: [...region.querySelectorAll('.linked-view-list .related-link')].map((candidate) => candidate.textContent?.replace(/\\s+/g, ' ').trim() ?? ''),
+          tabs: [...document.querySelectorAll('[role="tab"]')].map((tab) => ({ label: tab.textContent?.replace(/\\s+/g, ' ').trim() ?? '', selected: tab.getAttribute('aria-selected') === 'true' }))
+        })
+        return
+      }
+      if (performance.now() >= deadline) {
+        reject(new Error('バックリンクビューが5秒以内に開きませんでした。'))
+        return
+      }
+      requestAnimationFrame(check)
+    }
+    check()
+  })`)
+  await waitForPaint(window)
+  const afterScreenshot = await capture(window, '04-after-linked-view-action.png')
+  await activateGlobalGraphTab(window)
+  const graphAfter = await graphState(window)
+  return {
+    beforeGraph,
+    afterHover: hover,
+    hoverScreenshot,
+    submenu,
+    submenuScreenshot,
+    firstEnabled,
+    after,
+    graphAfter,
+    screenshot: afterScreenshot
+  }
+}
+
 async function activateNodeNewTab(window, expectedKind = 'note') {
   const before = await evaluate(
     window,
@@ -1649,7 +1776,7 @@ async function runWorker(phase) {
     if (phase === 'initial') {
       await ensureGlobalGraphControls(window)
       await fillSearch(window, query)
-      if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe) {
+      if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe) {
         await setGraphAttachmentsVisible(window, true)
         await ensureGlobalGraphControls(window)
         await fillSearch(window, query)
@@ -1673,6 +1800,7 @@ async function runWorker(phase) {
       let attachmentMove = null
       let attachmentBookmark = null
       let attachmentPathCopy = null
+      let attachmentLinkedView = null
       if (cameraProbe) {
         input = await applyCameraInput(window)
       } else if (nodeDragProbe) {
@@ -1691,13 +1819,13 @@ async function runWorker(phase) {
       if (nodeMenuProbe) {
         const openedMenu = await openNodeContextMenu(
           window,
-          attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe
+          attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe
             ? 'attachments/diagram.svg'
             : drag.targetNodePath
         )
         input = openedMenu.input
         nodeContextMenu = openedMenu.menu
-        if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe) {
+        if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe) {
           attachmentContextMenu = openedMenu.menu
         }
       }
@@ -1770,21 +1898,30 @@ async function runWorker(phase) {
           hookRestored: clipboardCapture.hookRestored,
           unchanged: clipboardCapture.unchanged
         }
+      } else if (attachmentLinkedViewProbe) {
+        attachmentLinkedView = await activateAttachmentLinkedView(window)
       }
       const settingsAfterInput = cameraProbe
         ? await waitForSavedScale(cameraFromState(entered).scale)
         : await waitForSavedQuery(query)
 
-      if (nodeMenuProbe && !nodeNewTabProbe && !attachmentMoveProbe && !attachmentBookmarkProbe) {
+      if (nodeMenuProbe && !nodeNewTabProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentLinkedViewProbe) {
         await closeNodeContextMenu(window)
       }
 
-      await clickButton(window, '編集')
-      const graphClosed = await evaluate(
-        window,
-        `!document.querySelector('.wiki-graph-view') && Boolean(document.querySelector('.markdown-editor .cm-content'))`
-      )
-      if (!graphClosed) throw new Error('Global Graphを編集画面へ閉じられませんでした。')
+      let graphClosed
+      if (attachmentLinkedViewProbe) {
+        await activateFirstNoteTab(window)
+        graphClosed = !(await evaluate(window, `Boolean(document.querySelector('.wiki-graph-view'))`))
+        await activateGlobalGraphTab(window)
+      } else {
+        await clickButton(window, '編集')
+        graphClosed = await evaluate(
+          window,
+          `!document.querySelector('.wiki-graph-view') && Boolean(document.querySelector('.markdown-editor .cm-content'))`
+        )
+        if (!graphClosed) throw new Error('Global Graphを編集画面へ閉じられませんでした。')
+      }
 
       await ensureGlobalGraphControls(window)
       let reopened = await waitForStableGraph(window, query)
@@ -1799,6 +1936,8 @@ async function runWorker(phase) {
         window,
         attachmentPathCopyProbe
           ? '04-after-graph-reopen.png'
+          : attachmentLinkedViewProbe
+          ? '05-after-graph-reopen.png'
           : attachmentBookmarkProbe
           ? attachmentBookmarkScenario === 'duplicate'
             ? '06-after-graph-reopen.png'
@@ -1819,6 +1958,8 @@ async function runWorker(phase) {
       }
       const graphBeforeReopen = attachmentMoveProbe
         ? attachmentMove.graphAfterAction
+        : attachmentLinkedViewProbe
+        ? attachmentLinkedView.graphAfter
         : entered
       if (JSON.stringify(graphBeforeReopen.nodePaths) !== JSON.stringify(reopened.nodePaths)) {
         throw new Error('Graph再表示後に検索node集合が変化しました。')
@@ -1844,6 +1985,7 @@ async function runWorker(phase) {
           attachmentMove,
           attachmentBookmark,
           attachmentPathCopy,
+          attachmentLinkedView,
           entered,
           reopened,
           settingsGraphViewState: settingsAfterInput.graphViewStates.vault,
@@ -1858,6 +2000,7 @@ async function runWorker(phase) {
             ...(attachmentMove?.screenshots ?? []),
             ...(attachmentBookmark?.screenshots ?? []),
             ...(attachmentPathCopy?.screenshots ?? []),
+            ...(attachmentLinkedView?.screenshots ?? []),
             reopenedScreenshot
           ].filter(Boolean)
         }), null, 2)}\n`,
@@ -1875,6 +2018,8 @@ async function runWorker(phase) {
         window,
         attachmentPathCopyProbe
           ? '05-after-app-restart.png'
+          : attachmentLinkedViewProbe
+          ? '06-after-app-restart.png'
           : attachmentBookmarkProbe
           ? attachmentBookmarkScenario === 'duplicate'
             ? '07-after-app-restart.png'
@@ -1967,6 +2112,7 @@ function runWorkerProcess(phase) {
         TSUZUNE_GRAPH_ATTACHMENT_BOOKMARK_SCENARIO: attachmentBookmarkScenario,
         TSUZUNE_GRAPH_ATTACHMENT_PATH_COPY_PROBE: attachmentPathCopyProbe ? '1' : '',
         TSUZUNE_GRAPH_ATTACHMENT_PATH_COPY_SCENARIO: attachmentPathCopyScenario,
+        TSUZUNE_GRAPH_ATTACHMENT_LINKED_VIEW_PROBE: attachmentLinkedViewProbe ? '1' : '',
         TSUZUNE_GRAPH_SEARCH_RESTART_PHASE: phase
       }
     }
@@ -2033,6 +2179,8 @@ async function runController() {
     stage(
       nodeDragProbe
         ? 'node drag入力とGraph再表示をcaptureします。'
+        : attachmentLinkedViewProbe
+          ? '添付リンクされたビューとGraph再表示をcaptureします。'
         : attachmentPathCopyProbe
           ? `添付パスコピー（${attachmentPathCopyScenario}）とGraph再表示をcaptureします。`
         : attachmentBookmarkProbe
@@ -2128,6 +2276,9 @@ async function runController() {
   const attachmentMoveContract = attachmentMoveProbe ? initial.attachmentMove : null
   const attachmentBookmarkContract = attachmentBookmarkProbe ? initial.attachmentBookmark : null
   const attachmentPathCopyContract = attachmentPathCopyProbe ? initial.attachmentPathCopy : null
+  const attachmentLinkedViewContract = attachmentLinkedViewProbe
+    ? initial.attachmentLinkedView
+    : null
   const bookmarkPersistence = attachmentBookmarkProbe
     ? {
         ...attachmentBookmarkContract.persistence,
@@ -2147,6 +2298,7 @@ async function runController() {
   const postActionGraph =
     attachmentMoveContract?.graphAfterAction ??
     attachmentPathCopyContract?.graphAfterAction ??
+    attachmentLinkedViewContract?.graphAfter ??
     initial.entered
   const sameDigest = (left, right) =>
     left?.exists === true &&
@@ -2162,6 +2314,13 @@ async function runController() {
       nodePaths: state?.nodePaths,
       edgeCount: state?.edgeCount,
       tabs: state?.tabs
+    })
+  const graphCoreSignature = (state) =>
+    JSON.stringify({
+      query: state?.query,
+      stageTransform: state?.stageTransform,
+      nodePaths: state?.nodePaths,
+      edgeCount: state?.edgeCount
     })
 
   const sharedAssertions = {
@@ -2225,6 +2384,58 @@ async function runController() {
         nodePositionNotPersistedInSettings: nodeDragContract.nodePositionAbsentFromSettings,
         ...sharedAssertions
       }
+    : attachmentLinkedViewProbe
+      ? {
+          exactNodeSetAtEveryCheckpoint: [
+            initial.baseline,
+            initial.entered,
+            attachmentLinkedViewContract.beforeGraph,
+            attachmentLinkedViewContract.graphAfter,
+            initial.reopened,
+            restarted.restarted
+          ].every(
+            (state) => JSON.stringify(state.nodePaths) === JSON.stringify(expectedCameraNodePaths)
+          ),
+          attachmentContextMenuOpened: Boolean(initial.attachmentContextMenu?.items?.length),
+          linkedViewMenuItemRecorded:
+            initial.attachmentContextMenu?.items?.some(
+              (item) => item.text.startsWith('リンクされたビューを開く') && item.disabled === false
+            ) === true,
+          parentHoverKeptMenusOpen:
+            attachmentLinkedViewContract.afterHover?.parentMenuVisible === true &&
+            attachmentLinkedViewContract.afterHover?.visibleMenuCount >= 2,
+          submenuItemsExact:
+            JSON.stringify(
+              attachmentLinkedViewContract.submenu?.items?.map((item) => item.text)
+            ) === JSON.stringify(['バックリンクを開く']),
+          submenuItemsEnabled:
+            attachmentLinkedViewContract.submenu?.items?.every((item) => !item.disabled) === true,
+          firstActionIsBacklinks:
+            attachmentLinkedViewContract.firstEnabled?.text === 'バックリンクを開く',
+          linkedViewOpened:
+            attachmentLinkedViewContract.after?.linkedViewVisible === true &&
+            attachmentLinkedViewContract.after?.linkedPath?.includes('attachments/diagram.svg') === true,
+          linkedViewShowsBacklinks:
+            (attachmentLinkedViewContract.after?.backlinks?.length ?? 0) > 0,
+          actionClosedMenus: attachmentLinkedViewContract.after?.menuClosed === true,
+          graphTabRetained:
+            attachmentLinkedViewContract.after?.tabs?.some(
+              (tab) => tab.label === 'グラフビュー'
+            ) === true,
+          graphSurfacePreservedImmediately:
+            graphCoreSignature(attachmentLinkedViewContract.beforeGraph) ===
+            graphCoreSignature(attachmentLinkedViewContract.graphAfter),
+          queryCameraNodesLinksTabsPreservedAcrossReopenAndRestart: [
+            attachmentLinkedViewContract.graphAfter,
+            initial.reopened,
+            restarted.restarted
+          ].every(
+            (state) =>
+              graphCoreSignature(state) ===
+              graphCoreSignature(attachmentLinkedViewContract.graphAfter)
+          ),
+          ...sharedAssertions
+        }
     : attachmentPathCopyProbe
       ? {
           exactNodeSetAtEveryCheckpoint: [
@@ -2619,6 +2830,7 @@ async function runController() {
     attachmentBookmarkScenario: attachmentBookmarkProbe ? attachmentBookmarkScenario : null,
     attachmentPathCopyProbe,
     attachmentPathCopyScenario: attachmentPathCopyProbe ? attachmentPathCopyScenario : null,
+    attachmentLinkedViewProbe,
     cameraContract,
     nodeDragContract,
     nodeMenuContract,
@@ -2628,6 +2840,7 @@ async function runController() {
     attachmentMoveContract,
     attachmentBookmarkContract,
     attachmentPathCopyContract,
+    attachmentLinkedViewContract,
     bookmarkCounts,
     bookmarkPersistence,
     repository,
@@ -2644,7 +2857,17 @@ async function runController() {
   )
 
   const artifactPaths = [
-    ...(attachmentPathCopyProbe
+    ...(attachmentLinkedViewProbe
+      ? [
+          '00-baseline.png',
+          '01-node-context-menu.png',
+          '02-after-linked-view-hover.png',
+          '03-after-linked-view-click.png',
+          '04-after-linked-view-action.png',
+          '05-after-graph-reopen.png',
+          '06-after-app-restart.png'
+        ]
+      : attachmentPathCopyProbe
       ? [
           '00-baseline.png',
           '01-node-context-menu.png',
@@ -2747,7 +2970,9 @@ async function runController() {
   ].map((name) => resolve(outputRoot, name))
   const manifest = {
     capturedAt: observation.capturedAt,
-    stage: attachmentPathCopyProbe
+    stage: attachmentLinkedViewProbe
+      ? 'GP0-3b-m Global Graph attachment linked-view working-tree evidence'
+      : attachmentPathCopyProbe
       ? `GP0-3b-l Global Graph attachment path copy (${attachmentPathCopyScenario}) working-tree evidence`
       : attachmentBookmarkProbe
       ? `GP0-3b-k Global Graph attachment bookmark (${attachmentBookmarkScenario}) working-tree evidence`
@@ -2769,7 +2994,9 @@ async function runController() {
         ? 'GP0-3b-c Global Graph camera persistence working-tree evidence'
         : 'GP0-3b Global Graph search persistence working-tree evidence',
     status: completed ? 'captured' : 'failed',
-    comparisonStatus: attachmentPathCopyProbe
+    comparisonStatus: attachmentLinkedViewProbe
+      ? 'Compare with docs/reports/assets/graph-gp0-attachment-linked-view/obsidian-1.13.4/observation.json'
+      : attachmentPathCopyProbe
       ? `Compare with docs/reports/assets/graph-gp0-attachment-path-copy/${attachmentPathCopyScenario}/obsidian-1.13.4/observation.json`
       : attachmentBookmarkProbe
       ? `Compare with docs/reports/assets/graph-gp0-attachment-bookmark/${attachmentBookmarkScenario}/obsidian-1.13.4/observation.json`
@@ -2790,7 +3017,9 @@ async function runController() {
       : cameraProbe
         ? 'Compare with docs/reports/assets/graph-gp0-camera-persistence/comparison.json'
         : 'Compare with docs/reports/assets/graph-gp0-search-persistence/comparison.json',
-    command: attachmentPathCopyProbe
+    command: attachmentLinkedViewProbe
+      ? 'npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-linked-view'
+      : attachmentPathCopyProbe
       ? `npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-path-copy --path-copy-scenario=${attachmentPathCopyScenario}`
       : attachmentBookmarkProbe
       ? `npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-bookmark --bookmark-scenario=${attachmentBookmarkScenario}`
@@ -2823,7 +3052,26 @@ async function runController() {
       },
       network: 'host resolver blocked except localhost'
     },
-    evidenceBoundary: attachmentPathCopyProbe
+    evidenceBoundary: attachmentLinkedViewProbe
+      ? {
+          established: [
+            'Fresh isolated fixture Vault and userData profile',
+            'Public TSUZUNE graph node context menu and linked-view submenu were used',
+            'Parent menu remained open while the linked-view submenu was visible',
+            'The enabled backlink action opened a backlink view for the selected attachment',
+            'The Global Graph tab was retained and its query, camera, nodes, edges, and tabs were compared after reopening and restart',
+            'Source fixture and isolated Vault were hashed before and after the capture'
+          ],
+          notEstablished: [
+            'Physical mouse or keyboard input',
+            'Visible onscreen foreground-window interaction',
+            'Touch or pen input',
+            'Screen reader or Windows High Contrast acceptance',
+            'Multi-DPI or pixel-identical parity',
+            'Backlink ordering beyond the captured fixture'
+          ]
+        }
+      : attachmentPathCopyProbe
       ? {
           established: [
             'Fresh isolated fixture Vault and userData profile',
@@ -2870,7 +3118,9 @@ async function runController() {
     processIds: [initial.processId, restarted.processId],
     assertions,
     artifacts: await Promise.all(artifactPaths.map(artifactSummary)),
-    next: attachmentPathCopyProbe
+    next: attachmentLinkedViewProbe
+      ? 'Compare the linked-view submenu and backlink workspace behavior with the fixed Obsidian 1.13.4 evidence.'
+      : attachmentPathCopyProbe
       ? `Compare the ${attachmentPathCopyScenario} path format and adaptive submenu placement with the fixed Obsidian 1.13.4 evidence.`
       : attachmentBookmarkProbe
       ? `Compare the ${attachmentBookmarkScenario} scenario with the fixed Obsidian 1.13.4 evidence.`

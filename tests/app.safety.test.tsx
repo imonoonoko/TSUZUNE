@@ -2041,6 +2041,83 @@ describe('App data-loss guards', () => {
     })
   })
 
+  it('opens an attachment linked view while preserving the graph workspace tab', async () => {
+    const attachment = {
+      path: 'assets/diagram.svg',
+      name: 'diagram.svg',
+      modifiedAt: 500,
+      createdAt: 400,
+      size: 10
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue({
+      ok: true,
+      value: {
+        ...snapshot,
+        notes: [{ ...noteA, content: '![[assets/diagram.svg]]' }, noteB, noteC],
+        attachments: [attachment]
+      }
+    })
+
+    render(<App />)
+    fireEvent.click((await screen.findAllByRole('button', { name: 'グラフビュー' }))[0])
+    fireEvent.click(screen.getByRole('button', { name: 'フィルタを開く' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: '添付書類' }))
+    fireEvent.contextMenu(
+      await screen.findByRole('button', { name: 'diagram.svg（添付書類）を開く' })
+    )
+    fireEvent.click(screen.getByRole('menuitem', { name: 'リンクされたビューを開く' }))
+    const linkedMenu = screen.getByRole('menu', { name: 'リンクされたビュー' })
+    fireEvent.click(
+      within(linkedMenu).getByRole('menuitem', { name: 'バックリンクを開く' })
+    )
+
+    expect(
+      (await screen.findByRole('tab', { name: 'diagram へのバックリンク' })).getAttribute(
+        'aria-selected'
+      )
+    ).toBe('true')
+    expect(
+      screen.getByRole('region', { name: 'バックリンクビュー' })
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'A.md' })).toBeTruthy()
+    expect(
+      screen.getByRole('tab', { name: 'グラフビュー' }).getAttribute('aria-selected')
+    ).toBe('false')
+
+    fireEvent.click(screen.getByRole('tab', { name: 'A' }))
+    await screen.findByRole('textbox', { name: 'Markdown編集欄' })
+    fireEvent.click(screen.getByRole('tab', { name: 'diagram へのバックリンク' }))
+
+    expect(
+      await screen.findByRole('region', { name: 'バックリンクビュー' })
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'A.md' })).toBeTruthy()
+  })
+
+  it('keeps the dirty active tab when closing it cannot save', async () => {
+    vi.mocked(api.saveNote).mockResolvedValue({
+      ok: false,
+      error: { code: 'IO_ERROR', message: '保存できません。' }
+    })
+
+    render(<App />)
+    fireEvent.click((await screen.findAllByRole('button', { name: 'グラフビュー' }))[0])
+    fireEvent.click(await screen.findByRole('tab', { name: 'A' }))
+
+    const editor = await screen.findByRole('textbox', { name: 'Markdown編集欄' })
+    fireEvent.change(editor, { target: { value: '保存できていない本文' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aを閉じる' }))
+
+    await screen.findByText('保存できません。')
+    expect(screen.getByRole('tab', { name: 'A' }).getAttribute('aria-selected')).toBe(
+      'true'
+    )
+    expect(
+      screen.getByRole('tab', { name: 'グラフビュー' }).getAttribute('aria-selected')
+    ).toBe('false')
+    expect((editor as HTMLTextAreaElement).value).toBe('保存できていない本文')
+  })
+
   it('moves a graph attachment while preserving Global Graph and its workspace tab', async () => {
     const attachment = {
       path: 'assets/diagram.svg',

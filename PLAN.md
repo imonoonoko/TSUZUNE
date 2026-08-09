@@ -46,13 +46,13 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 |---|---|
 | インストール済み本番 | v0.5.0。最新の正確なcommit、hash、検証結果は[production-update-latest.json](docs/reports/production-update-latest.json)を参照 |
 | 開発checkpoint | v0.6 Obsidian Graph Parity |
-| 完了した直近slice | O2-P2 Classification Migration Dry-run。明示planとread-only CLIで本番Vaultを2回検査し、物理移動なしの同一manifestを得た |
-| 現役slice | GP0-3b-m Attachment Linked Views。O2-P2完了後の既定のGraph再開点を維持する |
+| 完了した直近slice | GP0-3b-m Attachment Linked Views。添付nodeから対象pathのバックリンクビューを開き、Global Graphを保持する中核挙動を固定比較した |
+| 現役slice | GP0-3b-n Attachment Default App。次の未比較context menu操作を一項目だけ固定比較する |
 | 現役Track数 | 1。Google intakeとChatGPT candidate applyは保留 |
 
 ### Current Transition Queue
 
-1. **Now — GP0-3b-m:** attachment nodeの`リンクされたビューを開く`を固定比較し、Graph parityへ戻る。
+1. **Now — GP0-3b-n:** attachment nodeの`デフォルトアプリで開く`を固定比較する。
 2. **After Graph checkpoint:** アクセシビリティ、Personal Google Intake、AI write policyのどれを次の独立Trackにするか再選択する。
 
 新しいSupporting Trackを割り込ませる場合は、目的、停止条件、元Trackへ戻る条件をこの節へ先に記録します。
@@ -102,7 +102,7 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 
 ## Active Track: v0.6 Obsidian Graph Parity
 
-O2-P1／O2-P2の安全な分類基盤を閉じ、GP0-3b-mから再開します。
+O2-P1／O2-P2の安全な分類基盤を閉じ、GP0-3b-mまで完了しました。次はGP0-3b-nです。
 
 ### Completed GP0-3b-l — Attachment Path Copy
 
@@ -113,7 +113,7 @@ O2-P1／O2-P2の安全な分類基盤を閉じ、GP0-3b-mから再開します�
 - [比較report](docs/reports/graph-gp0-attachment-path-copy-2026-08-09.html)
 - [機械可読comparison](docs/reports/assets/graph-gp0-attachment-path-copy/comparison.json)
 
-### GP0-3b-m — Attachment Linked Views
+### Completed GP0-3b-m — Attachment Linked Views
 
 #### Question
 
@@ -127,23 +127,48 @@ Obsidian 1.13.4でattachment nodeの`リンクされたビューを開く`を開
 
 #### Acceptance
 
-- [ ] Obsidian 1.13.4から親menuの位置、有効状態、hover／click後のsubmenu文言・順序・有効状態を採取する。
-- [ ] 固定参照版で実在を確認した先頭の有効な子操作を1件だけ選び、開くview、workspace状態、menu closeを記録する。
-- [ ] Global Graph tab、query、camera、表示nodeと対象viewが、Graph再表示／別プロセス再起動でどう扱われるか記録する。
-- [ ] Markdown、添付、内部設定を含むVault digestが意図しない変化をしないことを確認する。
-- [ ] 差がある場合だけ既存のworkspace tabとcontext menuを再利用して最小修正する。
-- [ ] 差を検出できるtargeted testを追加し、全回帰、typecheck、MCP検査を通す。
-- [ ] 参照版とTSUZUNEのraw observation、画像、comparison JSON、HTML reportを同じsliceへ保存する。
+- [x] Obsidian 1.13.4から親menuの位置、有効状態、hover／click後のsubmenu文言・順序・有効状態を採取する。
+- [x] 固定参照版で実在を確認した先頭の有効な子操作を1件だけ選び、開くview、workspace状態、menu closeを記録する。
+- [x] Global Graph tab、query、camera、表示nodeと対象viewが、Graph再表示／別プロセス再起動でどう扱われるか記録する。
+- [x] Markdown、添付、内部設定を含むVault digestが意図しない変化をしないことを確認する。
+- [x] 差がある場合だけ既存のworkspace tabとcontext menuを再利用して最小修正する。
+- [x] 差を検出できるtargeted testを追加し、全回帰、typecheck、MCP検査を通す。
+- [x] 参照版とTSUZUNEのraw observation、画像、comparison JSON、HTML reportを同じsliceへ保存する。
 
 #### Stop Condition
 
 対象の親submenu契約と、参照版から選んだ子操作1件を`matched`、`matched-core-behavior`、`different`のいずれかで根拠付き判定し、未証明境界を明記したら止めます。2件目の子操作、次の親menu操作、Plugin APIへ同時に進みません。
 
+#### Result
+
+両製品のsubmenuは唯一の有効操作`バックリンクを開く`で一致しました。TSUZUNEは対象添付pathと参照元を表示するworkspace tabを追加し、元のGlobal Graph tabを保持します。起動中の操作と、Graph再表示／別プロセス再起動後のGraph構造保持を`matched-core-behavior`と判定します。linked-view自体はTSUZUNEで再起動後に復元せず、Obsidianは`バックリンク`tab shellを保持するものの対象添付へのbindingは未証明です。分割pane、workspace装飾、バックリンク本文の視覚一致、物理入力、実OSアクセシビリティは未証明です。添付context menu全体はObsidian 11項目、TSUZUNE 7項目の残差があります。
+
+- [比較report](docs/reports/graph-gp0-attachment-linked-view-2026-08-10.html)
+- [機械可読comparison](docs/reports/assets/graph-gp0-attachment-linked-view/comparison.json)
+
+### GP0-3b-n — Attachment Default App
+
+#### Question
+
+Obsidian 1.13.4でattachment nodeの`デフォルトアプリで開く`を実行したとき、menu lifecycle、外部起動要求、Graph workspace、Vault内容はどう変化するか。TSUZUNEの既存attachment previewからの外部起動契約と同じ公開挙動にできるか。
+
+#### Acceptance
+
+- [ ] 固定fixtureと隔離profileで、Obsidianのmenu文言、有効状態、外部起動要求、menu closeを採取する。
+- [ ] 実アプリの起動先を安全にinterceptし、対象pathと呼出回数だけを比較する。
+- [ ] Global Graph tab、query、camera、node集合、Vault digestの前後不変を確認する。
+- [ ] 差がある場合だけ既存のattachment external-open経路を再利用して最小修正する。
+- [ ] targeted test、全回帰、typecheck、MCP検査、comparison JSON、HTML reportを通して停止する。
+
+#### Stop Condition
+
+対象操作一件を根拠付きで判定したら止めます。実OSの既定アプリを可視起動せず、次の`フォルダで表示`へ同時に進みません。
+
 ### Remaining Graph Work
 
 | Area | 現在 | 完了条件 |
 |---|---|---|
-| Context menu | 新規tab、新規window、file move、bookmark、path copyまで比較済み | `リンクされたビューを開く`から、残る操作、submenu、note/tag/attachment別挙動を一項目ずつ固定比較 |
+| Context menu | 新規tab、新規window、file move、bookmark、path copy、linked viewまで比較済み | `デフォルトアプリで開く`から、残る操作、submenu、note/tag/attachment別挙動を一項目ずつ固定比較 |
 | Workspace state | Global query、zoom/pan境界、node drag、Graph tab保持の一部を比較済み | Local、fit/reset、zoom限界、workspace leaf復元を固定比較 |
 | Filters/Search | Search、tags、attachments、unresolved、excluded基礎を実装済み | malformed query、Manage UI、全surfaceへのExcluded files効果を比較 |
 | Groups | ordered groups基礎を実装済み | 作成、編集、順序、色、保存、復元、既定状態を比較 |
@@ -160,7 +185,7 @@ Graph parity全体は、P2/P3へ到達していない領域が残る限り完了
 
 | Stage | 到達目標 | 状態 / 次のGate |
 |---|---|---|
-| O0. Graph Parity | Local/Global Graph、filter、group、display、force、interaction、保存、アクセシビリティを徹底比較 | **Active**。O2-P1／O2-P2完了後、GP0-3b-mから再開 |
+| O0. Graph Parity | Local/Global Graph、filter、group、display、force、interaction、保存、アクセシビリティを徹底比較 | **Active**。GP0-3b-m完了、次はGP0-3b-n |
 | O1. Daily Writing & Navigation | Markdownを知らなくても作成・編集・日次運用できる | Daily/Ideaフォーム、toolbar、template、freshnessは実装済み。7日通常運用と残るnavigationは未完 |
 | O2. Organization & Retrieval | folders、tags、properties、outline、bookmarks、search、commandsを日常利用できる | O2-P1／O2-P2完了。物理applyは禁止を維持し、次Gateは匿名一時VaultのO2-P3またはDrive sidecar契約判断 |
 | O3. Structured Views | Markdown/frontmatter原本のtable/card/list view | Planned。実用queryと編集契約を固定してから開始 |

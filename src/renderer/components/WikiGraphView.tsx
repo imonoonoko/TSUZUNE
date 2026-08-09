@@ -75,6 +75,7 @@ interface WikiGraphViewProps {
   onSearchTag?: (tag: string) => void
   onOpenInNewTab?: (path: string) => void
   onOpenInNewWindow?: (path: string) => void
+  onOpenLinkedView?: (path: string) => void
   onMove?: (path: string) => void
   bookmarkedPaths?: ReadonlySet<string>
   onBookmark?: (path: string) => void
@@ -253,6 +254,7 @@ export default function WikiGraphView({
   onSearchTag = () => undefined,
   onOpenInNewTab,
   onOpenInNewWindow,
+  onOpenLinkedView,
   onMove,
   bookmarkedPaths = new Set(),
   onBookmark,
@@ -276,6 +278,7 @@ export default function WikiGraphView({
   const [nodeContextMenu, setNodeContextMenu] =
     useState<GraphNodeContextMenu | null>(null)
   const [pathCopyMenuOpen, setPathCopyMenuOpen] = useState(false)
+  const [linkedViewMenuOpen, setLinkedViewMenuOpen] = useState(false)
   const [settingsSections, setSettingsSections] =
     useState<GraphSettingsSectionState>(initialViewState.settingsSections)
   const [displaySettings, setDisplaySettings] = useState<GraphDisplaySettings>(
@@ -334,12 +337,14 @@ export default function WikiGraphView({
       if (!(event.target as HTMLElement).closest('.wiki-graph-context-menu')) {
         setNodeContextMenu(null)
         setPathCopyMenuOpen(false)
+        setLinkedViewMenuOpen(false)
       }
     }
     const closeOnEscape = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         setNodeContextMenu(null)
         setPathCopyMenuOpen(false)
+        setLinkedViewMenuOpen(false)
       }
     }
     document.addEventListener('pointerdown', closeOnPointerDown)
@@ -1576,6 +1581,7 @@ export default function WikiGraphView({
                       y: event.clientY - (bounds?.top ?? 0)
                     })
                     setPathCopyMenuOpen(false)
+                    setLinkedViewMenuOpen(false)
                   }}
                   onPointerDown={(event) => startNodeDrag(event, node.path)}
                   onPointerMove={moveNodeDrag}
@@ -1776,6 +1782,51 @@ export default function WikiGraphView({
                           </div>
                         )}
                       </div>
+                      {onOpenLinkedView && (
+                        <div className="wiki-graph-context-submenu-host">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            aria-haspopup="menu"
+                            aria-expanded={linkedViewMenuOpen}
+                            onClick={() => {
+                              setLinkedViewMenuOpen(true)
+                              setPathCopyMenuOpen(false)
+                            }}
+                            onMouseEnter={() => {
+                              setLinkedViewMenuOpen(true)
+                              setPathCopyMenuOpen(false)
+                            }}
+                          >
+                            リンクされたビューを開く <span aria-hidden="true">›</span>
+                          </button>
+                          {linkedViewMenuOpen && (
+                            <div
+                              className={`wiki-graph-context-submenu${
+                                nodeContextMenu.x + GRAPH_CONTEXT_MENU_WIDTH * 2 >
+                                (canvasRef.current?.clientWidth ?? Infinity)
+                                  ? ' is-left'
+                                  : ''
+                              }`}
+                              role="menu"
+                              aria-label="リンクされたビュー"
+                            >
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  onOpenLinkedView(nodeContextMenu.node.path)
+                                  setNodeContextMenu(null)
+                                  setLinkedViewMenuOpen(false)
+                                  setPathCopyMenuOpen(false)
+                                }}
+                              >
+                                バックリンクを開く
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </>
                   )}
                 <button
