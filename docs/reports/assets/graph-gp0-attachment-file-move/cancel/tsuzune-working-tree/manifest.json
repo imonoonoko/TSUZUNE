@@ -1,0 +1,148 @@
+{
+  "capturedAt": "2026-08-09T03:34:17.788Z",
+  "stage": "GP0-3b-j Global Graph attachment file move (cancel) working-tree evidence",
+  "status": "captured",
+  "comparisonStatus": "Compare with docs/reports/assets/graph-gp0-attachment-file-move/cancel/obsidian-1.13.4/observation.json",
+  "command": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-move --move-scenario=cancel",
+  "isolation": {
+    "sourceFixture": "fixtures/obsidian-graph-parity-vault",
+    "copiedVault": "work/graph-gp0-attachment-file-move-cancel-working-tree/vault",
+    "userData": "work/graph-gp0-attachment-file-move-cancel-working-tree/userdata",
+    "requestedContentViewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "offscreenOrigin": {
+      "x": -32000,
+      "y": -32000
+    },
+    "observedWindowGeometry": {
+      "initial": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      },
+      "restarted": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      }
+    },
+    "network": "host resolver blocked except localhost"
+  },
+  "processIds": [
+    14812,
+    10604
+  ],
+  "assertions": {
+    "exactNodeSetBeforeAction": true,
+    "exactNodeSetAfterActionAndRestart": true,
+    "attachmentEdgeCountStable": true,
+    "attachmentContextMenuOpened": true,
+    "moveMenuItemInExpectedOrder": true,
+    "moveDialogRecorded": true,
+    "dialogAndContextMenuClosed": true,
+    "globalGraphRemainedVisible": true,
+    "homeEmbedUnchanged": true,
+    "sourceAndDestinationMatchScenario": true,
+    "oldAttachmentResolutionMatchesScenario": true,
+    "movedAttachmentsResolved": true,
+    "contentViewportStable": true,
+    "filteredNodeSetStable": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "isolatedVaultChangedOnlyWhenMoving": true,
+    "noIsolatedProcessesRemaining": true
+  },
+  "artifacts": [
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-file-move/cancel/tsuzune-working-tree/00-baseline.png",
+      "bytes": 126446,
+      "sha256": "2137666DCB0AA681786BDF5C198084B43C7A1A51C6CE2BCF959FBB7FC0C7FAE9",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-file-move/cancel/tsuzune-working-tree/01-node-context-menu.png",
+      "bytes": 127300,
+      "sha256": "4744D0ED2AD17C58EEA205C6E57E21BA85B27E7790B6706404AC0D758CED5D77",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-file-move/cancel/tsuzune-working-tree/02-move-dialog.png",
+      "bytes": 162480,
+      "sha256": "D7991FBF506EA1DD7CBA606076D8B4647E49AED5E0719FC26E1026406ACCDA4F",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-file-move/cancel/tsuzune-working-tree/03-after-cancel.png",
+      "bytes": 122342,
+      "sha256": "33F1EBAC257C32622A0C74C97D81F12AD31DE9248177BE44B94978AC93CC2C1A",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-file-move/cancel/tsuzune-working-tree/04-after-graph-reopen.png",
+      "bytes": 128900,
+      "sha256": "FC1179D1D02EE16983DB98A30CF10BEC4E78C6BD7666A52AEE7B8883171B1F22",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-file-move/cancel/tsuzune-working-tree/05-after-app-restart.png",
+      "bytes": 128900,
+      "sha256": "FC1179D1D02EE16983DB98A30CF10BEC4E78C6BD7666A52AEE7B8883171B1F22",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-file-move/cancel/tsuzune-working-tree/phase-initial.json",
+      "bytes": 19341,
+      "sha256": "4F8A671D51EDEBA3B77E9F79A3EE6B21642D846060077FC7F654D2D64F2EA1FE"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-file-move/cancel/tsuzune-working-tree/phase-restarted.json",
+      "bytes": 3737,
+      "sha256": "F15FA9E6062FB8CBD9C03CCE3CDAA3D5BD5F12D29C6448CBC151C30B352B338B"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-file-move/cancel/tsuzune-working-tree/observation.json",
+      "bytes": 36280,
+      "sha256": "85DF60DCCCA4FCC4B814E492619E173936A67BBE8C2C90BD82D6DE97755B86A9"
+    }
+  ],
+  "next": "Compare the cancel scenario with the fixed Obsidian 1.13.4 evidence."
+}

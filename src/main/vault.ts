@@ -260,6 +260,32 @@ export class VaultService {
     })
   }
 
+  private async findAvailableMoveDestination(
+    source: string,
+    destination: string
+  ): Promise<string> {
+    if (source === destination) {
+      return destination
+    }
+
+    const extension = extname(destination)
+    const name = basename(destination, extension)
+    for (let suffix = 0; ; suffix += 1) {
+      const candidate =
+        suffix === 0
+          ? destination
+          : join(dirname(destination), `${name} ${suffix}${extension}`)
+      try {
+        await lstat(candidate)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          return candidate
+        }
+        throw error
+      }
+    }
+  }
+
   private isCurrentRoot(rootPath: string, revision: number): boolean {
     return this.rootPath === rootPath && this.rootRevision === revision
   }
@@ -759,10 +785,10 @@ export class VaultService {
   }
 
   async moveNote(input: MoveNoteInput): Promise<EntryOperationOutput> {
-    if (!isMarkdownFile(input.path)) {
+    if (!isMarkdownFile(input.path) && !isSupportedAttachmentPath(input.path)) {
       throw new VaultError({
         code: 'INVALID_PATH',
-        message: 'v0.1ではノートだけを移動できます。'
+        message: 'Markdownノートまたは対応する添付ファイルだけを移動できます。'
       })
     }
 
@@ -770,7 +796,7 @@ export class VaultService {
     const revision = this.rootRevision
     const source = this.absolutePath(input.path)
     const destinationDirectory = this.absolutePath(input.destinationDirectory, true)
-    const destination = join(destinationDirectory, basename(source))
+    const requestedDestination = join(destinationDirectory, basename(source))
 
     try {
       await this.assertNoSymlinkTraversal(source)
@@ -782,7 +808,10 @@ export class VaultService {
           message: '移動先フォルダが見つかりません。'
         })
       }
-      await this.ensureDestinationAvailable(source, destination)
+      const destination = await this.findAvailableMoveDestination(
+        source,
+        requestedDestination
+      )
       await rename(source, destination)
       const oldPath = this.relativePathFrom(root, source)
       const newPath = this.relativePathFrom(root, destination)
@@ -792,7 +821,7 @@ export class VaultService {
         path: newPath
       }
     } catch (error) {
-      throw fromNodeError(error, 'UNKNOWN', 'ノートを移動できませんでした。')
+      throw fromNodeError(error, 'UNKNOWN', 'ファイルを移動できませんでした。')
     }
   }
 

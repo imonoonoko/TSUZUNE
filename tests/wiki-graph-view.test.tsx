@@ -788,6 +788,7 @@ describe('WikiGraphView', () => {
     fireEvent.contextMenu(tagNode)
     expect(onSearchTag).toHaveBeenNthCalledWith(2, '#design')
     expect(onOpen).not.toHaveBeenCalled()
+    expect(screen.queryByRole('menuitem', { name: 'ファイルを移動…' })).toBeNull()
   })
 
   it('routes existing, unresolved, and attachment nodes through normal open resolution', async () => {
@@ -838,12 +839,18 @@ describe('WikiGraphView', () => {
     expect(onOpen).toHaveBeenNthCalledWith(1, 'A.md')
     expect(onOpen).toHaveBeenNthCalledWith(2, 'Missing.md')
     expect(onOpen).toHaveBeenNthCalledWith(3, 'assets/diagram.png')
+
+    fireEvent.contextMenu(
+      screen.getByRole('button', { name: 'Missing（リンク先）を開く' })
+    )
+    expect(screen.queryByRole('menuitem', { name: 'ファイルを移動…' })).toBeNull()
   })
 
   it('opens the file context menu for file-backed nodes and exposes real callbacks only', async () => {
     const user = userEvent.setup()
     const onOpenInNewTab = vi.fn()
     const onOpenInNewWindow = vi.fn()
+    const onMove = vi.fn()
     const onTrash = vi.fn()
     const graph: WikiGraph = {
       nodes: [
@@ -868,6 +875,7 @@ describe('WikiGraphView', () => {
         onIncludeOrphansChange={() => undefined}
         onOpenInNewTab={onOpenInNewTab}
         onOpenInNewWindow={onOpenInNewWindow}
+        onMove={onMove}
         onTrash={onTrash}
         onOpen={() => undefined}
       />
@@ -900,8 +908,29 @@ describe('WikiGraphView', () => {
         name: 'diagram.png（添付書類）を開く'
       })
     )
+    const menuItems = screen.getAllByRole('menuitem')
+    expect(menuItems.map((item) => item.textContent)).toEqual([
+      '新規タブに開く',
+      '新規ウィンドウで開く',
+      'ファイルを移動…',
+      'ファイルを削除'
+    ])
+    await user.click(screen.getByRole('menuitem', { name: 'ファイルを移動…' }))
+    expect(onMove).toHaveBeenCalledWith('assets/diagram.png')
+
+    fireEvent.contextMenu(
+      screen.getByRole('button', {
+        name: 'diagram.png（添付書類）を開く'
+      })
+    )
     await user.click(screen.getByRole('menuitem', { name: 'ファイルを削除' }))
     expect(onTrash).toHaveBeenCalledWith('assets/diagram.png')
+
+    fireEvent.contextMenu(
+      screen.getByRole('button', { name: 'A（現在のノート）' })
+    )
+    await user.click(screen.getByRole('menuitem', { name: 'ファイルを移動…' }))
+    expect(onMove).toHaveBeenLastCalledWith('A.md')
   })
 
   it('does not pretend in-place opening is a new tab', () => {

@@ -70,7 +70,7 @@ export default function MoveDialog({
           onConfirm(String(data.get('directory') ?? ''))
         }}
       >
-        <h2 id="move-dialog-title">ノートを移動</h2>
+        <h2 id="move-dialog-title">ファイルを移動</h2>
         <p id="move-dialog-description">{notePath}</p>
         <label>
           移動先

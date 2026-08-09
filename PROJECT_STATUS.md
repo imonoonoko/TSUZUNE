@@ -9,11 +9,11 @@
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
 | インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-09 05:51 JSTにGP0-3b-iを含む検証済みworking treeから更新し、全426 tests、packaged／installed smoke、hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`。C0-A〜C1-C、O1-W0、O1-W1、GP0-3b-iをworking treeで実装・検証済み | Git |
-| 直近slice | GP0-3b-iでattachment nodeの新規window動作を比較。両製品で別トップレベル内部画像windowを作り、元Graph保持・menu closeを`matched`にした | [比較report](docs/reports/graph-gp0-attachment-new-window-2026-08-09.html) |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。C0-A〜C1-C、O1-W0、O1-W1、GP0-3b-jをworking treeで実装・検証済み | Git |
+| 直近slice | GP0-3b-jでattachment nodeのファイル移動を比較。取消、通常移動、同名衝突、自動採番、リンク非書換え、旧未解決／新実在node、再表示／再起動保持を`matched-core-behavior`にした | [比較report](docs/reports/graph-gp0-attachment-file-move-2026-08-09.html) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
 | 最優先Track | v0.6 Obsidian Graph Parity | [PLAN.md](PLAN.md#active-track-v06-obsidian-graph-parity) |
-| 次の縦切り | GP0-3b-iはattachment nodeの新規window実動作を比較済み。次はGP0-3b-jで`ファイルを移動…`の固定参照挙動を採取する | [PLAN.md](PLAN.md) |
+| 次の縦切り | GP0-3b-jはattachment nodeのファイル移動を比較済み。次はGP0-3b-kで`ブックマーク…`の固定参照挙動を採取する | [PLAN.md](PLAN.md) |
 
 ## 実装済みの基盤
 
@@ -50,6 +50,8 @@ GP0-3b-hでは、公開フィルタの「添付書類」を有効化して`attac
 
 GP0-3b-iでは、添付nodeの`新規ウィンドウで開く`を比較しました。両製品とも2つ目のトップレベルウィンドウを生成し、`attachments/diagram.svg`をOS外部アプリではなく内部画像ビューで表示し、元Global Graphを保持してcontext menuを閉じるため対象動作は`matched`です。TSUZUNEの独立ウィンドウは最小shellであり、Obsidianのworkspace装飾との視覚一致と残るcontext menu操作は未達です。
 
+GP0-3b-jでは、添付nodeの`ファイルを移動…`を取消、通常移動、同名衝突の3シナリオで比較しました。両製品とも通常移動後に埋め込み`![[attachments/diagram.svg]]`を自動書換えせず、旧pathを未解決node、新pathを実在する孤立attachment nodeとしてGraph再表示／アプリ再起動後まで保持します。同名衝突では既存`20_knowledge/diagram.svg`を上書きせず、移動元を`diagram 1.svg`へ自動採番します。中核動作は`matched-core-behavior`です。移動先選択はObsidianのtypeahead promptに対してTSUZUNEはselect/buttonで、context menu全体も11対4の既知差です。
+
 - [GP6 comparison report](docs/reports/graph-gp6-production-comparison-2026-08-02.html)
 - [GP6 working-tree evidence](docs/reports/assets/graph-gp6/tsuzune-working-tree/manifest.json)
 - [GP7 initial settings comparison](docs/reports/graph-gp7-global-settings-default-2026-08-03.html)
@@ -60,6 +62,8 @@ GP0-3b-iでは、添付nodeの`新規ウィンドウで開く`を比較しまし
 - [GP0 node drag machine-readable comparison](docs/reports/assets/graph-gp0-node-drag-persistence/comparison.json)
 - [GP0 node new-tab comparison](docs/reports/graph-gp0-node-new-tab-2026-08-09.html)
 - [GP0 node new-tab machine-readable comparison](docs/reports/assets/graph-gp0-node-new-tab/comparison.json)
+- [GP0 attachment file-move comparison](docs/reports/graph-gp0-attachment-file-move-2026-08-09.html)
+- [GP0 attachment file-move machine-readable comparison](docs/reports/assets/graph-gp0-attachment-file-move/comparison.json)
 
 ### Performance
 
@@ -91,7 +95,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番v0.5.0は2
 
 1. M5-Cは要求単位snapshot indexで完了。Context構築median 151.123ms→35.934ms、p95 180.404ms→47.798ms、改善前後のMarkdown SHA-256と意味指標は一致した。
 2. retained heap比較は未測定。cacheを要求境界より長寿命化する提案が出た場合だけ、GCを分離したharnessを先に作る。永続DBやbackground cacheは追加しない。
-3. GP0-3b-jでObsidian attachment nodeの`ファイルを移動…`実動作を同じfixtureで採取し、Vault内移動・リンク追従・取消・衝突時の公開挙動を確定してからTSUZUNEとの差を判定する。
+3. GP0-3b-jのファイル移動は`matched-core-behavior`で完了。次はGP0-3b-kでObsidian attachment nodeの`ブックマーク…`実動作を同じfixtureで採取し、作成・取消・重複・再表示／再起動時の公開挙動を確定してからTSUZUNEとの差を判定する。
 4. 公開差が確認できた場合だけ一件を修正し、同じcaptureで回帰を確認する。
 5. O1-W1は利用者指示で先行し、Daily／Ideaフォーム、新規ノート作成修正、最小書式ツールバーまで全回帰を通して完了した。
 6. node context menuの残差分を一項目ずつ閉じた後、720px／200% zoom、tree semantics、実Windows accessibilityを別sliceで扱う。

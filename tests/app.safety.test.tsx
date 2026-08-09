@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   AppUpdateStatus,
@@ -1430,6 +1430,89 @@ describe('App data-loss guards', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: '新規ウィンドウで開く' }))
     await waitFor(() => {
       expect(api.openVaultFileWindow).toHaveBeenCalledWith('assets/diagram.svg')
+    })
+  })
+
+  it('moves a graph attachment while preserving Global Graph and its workspace tab', async () => {
+    const attachment = {
+      path: 'assets/diagram.svg',
+      name: 'diagram.svg',
+      modifiedAt: 500,
+      createdAt: 400,
+      size: 10
+    }
+    const initialSnapshot: VaultSnapshot = {
+      ...snapshot,
+      directories: ['', '20_knowledge', 'assets'],
+      notes: [{ ...noteA, content: '![[assets/diagram.svg]]' }, noteB, noteC],
+      attachments: [attachment]
+    }
+    const movedPath = '20_knowledge/diagram.svg'
+    const movedSnapshot: VaultSnapshot = {
+      ...initialSnapshot,
+      notes: initialSnapshot.notes,
+      attachments: [{ ...attachment, path: movedPath }]
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok(initialSnapshot))
+    vi.mocked(api.getSnapshot).mockResolvedValue(await ok(movedSnapshot))
+    vi.mocked(api.moveNote).mockResolvedValue(
+      await ok({ oldPath: attachment.path, path: movedPath })
+    )
+
+    render(<App />)
+    fireEvent.click((await screen.findAllByRole('button', { name: 'グラフビュー' }))[0])
+    fireEvent.click(screen.getByRole('button', { name: 'フィルタを開く' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: '添付書類' }))
+    fireEvent.contextMenu(
+      await screen.findByRole('button', { name: 'diagram.svg（添付書類）を開く' })
+    )
+    fireEvent.click(screen.getByRole('menuitem', { name: '新規タブに開く' }))
+    await waitFor(() => {
+      expect(
+        screen.getByRole('tab', { name: 'diagram.svg' }).getAttribute(
+          'aria-selected'
+        )
+      ).toBe('true')
+    })
+    fireEvent.click(screen.getByRole('tab', { name: 'グラフビュー' }))
+    await waitFor(() => {
+      expect(
+        screen.getByRole('tab', { name: 'グラフビュー' }).getAttribute(
+          'aria-selected'
+        )
+      ).toBe('true')
+    })
+
+    fireEvent.contextMenu(
+      await screen.findByRole('button', { name: 'diagram.svg（添付書類）を開く' })
+    )
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ファイルを移動…' }))
+    fireEvent.change(screen.getByRole('combobox', { name: '移動先' }), {
+      target: { value: '20_knowledge' }
+    })
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: 'ファイルを移動' })).getByRole(
+        'button',
+        { name: '移動' }
+      )
+    )
+
+    await waitFor(() => {
+      expect(api.moveNote).toHaveBeenCalledWith({
+        path: attachment.path,
+        destinationDirectory: '20_knowledge'
+      })
+    })
+    expect(api.saveNote).not.toHaveBeenCalled()
+    expect(
+      screen.getByRole('tab', { name: 'グラフビュー' }).getAttribute('aria-selected')
+    ).toBe('true')
+    expect(screen.getByRole('region', { name: 'Vault全体グラフ' })).toBeTruthy()
+
+    vi.mocked(api.readVaultImage).mockClear()
+    fireEvent.click(screen.getByRole('tab', { name: 'diagram.svg' }))
+    await waitFor(() => {
+      expect(api.readVaultImage).toHaveBeenCalledWith(movedPath)
     })
   })
 

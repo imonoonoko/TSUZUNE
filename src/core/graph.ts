@@ -116,20 +116,28 @@ function buildAttachmentLinkIndex(
 function resolveIndexedAttachmentLink(
   target: string,
   index: AttachmentLinkIndex
-): string | null {
+): IndexedWikiLinkResolution {
   const noteTarget = target.trim().split('#', 1)[0].replaceAll('\\', '/')
   const validation = validateRelativePath(noteTarget)
   if (!validation.valid || !validation.normalized) {
-    return null
+    return { status: 'invalid' }
   }
-  if (validation.normalized.includes('/')) {
-    return (
-      index.exactPaths.get(validation.normalized.toLocaleLowerCase()) ?? null
-    )
+
+  const normalized = validation.normalized
+  if (normalized.includes('/')) {
+    const resolvedPath = index.exactPaths.get(normalized.toLocaleLowerCase())
+    return resolvedPath
+      ? { status: 'resolved', path: resolvedPath }
+      : { status: 'missing', path: normalized }
   }
-  return (
-    index.uniqueBasenames.get(validation.normalized.toLocaleLowerCase()) ?? null
-  )
+
+  const candidate = index.uniqueBasenames.get(normalized.toLocaleLowerCase())
+  if (candidate === null) {
+    return { status: 'ambiguous' }
+  }
+  return candidate
+    ? { status: 'resolved', path: candidate }
+    : { status: 'missing', path: normalized }
 }
 
 function resolveIndexedWikiLink(
@@ -200,17 +208,43 @@ export function buildWikiGraph(
     for (const link of extractWikiLinks(source.content)) {
       const linkTarget = link.target.trim().split('#', 1)[0]
       if (isSupportedAttachmentPath(linkTarget)) {
-        const targetPath = resolveIndexedAttachmentLink(
+        if (!options.includeAttachments) {
+          continue
+        }
+
+        const resolution = resolveIndexedAttachmentLink(
           link.target,
           attachmentIndex
         )
-        if (targetPath && options.includeAttachments) {
-          const edge: WikiGraphEdge = {
-            sourcePath: source.path,
-            targetPath
-          }
-          edges.set(`${edge.sourcePath}\0${edge.targetPath}`, edge)
+        if (
+          resolution.status === 'invalid' ||
+          resolution.status === 'ambiguous' ||
+          (resolution.status === 'missing' && !options.includeUnresolved)
+        ) {
+          continue
         }
+
+        let targetPath = resolution.path
+        if (resolution.status === 'missing') {
+          const unresolvedKey = targetPath.toLocaleLowerCase()
+          const existing = unresolvedNodes.get(unresolvedKey)
+          if (existing) {
+            targetPath = existing.path
+          } else {
+            unresolvedNodes.set(unresolvedKey, {
+              path: targetPath,
+              name: basenameRelative(targetPath),
+              kind: 'unresolved',
+              exists: false
+            })
+          }
+        }
+
+        const edge: WikiGraphEdge = {
+          sourcePath: source.path,
+          targetPath
+        }
+        edges.set(`${edge.sourcePath}\0${edge.targetPath}`, edge)
         continue
       }
 

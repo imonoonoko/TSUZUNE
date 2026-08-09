@@ -16,28 +16,44 @@ const attachmentNewTabProbe =
 const attachmentNewWindowProbe =
   process.argv.includes('--attachment-new-window') ||
   process.env.TSUZUNE_GRAPH_ATTACHMENT_NEW_WINDOW_PROBE === '1'
+const attachmentMoveProbe =
+  process.argv.includes('--attachment-move') ||
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_MOVE_PROBE === '1'
+const attachmentMoveScenario =
+  process.argv.find((argument) => argument.startsWith('--move-scenario='))?.split('=', 2)[1] ??
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_MOVE_SCENARIO ??
+  'success'
+if (
+  attachmentMoveProbe &&
+  !['cancel', 'success', 'collision'].includes(attachmentMoveScenario)
+) {
+  throw new Error('--move-scenario は cancel、success、collision のいずれかです。')
+}
 const nodeNewTabProbe =
   process.argv.includes('--node-new-tab') ||
   process.env.TSUZUNE_GRAPH_NODE_NEW_TAB_PROBE === '1'
 const nodeMenuProbe =
-  nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe ||
+  nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe ||
   process.argv.includes('--node-menu') ||
   process.env.TSUZUNE_GRAPH_NODE_MENU_PROBE === '1'
 if (
   [
     cameraProbe,
     nodeDragProbe,
-    nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe,
+    nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe,
     nodeNewTabProbe,
     attachmentNewTabProbe,
-    attachmentNewWindowProbe
+    attachmentNewWindowProbe,
+    attachmentMoveProbe
   ].filter(Boolean).length > 1
 ) {
   throw new Error(
-    '--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window は同時に指定できません。'
+    '--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move は同時に指定できません。'
   )
 }
-const probeKind = attachmentNewWindowProbe
+const probeKind = attachmentMoveProbe
+  ? `attachment-file-move-${attachmentMoveScenario}`
+  : attachmentNewWindowProbe
   ? 'attachment-new-window'
   : attachmentNewTabProbe
   ? 'attachment-new-tab'
@@ -51,13 +67,15 @@ const probeKind = attachmentNewWindowProbe
       ? 'camera'
       : 'search'
 const fixtureDirectory = resolve(repoRoot, 'fixtures/obsidian-graph-parity-vault')
-const workRoot = resolve(repoRoot, `work/gp0-${probeKind}`)
+const workRoot = resolve(repoRoot, `work/gp0-${probeKind}-capture`)
 const referenceWorkDirectory = resolve(workRoot, 'obsidian-1.13.4')
 const vaultDirectory = resolve(referenceWorkDirectory, 'vault')
 const userDataDirectory = resolve(referenceWorkDirectory, 'userdata')
 const outputRoot = resolve(
   repoRoot,
-  probeKind === 'attachment-new-window'
+  attachmentMoveProbe
+    ? `docs/reports/assets/graph-gp0-attachment-file-move/${attachmentMoveScenario}`
+    : probeKind === 'attachment-new-window'
     ? 'docs/reports/assets/graph-gp0-attachment-new-window'
     : probeKind === 'attachment-new-tab'
     ? 'docs/reports/assets/graph-gp0-attachment-new-tab'
@@ -90,13 +108,16 @@ const expected = {
   asarSha256: '51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917',
   markdownCount: 7,
   search: cameraProbe || nodeDragProbe || nodeMenuProbe ? '' : 'path:"10_projects"',
-  filteredNodeIds: attachmentNewTabProbe || attachmentNewWindowProbe
+  filteredNodeIds: attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe
     ? [
         '00_Home.md',
         '10_projects/Project Alpha.md',
         '10_projects/Project Beta.md',
         '20_knowledge/Distillation.md',
         '20_knowledge/Reference.md',
+        ...(attachmentMoveProbe && attachmentMoveScenario === 'collision'
+          ? ['20_knowledge/diagram.svg']
+          : []),
         '80_excluded/Hidden.md',
         '90_orphan/Orphan.md',
         'Missing Note',
@@ -118,7 +139,7 @@ const expected = {
   deviceScaleFactor: 1,
   drag: {
     targetNodeId:
-      attachmentNewTabProbe || attachmentNewWindowProbe
+      attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe
         ? 'attachments/diagram.svg'
         : '00_Home.md',
     deltaX: 96,
@@ -324,6 +345,17 @@ async function observeGraph(cdp, label) {
     if (!leaf) throw new Error('Global Graphが開いていません。')
     const view = leaf.view
     const nodeId = ${nodeIdExpression()}
+    const edgeEnd = (value) => typeof value === 'object' ? nodeId(value) : value
+    const cacheLinks = (links, resolved) => Object.entries(links ?? {}).flatMap(
+      ([source, targets]) => Object.entries(targets).map(([target, count]) => ({
+        source,
+        target,
+        count,
+        resolved
+      }))
+    ).sort((left, right) =>
+      left.source.localeCompare(right.source) || left.target.localeCompare(right.target)
+    )
     const input = document.querySelector('.graph-control-section.mod-filter input[type="search"]')
     const window = require('@electron/remote').getCurrentWindow()
     const interactiveBounds = view.renderer.interactiveEl?.getBoundingClientRect() ?? null
@@ -370,6 +402,14 @@ async function observeGraph(cdp, label) {
       renderedNodeIds: view.renderer.nodes.map(nodeId).filter(Boolean).sort(),
       renderedNodeCount: view.renderer.nodes.length,
       renderedLinkCount: view.renderer.links.length,
+      renderedLinks: view.renderer.links.map((link) => ({
+        source: edgeEnd(link.source),
+        target: edgeEnd(link.target)
+      })).sort((left, right) =>
+        left.source.localeCompare(right.source) || left.target.localeCompare(right.target)
+      ),
+      metadataResolvedLinks: cacheLinks(app.metadataCache.resolvedLinks, true),
+      metadataUnresolvedLinks: cacheLinks(app.metadataCache.unresolvedLinks, false),
       targetNode: targetNodeObservation,
       dragNodeId: view.renderer.dragNode ? nodeId(view.renderer.dragNode) : null,
       highlightedNodeId: view.renderer.highlightNode ? nodeId(view.renderer.highlightNode) : null,
@@ -466,7 +506,7 @@ async function setGraphSearch(cdp, query) {
     cdp,
     `app.workspace.getLeavesOfType('graph')[0]?.view.dataEngine.getOptions().search === ${JSON.stringify(query)}`
   )
-  if (!attachmentNewTabProbe && !attachmentNewWindowProbe) {
+  if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe) {
     await waitForRenderer(
       cdp,
       `JSON.stringify(app.workspace.getLeavesOfType('graph')[0]?.view.renderer.nodes.map(${nodeIdExpression()}).filter(Boolean).sort()) === ${JSON.stringify(JSON.stringify(expected.filteredNodeIds))}`
@@ -702,6 +742,144 @@ async function observeNodeContextMenu(cdp) {
         .filter((index) => index !== null)
     }
   })()`)
+}
+
+async function activateAttachmentMove(cdp) {
+  const moveDialogInputSelector =
+    '.modal-container input.prompt-input[placeholder="フォルダを入力…"]'
+  const observeFiles = `(() => {
+    const source = app.vault.getAbstractFileByPath('attachments/diagram.svg')
+    const destination = app.vault.getAbstractFileByPath('20_knowledge/diagram.svg')
+    const collisionDestination = app.vault.getAbstractFileByPath('20_knowledge/diagram 1.svg')
+    const home = app.vault.getAbstractFileByPath('00_Home.md')
+    return Promise.all([
+      home ? app.vault.read(home) : Promise.resolve(null)
+    ]).then(([homeContent]) => ({
+      sourceExists: Boolean(source),
+      destinationExists: Boolean(destination),
+      collisionDestinationExists: Boolean(collisionDestination),
+      homeContent,
+      activeFile: app.workspace.getActiveFile()?.path ?? null,
+      graphLeafCount: app.workspace.getLeavesOfType('graph').length
+    }))
+  })()`
+  const before = await cdp.evaluate(observeFiles)
+  await cdp.evaluate(`(() => {
+    const item = [...document.querySelectorAll('.menu .menu-item')]
+      .find((candidate) => candidate.textContent?.replace(/\\s+/g, ' ').trim() === 'ファイルを移動…')
+    if (!(item instanceof HTMLElement) || item.classList.contains('is-disabled')) {
+      throw new Error('有効な「ファイルを移動…」が見つかりません。')
+    }
+    item.click()
+  })()`)
+  await waitForRenderer(
+    cdp,
+    `document.querySelector(${JSON.stringify(moveDialogInputSelector)}) !== null`
+  )
+  await delay(250)
+  const dialog = await cdp.evaluate(`(() => {
+    const input = document.querySelector(${JSON.stringify(moveDialogInputSelector)})
+    const container = input?.closest('.modal-container')
+    const modal = container?.querySelector('.modal') ?? container
+    if (!(modal instanceof HTMLElement)) throw new Error('移動dialogが見つかりません。')
+    const bounds = modal.getBoundingClientRect()
+    return {
+      text: modal.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+      classes: [...modal.classList].sort(),
+      bounds: { left: bounds.left, top: bounds.top, width: bounds.width, height: bounds.height },
+      inputs: [...modal.querySelectorAll('input')].map((input) => ({
+        type: input.type,
+        placeholder: input.placeholder,
+        value: input.value,
+        classes: [...input.classList].sort()
+      })),
+      buttons: [...modal.querySelectorAll('button')].map((button) => ({
+        text: button.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+        ariaLabel: button.getAttribute('aria-label'),
+        classes: [...button.classList].sort()
+      })),
+      suggestions: [...modal.querySelectorAll('.suggestion-item')]
+        .filter((item) => item.getClientRects().length > 0)
+        .map((item) => ({
+          text: item.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+          classes: [...item.classList].sort()
+        }))
+    }
+  })()`)
+  if (attachmentMoveScenario === 'cancel') {
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27
+    })
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27
+    })
+    await waitForRenderer(
+      cdp,
+      `document.querySelector(${JSON.stringify(moveDialogInputSelector)}) === null`
+    )
+  } else {
+    await cdp.evaluate(`(() => {
+      const input = document.querySelector(${JSON.stringify(moveDialogInputSelector)})
+      if (!(input instanceof HTMLInputElement)) throw new Error('移動先inputが見つかりません。')
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+      setter.call(input, '20_knowledge')
+      input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }))
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+      input.focus()
+    })()`)
+    await waitForRenderer(cdp, `(() => {
+      const item = [...document.querySelectorAll('.suggestion-item')].find((candidate) =>
+        candidate.textContent?.replace(/\\s+/g, ' ').trim() === '20_knowledge'
+      )
+      return item instanceof HTMLElement && item.getBoundingClientRect().height > 0
+    })()`)
+    await cdp.evaluate(`(() => {
+      const item = [...document.querySelectorAll('.suggestion-item')].find((candidate) =>
+        candidate.textContent?.replace(/\\s+/g, ' ').trim() === '20_knowledge' &&
+        candidate.getBoundingClientRect().height > 0
+      )
+      if (!(item instanceof HTMLElement)) throw new Error('20_knowledge候補が見つかりません。')
+      item.click()
+    })()`)
+    await delay(1_000)
+    if (attachmentMoveScenario === 'success') {
+      await waitForRenderer(
+        cdp,
+        `app.vault.getAbstractFileByPath('20_knowledge/diagram.svg') !== null && app.vault.getAbstractFileByPath('attachments/diagram.svg') === null`
+      )
+    }
+  }
+  const after = await cdp.evaluate(observeFiles)
+  const notices = await cdp.evaluate(`(() => [...document.querySelectorAll('.notice')].map((notice) =>
+    notice.textContent?.replace(/\\s+/g, ' ').trim() ?? ''
+  ).filter(Boolean))()`)
+  const dialogClosedAfterSelection = await cdp.evaluate(
+    `document.querySelector(${JSON.stringify(moveDialogInputSelector)}) === null`
+  )
+  if (!dialogClosedAfterSelection) {
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27
+    })
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27
+    })
+    await waitForRenderer(
+      cdp,
+      `document.querySelector(${JSON.stringify(moveDialogInputSelector)}) === null`
+    )
+  }
+  return {
+    scenario: attachmentMoveScenario,
+    before,
+    after,
+    dialog,
+    dialogClosedAfterSelection,
+    dialogClosed: await cdp.evaluate(
+      `document.querySelector(${JSON.stringify(moveDialogInputSelector)}) === null`
+    ),
+    notices,
+    menuClosed: await cdp.evaluate(`document.querySelector('.menu .menu-item') === null`)
+  }
 }
 
 async function activateNodeNewTab(cdp) {
@@ -1062,6 +1240,13 @@ async function main() {
   await mkdir(userDataDirectory, { recursive: true })
   await mkdir(outputDirectory, { recursive: true })
   await cp(fixtureDirectory, vaultDirectory, { recursive: true, force: false })
+  if (attachmentMoveProbe && attachmentMoveScenario === 'collision') {
+    await writeFile(
+      resolve(vaultDirectory, '20_knowledge/diagram.svg'),
+      '<svg xmlns="http://www.w3.org/2000/svg"><text>collision sentinel</text></svg>\n',
+      'utf8'
+    )
+  }
   const isolatedVaultId = createHash('md5').update(vaultDirectory).digest('hex').slice(0, 16)
   await writeFile(
     resolve(userDataDirectory, 'obsidian.json'),
@@ -1097,7 +1282,7 @@ async function main() {
       await first.whileChildAlive(openGlobalGraph(first.cdp))
     }
     await first.whileChildAlive(setGraphSearch(first.cdp, expected.search))
-    if (attachmentNewTabProbe || attachmentNewWindowProbe) {
+    if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe) {
       await first.whileChildAlive(setGraphAttachmentsVisible(first.cdp))
     }
     if (nodeDragProbe || nodeMenuProbe) {
@@ -1170,6 +1355,13 @@ async function main() {
         observations.attachmentNewWindow = await first.whileChildAlive(
           activateAttachmentNewWindow(first)
         )
+      } else if (attachmentMoveProbe) {
+        observations.attachmentMove = await first.whileChildAlive(
+          activateAttachmentMove(first.cdp)
+        )
+        observations.attachmentMove.screenshot = await first.whileChildAlive(
+          captureScreenshot(first.cdp, resolve(outputDirectory, '02-after-file-move-action.png'))
+        )
       } else {
         await first.whileChildAlive(first.cdp.send('Input.dispatchKeyEvent', {
           type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27
@@ -1182,7 +1374,7 @@ async function main() {
         )
       }
     }
-    if (!attachmentNewTabProbe && !attachmentNewWindowProbe) {
+    if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe) {
       observations.afterEntry.screenshot = await first.whileChildAlive(
         captureScreenshot(
           first.cdp,
@@ -1358,8 +1550,14 @@ async function main() {
         )
       }
     : null
-  const exactNodeIds = (observation) =>
-    JSON.stringify(observation.renderedNodeIds) === JSON.stringify(expected.filteredNodeIds)
+  const expectedAfterActionNodeIds =
+    attachmentMoveProbe && attachmentMoveScenario === 'success'
+      ? [...expected.filteredNodeIds, '20_knowledge/diagram.svg'].sort()
+      : attachmentMoveProbe && attachmentMoveScenario === 'collision'
+        ? [...expected.filteredNodeIds, '20_knowledge/diagram 1.svg'].sort()
+      : expected.filteredNodeIds
+  const exactNodeIds = (observation, nodeIds = expected.filteredNodeIds) =>
+    JSON.stringify(observation.renderedNodeIds) === JSON.stringify(nodeIds)
   const assertions = {
     queryAccepted: observations.afterEntry.graphOptionsSearch === expected.search,
     queryVisibleAfterEntry: observations.afterEntry.searchInputValue === expected.search,
@@ -1367,13 +1565,19 @@ async function main() {
     queryPersistedAfterGraphReopen:
       observations.afterGraphReopen.graphOptionsSearch === expected.search &&
       observations.afterGraphReopen.searchInputValue === expected.search,
-    filteredNodesAfterGraphReopen: exactNodeIds(observations.afterGraphReopen),
+    filteredNodesAfterGraphReopen: exactNodeIds(
+      observations.afterGraphReopen,
+      expectedAfterActionNodeIds
+    ),
     firstProcessExitedBeforeRestart: observations.sessions[0].exited !== null,
     secondProcessStarted: observations.sessions[1].startedAt > observations.sessions[0].exited.at,
     queryPersistedAfterAppRestart:
       observations.afterAppRestart.graphOptionsSearch === expected.search &&
       observations.afterAppRestart.searchInputValue === expected.search,
-    filteredNodesAfterAppRestart: exactNodeIds(observations.afterAppRestart),
+    filteredNodesAfterAppRestart: exactNodeIds(
+      observations.afterAppRestart,
+      expectedAfterActionNodeIds
+    ),
     ...(nodeMenuProbe
       ? {
           nodeContextMenuOpened: observations.nodeContextMenu.items.length > 0,
@@ -1432,7 +1636,75 @@ async function main() {
                     nodeContextMenuClosedAfterAction:
                       observations.attachmentNewWindow.sourceAfter.menuClosed === true
                   }
-              : {})
+                : attachmentMoveProbe
+                  ? {
+                      attachmentMoveDialogOpened:
+                        observations.attachmentMove.dialog.text.length > 0,
+                      attachmentMoveDialogClosed:
+                        observations.attachmentMove.dialogClosed === true,
+                      nodeContextMenuClosedAfterAction:
+                        observations.attachmentMove.menuClosed === true,
+                      attachmentMoveOutcomeSafe:
+                        attachmentMoveScenario === 'success'
+                          ? observations.attachmentMove.before.sourceExists === true &&
+                            observations.attachmentMove.before.destinationExists === false &&
+                            observations.attachmentMove.after.sourceExists === false &&
+                            observations.attachmentMove.after.destinationExists === true
+                          : attachmentMoveScenario === 'collision'
+                            ? observations.attachmentMove.before.sourceExists === true &&
+                              observations.attachmentMove.before.destinationExists === true &&
+                              observations.attachmentMove.before.collisionDestinationExists === false &&
+                              observations.attachmentMove.after.sourceExists === false &&
+                              observations.attachmentMove.after.destinationExists === true &&
+                              observations.attachmentMove.after.collisionDestinationExists === true &&
+                              observations.attachmentMove.after.homeContent ===
+                                observations.attachmentMove.before.homeContent
+                            : observations.attachmentMove.before.sourceExists === true &&
+                              observations.attachmentMove.after.sourceExists === true &&
+                              observations.attachmentMove.after.destinationExists ===
+                                observations.attachmentMove.before.destinationExists &&
+                              observations.attachmentMove.after.homeContent ===
+                                observations.attachmentMove.before.homeContent,
+                      attachmentMoveLinkTextPreserved:
+                        observations.attachmentMove.after.homeContent ===
+                        observations.attachmentMove.before.homeContent,
+                      movedAttachmentLinkBecameUnresolved:
+                        attachmentMoveScenario === 'cancel' ||
+                        observations.afterGraphReopen.metadataUnresolvedLinks.some(
+                          (link) =>
+                            link.source === '00_Home.md' &&
+                            link.target === 'attachments/diagram.svg' &&
+                            link.count === 1
+                        ),
+                      movedAttachmentDestinationIsOrphan:
+                        attachmentMoveScenario === 'cancel' ||
+                        observations.afterGraphReopen.renderedLinks.every((link) => {
+                          const destination =
+                            attachmentMoveScenario === 'collision'
+                              ? '20_knowledge/diagram 1.svg'
+                              : '20_knowledge/diagram.svg'
+                          return link.source !== destination && link.target !== destination
+                        }),
+                      collisionDestinationPreserved:
+                        attachmentMoveScenario !== 'collision' ||
+                        protectedBefore.files.find(
+                          (file) => file.path === '20_knowledge/diagram.svg'
+                        )?.sha256 === protectedAfter.files.find(
+                          (file) => file.path === '20_knowledge/diagram.svg'
+                        )?.sha256,
+                      movedAttachmentBytesPreserved:
+                        attachmentMoveScenario === 'cancel' ||
+                        protectedBefore.files.find(
+                          (file) => file.path === 'attachments/diagram.svg'
+                        )?.sha256 === protectedAfter.files.find(
+                          (file) => file.path === (
+                            attachmentMoveScenario === 'collision'
+                              ? '20_knowledge/diagram 1.svg'
+                              : '20_knowledge/diagram.svg'
+                          )
+                        )?.sha256
+                    }
+                  : {})
         }
       : {}),
     ...(cameraProbe
@@ -1472,13 +1744,17 @@ async function main() {
       (session) => session.isolation.bounds.x === -32000 && session.isolation.bounds.y === -32000
     ),
     sourceUnchanged: sourceBefore.combinedSha256 === sourceAfter.combinedSha256,
-    isolatedVaultProtectedFilesUnchanged:
-      protectedBefore.combinedSha256 === protectedAfter.combinedSha256,
+    isolatedVaultProtectedFilesExpected:
+      attachmentMoveProbe && attachmentMoveScenario !== 'cancel'
+        ? protectedBefore.combinedSha256 !== protectedAfter.combinedSha256
+        : protectedBefore.combinedSha256 === protectedAfter.combinedSha256,
     protocolRestored
   }
   const manifest = {
     capturedAt: new Date().toISOString(),
-    stage: attachmentNewWindowProbe
+    stage: attachmentMoveProbe
+      ? 'GP0-3b-j Obsidian Global Graph attachment file-move probe'
+      : attachmentNewWindowProbe
       ? 'GP0-3b-i Obsidian Global Graph attachment new-window probe'
       : attachmentNewTabProbe
       ? 'GP0-3b-h Obsidian Global Graph attachment new-tab probe'
@@ -1502,6 +1778,8 @@ async function main() {
       nodeNewTabProbe,
       attachmentNewTabProbe,
       attachmentNewWindowProbe,
+      attachmentMoveProbe,
+      attachmentMoveScenario: attachmentMoveProbe ? attachmentMoveScenario : null,
       lifecycle: ['entry', 'graph-close-reopen', 'full-app-restart'],
       fixture: relative(repoRoot, fixtureDirectory).replaceAll('\\', '/'),
       isolatedVault: relative(repoRoot, vaultDirectory).replaceAll('\\', '/'),
@@ -1531,6 +1809,7 @@ async function main() {
     nodeNewTab: observations.nodeNewTab ?? null,
     attachmentNewTab: observations.attachmentNewTab ?? null,
     attachmentNewWindow: observations.attachmentNewWindow ?? null,
+    attachmentMove: observations.attachmentMove ?? null,
     protection: {
       sourceBefore,
       sourceAfter,
@@ -1562,7 +1841,7 @@ async function main() {
         attachmentNewTab: observations.attachmentNewTab ?? null,
         observation: manifest.scope.observation,
         sourceUnchanged: assertions.sourceUnchanged,
-        isolatedVaultProtectedFilesUnchanged: assertions.isolatedVaultProtectedFilesUnchanged,
+        isolatedVaultProtectedFilesExpected: assertions.isolatedVaultProtectedFilesExpected,
         protocolRestored: assertions.protocolRestored
       },
       null,

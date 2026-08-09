@@ -18,18 +18,30 @@ const attachmentNewTabProbe =
 const attachmentNewWindowProbe =
   process.argv.includes('--attachment-new-window') ||
   process.env.TSUZUNE_GRAPH_ATTACHMENT_NEW_WINDOW_PROBE === '1'
+const attachmentMoveProbe =
+  process.argv.includes('--attachment-move') ||
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_MOVE_PROBE === '1'
+const attachmentMoveScenario =
+  process.argv.find((argument) => argument.startsWith('--move-scenario='))?.split('=')[1] ||
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_MOVE_SCENARIO ||
+  'success'
+if (!['cancel', 'success', 'collision'].includes(attachmentMoveScenario)) {
+  throw new Error('--move-scenario は cancel、success、collision のいずれかを指定してください。')
+}
 const nodeNewTabProbe =
   workspaceTabProbe ||
   process.argv.includes('--node-new-tab') ||
   process.env.TSUZUNE_GRAPH_NODE_NEW_TAB_PROBE === '1'
 const nodeMenuProbe =
-  nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe ||
+  nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe ||
   process.argv.includes('--node-menu') ||
   process.env.TSUZUNE_GRAPH_NODE_MENU_PROBE === '1'
-if ([cameraProbe, nodeDragProbe, nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe, nodeNewTabProbe, attachmentNewTabProbe, attachmentNewWindowProbe].filter(Boolean).length > 1) {
-  throw new Error('--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window は同時に指定できません。')
+if ([cameraProbe, nodeDragProbe, nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe, nodeNewTabProbe, attachmentNewTabProbe, attachmentNewWindowProbe, attachmentMoveProbe].filter(Boolean).length > 1) {
+  throw new Error('--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move は同時に指定できません。')
 }
-const probeKind = attachmentNewWindowProbe
+const probeKind = attachmentMoveProbe
+  ? `attachment-file-move-${attachmentMoveScenario}`
+  : attachmentNewWindowProbe
   ? 'attachment-new-window'
   : attachmentNewTabProbe
   ? 'attachment-new-tab'
@@ -47,7 +59,9 @@ const probeKind = attachmentNewWindowProbe
 const sourceFixture = resolve(repoRoot, 'fixtures/obsidian-graph-parity-vault')
 const workRoot = resolve(
   repoRoot,
-  probeKind === 'attachment-new-window'
+  attachmentMoveProbe
+    ? `work/graph-gp0-attachment-file-move-${attachmentMoveScenario}-working-tree`
+    : probeKind === 'attachment-new-window'
     ? 'work/graph-gp0-attachment-new-window-working-tree'
     : probeKind === 'attachment-new-tab'
     ? 'work/graph-gp0-attachment-new-tab-working-tree'
@@ -67,7 +81,9 @@ const vault = resolve(workRoot, 'vault')
 const userData = resolve(workRoot, 'userdata')
 const outputRoot = resolve(
   repoRoot,
-  probeKind === 'attachment-new-window'
+  attachmentMoveProbe
+    ? `docs/reports/assets/graph-gp0-attachment-file-move/${attachmentMoveScenario}/tsuzune-working-tree`
+    : probeKind === 'attachment-new-window'
     ? 'docs/reports/assets/graph-gp0-attachment-new-window/tsuzune-working-tree'
     : probeKind === 'attachment-new-tab'
     ? 'docs/reports/assets/graph-gp0-attachment-new-tab/tsuzune-working-tree'
@@ -98,7 +114,15 @@ const expectedCameraNodePaths = [
   '80_excluded/Hidden.md',
   '90_orphan/Orphan.md',
   'Missing Note.md'
-].concat(attachmentNewTabProbe || attachmentNewWindowProbe ? ['attachments/diagram.svg'] : []).sort(ordinal)
+].concat(
+  attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe
+    ? ['attachments/diagram.svg']
+    : []
+).concat(
+  attachmentMoveProbe && attachmentMoveScenario === 'collision'
+    ? ['20_knowledge/diagram.svg']
+    : []
+).sort(ordinal)
 const workerPhase = process.env.TSUZUNE_GRAPH_SEARCH_RESTART_PHASE
 
 function stage(message) {
@@ -189,6 +213,33 @@ async function fileDigest(path) {
   return {
     bytes: bytes.length,
     sha256: createHash('sha256').update(bytes).digest('hex').toUpperCase()
+  }
+}
+
+async function optionalFileState(path) {
+  const info = await stat(path).catch(() => null)
+  if (!info?.isFile()) return { exists: false }
+  return {
+    exists: true,
+    ...(await fileDigest(path)),
+    birthtime: info.birthtime.toISOString(),
+    mtime: info.mtime.toISOString()
+  }
+}
+
+async function attachmentMoveVaultState() {
+  const homePath = resolve(vault, '00_Home.md')
+  return {
+    source: await optionalFileState(resolve(vault, 'attachments/diagram.svg')),
+    destination: await optionalFileState(resolve(vault, '20_knowledge/diagram.svg')),
+    numberedDestination: await optionalFileState(
+      resolve(vault, '20_knowledge/diagram 1.svg')
+    ),
+    home: {
+      ...(await optionalFileState(homePath)),
+      content: await readFile(homePath, 'utf8')
+    },
+    files: (await listFiles(vault)).map((file) => file.relativePath)
   }
 }
 
@@ -370,6 +421,13 @@ async function graphState(window) {
       nodePaths: [...document.querySelectorAll('button.wiki-graph-node')]
         .map((node) => node.title)
         .sort(),
+      nodeDetails: [...document.querySelectorAll('button.wiki-graph-node')]
+        .map((node) => ({
+          path: node.title,
+          ariaLabel: node.getAttribute('aria-label'),
+          classes: [...node.classList].sort()
+        }))
+        .sort((left, right) => left.path.localeCompare(right.path)),
       edgeCount: Number(document.querySelector('canvas.wiki-graph-edges')?.dataset.edgeCount ?? 0),
       stageTransform: document.querySelector('.wiki-graph-stage')?.style.transform ?? '',
       targetNode: targetButton && targetBounds
@@ -667,6 +725,180 @@ async function closeNodeContextMenu(window) {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     return !document.querySelector('.wiki-graph-context-menu')
   })()`)
+}
+
+function expectedAttachmentMoveNodePaths(stageName) {
+  const paths = [
+    '00_Home.md',
+    '10_projects/Project Alpha.md',
+    '10_projects/Project Beta.md',
+    '20_knowledge/Distillation.md',
+    '20_knowledge/Reference.md',
+    '80_excluded/Hidden.md',
+    '90_orphan/Orphan.md',
+    'Missing Note.md',
+    'attachments/diagram.svg'
+  ]
+  if (attachmentMoveScenario === 'collision') {
+    paths.push('20_knowledge/diagram.svg')
+  }
+  if (stageName === 'after' && attachmentMoveScenario === 'success') {
+    paths.push('20_knowledge/diagram.svg')
+  }
+  if (stageName === 'after' && attachmentMoveScenario === 'collision') {
+    paths.push('20_knowledge/diagram 1.svg')
+  }
+  return paths.sort(ordinal)
+}
+
+async function waitForAttachmentMoveGraph(window, stageName) {
+  const expectedPaths = expectedAttachmentMoveNodePaths(stageName)
+  const deadline = Date.now() + 15_000
+  let previous = ''
+  let stableSamples = 0
+  while (Date.now() < deadline) {
+    const state = await graphState(window)
+    const oldAttachment = state.nodeDetails.find(
+      (node) => node.path === 'attachments/diagram.svg'
+    )
+    const oldAttachmentResolved = oldAttachment?.ariaLabel?.includes('添付書類') === true
+    const oldAttachmentExpectedResolved = stageName === 'before' || attachmentMoveScenario === 'cancel'
+    const signature = JSON.stringify({
+      nodePaths: state.nodePaths,
+      nodeDetails: state.nodeDetails,
+      edgeCount: state.edgeCount
+    })
+    stableSamples =
+      JSON.stringify(state.nodePaths) === JSON.stringify(expectedPaths) &&
+      oldAttachmentResolved === oldAttachmentExpectedResolved &&
+      signature === previous
+        ? stableSamples + 1
+        : 0
+    if (stableSamples >= 3) return state
+    previous = signature
+    await delay(200)
+  }
+  throw new Error(
+    `添付移動${stageName}のGraph node集合が安定しませんでした: ${JSON.stringify({
+      expectedPaths,
+      actual: await graphState(window)
+    })}`
+  )
+}
+
+async function observeMoveDialog(window) {
+  return evaluate(window, `new Promise((resolve, reject) => {
+    const deadline = performance.now() + 5000
+    const check = () => {
+      const dialog = document.querySelector('[role="dialog"][aria-labelledby="move-dialog-title"]')
+      if (dialog instanceof HTMLFormElement) {
+        const select = dialog.querySelector('select[name="directory"]')
+        const active = document.activeElement
+        resolve({
+          title: dialog.querySelector('#move-dialog-title')?.textContent?.trim() ?? null,
+          description: dialog.querySelector('#move-dialog-description')?.textContent?.trim() ?? null,
+          selectedDirectory: select instanceof HTMLSelectElement ? select.value : null,
+          directories: select instanceof HTMLSelectElement
+            ? [...select.options].map((option) => ({ text: option.text, value: option.value }))
+            : [],
+          buttons: [...dialog.querySelectorAll('button')].map((button) => ({
+            text: button.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+            type: button.type,
+            disabled: button.disabled
+          })),
+          activeElement: active instanceof HTMLElement
+            ? { tagName: active.tagName, name: active.getAttribute('name'), text: active.textContent?.trim() ?? '' }
+            : null
+        })
+        return
+      }
+      if (performance.now() >= deadline) {
+        reject(new Error('ファイル移動dialogが5秒以内に開きませんでした。'))
+        return
+      }
+      requestAnimationFrame(check)
+    }
+    check()
+  })`)
+}
+
+async function waitForAttachmentMoveOutcome(window) {
+  const deadline = Date.now() + 15_000
+  let latest = null
+  while (Date.now() < deadline) {
+    const files = await attachmentMoveVaultState()
+    const ui = await evaluate(window, `({
+      dialogOpen: Boolean(document.querySelector('[role="dialog"][aria-labelledby="move-dialog-title"]')),
+      contextMenuOpen: Boolean(document.querySelector('.wiki-graph-context-menu')),
+      message: document.querySelector('.message-banner[role="status"] span')?.textContent?.trim() ?? null,
+      globalGraphVisible: Boolean(document.querySelector('.wiki-graph-view[aria-label="Vault全体グラフ"]'))
+    })`)
+    latest = { files, ui }
+    const complete = attachmentMoveScenario === 'cancel'
+      ? files.source.exists && !files.destination.exists && !ui.dialogOpen
+      : attachmentMoveScenario === 'success'
+        ? !files.source.exists && files.destination.exists && !ui.dialogOpen
+        : !files.source.exists && files.destination.exists && files.numberedDestination.exists && !ui.dialogOpen
+    if (complete) return latest
+    await delay(100)
+  }
+  throw new Error(`添付移動${attachmentMoveScenario}の完了を確認できませんでした: ${JSON.stringify(latest)}`)
+}
+
+async function activateAttachmentMove(window) {
+  const before = await attachmentMoveVaultState()
+  await evaluate(window, `(() => {
+    const item = [...document.querySelectorAll('.wiki-graph-context-menu [role="menuitem"]')]
+      .find((candidate) => candidate.textContent?.replace(/\\s+/g, ' ').trim() === 'ファイルを移動…')
+    if (!(item instanceof HTMLButtonElement) || item.disabled) {
+      throw new Error('有効な「ファイルを移動…」が見つかりません。')
+    }
+    item.click()
+  })()`)
+  const dialog = await observeMoveDialog(window)
+  await evaluate(window, `new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve))
+  })`)
+  const dialogScreenshot = await capture(window, '02-move-dialog.png')
+
+  await evaluate(window, `(() => {
+    const dialog = document.querySelector('[role="dialog"][aria-labelledby="move-dialog-title"]')
+    if (!(dialog instanceof HTMLFormElement)) throw new Error('ファイル移動dialogが見つかりません。')
+    if (${JSON.stringify(attachmentMoveScenario)} === 'cancel') {
+      const cancel = [...dialog.querySelectorAll('button')].find(
+        (button) => button.textContent?.trim() === 'キャンセル'
+      )
+      if (!(cancel instanceof HTMLButtonElement)) throw new Error('キャンセルbuttonが見つかりません。')
+      cancel.click()
+      return
+    }
+    const select = dialog.querySelector('select[name="directory"]')
+    if (!(select instanceof HTMLSelectElement)) throw new Error('移動先selectが見つかりません。')
+    select.value = '20_knowledge'
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+    const submit = [...dialog.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === '移動'
+    )
+    if (!(submit instanceof HTMLButtonElement)) throw new Error('移動buttonが見つかりません。')
+    submit.click()
+  })()`)
+
+  const outcome = await waitForAttachmentMoveOutcome(window)
+  const graphAfterAction = await waitForAttachmentMoveGraph(window, 'after')
+  await delay(200)
+  const actionScreenshot = await capture(
+    window,
+    `03-after-${attachmentMoveScenario}.png`
+  )
+  return {
+    scenario: attachmentMoveScenario,
+    before,
+    dialog,
+    after: outcome.files,
+    uiAfterAction: outcome.ui,
+    graphAfterAction,
+    screenshots: [dialogScreenshot, actionScreenshot]
+  }
 }
 
 async function activateNodeNewTab(window, expectedKind = 'note') {
@@ -1014,12 +1246,13 @@ async function runWorker(phase) {
     if (phase === 'initial') {
       await ensureGlobalGraphControls(window)
       await fillSearch(window, query)
-      if (attachmentNewTabProbe || attachmentNewWindowProbe) {
+      if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe) {
         await setGraphAttachmentsVisible(window, true)
         await ensureGlobalGraphControls(window)
         await fillSearch(window, query)
       }
       let baseline = await waitForStableGraph(window, query)
+      if (attachmentMoveProbe) baseline = await waitForAttachmentMoveGraph(window, 'before')
       if (nodeDragProbe || nodeMenuProbe) baseline = await waitForTargetNodeStability(window)
       const baselineScreenshot = cameraProbe || nodeDragProbe || nodeMenuProbe
         ? await capture(window, '00-baseline.png')
@@ -1034,6 +1267,7 @@ async function runWorker(phase) {
       let attachmentContextMenu = null
       let attachmentNewTab = null
       let attachmentNewWindow = null
+      let attachmentMove = null
       if (cameraProbe) {
         input = await applyCameraInput(window)
       } else if (nodeDragProbe) {
@@ -1052,13 +1286,13 @@ async function runWorker(phase) {
       if (nodeMenuProbe) {
         const openedMenu = await openNodeContextMenu(
           window,
-          attachmentNewTabProbe || attachmentNewWindowProbe
+          attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe
             ? 'attachments/diagram.svg'
             : drag.targetNodePath
         )
         input = openedMenu.input
         nodeContextMenu = openedMenu.menu
-        if (attachmentNewTabProbe || attachmentNewWindowProbe) {
+        if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe) {
           attachmentContextMenu = openedMenu.menu
         }
       }
@@ -1119,12 +1353,16 @@ async function runWorker(phase) {
         graphWorkspaceTabScreenshot = await capture(window, '03-returned-global-graph.png')
       } else if (attachmentNewWindowProbe) {
         attachmentNewWindow = await activateAttachmentNewWindow(window, BrowserWindow)
+      } else if (attachmentMoveProbe) {
+        attachmentMove = await activateAttachmentMove(window)
       }
       const settingsAfterInput = cameraProbe
         ? await waitForSavedScale(cameraFromState(entered).scale)
         : await waitForSavedQuery(query)
 
-      if (nodeMenuProbe && !nodeNewTabProbe) await closeNodeContextMenu(window)
+      if (nodeMenuProbe && !nodeNewTabProbe && !attachmentMoveProbe) {
+        await closeNodeContextMenu(window)
+      }
 
       await clickButton(window, '編集')
       const graphClosed = await evaluate(
@@ -1135,10 +1373,13 @@ async function runWorker(phase) {
 
       await ensureGlobalGraphControls(window)
       let reopened = await waitForStableGraph(window, query)
+      if (attachmentMoveProbe) reopened = await waitForAttachmentMoveGraph(window, 'after')
       if (nodeDragProbe || nodeMenuProbe) reopened = await waitForTargetNodeStability(window)
       const reopenedScreenshot = await capture(
         window,
-        nodeMenuProbe
+        attachmentMoveProbe
+          ? '04-after-graph-reopen.png'
+          : nodeMenuProbe
           ? '02-after-graph-reopen.png'
           : nodeDragProbe
           ? '03-after-graph-reopen.png'
@@ -1150,7 +1391,10 @@ async function runWorker(phase) {
         assertFilteredState(entered, 'query入力直後')
         assertFilteredState(reopened, 'Graph再表示後')
       }
-      if (JSON.stringify(entered.nodePaths) !== JSON.stringify(reopened.nodePaths)) {
+      const graphBeforeReopen = attachmentMoveProbe
+        ? attachmentMove.graphAfterAction
+        : entered
+      if (JSON.stringify(graphBeforeReopen.nodePaths) !== JSON.stringify(reopened.nodePaths)) {
         throw new Error('Graph再表示後に検索node集合が変化しました。')
       }
       await writeFile(
@@ -1171,6 +1415,7 @@ async function runWorker(phase) {
           attachmentContextMenu,
           attachmentNewTab,
           attachmentNewWindow,
+          attachmentMove,
           entered,
           reopened,
           settingsGraphViewState: settingsAfterInput.graphViewStates.vault,
@@ -1182,6 +1427,7 @@ async function runWorker(phase) {
             attachmentContextMenuScreenshot,
             attachmentNewTabScreenshot,
             attachmentNewWindow?.screenshot ?? null,
+            ...(attachmentMove?.screenshots ?? []),
             reopenedScreenshot
           ].filter(Boolean)
         }, null, 2)}\n`,
@@ -1190,10 +1436,13 @@ async function runWorker(phase) {
     } else if (phase === 'restarted') {
       await ensureGlobalGraphControls(window)
       let restarted = await waitForStableGraph(window, query)
+      if (attachmentMoveProbe) restarted = await waitForAttachmentMoveGraph(window, 'after')
       if (nodeDragProbe || nodeMenuProbe) restarted = await waitForTargetNodeStability(window)
       const restartedScreenshot = await capture(
         window,
-        nodeMenuProbe
+        attachmentMoveProbe
+          ? '05-after-app-restart.png'
+          : nodeMenuProbe
           ? '03-after-app-restart.png'
           : nodeDragProbe
           ? '04-after-app-restart.png'
@@ -1271,6 +1520,8 @@ function runWorkerProcess(phase) {
         TSUZUNE_GRAPH_WORKSPACE_TAB_PROBE: workspaceTabProbe ? '1' : '',
         TSUZUNE_GRAPH_ATTACHMENT_NEW_TAB_PROBE: attachmentNewTabProbe ? '1' : '',
         TSUZUNE_GRAPH_ATTACHMENT_NEW_WINDOW_PROBE: attachmentNewWindowProbe ? '1' : '',
+        TSUZUNE_GRAPH_ATTACHMENT_MOVE_PROBE: attachmentMoveProbe ? '1' : '',
+        TSUZUNE_GRAPH_ATTACHMENT_MOVE_SCENARIO: attachmentMoveScenario,
         TSUZUNE_GRAPH_SEARCH_RESTART_PHASE: phase
       }
     }
@@ -1308,6 +1559,13 @@ async function runController() {
   await mkdir(userData, { recursive: true })
   await mkdir(outputRoot, { recursive: true })
   await cp(sourceFixture, vault, { recursive: true })
+  if (attachmentMoveProbe && attachmentMoveScenario === 'collision') {
+    await writeFile(
+      resolve(vault, '20_knowledge/diagram.svg'),
+      '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90"><text x="8" y="45">collision sentinel</text></svg>\n',
+      'utf8'
+    )
+  }
   await writeFile(
     settingsPath,
     `${JSON.stringify({ lastVaultPath: vault, lastNotePath: '00_Home.md' }, null, 2)}\n`,
@@ -1318,7 +1576,8 @@ async function runController() {
     sourceFixture: await treeDigest(sourceFixture),
     productSource: await selectedProductSourceDigest(),
     builtApplication: await treeDigest(resolve(repoRoot, 'out')),
-    isolatedMarkdown: await treeDigest(vault, { extension: '.md' })
+    isolatedMarkdown: await treeDigest(vault, { extension: '.md' }),
+    isolatedVault: await treeDigest(vault)
   }
   const repository = gitIdentity()
 
@@ -1326,6 +1585,8 @@ async function runController() {
     stage(
       nodeDragProbe
         ? 'node drag入力とGraph再表示をcaptureします。'
+        : attachmentMoveProbe
+          ? `添付ファイル移動（${attachmentMoveScenario}）とGraph再表示をcaptureします。`
         : nodeMenuProbe
           ? 'node context menuとGraph再表示をcaptureします。'
         : cameraProbe
@@ -1344,7 +1605,8 @@ async function runController() {
     sourceFixture: await treeDigest(sourceFixture),
     productSource: await selectedProductSourceDigest(),
     builtApplication: await treeDigest(resolve(repoRoot, 'out')),
-    isolatedMarkdown: await treeDigest(vault, { extension: '.md' })
+    isolatedMarkdown: await treeDigest(vault, { extension: '.md' }),
+    isolatedVault: await treeDigest(vault)
   }
   const initial = JSON.parse(await readFile(resolve(outputRoot, 'phase-initial.json'), 'utf8'))
   const restarted = JSON.parse(await readFile(resolve(outputRoot, 'phase-restarted.json'), 'utf8'))
@@ -1400,6 +1662,15 @@ async function runController() {
   const attachmentNewWindowContract = attachmentNewWindowProbe
     ? initial.attachmentNewWindow
     : null
+  const attachmentMoveContract = attachmentMoveProbe ? initial.attachmentMove : null
+  const postActionGraph = attachmentMoveContract?.graphAfterAction ?? initial.entered
+  const sameDigest = (left, right) =>
+    left?.exists === true &&
+    right?.exists === true &&
+    left.bytes === right.bytes &&
+    left.sha256 === right.sha256
+  const attachmentNodeIsResolved = (state, path) =>
+    state?.nodeDetails?.find((node) => node.path === path)?.ariaLabel?.includes('添付書類') === true
 
   const sharedAssertions = {
     contentViewportStable: [
@@ -1412,7 +1683,7 @@ async function runController() {
         bounds.devicePixelRatio === 1
     ),
     filteredNodeSetStable:
-      JSON.stringify(initial.entered.nodePaths) === JSON.stringify(initial.reopened.nodePaths) &&
+      JSON.stringify(postActionGraph.nodePaths) === JSON.stringify(initial.reopened.nodePaths) &&
       JSON.stringify(initial.reopened.nodePaths) === JSON.stringify(restarted.restarted.nodePaths),
     separateApplicationProcesses: initial.processId !== restarted.processId,
     sourceFixtureUnchanged:
@@ -1427,6 +1698,10 @@ async function runController() {
     isolatedMarkdownUnchanged:
       protectionBefore.isolatedMarkdown.combinedSha256 ===
       protectionAfter.isolatedMarkdown.combinedSha256,
+    isolatedVaultChangedOnlyWhenMoving:
+      (protectionBefore.isolatedVault.combinedSha256 ===
+        protectionAfter.isolatedVault.combinedSha256) ===
+      (attachmentMoveScenario === 'cancel' || !attachmentMoveProbe),
     noIsolatedProcessesRemaining: processesUsingCommandLineFragment(userData).length === 0
   }
   const assertions = nodeDragProbe
@@ -1454,6 +1729,111 @@ async function runController() {
         nodePositionNotPersistedInSettings: nodeDragContract.nodePositionAbsentFromSettings,
         ...sharedAssertions
       }
+    : attachmentMoveProbe
+      ? {
+          exactNodeSetBeforeAction:
+            JSON.stringify(initial.baseline.nodePaths) ===
+              JSON.stringify(expectedAttachmentMoveNodePaths('before')) &&
+            JSON.stringify(initial.entered.nodePaths) ===
+              JSON.stringify(expectedAttachmentMoveNodePaths('before')),
+          exactNodeSetAfterActionAndRestart: [
+            attachmentMoveContract.graphAfterAction,
+            initial.reopened,
+            restarted.restarted
+          ].every(
+            (state) =>
+              JSON.stringify(state.nodePaths) ===
+              JSON.stringify(expectedAttachmentMoveNodePaths('after'))
+          ),
+          attachmentEdgeCountStable: [
+            initial.entered,
+            attachmentMoveContract.graphAfterAction,
+            initial.reopened,
+            restarted.restarted
+          ].every((state) => state.edgeCount === initial.baseline.edgeCount),
+          attachmentContextMenuOpened: Boolean(initial.attachmentContextMenu?.items?.length),
+          moveMenuItemInExpectedOrder:
+            initial.attachmentContextMenu?.items?.findIndex(
+              (item) => item.text === 'ファイルを移動…'
+            ) === 2,
+          moveDialogRecorded:
+            attachmentMoveContract.dialog?.title === 'ファイルを移動' &&
+            attachmentMoveContract.dialog?.description === 'attachments/diagram.svg' &&
+            attachmentMoveContract.dialog?.directories?.some(
+              (directory) => directory.value === '20_knowledge'
+            ) === true &&
+            attachmentMoveContract.dialog?.buttons?.some(
+              (button) => button.text === 'キャンセル'
+            ) === true &&
+            attachmentMoveContract.dialog?.buttons?.some(
+              (button) => button.text === '移動'
+            ) === true,
+          dialogAndContextMenuClosed:
+            attachmentMoveContract.uiAfterAction?.dialogOpen === false &&
+            attachmentMoveContract.uiAfterAction?.contextMenuOpen === false,
+          globalGraphRemainedVisible:
+            attachmentMoveContract.uiAfterAction?.globalGraphVisible === true,
+          homeEmbedUnchanged:
+            attachmentMoveContract.before.home.content ===
+            attachmentMoveContract.after.home.content,
+          sourceAndDestinationMatchScenario:
+            attachmentMoveScenario === 'cancel'
+              ? sameDigest(
+                  attachmentMoveContract.before.source,
+                  attachmentMoveContract.after.source
+                ) &&
+                attachmentMoveContract.after.destination.exists === false &&
+                attachmentMoveContract.after.numberedDestination.exists === false
+              : attachmentMoveScenario === 'success'
+                ? attachmentMoveContract.after.source.exists === false &&
+                  sameDigest(
+                    attachmentMoveContract.before.source,
+                    attachmentMoveContract.after.destination
+                  ) &&
+                  attachmentMoveContract.after.numberedDestination.exists === false
+                : attachmentMoveContract.after.source.exists === false &&
+                  sameDigest(
+                    attachmentMoveContract.before.destination,
+                    attachmentMoveContract.after.destination
+                  ) &&
+                  sameDigest(
+                    attachmentMoveContract.before.source,
+                    attachmentMoveContract.after.numberedDestination
+                  ),
+          oldAttachmentResolutionMatchesScenario:
+            attachmentNodeIsResolved(initial.baseline, 'attachments/diagram.svg') &&
+            (attachmentMoveScenario === 'cancel'
+              ? [
+                  attachmentMoveContract.graphAfterAction,
+                  initial.reopened,
+                  restarted.restarted
+                ].every((state) =>
+                  attachmentNodeIsResolved(state, 'attachments/diagram.svg')
+                )
+              : [
+                  attachmentMoveContract.graphAfterAction,
+                  initial.reopened,
+                  restarted.restarted
+                ].every((state) =>
+                  !attachmentNodeIsResolved(state, 'attachments/diagram.svg')
+                )),
+          movedAttachmentsResolved:
+            attachmentMoveScenario === 'cancel'
+              ? true
+              : [
+                  attachmentMoveContract.graphAfterAction,
+                  initial.reopened,
+                  restarted.restarted
+                ].every((state) =>
+                  attachmentNodeIsResolved(
+                    state,
+                    attachmentMoveScenario === 'collision'
+                      ? '20_knowledge/diagram 1.svg'
+                      : '20_knowledge/diagram.svg'
+                  )
+                ),
+          ...sharedAssertions
+        }
     : nodeMenuProbe
       ? {
           exactNodeSetAtEveryCheckpoint: [
@@ -1583,12 +1963,15 @@ async function runController() {
     nodeNewTabProbe,
     attachmentNewTabProbe,
     attachmentNewWindowProbe,
+    attachmentMoveProbe,
+    attachmentMoveScenario: attachmentMoveProbe ? attachmentMoveScenario : null,
     cameraContract,
     nodeDragContract,
     nodeMenuContract,
     nodeNewTabContract,
     attachmentNewTabContract,
     attachmentNewWindowContract,
+    attachmentMoveContract,
     repository,
     initial,
     restarted,
@@ -1603,7 +1986,16 @@ async function runController() {
   )
 
   const artifactPaths = [
-    ...(nodeDragProbe
+    ...(attachmentMoveProbe
+      ? [
+          '00-baseline.png',
+          '01-node-context-menu.png',
+          '02-move-dialog.png',
+          `03-after-${attachmentMoveScenario}.png`,
+          '04-after-graph-reopen.png',
+          '05-after-app-restart.png'
+        ]
+      : nodeDragProbe
       ? [
           '00-baseline.png',
           '01-during-node-drag.png',
@@ -1668,7 +2060,9 @@ async function runController() {
   ].map((name) => resolve(outputRoot, name))
   const manifest = {
     capturedAt: observation.capturedAt,
-    stage: nodeDragProbe
+    stage: attachmentMoveProbe
+      ? `GP0-3b-j Global Graph attachment file move (${attachmentMoveScenario}) working-tree evidence`
+      : nodeDragProbe
       ? 'GP0-3b-d Global Graph node drag lifecycle working-tree evidence'
       : attachmentNewWindowProbe
         ? 'GP0-3b-i Global Graph attachment new-window working-tree evidence'
@@ -1684,7 +2078,9 @@ async function runController() {
         ? 'GP0-3b-c Global Graph camera persistence working-tree evidence'
         : 'GP0-3b Global Graph search persistence working-tree evidence',
     status: completed ? 'captured' : 'failed',
-    comparisonStatus: nodeDragProbe
+    comparisonStatus: attachmentMoveProbe
+      ? `Compare with docs/reports/assets/graph-gp0-attachment-file-move/${attachmentMoveScenario}/obsidian-1.13.4/observation.json`
+      : nodeDragProbe
       ? 'Compare with docs/reports/assets/graph-gp0-node-drag-persistence/comparison.json'
       : attachmentNewWindowProbe
         ? 'Compare with docs/reports/assets/graph-gp0-attachment-new-window/comparison.json'
@@ -1699,7 +2095,9 @@ async function runController() {
       : cameraProbe
         ? 'Compare with docs/reports/assets/graph-gp0-camera-persistence/comparison.json'
         : 'Compare with docs/reports/assets/graph-gp0-search-persistence/comparison.json',
-    command: nodeDragProbe
+    command: attachmentMoveProbe
+      ? `npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-move --move-scenario=${attachmentMoveScenario}`
+      : nodeDragProbe
       ? 'npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --node-drag'
       : attachmentNewWindowProbe
         ? 'npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-new-window'
@@ -1729,7 +2127,9 @@ async function runController() {
     processIds: [initial.processId, restarted.processId],
     assertions,
     artifacts: await Promise.all(artifactPaths.map(artifactSummary)),
-    next: nodeDragProbe
+    next: attachmentMoveProbe
+      ? `Compare the ${attachmentMoveScenario} scenario with the fixed Obsidian 1.13.4 evidence.`
+      : nodeDragProbe
       ? 'Document the observed Obsidian/TSUZUNE node drag lifecycle contract before the next parity slice.'
       : attachmentNewWindowProbe
         ? 'Document the observed Obsidian/TSUZUNE attachment new-window behavior.'

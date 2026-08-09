@@ -36,7 +36,7 @@ describe('MoveDialog keyboard contract', () => {
     opener.focus()
     fireEvent.click(opener)
 
-    const dialog = screen.getByRole('dialog', { name: 'ノートを移動' })
+    const dialog = screen.getByRole('dialog', { name: 'ファイルを移動' })
     const destination = screen.getByRole('combobox', { name: '移動先' })
     expect(dialog.getAttribute('aria-modal')).toBe('true')
     expect(document.activeElement).toBe(destination)
@@ -47,7 +47,7 @@ describe('MoveDialog keyboard contract', () => {
     )
 
     fireEvent.keyDown(dialog, { key: 'Escape' })
-    expect(screen.queryByRole('dialog', { name: 'ノートを移動' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'ファイルを移動' })).toBeNull()
     expect(document.activeElement).toBe(opener)
   })
 })

@@ -1171,7 +1171,7 @@ export default function App(): React.JSX.Element {
     }
   }
 
-  const moveSelectedNote = async (destinationDirectory: string): Promise<void> => {
+  const moveSelectedFile = async (destinationDirectory: string): Promise<void> => {
     const path = movePath
     setMovePath(null)
     if (!path || !snapshot) {
@@ -1207,7 +1207,21 @@ export default function App(): React.JSX.Element {
       }
 
       const next = await refreshSnapshot()
-      setTreeSelection({ kind: 'note', path: result.value.path })
+      setWorkspaceTabs((current) =>
+        current.map((tab) =>
+          tab.kind !== 'global-graph' && tab.path === path
+            ? { ...tab, path: result.value.path }
+            : tab
+        )
+      )
+      setActiveAttachmentPath((current) =>
+        current === path ? result.value.path : current
+      )
+      setTreeSelection((current) =>
+        current?.kind === 'note' && current.path === path
+          ? { ...current, path: result.value.path }
+          : current
+      )
       if (selectedPathRef.current === path) {
         const note = next?.notes.find((candidate) => candidate.path === result.value.path)
         if (note) {
@@ -2229,6 +2243,7 @@ export default function App(): React.JSX.Element {
                     void persistGraphViewState('vault', next)
                   }
                   onSearchTag={searchGraphTag}
+                  onMove={setMovePath}
                   onTrash={(path) => void trashPath(path)}
                   onOpen={openGraphNode}
                   onOpenInNewTab={(path) => void openGraphNodeInNewTab(path)}
@@ -2385,6 +2400,7 @@ export default function App(): React.JSX.Element {
                       void persistGraphViewState(graphScope, next)
                     }
                     onSearchTag={searchGraphTag}
+                    onMove={setMovePath}
                     onTrash={(path) => void trashPath(path)}
                     onOpen={openGraphNode}
                     onOpenInNewTab={(path) => void openGraphNodeInNewTab(path)}
@@ -2441,7 +2457,7 @@ export default function App(): React.JSX.Element {
           directories={snapshot.directories}
           currentDirectory={dirnameRelative(movePath)}
           onCancel={() => setMovePath(null)}
-          onConfirm={(directory) => void moveSelectedNote(directory)}
+          onConfirm={(directory) => void moveSelectedFile(directory)}
         />
       )}
 

@@ -274,7 +274,7 @@ describe('VaultService file operations', () => {
     await expect(access(absolute('作業中/完成.md'))).rejects.toBeDefined()
   })
 
-  it('never overwrites an existing note during rename or move', async () => {
+  it('keeps rename collisions and auto-numbers move collisions without overwriting', async () => {
     await vault.createDirectory({ parent: '', name: '移動先' })
     await vault.createNote({ directory: '', name: '元', content: '元の本文' })
     await vault.createNote({ directory: '', name: '既存', content: '既存の本文' })
@@ -291,13 +291,94 @@ describe('VaultService file operations', () => {
     })
     await expect(
       vault.moveNote({ path: '元.md', destinationDirectory: '移動先' })
-    ).rejects.toMatchObject({
-      appError: { code: 'ALREADY_EXISTS' }
+    ).resolves.toEqual({
+      oldPath: '元.md',
+      path: '移動先/元 1.md'
     })
 
-    expect(await readFile(absolute('元.md'), 'utf8')).toBe('元の本文')
+    await expect(access(absolute('元.md'))).rejects.toBeDefined()
     expect(await readFile(absolute('既存.md'), 'utf8')).toBe('既存の本文')
     expect(await readFile(absolute('移動先/元.md'), 'utf8')).toBe('移動先の本文')
+    expect(await readFile(absolute('移動先/元 1.md'), 'utf8')).toBe('元の本文')
+  })
+
+  it('moves a supported attachment without changing its bytes or Obsidian 1.13.4 embed', async () => {
+    const logicalCreatedAt = 1_650_000_000_000
+    const attachment = Buffer.from([0, 255, 17, 34, 51, 68])
+    const home = '# Home\n\n![[attachments/diagram.svg]]\n'
+    await mkdir(absolute('attachments'), { recursive: true })
+    await mkdir(absolute('20_knowledge'), { recursive: true })
+    await mkdir(absolute('.tsuzune'), { recursive: true })
+    await writeFile(absolute('00_Home.md'), home, 'utf8')
+    await writeFile(absolute('attachments/diagram.svg'), attachment)
+    await writeFile(
+      absolute('.tsuzune/graph-file-times.json'),
+      JSON.stringify({ 'attachments/diagram.svg': logicalCreatedAt }),
+      'utf8'
+    )
+
+    await expect(
+      vault.moveNote({
+        path: 'attachments/diagram.svg',
+        destinationDirectory: '20_knowledge'
+      })
+    ).resolves.toEqual({
+      oldPath: 'attachments/diagram.svg',
+      path: '20_knowledge/diagram.svg'
+    })
+
+    expect(await readFile(absolute('20_knowledge/diagram.svg'))).toEqual(attachment)
+    expect(await readFile(absolute('00_Home.md'), 'utf8')).toBe(home)
+    await expect(access(absolute('attachments/diagram.svg'))).rejects.toBeDefined()
+    expect((await vault.scan()).attachments).toEqual([
+      expect.objectContaining({
+        path: '20_knowledge/diagram.svg',
+        createdAt: logicalCreatedAt,
+        size: attachment.byteLength
+      })
+    ])
+  })
+
+  it('uses the first free numbered attachment path without overwriting', async () => {
+    const logicalCreatedAt = 1_660_000_000_000
+    await mkdir(absolute('attachments'), { recursive: true })
+    await mkdir(absolute('20_knowledge'), { recursive: true })
+    await mkdir(absolute('.tsuzune'), { recursive: true })
+    await writeFile(absolute('attachments/diagram.svg'), 'source-bytes', 'utf8')
+    await writeFile(absolute('20_knowledge/diagram.svg'), 'destination-bytes', 'utf8')
+    await writeFile(absolute('20_knowledge/diagram 1.svg'), 'number-one', 'utf8')
+    await writeFile(
+      absolute('.tsuzune/graph-file-times.json'),
+      JSON.stringify({ 'attachments/diagram.svg': logicalCreatedAt }),
+      'utf8'
+    )
+
+    await expect(
+      vault.moveNote({
+        path: 'attachments/diagram.svg',
+        destinationDirectory: '20_knowledge'
+      })
+    ).resolves.toEqual({
+      oldPath: 'attachments/diagram.svg',
+      path: '20_knowledge/diagram 2.svg'
+    })
+
+    await expect(access(absolute('attachments/diagram.svg'))).rejects.toBeDefined()
+    expect(await readFile(absolute('20_knowledge/diagram.svg'), 'utf8')).toBe(
+      'destination-bytes'
+    )
+    expect(await readFile(absolute('20_knowledge/diagram 1.svg'), 'utf8')).toBe(
+      'number-one'
+    )
+    expect(await readFile(absolute('20_knowledge/diagram 2.svg'), 'utf8')).toBe(
+      'source-bytes'
+    )
+    expect((await vault.scan()).attachments).toContainEqual(
+      expect.objectContaining({
+        path: '20_knowledge/diagram 2.svg',
+        createdAt: logicalCreatedAt
+      })
+    )
   })
 
   it('keeps every deleted version in its own trash batch', async () => {

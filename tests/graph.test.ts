@@ -245,21 +245,70 @@ describe('Wiki graph', () => {
         existingNode('A.md', 'A'),
         attachmentNode('assets/diagram.svg'),
         attachmentNode('media/poster.png'),
+        {
+          path: 'missing.png',
+          name: 'missing.png',
+          kind: 'unresolved',
+          exists: false
+        },
         attachmentNode('orphan.pdf')
       ],
       edges: [
         { sourcePath: 'A.md', targetPath: 'assets/diagram.svg' },
-        { sourcePath: 'A.md', targetPath: 'media/poster.png' }
+        { sourcePath: 'A.md', targetPath: 'media/poster.png' },
+        { sourcePath: 'A.md', targetPath: 'missing.png' }
       ]
     })
     expect(getLocalWikiGraph(shown, 'A.md').nodes).toEqual([
       existingNode('A.md', 'A'),
       attachmentNode('assets/diagram.svg'),
-      attachmentNode('media/poster.png')
+      attachmentNode('media/poster.png'),
+      {
+        path: 'missing.png',
+        name: 'missing.png',
+        kind: 'unresolved',
+        exists: false
+      }
     ])
     expect(getVaultWikiGraph(shown, 'A.md', false).nodes).not.toContainEqual(
       attachmentNode('orphan.pdf')
     )
+  })
+
+  it('keeps missing attachment paths while excluding ambiguous and invalid targets', () => {
+    const notes = [
+      note(
+        'A.md',
+        [
+          '![[attachments/diagram.svg]]',
+          '[[diagram.svg]]',
+          '[[../outside.svg]]'
+        ].join('\n')
+      )
+    ]
+    const graph = buildWikiGraph(notes, {
+      includeAttachments: true,
+      includeUnresolved: true,
+      attachments: [
+        attachment('20_knowledge/diagram.svg'),
+        attachment('other/diagram.svg')
+      ]
+    })
+
+    expect(graph.nodes).toEqual([
+      attachmentNode('20_knowledge/diagram.svg'),
+      existingNode('A.md', 'A'),
+      {
+        path: 'attachments/diagram.svg',
+        name: 'diagram.svg',
+        kind: 'unresolved',
+        exists: false
+      },
+      attachmentNode('other/diagram.svg')
+    ])
+    expect(graph.edges).toEqual([
+      { sourcePath: 'A.md', targetPath: 'attachments/diagram.svg' }
+    ])
   })
 
   it('resolves graph links from an index without rescanning the note array', () => {

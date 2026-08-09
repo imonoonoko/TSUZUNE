@@ -74,6 +74,7 @@ interface WikiGraphViewProps {
   onSearchTag?: (tag: string) => void
   onOpenInNewTab?: (path: string) => void
   onOpenInNewWindow?: (path: string) => void
+  onMove?: (path: string) => void
   onTrash?: (path: string) => void
   onOpen: (path: string) => void
 }
@@ -247,6 +248,7 @@ export default function WikiGraphView({
   onSearchTag = () => undefined,
   onOpenInNewTab,
   onOpenInNewWindow,
+  onMove,
   onTrash,
   onOpen
 }: WikiGraphViewProps): React.JSX.Element {
@@ -1677,6 +1679,21 @@ export default function WikiGraphView({
                 >
                   新規ウィンドウで開く
                 </button>
+                {nodeContextMenu.node.exists !== false &&
+                  nodeContextMenu.node.kind !== 'tag' &&
+                  nodeContextMenu.node.kind !== 'unresolved' && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={!onMove}
+                      onClick={() => {
+                        onMove?.(nodeContextMenu.node.path)
+                        setNodeContextMenu(null)
+                      }}
+                    >
+                      ファイルを移動…
+                    </button>
+                  )}
                 <button
                   type="button"
                   role="menuitem"
