@@ -9,11 +9,11 @@
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
 | インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-10 02:16 JSTにcommit `df9146e`から更新し、O2-P1 Path Alias Foundation、全486 tests、packaged／installed smoke、build／installed hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`。O2-P1をcommit `0aacecf`、Vault検証前の副作用をなくすfail-closed修正をcommit `df9146e`としてpushし、このPCの本番へ反映済み | Git |
-| 直近slice | O2-P1で旧pathをWiki／backlink／Graph／Context／時間情報／MCP／bookmark／起動復元からcanonical pathへ解決する読取基盤を実装。実在する旧pathを優先し、壊れたsidecarは副作用なしでfail-closedにする | [Path Alias契約](docs/path-aliases.md) |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。O2-P1はcommit `0aacecf`／`df9146e`としてpush・本番反映済み。O2-P2のread-only CLI、明示plan、検証証拠はworking treeで完了 | Git |
+| 直近slice | O2-P2で5ノートの分類移行を本番Vaultへ適用せず2回dry-runし、同一manifest、全Vault fingerprint不変、Graph／Wiki／Context同値を確認 | [O2-P2 report](docs/reports/o2-p2-classification-migration-dry-run-2026-08-10.md) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
-| 最優先Track | O2-P2 Classification Migration Dry-run。最小domainの移行manifestとrollback条件を、物理移動なしで固定する | [PLAN.md](PLAN.md#current-transition-queue) |
-| 次の縦切り | Path Alias基盤を前提に、候補path、hash、参照、Graph、MCP、履歴不変、Drive境界をdry-runで検証する | [PLAN.md](PLAN.md) |
+| 最優先Track | v0.6 Obsidian Graph Parity。既定の再開点GP0-3b-mでattachment nodeの`リンクされたビューを開く`を固定比較する | [PLAN.md](PLAN.md#current-transition-queue) |
+| 次の縦切り | GP0-3b-m。分類Trackを再選択する場合は匿名一時VaultのO2-P3 apply／rollbackか、Drive sidecar契約を先に決め、本番applyは行わない | [PLAN.md](PLAN.md) |
 
 ## 実装済みの基盤
 
@@ -28,6 +28,17 @@
 - 通常ノートのアプリ内新規作成、Daily／Ideaフォーム、定型Markdownの安全なフォーム再編集、最小Markdown書式ツールバー（本番反映済み）。
 
 ## 検証済みだが、完了と言わない範囲
+
+### Classification Migration
+
+O2-P2では、明示JSON planを入力するread-only CLIで本番Vaultを2回検査しました。5 moves／11,027 bytes、Wiki参照39件（active 24、source 4、history 11）／28 files、MCP backlink 39件を確認し、移行前後のWiki、Graph、Context投影は同値でした。
+
+本番Vault全301 files／9,727,936 bytesのfingerprintは`C97351EF6D99F628AA099374961217008153E6E136351C418C92D76BB3FBF875`で2回不変、manifest SHA-256も`789384A9845CB9CBCAC49AF97F5EDEC6E4FE89A5F9891C1FEB309AF563540992`で一致しました。Path Alias sidecarは存在せず、Vault write、物理move、Markdown write、Drive操作は0件です。
+
+この結果はapplyの安全性を証明していません。`DRIVE_PATH_ALIAS_UNSUPPORTED`、`REFERENCE_REWRITE_NOT_APPLIED`、`ROLLBACK_PREIMAGES_NOT_CAPTURED`が残るため`applyAllowed=false`です。次の分類Gateは匿名一時VaultだけでのO2-P3 apply／rollback prototype、またはDrive sidecar契約判断です。本番Vaultへのapplyは禁止します。
+
+- [O2-P2 Classification Migration Dry-run](docs/reports/o2-p2-classification-migration-dry-run-2026-08-10.md)
+- [O2-P2 explicit plan](docs/migrations/o2-p2-operations-plan.json)
 
 ### Graph
 
@@ -105,7 +116,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 1. M5-Cは要求単位snapshot indexで完了。Context構築median 151.123ms→35.934ms、p95 180.404ms→47.798ms、改善前後のMarkdown SHA-256と意味指標は一致した。
 2. retained heap比較は未測定。cacheを要求境界より長寿命化する提案が出た場合だけ、GCを分離したharnessを先に作る。永続DBやbackground cacheは追加しない。
 3. O2-P1 Path Alias Foundationは全486 tests、build、MCP検査をPASS。旧pathはWiki、backlink、Graph、Context、時間情報、MCP、bookmark、起動復元でcanonical pathへ解決され、実在する旧pathを優先する。
-4. 現在は最小domainのO2-P2移行dry-runを行い、hash、参照、Graph、MCP、履歴不変、rollbackをmanifest化する。Drive同期がsidecar未対応のため物理移動とDrive applyは行わず、その後GP0-3b-mへ戻る。
+4. O2-P2移行dry-runは完了。5 movesのpath、hash、参照、Graph、MCP、全Vault不変条件をmanifest化した。3 blockerが残るため物理移動とDrive applyは禁止し、GP0-3b-mへ戻る。
 5. O1-W1の通常ノート／Daily／Idea自由入力、最小書式ツールバー、Vaultノート選択、round-trip guard、同名／同期競合／作成失敗／アプリ終了時の入力保護はcommit `b927171`として本番反映済み。
 6. node context menuの残差分を一項目ずつ閉じた後、720px／200% zoom、tree semantics、実Windows accessibilityを別sliceで扱う。
 7. さらにGoogle Tasks、Drive選択取込、YouTube、Data Portabilityから一つを再選択する。

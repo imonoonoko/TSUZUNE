@@ -70,6 +70,8 @@
     "preview:chatgpt-candidates": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preview-chatgpt-candidates.ps1",
     "build:chatgpt-candidate-quality": "node scripts/build-chatgpt-candidate-quality.mjs",
     "preview:chatgpt-candidate-quality": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preview-chatgpt-candidate-quality.ps1",
+    "build:classification-migration": "node scripts/build-classification-migration-preview.mjs",
+    "preview:classification-migration": "npm run build:classification-migration && node work/tools/classification-migration-preview.js",
     "check:mcp": "npm run build:mcp && node scripts/check-mcp.mjs",
     "mcp": "node out/mcp/server.js",
     "mcp:register": "npm run build:mcp && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/register-codex-mcp.ps1",

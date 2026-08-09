@@ -34,6 +34,18 @@ unsafe path、非Markdown path、大文字小文字を区別しない衝突、�
 
 ## 現在の制限
 
-O2-P1は読取・解決基盤だけです。通常のmove／renameはsidecarやMarkdown本文を自動更新しません。物理移動は、O2-P2でdry-run manifest、参照書換え、rollbackを検証してから行います。
+O2-P1は読取・解決基盤だけです。通常のmove／renameはsidecarやMarkdown本文を自動更新しません。
 
 Drive同期は現在Markdownノートだけが対象で、このsidecarは同期されません。sidecar同期またはremote rename方針が決まるまで、分類目的の物理移動とDrive applyは禁止します。
+
+## O2-P2 dry-run
+
+O2-P2では、[明示plan](migrations/o2-p2-operations-plan.json)とread-only CLIで本番Vaultを2回検査しました。5 moves／11,027 bytes、参照39件／28 files、MCP backlink 39件を確認し、移行前後のWiki、Graph、Context投影は同値でした。全301 files／9,727,936 bytesのVault fingerprintとmanifest SHA-256は2回一致し、Vault write、物理move、Markdown write、Drive操作は0件でした。
+
+この結果はpreviewの再現性を示すだけで、applyを許可しません。現在の`applyAllowed`は`false`で、次の3 blockerが残ります。
+
+- `DRIVE_PATH_ALIAS_UNSUPPORTED`
+- `REFERENCE_REWRITE_NOT_APPLIED`
+- `ROLLBACK_PREIMAGES_NOT_CAPTURED`
+
+詳細値と検証境界は[O2-P2 report](reports/o2-p2-classification-migration-dry-run-2026-08-10.md)を参照してください。次の分類Gateは匿名一時Vaultだけでapply／rollbackを往復するO2-P3、またはDrive sidecar契約の判断です。本番Vaultへは適用しません。

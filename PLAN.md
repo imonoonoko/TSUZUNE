@@ -46,17 +46,39 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 |---|---|
 | インストール済み本番 | v0.5.0。最新の正確なcommit、hash、検証結果は[production-update-latest.json](docs/reports/production-update-latest.json)を参照 |
 | 開発checkpoint | v0.6 Obsidian Graph Parity |
-| 完了した直近slice | O2-P1 Path Alias Foundation。旧pathをWiki／Graph／Context／MCP／bookmark／起動復元でcanonical pathへ解決 |
-| 現役slice | O2-P2 Classification Migration Dry-run。物理移動せず、最小domainの移行manifestとrollback条件を固定する |
+| 完了した直近slice | O2-P2 Classification Migration Dry-run。明示planとread-only CLIで本番Vaultを2回検査し、物理移動なしの同一manifestを得た |
+| 現役slice | GP0-3b-m Attachment Linked Views。O2-P2完了後の既定のGraph再開点を維持する |
 | 現役Track数 | 1。Google intakeとChatGPT candidate applyは保留 |
 
 ### Current Transition Queue
 
-1. **Now — O2-P2 Classification Migration Dry-run:** 監査済みの最小domainを再確定し、path・hash・参照・Graph・MCP・履歴不変条件をmanifest化する。dry-runが全件PASSするまで移動しない。
-2. **Then — GP0-3b-m:** attachment nodeの`リンクされたビューを開く`を固定比較し、Graph parityへ戻る。
-3. **After Graph checkpoint:** アクセシビリティ、Personal Google Intake、AI write policyのどれを次の独立Trackにするか再選択する。
+1. **Now — GP0-3b-m:** attachment nodeの`リンクされたビューを開く`を固定比較し、Graph parityへ戻る。
+2. **After Graph checkpoint:** アクセシビリティ、Personal Google Intake、AI write policyのどれを次の独立Trackにするか再選択する。
 
 新しいSupporting Trackを割り込ませる場合は、目的、停止条件、元Trackへ戻る条件をこの節へ先に記録します。
+
+分類Trackを次に選ぶ場合のGateは、匿名一時Vaultだけでapplyとrollbackを往復するO2-P3、またはDriveがPath Alias sidecarを扱う契約判断です。どちらを先にするかを決めるまでCurrent Transition Queueへ割り込ませず、本番Vaultへのapplyは許可しません。
+
+## Completed Supporting Track: O2-P2 Classification Migration Dry-run
+
+分類候補を物理移動する前に、[明示plan](docs/migrations/o2-p2-operations-plan.json)とread-only CLIで本番Vaultの現在値を検証しました。CLIは移行を実行せず、Vault外へ監査manifestを出力します。詳細は[O2-P2 report](docs/reports/o2-p2-classification-migration-dry-run-2026-08-10.md)を正本とします。
+
+### Result
+
+- 5ノート、合計11,027 bytesの候補を検査した。
+- Wiki参照は39件。内訳はactive 24、source 4、history 11で、28ファイルに分布した。MCP backlinkも39件で一致した。
+- 移行前後を投影したWiki、Graph、Contextは同値で、旧path専用Graph nodeは生成されなかった。
+- 本番Vault全301 files／9,727,936 bytesのfingerprintは2回とも`C97351EF6D99F628AA099374961217008153E6E136351C418C92D76BB3FBF875`で不変だった。
+- 2回のmanifest SHA-256は`789384A9845CB9CBCAC49AF97F5EDEC6E4FE89A5F9891C1FEB309AF563540992`で一致した。Vault write、物理move、Markdown write、Drive操作はすべて0件だった。
+- `.tsuzune/path-aliases.json`は本番Vaultに存在しない。`applyAllowed`は`false`を維持した。
+
+### Remaining blockers
+
+- `DRIVE_PATH_ALIAS_UNSUPPORTED`
+- `REFERENCE_REWRITE_NOT_APPLIED`
+- `ROLLBACK_PREIMAGES_NOT_CAPTURED`
+
+過去のPhase2監査に記録された38参照は当時の履歴として改変せず、2026-08-10のlive dry-runで得た39参照を現在の移行入力として優先します。
 
 ## Completed Supporting Track: O2-P1 Path Alias Foundation
 
@@ -72,7 +94,7 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 - [x] 匿名fixture、targeted tests、全回帰486件、typecheck、build、MCP検査をPASSする。
 - [x] このsliceでは本番Vaultの物理移動、履歴書換え、redirect Markdown、DB、新依存を追加しない。
 
-実装契約と復旧方法は[Path Alias](docs/path-aliases.md)を正本とします。Drive同期はsidecarをまだ扱わないため、O2-P2もdry-runだけを行い、分類目的の物理移動とDrive applyは実行しません。
+実装契約と復旧方法は[Path Alias](docs/path-aliases.md)を正本とします。Drive同期はsidecarをまだ扱わないため、O2-P2はdry-runだけで完了し、分類目的の物理移動とDrive applyは実行していません。
 
 ### Stop Condition
 
@@ -80,7 +102,7 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 
 ## Active Track: v0.6 Obsidian Graph Parity
 
-O2-P1／O2-P2の安全な分類基盤を閉じる間だけ一時停止します。再開点はGP0-3b-mで変えません。
+O2-P1／O2-P2の安全な分類基盤を閉じ、GP0-3b-mから再開します。
 
 ### Completed GP0-3b-l — Attachment Path Copy
 
@@ -138,9 +160,9 @@ Graph parity全体は、P2/P3へ到達していない領域が残る限り完了
 
 | Stage | 到達目標 | 状態 / 次のGate |
 |---|---|---|
-| O0. Graph Parity | Local/Global Graph、filter、group、display、force、interaction、保存、アクセシビリティを徹底比較 | O2-P1／O2-P2の後にGP0-3b-mから再開 |
+| O0. Graph Parity | Local/Global Graph、filter、group、display、force、interaction、保存、アクセシビリティを徹底比較 | **Active**。O2-P1／O2-P2完了後、GP0-3b-mから再開 |
 | O1. Daily Writing & Navigation | Markdownを知らなくても作成・編集・日次運用できる | Daily/Ideaフォーム、toolbar、template、freshnessは実装済み。7日通常運用と残るnavigationは未完 |
-| O2. Organization & Retrieval | folders、tags、properties、outline、bookmarks、search、commandsを日常利用できる | **Active supporting slice**。Path Aliasで非破壊分類の前提を閉じる |
+| O2. Organization & Retrieval | folders、tags、properties、outline、bookmarks、search、commandsを日常利用できる | O2-P1／O2-P2完了。物理applyは禁止を維持し、次Gateは匿名一時VaultのO2-P3またはDrive sidecar契約判断 |
 | O3. Structured Views | Markdown/frontmatter原本のtable/card/list view | Planned。実用queryと編集契約を固定してから開始 |
 | O4. Canvas & Rich Media | freeform canvas、embed、PDF/audio/video、properties view | Planned。O2/O3の保存契約後 |
 | O5. Recovery, Sync, Import & Publish | recovery、version history、import/export、optional sync/publish | `.trash`、AI history、Drive手動同期、ChatGPT preview基礎あり。往復dogfoodとrecovery UIは未完 |
@@ -293,6 +315,7 @@ NotebookLMや外部資料は、原典package、派生要約、更新対象知識
 | Google v0.4 Foundation | Desktop OAuth、profile、Drive manual preview/apply、local graph | [README](README.md) |
 | Windows v0.5 Foundation | installer、updater、packaged/installed smoke、production gate | [Windows Production](docs/windows-production.md) |
 | Graph GP0-a〜l | settings、search/camera/drag、tabs、attachment open/move/bookmark/path copyの固定比較 | [Parity Reference](docs/obsidian-graph-parity-reference.md) |
+| Classification O2-P1／P2 | Path Alias読取基盤と、物理移動なしの本番Vault migration dry-run | [Path Alias](docs/path-aliases.md)、[O2-P2 report](docs/reports/o2-p2-classification-migration-dry-run-2026-08-10.md) |
 | TSUZUNE Benchmark | TSUZUNEあり/なしの品質とlatencyを分離計測 | [Benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
 | ChatGPT Export C0-A〜C1-C | read-only normalization、provenance、candidate preview、安全回帰 | [Intake Contract](docs/chatgpt-export-intake.md) |
 

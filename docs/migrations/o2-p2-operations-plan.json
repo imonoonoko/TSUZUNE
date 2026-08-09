@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "planId": "O2-P2-operations-classification-migration-2026-08-10",
+  "analysisAsOf": "2026-08-10T00:00:00+09:00",
+  "auditSource": {
+    "path": "40_情報源/TSUZUNE分類・非破壊Phase2-2026-08-10.md",
+    "expectedSizeBytes": 4092,
+    "expectedSha256": "8A4EBA2305F828DF1F260EE147EC7EF2F49430505119A44F0595697918248FFC"
+  },
+  "moves": [
+    {
+      "sourcePath": "30_知識/TSUZUNE-Google連携・同期・障害対応.md",
+      "destinationPath": "30_知識/ソフトウェア開発/TSUZUNE-Google連携・同期・障害対応.md",
+      "expectedSizeBytes": 2346,
+      "expectedSha256": "C37DB866F5C4F7F95760E45B51F2A63814F49D3CE731970045B992607DB2E50D",
+      "expectedReferences": {
+        "active": 4,
+        "source": 0,
+        "history": 0,
+        "mcpBacklinks": 4
+      }
+    },
+    {
+      "sourcePath": "30_知識/TSUZUNE-MCPとAI書き込み運用.md",
+      "destinationPath": "30_知識/ソフトウェア開発/TSUZUNE-MCPとAI書き込み運用.md",
+      "expectedSizeBytes": 2236,
+      "expectedSha256": "B687A49CD244351D4EFFE31DBA5DB811BE7B3F5B0E11EB7612F8A299B360A1CB",
+      "expectedReferences": {
+        "active": 5,
+        "source": 1,
+        "history": 2,
+        "mcpBacklinks": 8
+      }
+    },
+    {
+      "sourcePath": "30_知識/TSUZUNE-データ保護・バックアップ・復旧.md",
+      "destinationPath": "30_知識/ソフトウェア開発/TSUZUNE-データ保護・バックアップ・復旧.md",
+      "expectedSizeBytes": 2115,
+      "expectedSha256": "9A1287C5AA6212EF8CC7B10AAF7F669AD8559742CAC6929AF0E6840E09CED178",
+      "expectedReferences": {
+        "active": 6,
+        "source": 1,
+        "history": 0,
+        "mcpBacklinks": 7
+      }
+    },
+    {
+      "sourcePath": "30_知識/TSUZUNE-開発開始と区切りの標準ループ.md",
+      "destinationPath": "30_知識/ソフトウェア開発/TSUZUNE-開発開始と区切りの標準ループ.md",
+      "expectedSizeBytes": 2078,
+      "expectedSha256": "3521F320F243653222A6E0802423D1DBBB5A1343E94C81813DC44C99375AAED8",
+      "expectedReferences": {
+        "active": 3,
+        "source": 1,
+        "history": 0,
+        "mcpBacklinks": 4
+      }
+    },
+    {
+      "sourcePath": "30_知識/TSUZUNE-本番更新・インストール・Release運用.md",
+      "destinationPath": "30_知識/ソフトウェア開発/TSUZUNE-本番更新・インストール・Release運用.md",
+      "expectedSizeBytes": 2252,
+      "expectedSha256": "742007232BAA0167240EA7EFA7EAC708655B0B37045A7769A882B9BB61DF84A2",
+      "expectedReferences": {
+        "active": 6,
+        "source": 1,
+        "history": 9,
+        "mcpBacklinks": 16
+      }
+    }
+  ]
+}

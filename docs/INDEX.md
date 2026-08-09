@@ -17,12 +17,14 @@
 - [MCP Integration](mcp-integration.md) — Codex／ChatGPTデスクトップ連携と書込境界。
 - [Templates and Freshness](templates-and-freshness.md) — Markdown雛形、placeholder、最終更新日、再確認表示の使い方。
 - [Path Alias](path-aliases.md) — 分類移動後の旧Wikiリンク・MCP IDをcanonical pathへ安全に解決するsidecar契約。
+- [O2-P2 Classification Migration Dry-run](reports/o2-p2-classification-migration-dry-run-2026-08-10.md) — 本番Vaultを変更せず、5 movesの参照・Graph・Context・fingerprintと適用blockerを固定した証拠。
 - [ChatGPT Export Intake](chatgpt-export-intake.md) — 公式Exportの読み取り専用preview、正規化、個人データ境界。
 - [Windows Production](windows-production.md) — build、installer、更新、受入手順。
 
 ## 現行の検証証拠
 
 - [Latest production receipt](reports/production-update-latest.json) — インストール済み本番の機械可読な固定点。
+- [O2-P2 Classification Migration Dry-run](reports/o2-p2-classification-migration-dry-run-2026-08-10.md) — 同一manifestを2回得て、Vault write／物理move／Markdown write／Drive操作が0件だったread-only移行検査。
 - [GP6 production comparison](reports/graph-gp6-production-comparison-2026-08-02.html) — 配布済み0.5.0とObsidian固定版の比較。
 - [GP6 working-tree manifest](reports/assets/graph-gp6/tsuzune-working-tree/manifest.json) — `5c0f4bb3`へ収録された、GP6-0W採取時working treeの構造証拠。
 - [GP7 Global settings default](reports/graph-gp7-global-settings-default-2026-08-03.html) — 固定fixtureでGlobal Graph初回設定パネル表示を一致させた狭い比較。
