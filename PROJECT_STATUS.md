@@ -9,11 +9,12 @@
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
 | インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-10 14:03 JSTにcommit `e2d8621`から更新し、X1-M1／X1-D1、全508 tests、packaged／installed smoke、build／installed hash一致、profile不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`。X1-D1 Recall-safe Query Bridgeの実装commit `e2d8621`をpushし、本番反映済み | Git |
-| 直近slice | GP0-3b-mで添付nodeの`リンクされたビューを開く`からバックリンクビューを追加し、元のGlobal Graphを保持する中核挙動を固定比較 | [GP0-3b-m report](docs/reports/graph-gp0-attachment-linked-view-2026-08-10.html) |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。GP0-3b-n working treeの比較と狭い検証は完了。最終commit／push／本番更新はdelivery gateで確定する | Git |
+| 直近slice | GP0-3b-nで添付nodeの`デフォルトアプリで開く`を追加し、同じfixture fileへの要求1回、menu close、Graph／Vault保持を実外部起動なしで固定比較 | [GP0-3b-n report](docs/reports/graph-gp0-attachment-default-app-2026-08-10.html) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
-| 最優先Track | v0.6 Obsidian Graph Parity。GP0-3b-mを完了し、次の未比較menu操作へ進む | [PLAN.md](PLAN.md#current-transition-queue) |
-| 次の縦切り | GP0-3b-n。attachment nodeの`デフォルトアプリで開く`を安全な外部起動intercept付きで固定比較する | [PLAN.md](PLAN.md) |
+| 最優先Track | v0.6 Obsidian Graph Parity。GP0-3b-nを閉じ、次の未比較menu操作へ進む | [PLAN.md](PLAN.md#current-transition-queue) |
+| 次の縦切り | GP0-3b-o。attachment nodeの`フォルダで表示`について、固定参照、OS境界、停止条件を先に設計する | [PLAN.md](PLAN.md#current-transition-queue) |
+| Graph checkpoint | GP0-3b-nは`matched-core-behavior`。Obsidianはfile URL、TSUZUNEはabsolute filesystem pathを別APIへ渡すが、同じrelative fixture file identityへの1回の要求、menu close、同一process Graph再表示での非再生を確認。実外部アプリは未起動 | [comparison](docs/reports/assets/graph-gp0-attachment-default-app/comparison.json) |
 | Context checkpoint | X1-M1は`type: moc`を全タイトル一覧へ投影し、X1-D1はbaseline candidate集合を変えず通常本文だけを質問で優先する。commit `e2d8621`として本番反映済み | [requirements](.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md) |
 | Context remaining | 固定4問の再評価とmodel-visible tokenは未計測。legacy text＋structuredContentの二重搬送は独立X1-T1でのみ扱う | [requirements](.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md) |
 
@@ -124,7 +125,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 1. M5-Cは要求単位snapshot indexで完了。Context構築median 151.123ms→35.934ms、p95 180.404ms→47.798ms、改善前後のMarkdown SHA-256と意味指標は一致した。
 2. retained heap比較は未測定。cacheを要求境界より長寿命化する提案が出た場合だけ、GCを分離したharnessを先に作る。永続DBやbackground cacheは追加しない。
 3. O2-P1 Path Alias Foundationは全486 tests、build、MCP検査をPASS。旧pathはWiki、backlink、Graph、Context、時間情報、MCP、bookmark、起動復元でcanonical pathへ解決され、実在する旧pathを優先する。
-4. O2-P2移行dry-runは完了。5 movesのpath、hash、参照、Graph、MCP、全Vault不変条件をmanifest化した。3 blockerが残るため物理移動とDrive applyは禁止する。GraphはGP0-3b-mを完了し、次はGP0-3b-nへ進む。
+4. O2-P2移行dry-runは完了。5 movesのpath、hash、参照、Graph、MCP、全Vault不変条件をmanifest化した。3 blockerが残るため物理移動とDrive applyは禁止する。Graphは[GP0-3b-n](docs/reports/graph-gp0-attachment-default-app-2026-08-10.html)まで完了し、次はGP0-3b-oの設計である。
 5. O1-W1の通常ノート／Daily／Idea自由入力、最小書式ツールバー、Vaultノート選択、round-trip guard、同名／同期競合／作成失敗／アプリ終了時の入力保護はcommit `b927171`として本番反映済み。
 6. node context menuの残差分を一項目ずつ閉じた後、720px／200% zoom、tree semantics、実Windows accessibilityを別sliceで扱う。
 7. さらにGoogle Tasks、Drive選択取込、YouTube、Data Portabilityから一つを再選択する。

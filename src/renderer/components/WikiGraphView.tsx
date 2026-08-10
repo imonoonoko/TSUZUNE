@@ -1827,6 +1827,18 @@ export default function WikiGraphView({
                           )}
                         </div>
                       )}
+                      {nodeContextMenu.node.kind === 'attachment' && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            onOpen(nodeContextMenu.node.path)
+                            setNodeContextMenu(null)
+                          }}
+                        >
+                          デフォルトアプリで開く
+                        </button>
+                      )}
                     </>
                   )}
                 <button

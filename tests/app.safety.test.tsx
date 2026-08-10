@@ -1830,6 +1830,29 @@ describe('App data-loss guards', () => {
         'C:\\Vault\\assets\\diagram.svg'
       )
     })
+
+    vi.mocked(api.openVaultFile).mockClear()
+    fireEvent.contextMenu(attachmentNode)
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: 'デフォルトアプリで開く' })
+    )
+    await waitFor(() => {
+      expect(api.openVaultFile).toHaveBeenCalledOnce()
+      expect(api.openVaultFile).toHaveBeenCalledWith('assets/diagram.svg')
+    })
+
+    vi.mocked(api.openVaultFile).mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'UNKNOWN', message: '既定アプリを開けません。' }
+    })
+    fireEvent.contextMenu(attachmentNode)
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: 'デフォルトアプリで開く' })
+    )
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(screen.getAllByText('既定アプリを開けません。').length).toBeGreaterThan(0)
     expect(
       screen.getByRole('tab', { name: 'グラフビュー' }).getAttribute(
         'aria-selected'

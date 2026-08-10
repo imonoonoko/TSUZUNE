@@ -46,19 +46,19 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 |---|---|
 | インストール済み本番 | v0.5.0。最新の正確なcommit、hash、検証結果は[production-update-latest.json](docs/reports/production-update-latest.json)を参照 |
 | 開発checkpoint | v0.6 Obsidian Graph Parity |
-| 完了した直近slice | GP0-3b-m Attachment Linked Views。添付nodeから対象pathのバックリンクビューを開き、Global Graphを保持する中核挙動を固定比較した |
-| 現役slice | GP0-3b-n Attachment Default App。次の未比較context menu操作を一項目だけ固定比較する |
+| 完了した直近slice | GP0-3b-n Attachment Default App。同じfixture fileへの外部open要求1回、menu close、Graph／Vault保持を実外部起動なしで固定比較した |
+| 現役slice | GP0-3b-o Attachment Folder Reveal。次の未比較menu操作`フォルダで表示`は、固定参照と安全境界の設計から始める |
 | Context checkpoint | X1-M1 MOC Title RouterとX1-D1 Recall-safe Query Bridgeを本番反映済み。質問はbaseline候補を削除せず、通常本文の展開順だけを変える |
 | 現役Primary Track数 | 1。Google intakeとChatGPT candidate applyは保留 |
 
 ### Current Transition Queue
 
-1. **Now — GP0-3b-n:** attachment nodeの`デフォルトアプリで開く`を固定比較する。
+1. **Now — GP0-3b-o:** attachment nodeの次の未比較操作`フォルダで表示`について、固定参照、OS境界、停止条件を先に設計する。
 2. **After Graph checkpoint:** アクセシビリティ、Personal Google Intake、AI write policyのどれを次の独立Trackにするか再選択する。
 
 新しいSupporting Trackを割り込ませる場合は、目的、停止条件、元Trackへ戻る条件をこの節へ先に記録します。
 
-**Completed bounded supporting slice — X1-D1:** `build_context`へ任意queryを渡し、query無しbaselineのcandidate集合を変えず、通常ノート本文の展開順だけを優先します。MOC全タイトル、Temporal、provenance、warningを保持したままcommit `e2d8621`から本番へ反映しました。X1-T1、embedding、要約、multi-seed APIへ拡張せず、Primary QueueはGP0-3b-nへ戻します。
+**Completed bounded supporting slice — X1-D1:** `build_context`へ任意queryを渡し、query無しbaselineのcandidate集合を変えず、通常ノート本文の展開順だけを優先します。MOC全タイトル、Temporal、provenance、warningを保持したままcommit `e2d8621`から本番へ反映しました。X1-T1、embedding、要約、multi-seed APIへ拡張せず、Primary Queueへ戻しました。
 
 分類Trackを次に選ぶ場合のGateは、匿名一時Vaultだけでapplyとrollbackを往復するO2-P3、またはDriveがPath Alias sidecarを扱う契約判断です。どちらを先にするかを決めるまでCurrent Transition Queueへ割り込ませず、本番Vaultへのapplyは許可しません。
 
@@ -123,7 +123,7 @@ X1-D0自体は設計だけで停止しました。その後の明示認可によ
 
 ## Active Track: v0.6 Obsidian Graph Parity
 
-O2-P1／O2-P2の安全な分類基盤を閉じ、GP0-3b-mまで完了しました。次はGP0-3b-nです。
+O2-P1／O2-P2の安全な分類基盤を閉じ、GP0-3b-nまで完了しました。次はGP0-3b-oです。`フォルダで表示`は、実Explorer操作を先走らず固定参照と安全境界の設計から開始します。
 
 ### Completed GP0-3b-l — Attachment Path Copy
 
@@ -167,7 +167,7 @@ Obsidian 1.13.4でattachment nodeの`リンクされたビューを開く`を開
 - [比較report](docs/reports/graph-gp0-attachment-linked-view-2026-08-10.html)
 - [機械可読comparison](docs/reports/assets/graph-gp0-attachment-linked-view/comparison.json)
 
-### GP0-3b-n — Attachment Default App
+### Completed GP0-3b-n — Attachment Default App
 
 #### Question
 
@@ -175,21 +175,34 @@ Obsidian 1.13.4でattachment nodeの`デフォルトアプリで開く`を実行
 
 #### Acceptance
 
-- [ ] 固定fixtureと隔離profileで、Obsidianのmenu文言、有効状態、外部起動要求、menu closeを採取する。
-- [ ] 実アプリの起動先を安全にinterceptし、対象pathと呼出回数だけを比較する。
-- [ ] Global Graph tab、query、camera、node集合、Vault digestの前後不変を確認する。
-- [ ] 差がある場合だけ既存のattachment external-open経路を再利用して最小修正する。
-- [ ] targeted test、全回帰、typecheck、MCP検査、comparison JSON、HTML reportを通して停止する。
+- [x] [要件、UI、安全境界、実装brief](.agent/requirements/20260810-1941-attachment-default-app/4_requirements.md)を固定し、実装前に設計checkpointで停止した。
+- [x] 固定fixtureと隔離profileで、Obsidianの11項目menu、対象itemの有効状態、`window.open(file URL, "_external")`要求、menu closeを採取する。
+- [x] action直前にfail-closed hookを検証し、実外部アプリを起動せず、対象pathと呼出回数1だけを比較して必ず復元する。
+- [x] Global Graph tab／leaf、query、camera、node／edge集合、Vault content digestの前後と同一process内のGraph再表示での不変・request非再生を確認する。固定Obsidianの別processは起動せず、再起動時の非再生は未観測と明記する。
+- [x] 固定参照が設計と一致する場合だけ、実在attachmentのmenuから既存`onOpen`／`openVaultFile`経路を再利用して最小修正する。新IPC、preload API、serviceは追加しない。
+- [x] 既存backendのunsupported／directory guardを再確認し、external-open failureのApp回帰、targeted test、typecheck、comparison JSON、HTML reportを通す。
+- [x] 全508 tests、typecheck、MCP検査を通す。
+- [x] `git diff --check`を通す。
+- [ ] commit／push／本番更新を最終delivery gateで確認する。
 
 #### Stop Condition
 
-対象操作一件を根拠付きで判定したら止めます。実OSの既定アプリを可視起動せず、次の`フォルダで表示`へ同時に進みません。
+対象操作一件を根拠付きで判定したら止めます。hookを確認できなければclickせず、実OSの既定アプリを可視起動せず、次の`フォルダで表示`へ同時に進みません。
+
+#### Result
+
+Obsidianは`window.open(file URL, "_external")`、TSUZUNEは既存trusted IPCとVault validationの後に`electron.shell.openPath(absolute filesystem path)`を使います。API表現は異なりますが、同じ`attachments/diagram.svg`を1回だけ要求し、menu close、Graph／Vault保持、同一process内のGraph再表示でのrequest非再生を満たしたため`matched-core-behavior`と判定しました。固定Obsidian raw observationのquery、camera、node ID集合、edge signature、Graph tab／leafはbuilderが直接gateしています。
+
+実OS既定appの選択・起動、chooser／cancelは未証明です。Obsidianは安全境界により別processを起動せず、再起動時の非再生も未観測です。TSUZUNEの別process再起動0回は追加証拠であり、共通parity判定には使いません。物理入力、screen reader、High Contrast、multi-DPI、pixel identityも未証明です。添付context menu全体はObsidian 11項目、TSUZUNE 8項目の残差があります。
+
+- [比較report](docs/reports/graph-gp0-attachment-default-app-2026-08-10.html)
+- [機械可読comparison](docs/reports/assets/graph-gp0-attachment-default-app/comparison.json)
 
 ### Remaining Graph Work
 
 | Area | 現在 | 完了条件 |
 |---|---|---|
-| Context menu | 新規tab、新規window、file move、bookmark、path copy、linked viewまで比較済み | `デフォルトアプリで開く`から、残る操作、submenu、note/tag/attachment別挙動を一項目ずつ固定比較 |
+| Context menu | 新規tab、新規window、file move、bookmark、path copy、linked view、default appまで比較済み | `フォルダで表示`から、残る操作、submenu、note/tag/attachment別挙動を一項目ずつ固定比較 |
 | Workspace state | Global query、zoom/pan境界、node drag、Graph tab保持の一部を比較済み | Local、fit/reset、zoom限界、workspace leaf復元を固定比較 |
 | Filters/Search | Search、tags、attachments、unresolved、excluded基礎を実装済み | malformed query、Manage UI、全surfaceへのExcluded files効果を比較 |
 | Groups | ordered groups基礎を実装済み | 作成、編集、順序、色、保存、復元、既定状態を比較 |
@@ -206,7 +219,7 @@ Graph parity全体は、P2/P3へ到達していない領域が残る限り完了
 
 | Stage | 到達目標 | 状態 / 次のGate |
 |---|---|---|
-| O0. Graph Parity | Local/Global Graph、filter、group、display、force、interaction、保存、アクセシビリティを徹底比較 | **Active**。GP0-3b-m完了、次はGP0-3b-n |
+| O0. Graph Parity | Local/Global Graph、filter、group、display、force、interaction、保存、アクセシビリティを徹底比較 | **Active**。GP0-3b-n完了、次はGP0-3b-o |
 | O1. Daily Writing & Navigation | Markdownを知らなくても作成・編集・日次運用できる | Daily/Ideaフォーム、toolbar、template、freshnessは実装済み。7日通常運用と残るnavigationは未完 |
 | O2. Organization & Retrieval | folders、tags、properties、outline、bookmarks、search、commandsを日常利用できる | O2-P1／O2-P2完了。物理applyは禁止を維持し、次Gateは匿名一時VaultのO2-P3またはDrive sidecar契約判断 |
 | O3. Structured Views | Markdown/frontmatter原本のtable/card/list view | Planned。実用queryと編集契約を固定してから開始 |
@@ -360,7 +373,7 @@ NotebookLMや外部資料は、原典package、派生要約、更新対象知識
 | Human Capture O1-W0/W1 | template、freshness、通常作成、Daily/Idea、toolbar | [Templates and Freshness](docs/templates-and-freshness.md) |
 | Google v0.4 Foundation | Desktop OAuth、profile、Drive manual preview/apply、local graph | [README](README.md) |
 | Windows v0.5 Foundation | installer、updater、packaged/installed smoke、production gate | [Windows Production](docs/windows-production.md) |
-| Graph GP0-a〜l | settings、search/camera/drag、tabs、attachment open/move/bookmark/path copyの固定比較 | [Parity Reference](docs/obsidian-graph-parity-reference.md) |
+| Graph GP0-a〜n | settings、search/camera/drag、tabs、attachment open/move/bookmark/path copy/linked view/default appの固定比較 | [Parity Reference](docs/obsidian-graph-parity-reference.md) |
 | Classification O2-P1／P2 | Path Alias読取基盤と、物理移動なしの本番Vault migration dry-run | [Path Alias](docs/path-aliases.md)、[O2-P2 report](docs/reports/o2-p2-classification-migration-dry-run-2026-08-10.md) |
 | TSUZUNE Benchmark | TSUZUNEあり/なしの品質とlatencyを分離計測 | [Benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
 | ChatGPT Export C0-A〜C1-C | read-only normalization、provenance、candidate preview、安全回帰 | [Intake Contract](docs/chatgpt-export-intake.md) |

@@ -51,18 +51,23 @@ if (!['url', 'vault', 'system'].includes(attachmentPathCopyScenario)) {
 const attachmentLinkedViewProbe =
   process.argv.includes('--attachment-linked-view') ||
   process.env.TSUZUNE_GRAPH_ATTACHMENT_LINKED_VIEW_PROBE === '1'
+const attachmentDefaultAppProbe =
+  process.argv.includes('--attachment-default-app') ||
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_DEFAULT_APP_PROBE === '1'
 const nodeNewTabProbe =
   workspaceTabProbe ||
   process.argv.includes('--node-new-tab') ||
   process.env.TSUZUNE_GRAPH_NODE_NEW_TAB_PROBE === '1'
 const nodeMenuProbe =
-  nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe ||
+  nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentDefaultAppProbe ||
   process.argv.includes('--node-menu') ||
   process.env.TSUZUNE_GRAPH_NODE_MENU_PROBE === '1'
-if ([cameraProbe, nodeDragProbe, nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe, nodeNewTabProbe, attachmentNewTabProbe, attachmentNewWindowProbe, attachmentMoveProbe, attachmentBookmarkProbe, attachmentPathCopyProbe, attachmentLinkedViewProbe].filter(Boolean).length > 1) {
-  throw new Error('--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move、--attachment-bookmark、--attachment-path-copy、--attachment-linked-view は同時に指定できません。')
+if ([cameraProbe, nodeDragProbe, nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe && !attachmentDefaultAppProbe, nodeNewTabProbe, attachmentNewTabProbe, attachmentNewWindowProbe, attachmentMoveProbe, attachmentBookmarkProbe, attachmentPathCopyProbe, attachmentLinkedViewProbe, attachmentDefaultAppProbe].filter(Boolean).length > 1) {
+  throw new Error('--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move、--attachment-bookmark、--attachment-path-copy、--attachment-linked-view、--attachment-default-app は同時に指定できません。')
 }
-const probeKind = attachmentPathCopyProbe
+const probeKind = attachmentDefaultAppProbe
+  ? 'attachment-default-app'
+  : attachmentPathCopyProbe
   ? `attachment-path-copy-${attachmentPathCopyScenario}`
   : attachmentLinkedViewProbe
   ? 'attachment-linked-view'
@@ -88,7 +93,9 @@ const probeKind = attachmentPathCopyProbe
 const sourceFixture = resolve(repoRoot, 'fixtures/obsidian-graph-parity-vault')
 const workRoot = resolve(
   repoRoot,
-  attachmentPathCopyProbe
+  attachmentDefaultAppProbe
+    ? 'work/graph-gp0-attachment-default-app-working-tree'
+    : attachmentPathCopyProbe
     ? 'work/graph-gp0-attachment-path-copy-working-tree'
     : attachmentLinkedViewProbe
     ? 'work/graph-gp0-attachment-linked-view-working-tree'
@@ -116,7 +123,9 @@ const vault = resolve(workRoot, 'vault')
 const userData = resolve(workRoot, 'userdata')
 const outputRoot = resolve(
   repoRoot,
-  attachmentPathCopyProbe
+  attachmentDefaultAppProbe
+    ? 'docs/reports/assets/graph-gp0-attachment-default-app/tsuzune-working-tree'
+    : attachmentPathCopyProbe
     ? `docs/reports/assets/graph-gp0-attachment-path-copy/${attachmentPathCopyScenario}/tsuzune-working-tree`
     : attachmentLinkedViewProbe
     ? 'docs/reports/assets/graph-gp0-attachment-linked-view/tsuzune-working-tree'
@@ -156,7 +165,7 @@ const expectedCameraNodePaths = [
   '90_orphan/Orphan.md',
   'Missing Note.md'
 ].concat(
-  attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe
+  attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentDefaultAppProbe
     ? ['attachments/diagram.svg']
     : []
 ).concat(
@@ -210,7 +219,7 @@ const pathCopyEvidenceReplacements = [
 ].sort(([left], [right]) => right.length - left.length)
 
 const repositoryEvidence = (value) =>
-  attachmentPathCopyProbe || attachmentLinkedViewProbe
+  attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentDefaultAppProbe
     ? sanitizeEvidence(value, pathCopyEvidenceReplacements)
     : value
 
@@ -546,6 +555,25 @@ async function graphState(window) {
         }))
         .sort((left, right) => left.path.localeCompare(right.path)),
       edgeCount: Number(document.querySelector('canvas.wiki-graph-edges')?.dataset.edgeCount ?? 0),
+      edgeSignature: (() => {
+        if (!${JSON.stringify(attachmentDefaultAppProbe)}) return null
+        const canvas = document.querySelector('canvas.wiki-graph-edges')
+        const fiberKey = canvas && Object.keys(canvas).find((key) => key.startsWith('__reactFiber$'))
+        let fiber = fiberKey ? canvas[fiberKey] : null
+        while (fiber) {
+          const edges = fiber.memoizedProps?.graph?.edges
+          if (Array.isArray(edges)) {
+            return edges
+              .map(({ sourcePath, targetPath }) => ({ sourcePath, targetPath }))
+              .sort((left, right) =>
+                left.sourcePath.localeCompare(right.sourcePath) ||
+                left.targetPath.localeCompare(right.targetPath)
+              )
+          }
+          fiber = fiber.return
+        }
+        return null
+      })(),
       stageTransform: document.querySelector('.wiki-graph-stage')?.style.transform ?? '',
       tabs: [...document.querySelectorAll('[role="tab"]')].map((tab) => ({
         label: tab.textContent?.replace(/\s+/g, ' ').trim() ?? '',
@@ -1271,6 +1299,48 @@ async function activateAttachmentPathCopy(window, clipboardCapture) {
   }
 }
 
+async function activateAttachmentDefaultApp(window, shellOpenPathCapture) {
+  const graphBeforeAction = await graphState(window)
+  await evaluate(window, `(() => {
+    const item = [...document.querySelectorAll('.wiki-graph-context-menu [role="menuitem"]')]
+      .find((candidate) => candidate.textContent?.replace(/\\s+/g, ' ').trim() === 'デフォルトアプリで開く')
+    if (!(item instanceof HTMLButtonElement) || item.disabled) {
+      throw new Error('有効な「デフォルトアプリで開く」が見つかりません。')
+    }
+    item.click()
+  })()`)
+
+  const deadline = Date.now() + 5_000
+  let uiAfterAction = null
+  while (Date.now() < deadline) {
+    uiAfterAction = await evaluate(window, `({
+      contextMenuOpen: Boolean(document.querySelector('.wiki-graph-context-menu')),
+      globalGraphVisible: Boolean(document.querySelector('.wiki-graph-view[aria-label="Vault全体グラフ"]'))
+    })`)
+    if (shellOpenPathCapture.calls.length === 1 && !uiAfterAction.contextMenuOpen) break
+    if (shellOpenPathCapture.calls.length > 1) {
+      throw new Error('shell.openPathが複数回呼ばれました。')
+    }
+    await delay(50)
+  }
+  if (shellOpenPathCapture.calls.length !== 1 || uiAfterAction?.contextMenuOpen !== false) {
+    throw new Error('外部open request 1回とmenu closeを5秒以内に確認できませんでした。')
+  }
+
+  const graphAfterAction = await graphState(window)
+  const screenshot = await capture(window, '02-after-default-app-request.png')
+  return {
+    actionLabel: 'デフォルトアプリで開く',
+    expectedPath: resolve(vault, 'attachments/diagram.svg'),
+    apiSeam: 'electron.shell.openPath',
+    calls: [...shellOpenPathCapture.calls],
+    uiAfterAction,
+    graphBeforeAction,
+    graphAfterAction,
+    screenshots: [screenshot]
+  }
+}
+
 async function activateAttachmentLinkedView(window) {
   const beforeGraph = await graphState(window)
   const hover = await evaluate(window, `new Promise((resolve, reject) => {
@@ -1680,7 +1750,7 @@ function assertFilteredState(state, label) {
 }
 
 async function runWorker(phase) {
-  const { app, BrowserWindow, clipboard } = await import('electron')
+  const { app, BrowserWindow, clipboard, shell } = await import('electron')
   const originalLoadFile = BrowserWindow.prototype.loadFile
   let captureStarted = false
   const clipboardCapture = {
@@ -1695,6 +1765,18 @@ async function runWorker(phase) {
     clipboard,
     'writeText'
   )
+  const shellOpenPathCapture = {
+    calls: [],
+    hookInstalled: false,
+    hookRestored: false,
+    identityVerifiedBeforeAction: false
+  }
+  const originalShellOpenPath = shell.openPath
+  const originalShellOpenPathDescriptor = Object.getOwnPropertyDescriptor(shell, 'openPath')
+  const shellOpenPathStub = async (path) => {
+    shellOpenPathCapture.calls.push({ path })
+    return ''
+  }
   function restoreClipboardHook() {
     if (!attachmentPathCopyProbe || phase !== 'initial' || clipboardCapture.hookRestored) return
     const afterActionFingerprint = clipboardTextFingerprint(clipboard.readText())
@@ -1710,6 +1792,15 @@ async function runWorker(phase) {
         JSON.stringify(afterActionFingerprint) &&
       JSON.stringify(clipboardCapture.beforeFingerprint) ===
         JSON.stringify(afterHookRestoreFingerprint)
+  }
+  function restoreShellOpenPathHook() {
+    if (!attachmentDefaultAppProbe || shellOpenPathCapture.hookRestored) return
+    if (originalShellOpenPathDescriptor) {
+      Object.defineProperty(shell, 'openPath', originalShellOpenPathDescriptor)
+    } else {
+      delete shell.openPath
+    }
+    shellOpenPathCapture.hookRestored = shell.openPath === originalShellOpenPath
   }
 
   process.env.TSUZUNE_HEADLESS_SMOKE = '1'
@@ -1734,6 +1825,17 @@ async function runWorker(phase) {
       }
     })
     clipboardCapture.hookInstalled = clipboard.writeText !== originalClipboardWriteText
+  }
+  if (attachmentDefaultAppProbe) {
+    Object.defineProperty(shell, 'openPath', {
+      configurable: true,
+      writable: true,
+      value: shellOpenPathStub
+    })
+    shellOpenPathCapture.hookInstalled = shell.openPath === shellOpenPathStub
+    if (!shellOpenPathCapture.hookInstalled) {
+      throw new Error('shell.openPathのfail-closed hookを設置できませんでした。')
+    }
   }
 
   async function run(window) {
@@ -1776,7 +1878,7 @@ async function runWorker(phase) {
     if (phase === 'initial') {
       await ensureGlobalGraphControls(window)
       await fillSearch(window, query)
-      if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe) {
+      if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentDefaultAppProbe) {
         await setGraphAttachmentsVisible(window, true)
         await ensureGlobalGraphControls(window)
         await fillSearch(window, query)
@@ -1784,7 +1886,7 @@ async function runWorker(phase) {
       let baseline = await waitForStableGraph(window, query)
       if (attachmentMoveProbe) baseline = await waitForAttachmentMoveGraph(window, 'before')
       if (nodeDragProbe || nodeMenuProbe) baseline = await waitForTargetNodeStability(window)
-      const baselineScreenshot = cameraProbe || nodeDragProbe || nodeMenuProbe
+      const baselineScreenshot = (cameraProbe || nodeDragProbe || nodeMenuProbe) && !attachmentDefaultAppProbe
         ? await capture(window, '00-baseline.png')
         : null
       let input = null
@@ -1801,6 +1903,7 @@ async function runWorker(phase) {
       let attachmentBookmark = null
       let attachmentPathCopy = null
       let attachmentLinkedView = null
+      let attachmentDefaultApp = null
       if (cameraProbe) {
         input = await applyCameraInput(window)
       } else if (nodeDragProbe) {
@@ -1819,13 +1922,13 @@ async function runWorker(phase) {
       if (nodeMenuProbe) {
         const openedMenu = await openNodeContextMenu(
           window,
-          attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe
+          attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentDefaultAppProbe
             ? 'attachments/diagram.svg'
             : drag.targetNodePath
         )
         input = openedMenu.input
         nodeContextMenu = openedMenu.menu
-        if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe) {
+        if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentDefaultAppProbe) {
           attachmentContextMenu = openedMenu.menu
         }
       }
@@ -1900,6 +2003,13 @@ async function runWorker(phase) {
         }
       } else if (attachmentLinkedViewProbe) {
         attachmentLinkedView = await activateAttachmentLinkedView(window)
+      } else if (attachmentDefaultAppProbe) {
+        shellOpenPathCapture.identityVerifiedBeforeAction =
+          shellOpenPathCapture.hookInstalled && shell.openPath === shellOpenPathStub
+        if (!shellOpenPathCapture.identityVerifiedBeforeAction) {
+          throw new Error('shell.openPath hook identityをaction直前に確認できませんでした。')
+        }
+        attachmentDefaultApp = await activateAttachmentDefaultApp(window, shellOpenPathCapture)
       }
       const settingsAfterInput = cameraProbe
         ? await waitForSavedScale(cameraFromState(entered).scale)
@@ -1932,7 +2042,9 @@ async function runWorker(phase) {
           'after-graph-reopen'
         )
       }
-      const reopenedScreenshot = await capture(
+      const reopenedScreenshot = attachmentDefaultAppProbe
+        ? null
+        : await capture(
         window,
         attachmentPathCopyProbe
           ? '04-after-graph-reopen.png'
@@ -1960,9 +2072,20 @@ async function runWorker(phase) {
         ? attachmentMove.graphAfterAction
         : attachmentLinkedViewProbe
         ? attachmentLinkedView.graphAfter
+        : attachmentDefaultAppProbe
+        ? attachmentDefaultApp.graphAfterAction
         : entered
       if (JSON.stringify(graphBeforeReopen.nodePaths) !== JSON.stringify(reopened.nodePaths)) {
         throw new Error('Graph再表示後に検索node集合が変化しました。')
+      }
+      if (attachmentDefaultAppProbe) {
+        attachmentDefaultApp.callCountAfterGraphReopen = shellOpenPathCapture.calls.length
+        restoreShellOpenPathHook()
+        attachmentDefaultApp.shell = {
+          hookInstalled: shellOpenPathCapture.hookInstalled,
+          identityVerifiedBeforeAction: shellOpenPathCapture.identityVerifiedBeforeAction,
+          hookRestored: shellOpenPathCapture.hookRestored
+        }
       }
       await writeFile(
         resolve(outputRoot, 'phase-initial.json'),
@@ -1986,6 +2109,7 @@ async function runWorker(phase) {
           attachmentBookmark,
           attachmentPathCopy,
           attachmentLinkedView,
+          attachmentDefaultApp,
           entered,
           reopened,
           settingsGraphViewState: settingsAfterInput.graphViewStates.vault,
@@ -2001,6 +2125,7 @@ async function runWorker(phase) {
             ...(attachmentBookmark?.screenshots ?? []),
             ...(attachmentPathCopy?.screenshots ?? []),
             ...(attachmentLinkedView?.screenshots ?? []),
+            ...(attachmentDefaultApp?.screenshots ?? []),
             reopenedScreenshot
           ].filter(Boolean)
         }), null, 2)}\n`,
@@ -2014,7 +2139,9 @@ async function runWorker(phase) {
       const bookmarkPersistenceAfterAppRestart = attachmentBookmarkProbe
         ? await snapshotBookmarkPersistence('after-app-restart')
         : null
-      const restartedScreenshot = await capture(
+      const restartedScreenshot = attachmentDefaultAppProbe
+        ? null
+        : await capture(
         window,
         attachmentPathCopyProbe
           ? '05-after-app-restart.png'
@@ -2038,6 +2165,17 @@ async function runWorker(phase) {
         ? await waitForSavedScale(cameraFromState(restarted).scale)
         : await waitForSavedQuery(query)
       if (!cameraProbe && !nodeDragProbe && !nodeMenuProbe) assertFilteredState(restarted, 'アプリ再起動後')
+      let attachmentDefaultAppShell = null
+      if (attachmentDefaultAppProbe) {
+        const calls = [...shellOpenPathCapture.calls]
+        restoreShellOpenPathHook()
+        attachmentDefaultAppShell = {
+          calls,
+          callCountAfterAppRestart: calls.length,
+          hookInstalled: shellOpenPathCapture.hookInstalled,
+          hookRestored: shellOpenPathCapture.hookRestored
+        }
+      }
       await writeFile(
         resolve(outputRoot, 'phase-restarted.json'),
         `${JSON.stringify(repositoryEvidence({
@@ -2046,8 +2184,9 @@ async function runWorker(phase) {
           windowGeometry,
           restarted,
           bookmarkPersistenceAfterAppRestart,
+          attachmentDefaultAppShell,
           settingsGraphViewState: settingsAfterRestart.graphViewStates.vault,
-          screenshots: [restartedScreenshot]
+          screenshots: [restartedScreenshot].filter(Boolean)
         }), null, 2)}\n`,
         'utf8'
       )
@@ -2056,6 +2195,10 @@ async function runWorker(phase) {
     }
 
     await evaluate(window, 'window.tsuzune.confirmClose(true); true')
+    if (attachmentDefaultAppProbe) {
+      app.exit(0)
+      return
+    }
     setTimeout(() => app.exit(0), 3_000).unref()
   }
 
@@ -2063,8 +2206,16 @@ async function runWorker(phase) {
     const loaded = originalLoadFile.apply(this, args)
     if (!captureStarted) {
       captureStarted = true
-      void loaded.then(() => run(this)).catch(async (error) => {
+      void loaded.then(async () => {
+        try {
+          await run(this)
+        } finally {
+          restoreClipboardHook()
+          restoreShellOpenPathHook()
+        }
+      }).catch(async (error) => {
         restoreClipboardHook()
+        restoreShellOpenPathHook()
         await writeFile(
           resolve(outputRoot, `capture-error-${phase}.txt`),
           repositoryEvidence(String(error?.stack || error)),
@@ -2081,7 +2232,13 @@ async function runWorker(phase) {
     return loaded
   }
 
-  await import('../out/main/index.js')
+  try {
+    await import('../out/main/index.js')
+  } catch (error) {
+    restoreClipboardHook()
+    restoreShellOpenPathHook()
+    throw error
+  }
 }
 
 function runWorkerProcess(phase) {
@@ -2113,6 +2270,7 @@ function runWorkerProcess(phase) {
         TSUZUNE_GRAPH_ATTACHMENT_PATH_COPY_PROBE: attachmentPathCopyProbe ? '1' : '',
         TSUZUNE_GRAPH_ATTACHMENT_PATH_COPY_SCENARIO: attachmentPathCopyScenario,
         TSUZUNE_GRAPH_ATTACHMENT_LINKED_VIEW_PROBE: attachmentLinkedViewProbe ? '1' : '',
+        TSUZUNE_GRAPH_ATTACHMENT_DEFAULT_APP_PROBE: attachmentDefaultAppProbe ? '1' : '',
         TSUZUNE_GRAPH_SEARCH_RESTART_PHASE: phase
       }
     }
@@ -2179,6 +2337,8 @@ async function runController() {
     stage(
       nodeDragProbe
         ? 'node drag入力とGraph再表示をcaptureします。'
+        : attachmentDefaultAppProbe
+          ? '添付のデフォルトアプリopen requestとGraph再表示をcaptureします。'
         : attachmentLinkedViewProbe
           ? '添付リンクされたビューとGraph再表示をcaptureします。'
         : attachmentPathCopyProbe
@@ -2279,6 +2439,9 @@ async function runController() {
   const attachmentLinkedViewContract = attachmentLinkedViewProbe
     ? initial.attachmentLinkedView
     : null
+  const attachmentDefaultAppContract = attachmentDefaultAppProbe
+    ? initial.attachmentDefaultApp
+    : null
   const bookmarkPersistence = attachmentBookmarkProbe
     ? {
         ...attachmentBookmarkContract.persistence,
@@ -2298,6 +2461,7 @@ async function runController() {
   const postActionGraph =
     attachmentMoveContract?.graphAfterAction ??
     attachmentPathCopyContract?.graphAfterAction ??
+    attachmentDefaultAppContract?.graphAfterAction ??
     attachmentLinkedViewContract?.graphAfter ??
     initial.entered
   const sameDigest = (left, right) =>
@@ -2313,6 +2477,7 @@ async function runController() {
       stageTransform: state?.stageTransform,
       nodePaths: state?.nodePaths,
       edgeCount: state?.edgeCount,
+      edgeSignature: state?.edgeSignature,
       tabs: state?.tabs
     })
   const graphCoreSignature = (state) =>
@@ -2320,7 +2485,8 @@ async function runController() {
       query: state?.query,
       stageTransform: state?.stageTransform,
       nodePaths: state?.nodePaths,
-      edgeCount: state?.edgeCount
+      edgeCount: state?.edgeCount,
+      edgeSignature: state?.edgeSignature
     })
 
   const sharedAssertions = {
@@ -2384,6 +2550,75 @@ async function runController() {
         nodePositionNotPersistedInSettings: nodeDragContract.nodePositionAbsentFromSettings,
         ...sharedAssertions
       }
+    : attachmentDefaultAppProbe
+      ? {
+          exactNodeSetAtEveryCheckpoint: [
+            initial.baseline,
+            initial.entered,
+            attachmentDefaultAppContract.graphBeforeAction,
+            attachmentDefaultAppContract.graphAfterAction,
+            initial.reopened,
+            restarted.restarted
+          ].every(
+            (state) => JSON.stringify(state.nodePaths) === JSON.stringify(expectedCameraNodePaths)
+          ),
+          attachmentContextMenuOpened: Boolean(initial.attachmentContextMenu?.items?.length),
+          defaultAppMenuOrderExact: (() => {
+            const items = initial.attachmentContextMenu?.items ?? []
+            const linkedViewIndex = items.findIndex((item) =>
+              item.text.startsWith('リンクされたビューを開く')
+            )
+            const defaultAppIndex = items.findIndex(
+              (item) => item.text === 'デフォルトアプリで開く'
+            )
+            const deleteIndex = items.findIndex((item) => item.text === 'ファイルを削除')
+            return (
+              linkedViewIndex >= 0 &&
+              defaultAppIndex === linkedViewIndex + 1 &&
+              deleteIndex === defaultAppIndex + 1
+            )
+          })(),
+          defaultAppMenuItemEnabled:
+            initial.attachmentContextMenu?.items?.some(
+              (item) => item.text === 'デフォルトアプリで開く' && item.disabled === false
+            ) === true,
+          shellOpenPathRequestExact:
+            attachmentDefaultAppContract.calls?.length === 1 &&
+            attachmentDefaultAppContract.calls[0]?.path ===
+              attachmentDefaultAppContract.expectedPath,
+          initialHookInstalledVerifiedAndRestored:
+            attachmentDefaultAppContract.shell?.hookInstalled === true &&
+            attachmentDefaultAppContract.shell?.identityVerifiedBeforeAction === true &&
+            attachmentDefaultAppContract.shell?.hookRestored === true,
+          actionClosedMenu:
+            attachmentDefaultAppContract.uiAfterAction?.contextMenuOpen === false,
+          globalGraphRemainedVisible:
+            attachmentDefaultAppContract.uiAfterAction?.globalGraphVisible === true,
+          noReplayAfterGraphReopen:
+            attachmentDefaultAppContract.callCountAfterGraphReopen === 1,
+          restartedHookInstalledAndRestored:
+            restarted.attachmentDefaultAppShell?.hookInstalled === true &&
+            restarted.attachmentDefaultAppShell?.hookRestored === true,
+          noReplayAfterAppRestart:
+            restarted.attachmentDefaultAppShell?.callCountAfterAppRestart === 0 &&
+            restarted.attachmentDefaultAppShell?.calls?.length === 0,
+          edgeSignatureCapturedAtEveryCheckpoint: [
+            attachmentDefaultAppContract.graphBeforeAction,
+            attachmentDefaultAppContract.graphAfterAction,
+            initial.reopened,
+            restarted.restarted
+          ].every((state) => Array.isArray(state.edgeSignature) && state.edgeSignature.length > 0),
+          queryCameraNodesEdgesTabsPreservedAcrossActionReopenAndRestart: [
+            attachmentDefaultAppContract.graphAfterAction,
+            initial.reopened,
+            restarted.restarted
+          ].every(
+            (state) =>
+              graphSurfaceSignature(state) ===
+              graphSurfaceSignature(attachmentDefaultAppContract.graphBeforeAction)
+          ),
+          ...sharedAssertions
+        }
     : attachmentLinkedViewProbe
       ? {
           exactNodeSetAtEveryCheckpoint: [
@@ -2831,6 +3066,7 @@ async function runController() {
     attachmentPathCopyProbe,
     attachmentPathCopyScenario: attachmentPathCopyProbe ? attachmentPathCopyScenario : null,
     attachmentLinkedViewProbe,
+    attachmentDefaultAppProbe,
     cameraContract,
     nodeDragContract,
     nodeMenuContract,
@@ -2841,6 +3077,7 @@ async function runController() {
     attachmentBookmarkContract,
     attachmentPathCopyContract,
     attachmentLinkedViewContract,
+    attachmentDefaultAppContract,
     bookmarkCounts,
     bookmarkPersistence,
     repository,
@@ -2857,7 +3094,12 @@ async function runController() {
   )
 
   const artifactPaths = [
-    ...(attachmentLinkedViewProbe
+    ...(attachmentDefaultAppProbe
+      ? [
+          '01-node-context-menu.png',
+          '02-after-default-app-request.png'
+        ]
+      : attachmentLinkedViewProbe
       ? [
           '00-baseline.png',
           '01-node-context-menu.png',
@@ -2970,7 +3212,9 @@ async function runController() {
   ].map((name) => resolve(outputRoot, name))
   const manifest = {
     capturedAt: observation.capturedAt,
-    stage: attachmentLinkedViewProbe
+    stage: attachmentDefaultAppProbe
+      ? 'GP0-3b-n Global Graph attachment default-app working-tree evidence'
+      : attachmentLinkedViewProbe
       ? 'GP0-3b-m Global Graph attachment linked-view working-tree evidence'
       : attachmentPathCopyProbe
       ? `GP0-3b-l Global Graph attachment path copy (${attachmentPathCopyScenario}) working-tree evidence`
@@ -2994,7 +3238,25 @@ async function runController() {
         ? 'GP0-3b-c Global Graph camera persistence working-tree evidence'
         : 'GP0-3b Global Graph search persistence working-tree evidence',
     status: completed ? 'captured' : 'failed',
-    comparisonStatus: attachmentLinkedViewProbe
+    attachmentDefaultApp: attachmentDefaultAppProbe
+      ? {
+          actionLabel: attachmentDefaultAppContract.actionLabel,
+          targetPath: 'attachments/diagram.svg',
+          menuItemCount: initial.attachmentContextMenu?.items?.length ?? 0,
+          menuItems: initial.attachmentContextMenu?.items ?? [],
+          apiSeam: attachmentDefaultAppContract.apiSeam,
+          expectedPath: attachmentDefaultAppContract.expectedPath,
+          calls: attachmentDefaultAppContract.calls,
+          menuClosed: attachmentDefaultAppContract.uiAfterAction?.contextMenuOpen === false,
+          callCountAfterGraphReopen:
+            attachmentDefaultAppContract.callCountAfterGraphReopen,
+          initialHook: attachmentDefaultAppContract.shell,
+          restartedHook: restarted.attachmentDefaultAppShell
+        }
+      : null,
+    comparisonStatus: attachmentDefaultAppProbe
+      ? 'Compare with docs/reports/assets/graph-gp0-attachment-default-app/obsidian-1.13.4/observation.json'
+      : attachmentLinkedViewProbe
       ? 'Compare with docs/reports/assets/graph-gp0-attachment-linked-view/obsidian-1.13.4/observation.json'
       : attachmentPathCopyProbe
       ? `Compare with docs/reports/assets/graph-gp0-attachment-path-copy/${attachmentPathCopyScenario}/obsidian-1.13.4/observation.json`
@@ -3017,7 +3279,9 @@ async function runController() {
       : cameraProbe
         ? 'Compare with docs/reports/assets/graph-gp0-camera-persistence/comparison.json'
         : 'Compare with docs/reports/assets/graph-gp0-search-persistence/comparison.json',
-    command: attachmentLinkedViewProbe
+    command: attachmentDefaultAppProbe
+      ? 'npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-default-app'
+      : attachmentLinkedViewProbe
       ? 'npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-linked-view'
       : attachmentPathCopyProbe
       ? `npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-path-copy --path-copy-scenario=${attachmentPathCopyScenario}`
@@ -3052,7 +3316,29 @@ async function runController() {
       },
       network: 'host resolver blocked except localhost'
     },
-    evidenceBoundary: attachmentLinkedViewProbe
+    evidenceBoundary: attachmentDefaultAppProbe
+      ? {
+          established: [
+            'Fresh isolated fixture Vault and userData profile',
+            'Public TSUZUNE attachment context-menu action was used exactly once',
+            'electron.shell.openPath was replaced before the main-process import and restored in both processes',
+            'The exact sanitized filesystem path and call count were recorded without launching an OS application',
+            'Graph query, camera transform, node paths, directed edge signature, and tabs were compared after the action, Graph reopen, and an additional TSUZUNE-only restart',
+            'Source fixture, isolated Vault content, product source, and built application were hashed before and after capture'
+          ],
+          notEstablished: [
+            'A real default application launch or OS file association',
+            'Physical mouse or keyboard input',
+            'Visible onscreen foreground-window interaction',
+            'Touch or pen input',
+            'Screen reader or Windows High Contrast acceptance',
+            'Multi-DPI or pixel-identical parity',
+            'Obsidian restart non-replay, because the fixed reference intentionally did not start a second process'
+          ],
+          apiSeam: 'electron.shell.openPath',
+          externalApplicationLaunched: false
+        }
+      : attachmentLinkedViewProbe
       ? {
           established: [
             'Fresh isolated fixture Vault and userData profile',
@@ -3118,7 +3404,9 @@ async function runController() {
     processIds: [initial.processId, restarted.processId],
     assertions,
     artifacts: await Promise.all(artifactPaths.map(artifactSummary)),
-    next: attachmentLinkedViewProbe
+    next: attachmentDefaultAppProbe
+      ? 'Build the fixed Obsidian/TSUZUNE GP0-3b-n comparison without widening scope to folder reveal.'
+      : attachmentLinkedViewProbe
       ? 'Compare the linked-view submenu and backlink workspace behavior with the fixed Obsidian 1.13.4 evidence.'
       : attachmentPathCopyProbe
       ? `Compare the ${attachmentPathCopyScenario} path format and adaptive submenu placement with the fixed Obsidian 1.13.4 evidence.`

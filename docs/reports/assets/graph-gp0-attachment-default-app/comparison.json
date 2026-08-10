@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "stage": "GP0-3b-n",
+  "capturedAt": "2026-08-10T11:34:43.359Z",
+  "status": "matched-core-behavior",
+  "fixedConditions": {
+    "reference": "Obsidian Desktop 1.13.4",
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "scope": "Global Graph attachment node default-app action",
+    "targetNode": "attachments/diagram.svg",
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "theme": "light"
+  },
+  "required": {
+    "evidenceCaptured": true,
+    "evidenceAssertions": true,
+    "menuTargetAndOrder": true,
+    "referenceRequestExact": true,
+    "productRequestExact": true,
+    "sameFixtureFileIdentity": true,
+    "actionLifecycle": true,
+    "referenceNoReplayAfterReopen": true,
+    "productNoReplayAfterReopen": true,
+    "productNoReplayAfterRestart": true,
+    "hooksInstalledAndRestored": true,
+    "referenceRawQueryStable": true,
+    "referenceRawCameraStable": true,
+    "referenceRawNodeSetStable": true,
+    "referenceRawEdgeSignatureStable": true,
+    "referenceRawGraphWorkspaceStable": true,
+    "productRawSurfaceStable": true,
+    "vaultContentUnchanged": true,
+    "referenceRestartHonestlyUnobserved": true
+  },
+  "comparisons": [
+    {
+      "id": "default-app-menu",
+      "label": "実在attachmentに「デフォルトアプリで開く」を有効表示",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "single-file-request",
+      "label": "同じrelative fixture file identityを外部open境界へ1回だけ要求",
+      "obsidian": "window.open(file URL, \"_external\")",
+      "tsuzune": "electron.shell.openPath(absolute filesystem path)",
+      "status": "matched-core-behavior"
+    },
+    {
+      "id": "menu-close",
+      "label": "要求後にcontext menuを閉じ、Global Graphを保持",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "same-process-reopen",
+      "label": "Graph再表示でrequestを再生せず、query・camera・node・edge・Graph workspace・Vaultを保持",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched-core-behavior"
+    },
+    {
+      "id": "app-restart",
+      "label": "別process再起動時のrequest非再生",
+      "obsidian": "安全境界により未観測・未確立",
+      "tsuzune": "main import前hookで0回を追加確認",
+      "status": "product-extra-evidence"
+    },
+    {
+      "id": "context-menu-scope",
+      "label": "添付nodeのcontext menu全体",
+      "obsidian": 11,
+      "tsuzune": 8,
+      "status": "known-gap-outside-slice"
+    },
+    {
+      "id": "real-default-app-launch",
+      "label": "OS既定appの選択・実起動・chooser／cancel",
+      "obsidian": "未実行・未証明",
+      "tsuzune": "未実行・未証明",
+      "status": "not-established"
+    }
+  ],
+  "established": [
+    "両製品の実在attachment nodeから同じrelative fixture file identityへの外部open requestを1回だけ発行する",
+    "両製品で操作後にcontext menuを閉じ、同一process内のGraph再表示でrequestを再発行しない",
+    "固定Obsidian raw observationからquery、camera、node ID集合、edge signature、Graph tab／leafの不変を直接確認した",
+    "TSUZUNE raw observationからquery、camera transform、node ID集合、edge signature、Graph tabの不変を直接確認した",
+    "両captureでVault content digestを保持し、外部open hookを復元した"
+  ],
+  "knownGaps": [
+    "添付context menu全体はObsidian 11項目、TSUZUNE 8項目で残差がある",
+    "Obsidianのfile URLとTSUZUNEのabsolute filesystem pathはAPI表現が異なる。同じrelative fixture file identityだけを中核一致とした",
+    "Obsidianの別process再起動は安全境界により意図的に実行せず、request非再生は未観測・未確立である",
+    "TSUZUNEの別process再起動0回は製品固有の追加証拠で、共通parity判定には使用していない",
+    "OS既定appの選択・実起動成功、chooser／cancel、物理入力、screen reader、High Contrast、multi-DPI、pixel identityは未証明"
+  ],
+  "evidenceBoundary": {
+    "input": "隔離fixture、固定viewport、offscreen Electron、CDP／DOM合成入力",
+    "interception": {
+      "obsidian": "renderer window.openをaction直前にfail-closedで差し替え、OSへ転送しない",
+      "tsuzune": "main import前にelectron.shell.openPathをfail-closedで差し替え、IPC／Vault validationは実経路を通す"
+    },
+    "commonLifecycle": [
+      "action",
+      "same-process Graph reopen"
+    ],
+    "productOnlyLifecycle": [
+      "TSUZUNE app restart"
+    ],
+    "notEstablished": [
+      "実OS default application launchとfile association",
+      "chooserとcancel結果",
+      "physical inputとreal-OS accessibility",
+      "pixel-identical rendering"
+    ]
+  },
+  "safeguards": {
+    "obsidian": {
+      "sourceUnchanged": true,
+      "vaultUnchanged": true,
+      "protocolRestored": true,
+      "hookRestored": true,
+      "secondProcessLaunched": false
+    },
+    "tsuzune": {
+      "sourceFixtureUnchanged": true,
+      "isolatedVaultContentUnchanged": true,
+      "hookRestored": true,
+      "isolatedProcessesRemaining": 0
+    }
+  },
+  "menuItems": {
+    "obsidian": [
+      "diagram.svg",
+      "新規タブに開く",
+      "新規ウィンドウで開く",
+      "ファイルを移動…",
+      "ブックマーク…",
+      "パスをコピー",
+      "リンクされたビューを開く",
+      "デフォルトアプリで開く",
+      "フォルダで表示",
+      "ファイルエクスプローラでファイルを表示",
+      "ファイルを削除"
+    ],
+    "tsuzune": [
+      "新規タブに開く",
+      "新規ウィンドウで開く",
+      "ファイルを移動…",
+      "ブックマーク…",
+      "パスをコピー ›",
+      "リンクされたビューを開く ›",
+      "デフォルトアプリで開く",
+      "ファイルを削除"
+    ]
+  },
+  "requestRepresentations": {
+    "obsidian": {
+      "apiSeam": "window.open",
+      "url": "file:///<OBSIDIAN_VAULT_ROOT>/attachments/diagram.svg",
+      "target": "_external"
+    },
+    "tsuzune": {
+      "apiSeam": "electron.shell.openPath",
+      "path": "<TSUZUNE_VAULT_ROOT>/attachments/diagram.svg"
+    },
+    "sharedRelativeFileIdentity": "attachments/diagram.svg"
+  },
+  "conclusion": "GP0-3b-nでは、実在attachment nodeの「デフォルトアプリで開く」から同じrelative fixture file identityへの外部open requestを1回だけ発行し、menu close、Graph／Vault保持、同一process内のGraph再表示での非再生を中核挙動として一致確認した。実外部アプリは起動しておらず、Obsidianの別process再起動も未観測である。"
+}

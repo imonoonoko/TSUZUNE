@@ -850,11 +850,13 @@ describe('WikiGraphView', () => {
 
   it('opens the file context menu for file-backed nodes and exposes real callbacks only', async () => {
     const user = userEvent.setup()
+    const onOpen = vi.fn()
     const onOpenInNewTab = vi.fn()
     const onOpenInNewWindow = vi.fn()
     const onMove = vi.fn()
     const onBookmark = vi.fn()
     const onCopyPath = vi.fn()
+    const onOpenLinkedView = vi.fn()
     const onTrash = vi.fn()
     const graph: WikiGraph = {
       nodes: [
@@ -882,8 +884,9 @@ describe('WikiGraphView', () => {
         onMove={onMove}
         onBookmark={onBookmark}
         onCopyPath={onCopyPath}
+        onOpenLinkedView={onOpenLinkedView}
         onTrash={onTrash}
-        onOpen={() => undefined}
+        onOpen={onOpen}
       />
     )
 
@@ -921,6 +924,8 @@ describe('WikiGraphView', () => {
       'ファイルを移動…',
       'ブックマーク…',
       'パスをコピー ›',
+      'リンクされたビューを開く ›',
+      'デフォルトアプリで開く',
       'ファイルを削除'
     ])
     await user.click(screen.getByRole('menuitem', { name: 'ブックマーク…' }))
@@ -956,6 +961,18 @@ describe('WikiGraphView', () => {
     )
     await user.click(screen.getByRole('menuitem', { name: 'ファイルを移動…' }))
     expect(onMove).toHaveBeenCalledWith('assets/diagram.png')
+
+    fireEvent.contextMenu(
+      screen.getByRole('button', {
+        name: 'diagram.png（添付書類）を開く'
+      })
+    )
+    await user.click(
+      screen.getByRole('menuitem', { name: 'デフォルトアプリで開く' })
+    )
+    expect(onOpen).toHaveBeenCalledOnce()
+    expect(onOpen).toHaveBeenCalledWith('assets/diagram.png')
+    expect(screen.queryByRole('menu', { name: 'diagram.png' })).toBeNull()
 
     fireEvent.contextMenu(
       screen.getByRole('button', {
@@ -998,6 +1015,9 @@ describe('WikiGraphView', () => {
     fireEvent.contextMenu(
       screen.getByRole('button', { name: 'A（現在のノート）' })
     )
+    expect(
+      screen.queryByRole('menuitem', { name: 'デフォルトアプリで開く' })
+    ).toBeNull()
     await user.click(screen.getByRole('menuitem', { name: 'ファイルを移動…' }))
     expect(onMove).toHaveBeenLastCalledWith('A.md')
   })
