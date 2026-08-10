@@ -47,13 +47,13 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 | インストール済み本番 | v0.5.0。最新の正確なcommit、hash、検証結果は[production-update-latest.json](docs/reports/production-update-latest.json)を参照 |
 | 開発checkpoint | v0.6 Obsidian Graph Parity |
 | 完了した直近slice | GP0-3b-o Attachment Folder Reveal。同じfixture fileの親フォルダ要求1回、menu close、Graph／Vault保持を実Explorer起動なしで固定比較し、添付menuへ最小実装した |
-| 現役slice | GP0-3b-oの検証・記録を完了。GP0-3b-pは固定参照を試行したが、受入packetは未生成。次のmenu操作はハーネス事前待機を直してから一度だけ再判定し、製品変更へ自動拡張しない |
+| 現役slice | GP0-3b-oとテンプレート／名前変更／Graph操作拡張を本番反映済み。GP0-3b-pは固定参照を試行したが受入packet未生成のためblocked。次のmenu操作はハーネス事前待機を直してから一度だけ再判定し、製品変更へ自動拡張しない |
 | Context checkpoint | X1-M1 MOC Title RouterとX1-D1 Recall-safe Query Bridgeを本番反映済み。質問はbaseline候補を削除せず、通常本文の展開順だけを変える |
 | 現役Primary Track数 | 1。Google intakeとChatGPT candidate applyは保留 |
 
 ### Current Transition Queue
 
-1. **Completed — GP0-3b-o closeout:** `フォルダで表示`の製品テスト、隔離capture、比較report、未証明境界を固定済み。実Explorer起動・本番反映・commit/pushはこの作業では行わない。
+1. **Completed — GP0-3b-o closeout:** `フォルダで表示`の製品テスト、隔離capture、比較report、未証明境界を固定し、commit `2ee914c`から本番反映済み。実Explorer起動とObsidian別process再起動は未証明のまま残す。
 2. **Now — GP0-3b-p reference blocked:** `ファイルエクスプローラでファイルを表示`の初回観測は内部File Explorer遷移を示したが、訂正後の最終2試行は対象クリック前のcontext-menu待機で停止し、受入packetを生成していない。[Discussion log](.agent/requirements/20260811-0257-attachment-file-explorer-reveal/discussion_log.md)に境界を固定する。製品実装・比較report・本番反映は未開始。
 3. **Next after the block — GP0-3b-p preflight:** 事前のGraph context-menu検出だけを安定化し、同じ隔離fixtureで一度だけfresh captureを行う。再び対象クリック前に失敗したら、製品変更なしでこのsliceをblockedとして閉じる。
 4. **After Graph checkpoint:** アクセシビリティ、Personal Google Intake、AI write policyのどれを次の独立Trackにするか再選択する。
