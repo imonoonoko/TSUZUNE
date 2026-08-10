@@ -78,7 +78,7 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 
 外部の永続code graphであるIxは設計比較だけを行い、X1-D0へ導入しません。code再読込の損失が別の固定課題で測定された場合だけ隔離比較します。判断根拠と変動する外部状態は[Alternatives](.agent/requirements/20260810-0440-query-aware-compact-context/2_alternatives.md)へ分離しました。
 
-X1-D0自体は設計だけで停止しました。その後の明示認可により、R1〜R3を独立したX1-D1 supporting sliceとして実装し、MOC全タイトル順、query有無のcandidate到達性、Temporal／provenance／warning、最大500文字query、2k／4k／6k／8k／15k budget sweepを検証して本番反映しました。固定4問の回答品質、model-visible token、X1-T1 transportは未証明のまま分離し、Primary QueueはGP0-3b-nを維持します。
+X1-D0自体は設計だけで停止しました。その後の明示認可により、R1〜R3を独立したX1-D1 supporting sliceとして実装し、MOC全タイトル順、query有無のcandidate到達性、Temporal／provenance／warning、最大500文字query、2k／4k／6k／8k／15k budget sweepを検証して本番反映しました。固定4問の回答品質、model-visible token、X1-T1 transportは未証明のまま分離し、Primary Queueへ復帰しました。
 
 ## Completed Supporting Track: O2-P2 Classification Migration Dry-run
 
@@ -183,7 +183,7 @@ Obsidian 1.13.4でattachment nodeの`デフォルトアプリで開く`を実行
 - [x] 既存backendのunsupported／directory guardを再確認し、external-open failureのApp回帰、targeted test、typecheck、comparison JSON、HTML reportを通す。
 - [x] 全508 tests、typecheck、MCP検査を通す。
 - [x] `git diff --check`を通す。
-- [ ] commit／push／本番更新を最終delivery gateで確認する。
+- [x] feature commit `49ac0f3`をpushし、clean sourceから本番更新して`installed-and-verified`、10/10 checks、built／installed hash一致、production profile不変を確認する。
 
 #### Stop Condition
 

@@ -54,6 +54,12 @@
 - 全508 tests、typecheck、MCP検査を通過した。commit／push／本番更新は最終delivery gateで確定する。
 - 判定は`matched-core-behavior`。実OS既定appの選択・起動、chooser／cancel、Obsidian別process再起動、物理入力、実OS accessibility、pixel identityは未証明のまま残す。
 
+## 2026-08-10 20:50 JST — Delivery Gate
+
+- feature commit `49ac0f3`を同名originへpushした。
+- clean sourceから`production:update`を1回実行し、全508 tests、MCP 4 read／3 write、10/10 checks、packaged／installed smokeを通した。
+- built／installed executableとapp.asarのhash一致、production profile 57 files不変、MCP再登録を確認し、receiptは`installed-and-verified`となった。
+
 ## Initial Design Stop Condition
 
 要件、UI差分、安全なcapture契約、受入条件、非目標を本packageへ固定し、`PLAN.md`と`PROJECT_STATUS.md`から参照できた時点で設計turnを終了する。実装は次の明示指示まで開始しない。

@@ -2,7 +2,7 @@
 
 ## Authorization State
 
-初回設計turnでは本書を固定して停止した。その後の明示指示で固定参照capture、製品実装、TSUZUNE capture、比較、検証が承認され、実行済みである。本書は採用した最小経路の実行記録として保持する。commit／push／本番更新は最終delivery gateで確定する。
+初回設計turnでは本書を固定して停止した。その後の明示指示で固定参照capture、製品実装、TSUZUNE capture、比較、検証が承認され、実行済みである。本書は採用した最小経路の実行記録として保持する。feature commit `49ac0f3`をpushし、同じclean sourceから本番更新して`installed-and-verified`を確認した。
 
 ## Execution Order
 
