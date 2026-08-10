@@ -119,3 +119,15 @@
 ### Excluded
 - X1-T1 structured-only transport、embedding、要約、multi-seed API、新依存は追加しない。
 - 固定4問の回答品質とmodel-visible token削減は、source implementationだけから達成扱いしない。
+
+## X1-D1 Production Closeout - 2026-08-10 14:03
+
+### Result
+- commit `e2d8621`をpushし、clean sourceからインストール済み本番へ反映した。
+- 57 files／508 tests、typecheck、MCP smoke、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認した。
+- MOC全タイトル順、query有無のcandidate集合、Temporal／provenance／warning、最大500文字query、2k／4k／6k／8k／15k budget sweepを回帰固定した。
+
+### Remaining Boundary
+- 固定4問の回答品質とmodel-visible tokenは未計測である。
+- legacy text＋structuredContentの二重搬送は独立X1-T1まで変更しない。
+- TSUZUNEへ知識を書き戻した後、Primary QueueのGP0-3b-nへ戻る。

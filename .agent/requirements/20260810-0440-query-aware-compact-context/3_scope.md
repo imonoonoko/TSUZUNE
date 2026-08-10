@@ -10,9 +10,14 @@
 - source fence、path、relation、updated、selection reason、temporal status、warningを維持する。
 - 現行MCP資料とtool説明へ、質問がある場合は`query`を渡す運用を追記する。
 
-## Acceptance Still Pending
+## Completed X1-D1 Acceptance
+- commit `e2d8621`をpushし、2026-08-10 14:03 JSTにclean sourceから本番更新した。
+- 57 files／508 tests、typecheck、MCP smoke、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認した。
+- MOC全タイトル順、query有無のcandidate集合、Temporal／provenance／warning、最大500文字query、2k／4k／6k／8k／15k budget sweepを回帰固定した。
+
+## Measurement Still Pending
 - 固定4問と本番read-only fixtureで回答品質、期待source、文字数、決定性、latencyを再計測する。
-- commit、push、production update、登録済みMCPでの実運用確認を行う。
+- model-visible tokenはhost-level計測まで削減率を主張しない。
 
 ## Deferred X1-T1
 - `build_context`だけのtext JSON／`structuredContent`二重搬送は、実client gateに通った場合だけstructured-onlyへ変える。
@@ -42,4 +47,4 @@ X1-D0は、このpackage、PLAN、PROJECT_STATUSへ目的、選定規則、評�
 MOC全タイトル順、query無しbaselineのcandidate集合、Temporal／provenance／warningのどれかを失った場合は停止する。X1-T1、embedding、要約、multi-seed APIへ拡張しない。
 
 ## Return Condition
-X1-D1の検証、production update、TSUZUNE書き戻し後はCurrent QueueのGP0-3b-nへ戻る。固定4問の回答品質と本番read-only計測は未証明のacceptanceとして残し、外部code graphはこの実装と混ぜない。
+X1-D1の検証とproduction updateを完了したため、TSUZUNE書き戻し後はCurrent QueueのGP0-3b-nへ戻る。固定4問の回答品質と本番read-only計測は未証明のmeasurementとして残し、外部code graphはこの実装と混ぜない。

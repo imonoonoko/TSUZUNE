@@ -7,6 +7,8 @@ X1-D0は本書を固定した設計checkpointである。その後の明示指�
 
 X1-M1 MOC Title Routerは先行して本番反映済みであり、X1-D1でも全タイトルと記述順を変更しない。
 
+X1-D1はcommit `e2d8621`としてpushし、2026-08-10 14:03 JSTにインストール済み本番へ反映した。X1-T1と固定4問の再評価は未完了のまま分離する。
+
 ## 2. Installed Baseline Before X1-D1
 - 既定の`max_chars`は15,000。
 - 起点1件、outgoing最大5件、backlink最大3件、temporal最大5件を候補にする。

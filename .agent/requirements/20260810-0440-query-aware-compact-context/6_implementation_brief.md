@@ -1,7 +1,7 @@
 # Query-aware Compact Context Implementation Brief
 
 ## Authorization Boundary
-X1-M1 MOC Title Routerはcommit `601b94e`としてインストール済み本番へ反映済みである。X1-D0の設計後、R1〜R3だけをX1-D1として実装する認可を得た。X1-T1 structured-only transportは未認可・未着手であり、現行のlegacy text＋structured envelopeを維持する。
+X1-M1 MOC Title Routerはcommit `601b94e`、X1-D1 Recall-safe Query Bridgeはcommit `e2d8621`としてインストール済み本番へ反映済みである。X1-T1 structured-only transportは未認可・未着手であり、現行のlegacy text＋structured envelopeを維持する。
 
 ## Implemented X1-M1 Surface
 - `src/core/context.ts`: valid `type: moc`判定、canonical Wiki title projection、MOC起点の通常outgoing／backlink本文展開停止。

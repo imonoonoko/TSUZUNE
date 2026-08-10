@@ -48,7 +48,7 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 | 開発checkpoint | v0.6 Obsidian Graph Parity |
 | 完了した直近slice | GP0-3b-m Attachment Linked Views。添付nodeから対象pathのバックリンクビューを開き、Global Graphを保持する中核挙動を固定比較した |
 | 現役slice | GP0-3b-n Attachment Default App。次の未比較context menu操作を一項目だけ固定比較する |
-| Context checkpoint | X1-M1 MOC Title Routerは本番反映済み。X1-D0設計完了後、X1-D1 Recall-safe Query Bridgeをbounded supporting sliceとしてworking treeへ実装し、acceptanceを検証中 |
+| Context checkpoint | X1-M1 MOC Title RouterとX1-D1 Recall-safe Query Bridgeを本番反映済み。質問はbaseline候補を削除せず、通常本文の展開順だけを変える |
 | 現役Primary Track数 | 1。Google intakeとChatGPT candidate applyは保留 |
 
 ### Current Transition Queue
@@ -58,7 +58,7 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 
 新しいSupporting Trackを割り込ませる場合は、目的、停止条件、元Trackへ戻る条件をこの節へ先に記録します。
 
-**Bounded supporting slice — X1-D1:** `build_context`へ任意queryを渡し、query無しbaselineのcandidate集合を変えず、通常ノート本文の展開順だけを優先します。MOC全タイトル、Temporal、provenance、warningのいずれかを失ったら停止し、X1-T1、embedding、要約、multi-seed APIへ拡張しません。検証、commit、push、本番反映、TSUZUNE書き戻し後はPrimary QueueのGP0-3b-nへ戻ります。
+**Completed bounded supporting slice — X1-D1:** `build_context`へ任意queryを渡し、query無しbaselineのcandidate集合を変えず、通常ノート本文の展開順だけを優先します。MOC全タイトル、Temporal、provenance、warningを保持したままcommit `e2d8621`から本番へ反映しました。X1-T1、embedding、要約、multi-seed APIへ拡張せず、Primary QueueはGP0-3b-nへ戻します。
 
 分類Trackを次に選ぶ場合のGateは、匿名一時Vaultだけでapplyとrollbackを往復するO2-P3、またはDriveがPath Alias sidecarを扱う契約判断です。どちらを先にするかを決めるまでCurrent Transition Queueへ割り込ませず、本番Vaultへのapplyは許可しません。
 
@@ -68,7 +68,7 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 
 インストール済み本番をread-onlyで使った固定比較では、`00_入口/知識地図.md`の15,000文字Contextが1,130文字になり、includedは9件からMOC 1件、omittedは21件から0件になりました。削減は13,870文字、92.47%です。これはContext Markdown文字数の比較であり、model-visible token削減は未計測です。
 
-時間指定時の本文省略、Path Alias、未解決link、source fence、通常ノートの従来経路を維持します。MOCから選んだノート本文は、次の`fetch`または`build_context`で初めて読みます。query bridgeと本文budget priorityは後続X1-D1へ分離し、MCP structured-only transportはさらに独立したX1-T1へ残します。
+時間指定時の本文省略、Path Alias、未解決link、source fence、通常ノートのquery無し経路を維持します。MOCから選んだノート本文は、次の`fetch`または`build_context`で初めて読みます。query bridgeと本文budget priorityはX1-D1として本番反映し、MCP structured-only transportは独立したX1-T1へ残します。
 
 ## Revised Design Checkpoint: X1-D0 Recall-safe Progressive Context
 
@@ -78,7 +78,7 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 
 外部の永続code graphであるIxは設計比較だけを行い、X1-D0へ導入しません。code再読込の損失が別の固定課題で測定された場合だけ隔離比較します。判断根拠と変動する外部状態は[Alternatives](.agent/requirements/20260810-0440-query-aware-compact-context/2_alternatives.md)へ分離しました。
 
-X1-D0自体は設計だけで停止しました。その後の明示認可により、R1〜R3を独立したX1-D1 supporting sliceとして実装し、MOC全タイトル順、query有無のcandidate到達性、Temporal／provenance／warning、2k／4k／6k／8k／15k budget sweepを検証しています。固定4問の回答品質、model-visible token、X1-T1 transportは未証明のまま分離し、Primary QueueはGP0-3b-nを維持します。
+X1-D0自体は設計だけで停止しました。その後の明示認可により、R1〜R3を独立したX1-D1 supporting sliceとして実装し、MOC全タイトル順、query有無のcandidate到達性、Temporal／provenance／warning、最大500文字query、2k／4k／6k／8k／15k budget sweepを検証して本番反映しました。固定4問の回答品質、model-visible token、X1-T1 transportは未証明のまま分離し、Primary QueueはGP0-3b-nを維持します。
 
 ## Completed Supporting Track: O2-P2 Classification Migration Dry-run
 
@@ -241,7 +241,7 @@ O0〜O7はGraphだけの計画ではありません。Obsidian 1.13.4の公式�
 
 | Stage | 目的 | 導入Gate |
 |---|---|---|
-| X1. Context Compiler 2.0 | X1-M1でMOCを全タイトル索引化。X1-D0設計を受け、候補を消さず本文だけ段階取得するX1-D1をworking treeで検証中。X1-T1 transportは未着手 | expected-source reachability 100%、silent omission 0、固定質問で出典・時間整合性を維持 |
+| X1. Context Compiler 2.0 | X1-M1でMOCを全タイトル索引化。X1-D1で候補を消さず本文だけ段階取得するquery bridgeを本番反映。X1-T1 transportは未着手 | expected-source reachability 100%、silent omission 0、固定質問で出典・時間整合性を維持 |
 | X2. Provenance-backed Personalization | 会話や資料から本人情報候補を抽出し、出典・確認状態を保つ | raw/derived/knowledge分離、stable source ID、再取込重複0、本人確認導線 |
 | X3. Temporal Memory Lifecycle | valid time、knowledge time、review due、supersedesを日常運用する | 現在/過去の誤混入0、状態更新の手作業が負担にならない |
 | X4. AI-assisted Maintenance | 通常ノートの整理、更新、矛盾候補、link候補をAIが行う | 履歴、出典、policy、rollback、失敗fixtureを用意 |
