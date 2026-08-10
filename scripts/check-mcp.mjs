@@ -92,6 +92,15 @@ try {
     throw new Error(`Unexpected tools: ${toolNames.join(', ')}`)
   }
   const toolsByName = new Map(listed.tools.map((tool) => [tool.name, tool]))
+  const contextInputSchema = toolsByName.get('build_context')?.inputSchema
+  const contextQuerySchema = contextInputSchema?.properties?.query
+  if (
+    contextQuerySchema?.type !== 'string' ||
+    contextQuerySchema.maxLength !== 500 ||
+    contextInputSchema?.required?.includes('query')
+  ) {
+    throw new Error('build_context query must be optional and limited to 500 characters.')
+  }
   for (const name of ['search', 'fetch', 'get_backlinks', 'build_context']) {
     const annotations = toolsByName.get(name)?.annotations
     if (
@@ -169,6 +178,36 @@ try {
     )
   ) {
     throw new Error('build_context did not include the linked note.')
+  }
+
+  const queriedContext = await client.callTool({
+    name: 'build_context',
+    arguments: {
+      id: 'Home.md',
+      max_characters: 5_000,
+      query: 'Local Markdown'
+    }
+  })
+  const queriedSource = queriedContext.structuredContent?.included?.find(
+    (source) => source?.path === 'Projects/TSUZUNE.md'
+  )
+  if (
+    queriedContext.isError ||
+    String(queriedContext.structuredContent?.markdown).includes('Query:') ||
+    !queriedSource?.selection_reasons?.includes('質問語に一致')
+  ) {
+    throw new Error('build_context did not pass query to the context builder.')
+  }
+
+  const rejectedLongQuery = await client.callTool({
+    name: 'build_context',
+    arguments: {
+      id: 'Home.md',
+      query: 'x'.repeat(501)
+    }
+  })
+  if (!rejectedLongQuery.isError) {
+    throw new Error('build_context accepted a query longer than 500 characters.')
   }
 
   const temporalContext = await client.callTool({

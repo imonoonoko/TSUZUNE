@@ -82,6 +82,7 @@ export interface ContextOutput {
 export interface BuildContextOptions {
   asOf?: string
   includeHistory?: boolean
+  query?: string
   temporalPerspective?: TemporalPerspective
 }
 
@@ -451,6 +452,7 @@ export class VaultMcpService {
       maxCharacters,
       asOf: options.asOf,
       includeHistory: options.includeHistory,
+      query: options.query,
       temporalPerspective: options.temporalPerspective,
       pathAliases: aliases
     })

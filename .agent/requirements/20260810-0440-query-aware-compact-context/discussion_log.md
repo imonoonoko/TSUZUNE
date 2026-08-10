@@ -84,3 +84,38 @@
 - X1-D0へIxをinstall、vendor、fork、依存追加しない。
 - 現行のquery-aware selectionとtransport削減を先に独立評価する。
 - Ixは、codebase再読込やimpact調査の無駄が固定課題で観測された場合だけ、1 repository・manual command・hookなしで比較する外部候補として残す。
+
+## Recall-safety Correction - 2026-08-10 12:52
+
+### User Input
+> 質問に合うMOCタイトルだけを返す絞り込み　は不完全性が強そう
+
+> では計画からはじめて
+
+### Correction
+- X1-M1の本番MOC Title Routerは、すでに解決済み全タイトルを記述順で返しており、queryによるタイトル削除を実装していない。この挙動を維持する。
+- 以前のX1-D0案にあった、query score 0の通常候補を選定対象から外す方針を撤回する。
+- queryは、query無しで得られるbaseline候補集合のうち、どの本文を先に展開するかを決める補助情報に限定する。
+- 文字予算で本文を収録しない候補も`omitted_ids`へ残し、次の`fetch`または`build_context`で取得できるようにする。
+- `build_context`のstructured-only搬送はsource recallと独立したX1-T1として評価する。
+
+### Rationale
+短いタイトル、略称、同義語、日英表記差、橋渡しノートは、必要な根拠でも単純な語彙scoreが0になり得る。質問語との不一致を「不要」と同一視せず、削除ではなく段階取得でContextを小さくする。
+
+### Stop And Return
+この訂正をrequirements package、PLAN、PROJECT_STATUS、TSUZUNEの既存知識ノートへ反映したら設計で停止する。製品source、MCP、本番挙動は変更せず、Current QueueはGP0-3b-nのままとする。
+
+## X1-D1 Implementation Start - 2026-08-10 13:30
+
+### User Authorization
+> はい
+
+### Bounded Slice
+- optional `query`をMCP serverからservice、既存coreへ渡す。
+- query無しbaselineのoutgoing／backlink quotaを先に固定し、quota外の一致候補を昇格させない。
+- queryはbaseline内の通常本文を収録する順序だけを変え、MOC全タイトル、score 0候補、Temporal／provenance／warningを削除しない。
+- query時は起点、Temporal、MOCを先に保護し、通常本文を高順位から全文、必要時は最大1件だけ部分表示し、残りを`omitted_ids`へ残す。
+
+### Excluded
+- X1-T1 structured-only transport、embedding、要約、multi-seed API、新依存は追加しない。
+- 固定4問の回答品質とmodel-visible token削減は、source implementationだけから達成扱いしない。

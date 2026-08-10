@@ -86,8 +86,11 @@ NotebookLMの調査結果を「10_プロジェクト/TSUZUNE.md」へ自動反�
 
 valid frontmatterが`type: moc`のノートは、探索用のタイトル索引として扱います。`build_context`はMOCの説明文やリンク先・バックリンク本文を一括展開せず、Wiki linkのタイトル一覧だけを返します。読みたいタイトルを選び、そのノートを次の`fetch`または`build_context`で取得してください。MOC原本を読む`fetch`、`type: moc`でない通常ノート、時間指定時の安全な本文省略は従来どおりです。
 
+質問が決まっている場合は`build_context`へ任意の`query`を渡せます。queryは最大500文字で、query無しで到達できる候補やMOCタイトルを削除せず、通常ノート本文をContextへ収録する優先順だけを変えます。予算内に本文を収録しなかった候補は`omitted_ids`へ残るため、必要ならそのノートを次の`fetch`または`build_context`で取得してください。query本文そのものはContext Markdownへ重複掲載しません。
+
 任意入力:
 
+- `query`: 最大500文字の質問または検索意図。通常ノート本文の展開優先にだけ使い、MOCのタイトル一覧とcandidate到達性は変えません。
 - `as_of`: ISO 8601の日付またはタイムゾーン付き日時。指定時点で有効だった状態と、その時点までに発生した出来事を選びます。
 - `include_history`: `true`にすると、過去状態や置き換え済みの記録も候補へ含めます。
 - `temporal_perspective`: 既定の`valid-time`は「その時点で実際に有効・発生していた情報」、`knowledge-time`は`observed_at`を使って「その時点までにTSUZUNEまたはAIが知っていた情報」を選びます。`knowledge-time`で`observed_at`がなければ推測せず省略します。

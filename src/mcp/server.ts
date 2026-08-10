@@ -297,6 +297,14 @@ async function main(): Promise<void> {
         'Build a bounded Markdown context bundle from one note, its linked notes, and related temporal state or event notes.',
       inputSchema: {
         id: z.string().min(1).describe('Relative note path'),
+        query: z
+          .string()
+          .trim()
+          .max(500)
+          .optional()
+          .describe(
+            'Optional question used to prioritize related note bodies; MOC titles are not filtered'
+          ),
         max_characters: z
           .number()
           .int()
@@ -371,6 +379,7 @@ async function main(): Promise<void> {
     },
     async ({
       id,
+      query,
       max_characters,
       as_of,
       include_history,
@@ -380,6 +389,7 @@ async function main(): Promise<void> {
         await vault.buildContext(id, max_characters, {
           asOf: as_of,
           includeHistory: include_history,
+          query,
           temporalPerspective: temporal_perspective
         })
       )

@@ -1,13 +1,13 @@
 # Query-aware Compact Context Requirements
 
 ## 1. Overview
-TSUZUNEの`build_context`を、単に上限まで情報を詰めるtoolから、質問に必要な少数の根拠を選ぶtoolへ更新する。既存のkeyword ranking、Wiki graph、temporal evaluation、provenanceを再利用し、MCP二重搬送も同じsliceで狭く解消する。
+TSUZUNEの`build_context`を、単に上限まで本文を詰めるtoolから、到達可能な根拠を残したまま必要な本文を段階的に展開するtoolへ更新する。既存のkeyword ranking、Wiki graph、temporal evaluation、provenanceを再利用する。MCP二重搬送はsource recallと分離したX1-T1で狭く解消する。
 
-X1-D0は本書を固定する設計checkpointであり、実装・MCP登録・本番反映は行わない。
+X1-D0は本書を固定した設計checkpointである。その後の明示指示により、R1〜R3だけをX1-D1 Recall-safe Query Bridgeとして実装する。R4のstructured-only transportは独立したX1-T1へ延期する。
 
-X1-M1だけは、その後の明示指示により独立sliceとして実装する。これはMOCのタイトル索引化だけを対象とし、以下のquery選定とtransport要件の実装開始を意味しない。
+X1-M1 MOC Title Routerは先行して本番反映済みであり、X1-D1でも全タイトルと記述順を変更しない。
 
-## 2. Baseline Contract
+## 2. Installed Baseline Before X1-D1
 - 既定の`max_chars`は15,000。
 - 起点1件、outgoing最大5件、backlink最大3件、temporal最大5件を候補にする。
 - coreは任意`query`でoutgoing／backlinkを順位付けできる。
@@ -32,21 +32,25 @@ X1-M1だけは、その後の明示指示により独立sliceとして実装す�
 - queryは前後空白を除き、最大500文字とする。
 - query無しまたは空文字では、coreの候補順、Markdown、warning、structured fieldsを現行互換にする。
 - queryはMCP server、serviceを経て既存`ContextBundleOptions.query`へそのまま渡す。
+- query本文はContext Markdownへ重複掲載せず、最大500文字の入力自体がMOC、起点、Temporal、provenanceの文字予算を消費しない。
 
-### R2. Query-aware Candidate Selection
-- query有りでは、通常outgoing／backlinkを既存`queryScore`で順位付けする。
-- score 0の通常候補はContext候補に入れない。
-- 同scoreは元の安定順を維持する。
-- 起点ノートは常に候補にし、既存の時間安全判定で本文を省略する場合もmetadataと理由を保持する。
-- temporal候補はquery scoreだけで削除せず、既存のvalid-time／knowledge-time、history、supersedes、review判定を維持する。
+### R2. Query-guided Body Priority
+- query無しで得られるoutgoing／backlink／temporal候補集合をbaseline候補集合とする。
+- queryはbaseline内の通常候補について、本文を収録する優先順だけを既存`queryScore`で安定的に変更できる。
+- score 0は語彙不一致を示すだけであり、候補除外の根拠にしない。
+- 同じseed、Vault snapshot、時間条件では、query有無で候補ID集合を変えない。
+- MOCタイトルの件数、内容、記述順はqueryで変更しない。
+- 起点、temporal metadata、valid-time／knowledge-time、history、supersedes、review、warning、provenanceを維持する。
 
-### R3. Drop Before Fragmentation
+### R3. Body Budget Without Route Loss
 - `max_chars`はheaderを含むhard capとする。
-- query有りで予算に収まらない場合、低順位の通常候補を先に落とし、全通常候補へ短い断片を均等配分しない。
+- query有りで予算に収まらない場合、低順位の通常候補は本文展開を見送り、全通常候補へ短い断片を均等配分しない。
 - 起点とtemporal候補は通常候補より優先する。
-- 通常候補は、最上位1件を除き、完全なsource fenceと本文が収まる場合だけ追加する。
-- 最上位の通常候補1件だけを部分表示可能とし、既存のtruncation markerと閉じたsource fenceを維持する。
-- 省略後も`included`、`truncated`、`omitted_ids`、`selection_reasons`が実際の出力と矛盾しない。
+- 本文を収録しないbaseline候補は`omitted_ids`へ残し、次の`fetch`または`build_context`で取得可能にする。
+- `included[].path ∪ omitted_ids`はquery有無で同じ集合にする。
+- 部分表示する場合は既存のtruncation markerと閉じたsource fenceを維持し、metadataを途中で切らない。
+- 現行MOCタイトル索引がhard capを超えた場合は、意味的なtop-kで黙って削らず、明示的なtruncationと原本取得導線を返す。paginationは実測超過後の別sliceとする。
+- `included`、`truncated`、`omitted_ids`、`selection_reasons`が実際の出力と矛盾しない。
 
 ### R4. Structured-only Build Context Transport
 - `build_context`の正本出力は既存output schemaに一致する`structuredContent`とする。
@@ -68,13 +72,16 @@ X1-M1だけは、その後の明示指示により独立sliceとして実装す�
 - source tracing 3/3を維持する。
 - future information leakは0件を維持する。
 - review due、conflicting state、unresolved provenanceを含む既存warning fixtureの欠落を0件にする。
-- expected source recallは現行以上とし、質問に無関係な通常sourceの採用数を現行以下にする。
+- query有無で`included[].path ∪ omitted_ids`の集合を一致させ、expected-source reachabilityを100%維持する。
+- 同義語、略称、日英表記差、抽象タイトル、橋渡しノートのfixtureで、語彙score 0のexpected sourceを候補集合から消さない。
+- MOCのresolved／unresolved有効linkはquery有無で同数・同順・重複なしとする。
+- 最大500文字queryと小さいbudgetの組み合わせでも、query無しで収まるMOC全タイトル、起点、Temporal、provenanceをquery本文の再掲で押し出さない。
 
 ### Budget Sweep
 - 2,000／4,000／6,000／8,000／15,000文字を同じcorpusと質問で比較する。
 - 各budgetでcharacter capを超えない。
 - 各source fenceは閉じ、metadata途中切れを起こさない。
-- 6,000文字で現行のように同じ11件すべてを断片化しない。
+- 6,000文字で現行のように同じ11件すべてを断片化せず、見送った本文のcandidate IDを失わない。
 - 品質gateを満たす最小budgetだけをcompact既定候補とする。満たさなければ既定値を変更しない。
 - 公開済みbenchmarkの固定課題合計33,412文字をbaselineとして50%以上減らす。未達ならmulti-seed dedupeまたはexcerptを次の別設計候補として記録し、このsliceで追加実装しない。
 
@@ -82,7 +89,7 @@ X1-M1だけは、その後の明示指示により独立sliceとして実装す�
 - 実stdio resultでoutput schemaに合う`structuredContent`を返す。
 - structured-only時の`content`は空配列である。
 - 同じstructured resultをpretty JSONでも返すlegacy hypothetical frameと比べ、serialized UTF-8 bytesを45%以上削減する。
-- Codex／ChatGPT Desktopでtool resultを利用した回答とsource表示を確認する。失敗した場合はtransport変更をrollbackし、query選定だけを残す。
+- Codex／ChatGPT Desktopでtool resultを利用した回答とsource表示を確認する。失敗した場合はtransport変更だけをrollbackし、Recall-safe candidate集合を維持する。
 
 ### Performance And Safety
 - 同じ実行経路・同じcorpusで、Context構築p95の退行を10%以内にする。
@@ -91,15 +98,18 @@ X1-M1だけは、その後の明示指示により独立sliceとして実装す�
 - `npm run typecheck`、`npm test`、`npm run check:mcp`、`git diff --check`をPASSする。
 
 ## 5. User-facing Operational Contract
-- 質問がある場合、AI clientは起点IDだけでなく質問文を`query`へ渡す。
-- 先に`search(limit: 3)`で起点を1件へ絞り、同じ回答で不要な`fetch`と複数`build_context`を重ねない。
-- Home、巨大MOC、mirrorを既定起点にしない。MOCは探索の地図であり、全リンク先を一括投入する命令ではない。
+- 関連MOCがある場合は全タイトル索引を最初のrouteとして使い、選んだノート本文を次の`fetch`または`build_context`で読む。
+- 質問がある場合、AI clientは起点IDと質問文を`query`へ渡してよいが、queryに一致しないrouteを不存在とみなさない。
+- `search`上位数件だけを唯一の候補集合にせず、根拠が不足した場合はMOCまたは`omitted_ids`へ戻って追加取得する。
+- MOCは探索の地図であり、全リンク先本文を一括投入する命令ではない。mirrorは原典確認が必要な場合だけ読む。
 - queryがない探索・監査では、明示した`max_chars`と現行の広いContextを利用できる。
 
 ## 6. Non-goals
 - AIがノート本文を要約して置換すること。
 - 長期的な利用回数や忘却scoreを保存すること。
 - 語彙不一致をembeddingで解決すること。
+- query score 0、固定top-k、LLM／embedding rankerを候補到達性の単独gateにすること。
+- MOC全タイトル索引をAI要約で置き換えること。
 - Context Compiler 2.0全体、GraphRAG、独自DBを完成扱いすること。
 - Ixなど外部code graph、Docker、ArangoDB、非公開Memory Layer、Codex hook、別MCPを導入すること。
 

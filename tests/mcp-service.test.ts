@@ -64,6 +64,32 @@ describe('MCP vault service', () => {
     expect(context.markdown).toContain('Path: Projects/TSUZUNE.md')
   })
 
+  it('passes an optional query to the recall-safe context builder', async () => {
+    const baseline = await service.buildContext('Home.md')
+    const queried = await service.buildContext('Home.md', 15_000, {
+      query: 'AI連携'
+    })
+
+    expect(baseline.markdown).not.toContain('Query:')
+    expect(queried.markdown).not.toContain('Query:')
+    expect(
+      queried.included.find(
+        (source) => source.path === 'Projects/TSUZUNE.md'
+      )?.selection_reasons
+    ).toEqual(['起点ノートからの明示リンク', '質問語に一致'])
+    expect(
+      [
+        ...queried.included.map((source) => source.path),
+        ...queried.omitted_ids
+      ].sort()
+    ).toEqual(
+      [
+        ...baseline.included.map((source) => source.path),
+        ...baseline.omitted_ids
+      ].sort()
+    )
+  })
+
   it('returns an explicit MOC as a title-only router', async () => {
     await writeFile(
       join(root, 'Map.md'),

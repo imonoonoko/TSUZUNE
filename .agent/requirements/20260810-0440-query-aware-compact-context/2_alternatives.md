@@ -20,27 +20,29 @@ Rejected。暫定的な手動操作には使えるが、製品の既定解には
 - additiveな入力であり、query無しのcore挙動を維持できる。
 
 ### Problems
-- 現行rankingはscore 0の候補も後ろへ並べるだけで、候補数と最終文字数は減らない。
+- 現行rankingは本文の展開順を変えられるが、それだけでは候補数と最終文字数は減らない。
 - max-min allocatorによる全件断片化は残る。
+- score 0を削除条件にすると、語彙が一致しない必要sourceを落とす。
 
 ### Decision
-Necessary but insufficient。選定と予算処理を合わせて使う。
+Useful but insufficient。queryは本文展開の優先順にだけ使い、candidate削除のgateにはしない。
 
-## C. Query-aware selection + drop-before-fragment + structured-only transport
+## C. Recall-safe progressive disclosure
 
 ### Merits
 - 既存keyword ranking、時間評価、source fence、hard capを再利用できる。
-- 質問に一致しない通常候補を選定前に外せる。
-- 小予算では低順位候補を落とし、全候補の細切れを避けられる。
-- `build_context`だけの重複payloadを除き、wire bytesを約半分にできる。
+- MOCの全タイトルとquery無しbaselineの通常候補集合を維持する。
+- queryは本文を先に展開する順番にだけ使い、語彙不一致を削除理由にしない。
+- 小予算では低順位候補の本文を見送り、IDと追加取得導線を残すことで全候補の細切れを避けられる。
+- 新しい検索基盤や依存を増やさない。
 
 ### Costs And Risks
-- 外部MCP clientが`content[0].text`のJSONを直接parseしている場合は互換境界になる。
-- queryが広すぎる場合は候補が多く残る。
-- wire削減とmodel token削減は同一ではなく、host-level計測が必要。
+- route用IDとmetadataの分だけ文字数は残る。
+- baseline candidate set自体のrecallは改善しない。少なくとも現行より悪化させない設計である。
+- query優先順が回答品質を改善するかは、反例を含む固定corpusで評価が必要である。
 
 ### Decision
-Selected。新依存なしで原因へ直接作用する最小案。
+Selected。候補を消さず、本文展開だけを段階化する最小案。
 
 ## D. LLM要約・query中心excerpt
 
@@ -94,6 +96,19 @@ Deferred。Cの後も固定multi-seed課題が目標を超えた場合だけ再�
 
 ### Decision
 Rejected for X1-D0 implementation。思想とquery形だけを比較対象として保存し、依存、Docker service、hook、MCP、自動index更新は追加しない。repository再読込やimpact調査の無駄が固定benchmarkで観測された場合だけ、1 repository・manual command・hookなしの隔離比較を別sliceで行う。
+
+## H. `build_context`のstructured-only transport
+
+### Merits
+- sourceの選定や本文を変えず、同じobjectのtext JSON／`structuredContent`二重搬送だけを除ける。
+- 実測ではJSON-RPC相当wire bytesを約半分にできる余地がある。
+
+### Costs And Risks
+- 外部MCP clientが`content[0].text`のJSONを直接parseしている場合は互換境界になる。
+- wire削減とmodel-visible token削減は同一ではなく、host-level計測が必要である。
+
+### Decision
+Selected as independent X1-T1。実Codex／ChatGPT Desktop gateに通った場合だけ適用し、Recall-safe selectionとは別にrollbackできるようにする。
 
 ### Primary Sources Reviewed
 - [Ix README](https://github.com/ix-infrastructure/Ix#readme)

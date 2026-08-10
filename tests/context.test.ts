@@ -88,6 +88,11 @@ describe('context bundle', () => {
       createContextSnapshotIndex(mocNotes, pathAliases),
       { generatedAt: options.generatedAt }
     )
+    const queried = buildContextBundle(
+      '00_入口/知識地図.md',
+      mocNotes,
+      { ...options, query: 'Beta' }
+    )
 
     expect(indexed).toEqual(bundle)
     expect(bundle.included).toEqual([
@@ -109,6 +114,47 @@ describe('context bundle', () => {
     expect(bundle.markdown).not.toContain('ALPHA_BODY_SENTINEL')
     expect(bundle.markdown).not.toContain('BETA_BODY_SENTINEL')
     expect(bundle.markdown).not.toContain('BACKLINK_BODY_SENTINEL')
+    expect(
+      queried.markdown
+        .split('\n')
+        .filter((line) => line.startsWith('- [['))
+    ).toEqual(
+      bundle.markdown
+        .split('\n')
+        .filter((line) => line.startsWith('- [['))
+    )
+  })
+
+  it('does not spend the MOC title budget on a repeated query header', () => {
+    const routeLines = Array.from(
+      { length: 106 },
+      (_, index) => `- [[Route-${String(index).padStart(3, '0')}]]`
+    )
+    const mocNotes = [
+      note(
+        'Map.md',
+        ['---', 'type: moc', '---', '# Map', '', ...routeLines].join('\n')
+      )
+    ]
+    const generatedAt = '2026-07-30T12:00:00+09:00'
+    const baseline = buildContextBundle('Map.md', mocNotes, {
+      maxCharacters: 15_000,
+      generatedAt
+    })
+    const query = 'q'.repeat(500)
+    const queried = buildContextBundle('Map.md', mocNotes, {
+      query,
+      maxCharacters: baseline.characterCount,
+      generatedAt
+    })
+    const routes = (markdown: string): string[] =>
+      markdown.split('\n').filter((line) => line.startsWith('- [['))
+
+    expect(routes(baseline.markdown)).toHaveLength(106)
+    expect(routes(queried.markdown)).toEqual(routes(baseline.markdown))
+    expect(queried.truncated).toBe(false)
+    expect(queried.query).toBe(query)
+    expect(queried.markdown).not.toContain('Query:')
   })
 
   it('does not infer MOC behavior from a note name', () => {
@@ -640,27 +686,206 @@ describe('context bundle', () => {
     expect(bundle.markdown).toContain('Temporal status: historical')
   })
 
-  it('ranks a query-matching outgoing link before applying the link limit', () => {
+  it('prioritizes query matches only inside the baseline link quota', () => {
     const queryNotes = [
-      note('Home.md', '# Home\n\n[[Irrelevant]]\n[[Relevant]]'),
-      note('Irrelevant.md', '# Irrelevant\n\nunrelated'),
-      note('Relevant.md', '# Relevant\n\nphase-lumen')
+      note(
+        'Home.md',
+        '# Home\n\n[[First]]\n[[Relevant]]\n[[Outside]]'
+      ),
+      note('First.md', '# First\n\nunrelated'),
+      note('Relevant.md', '# Relevant\n\nphase-lumen'),
+      note('Outside.md', '# Outside\n\nphase-lumen')
     ]
 
     const bundle = buildContextBundle('Home.md', queryNotes, {
       query: 'phase-lumen',
-      maxOutgoing: 1,
+      maxOutgoing: 2,
       generatedAt: '2026-07-30T12:00:00+09:00'
     })
 
     expect(bundle.included.map((source) => source.path)).toEqual([
       'Home.md',
-      'Relevant.md'
+      'Relevant.md',
+      'First.md'
     ])
     expect(bundle.included[1].selectionReasons).toEqual([
       '起点ノートからの明示リンク',
       '質問語に一致'
     ])
+    expect(bundle.omittedPaths).toContain('Outside.md')
+  })
+
+  it('expands a query-matching body before omitting lower-priority bodies', () => {
+    const compactNotes = [
+      note('Home.md', '# Home\n\n[[First]]\n[[Relevant]]\n[[Third]]'),
+      note('First.md', `# First\n\n${'x'.repeat(2_000)}`),
+      note(
+        'Relevant.md',
+        `# Relevant\n\nphase-lumen\n${'r'.repeat(300)}\nHIGH_PRIORITY_TAIL`
+      ),
+      note('Third.md', `# Third\n\n${'z'.repeat(2_000)}`)
+    ]
+    const options = {
+      maxCharacters: 1_200,
+      maxOutgoing: 3,
+      generatedAt: '2026-07-30T12:00:00+09:00'
+    }
+    const baseline = buildContextBundle('Home.md', compactNotes, options)
+    const queried = buildContextBundle('Home.md', compactNotes, {
+      ...options,
+      query: 'phase-lumen'
+    })
+    const allPaths = (bundle: typeof queried): string[] =>
+      [
+        ...bundle.included.map((source) => source.path),
+        ...bundle.omittedPaths
+      ].sort()
+
+    expect(queried.markdown).toContain('HIGH_PRIORITY_TAIL')
+    expect(
+      queried.included.find((source) => source.path === 'Relevant.md')
+    ).toMatchObject({ truncated: false })
+    expect(queried.omittedPaths).toContain('Third.md')
+    expect(allPaths(queried)).toEqual(allPaths(baseline))
+  })
+
+  it('keeps the candidate set deterministic across the compact budget sweep', () => {
+    const sweepNotes = [
+      note('Home.md', '# Home\n\n[[A]]\n[[Relevant]]\n[[B]]\n[[C]]\n[[D]]'),
+      note('A.md', `# A\n\n${'a'.repeat(4_000)}`),
+      note(
+        'Relevant.md',
+        `# Relevant\n\nphase-lumen\n${'r'.repeat(300)}\nRELEVANT_TAIL`
+      ),
+      note('B.md', `# B\n\n${'b'.repeat(4_000)}`),
+      note('C.md', `# C\n\n${'c'.repeat(4_000)}`),
+      note('D.md', `# D\n\n${'d'.repeat(4_000)}`)
+    ]
+    const allPaths = (
+      bundle: ReturnType<typeof buildContextBundle>
+    ): string[] =>
+      [
+        ...bundle.included.map((source) => source.path),
+        ...bundle.omittedPaths
+      ].sort()
+
+    for (const maxCharacters of [2_000, 4_000, 6_000, 8_000, 15_000]) {
+      const options = {
+        maxCharacters,
+        maxOutgoing: 5,
+        generatedAt: '2026-07-30T12:00:00+09:00'
+      }
+      const baseline = buildContextBundle('Home.md', sweepNotes, options)
+      const first = buildContextBundle('Home.md', sweepNotes, {
+        ...options,
+        query: 'phase-lumen'
+      })
+      const second = buildContextBundle('Home.md', sweepNotes, {
+        ...options,
+        query: 'phase-lumen'
+      })
+
+      expect(first).toEqual(second)
+      expect(first.characterCount).toBeLessThanOrEqual(maxCharacters)
+      expect(first.markdown).toContain('RELEVANT_TAIL')
+      expect(allPaths(first)).toEqual(allPaths(baseline))
+    }
+  })
+
+  it('protects temporal warnings and provenance before query-ranked bodies', () => {
+    const temporalNotes = [
+      note('Project.md', '# Project\n\n[[A]]\n[[B]]\n[[C]]\n[[Match]]'),
+      note('A.md', `# A\n\n${'a'.repeat(2_000)}`),
+      note('B.md', `# B\n\n${'b'.repeat(2_000)}`),
+      note('C.md', `# C\n\n${'c'.repeat(2_000)}`),
+      note('Match.md', '# Match\n\nphase-lumen'),
+      note('40_情報源/Evidence.md', '# Evidence'),
+      note(
+        '50_履歴/Project-要再確認.md',
+        [
+          '---',
+          'kind: state',
+          'subject: "[[Project]]"',
+          'status: active',
+          'valid_from: 2026-07-01',
+          'review_after: 2026-07-20',
+          'source: "[[40_情報源/Evidence]]"',
+          '---',
+          '# 最後に確認した状態'
+        ].join('\n')
+      )
+    ]
+
+    const bundle = buildContextBundle('Project.md', temporalNotes, {
+      query: 'phase-lumen',
+      maxCharacters: 1_000,
+      maxOutgoing: 4,
+      asOf: '2026-07-30',
+      generatedAt: '2026-07-30T12:00:00+09:00'
+    })
+    const temporal = bundle.included.find(
+      (source) => source.path === '50_履歴/Project-要再確認.md'
+    )
+
+    expect(temporal).toMatchObject({
+      temporalStatus: 'review_due',
+      provenance: {
+        status: 'resolved',
+        resolvedPath: '40_情報源/Evidence.md'
+      }
+    })
+    expect(bundle.warnings).toContainEqual({
+      code: 'REVIEW_DUE',
+      message: '現在も有効か再確認が必要です。',
+      path: '50_履歴/Project-要再確認.md'
+    })
+    expect(bundle.markdown).toContain(
+      'Provenance: resolved (40_情報源/Evidence.md)'
+    )
+  })
+
+  it('does not let a maximum-length query displace seed or temporal provenance', () => {
+    const temporalNotes = [
+      note('Project.md', '# Project'),
+      note('40_情報源/Evidence.md', '# Evidence'),
+      note(
+        '50_履歴/Project-要再確認.md',
+        [
+          '---',
+          'kind: state',
+          'subject: "[[Project]]"',
+          'status: active',
+          'valid_from: 2026-07-01',
+          'review_after: 2026-07-20',
+          'source: "[[40_情報源/Evidence]]"',
+          '---',
+          '# 最後に確認した状態'
+        ].join('\n')
+      )
+    ]
+    const query = 'q'.repeat(500)
+
+    const bundle = buildContextBundle('Project.md', temporalNotes, {
+      query,
+      maxCharacters: 1_000,
+      asOf: '2026-07-30',
+      generatedAt: '2026-07-30T12:00:00+09:00'
+    })
+
+    expect(bundle.query).toBe(query)
+    expect(bundle.markdown).not.toContain('Query:')
+    expect(bundle.included.map((source) => source.path)).toEqual([
+      'Project.md',
+      '50_履歴/Project-要再確認.md'
+    ])
+    expect(bundle.markdown).toContain(
+      'Provenance: resolved (40_情報源/Evidence.md)'
+    )
+    expect(bundle.warnings).toContainEqual({
+      code: 'REVIEW_DUE',
+      message: '現在も有効か再確認が必要です。',
+      path: '50_履歴/Project-要再確認.md'
+    })
   })
 
   it('keeps conflicting current states visible and reports a stable warning', () => {
