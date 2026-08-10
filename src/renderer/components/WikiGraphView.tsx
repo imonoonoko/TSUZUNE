@@ -76,6 +76,7 @@ interface WikiGraphViewProps {
   onOpenInNewTab?: (path: string) => void
   onOpenInNewWindow?: (path: string) => void
   onOpenLinkedView?: (path: string) => void
+  onRevealInFolder?: (path: string) => void
   onMove?: (path: string) => void
   bookmarkedPaths?: ReadonlySet<string>
   onBookmark?: (path: string) => void
@@ -255,6 +256,7 @@ export default function WikiGraphView({
   onOpenInNewTab,
   onOpenInNewWindow,
   onOpenLinkedView,
+  onRevealInFolder,
   onMove,
   bookmarkedPaths = new Set(),
   onBookmark,
@@ -923,6 +925,51 @@ export default function WikiGraphView({
         background: '#fff'
       }}
     >
+      <div
+        role="toolbar"
+        aria-label="グラフ表示操作"
+        style={{
+          position: 'absolute',
+          top: 12,
+          left: 12,
+          zIndex: 20,
+          display: 'flex',
+          gap: 2,
+          padding: 2,
+          background: '#fff',
+          border: '1px solid #dadada',
+          borderRadius: 5,
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)'
+        }}
+      >
+        <button
+          type="button"
+          aria-label="グラフを縮小"
+          title="グラフを縮小"
+          onClick={() => changeZoom(1 / 1.5)}
+          style={{ width: 30, height: 28, padding: 0 }}
+        >
+          −
+        </button>
+        <button
+          type="button"
+          aria-label="グラフ全体を表示"
+          title="グラフ全体を表示"
+          onClick={fitGraph}
+          style={{ minWidth: 44, height: 28, padding: '0 6px', fontSize: 11 }}
+        >
+          全体
+        </button>
+        <button
+          type="button"
+          aria-label="グラフを拡大"
+          title="グラフを拡大"
+          onClick={() => changeZoom(1.5)}
+          style={{ width: 30, height: 28, padding: 0 }}
+        >
+          ＋
+        </button>
+      </div>
       {scope === 'vault' && (
         <button
           type="button"
@@ -1828,16 +1875,30 @@ export default function WikiGraphView({
                         </div>
                       )}
                       {nodeContextMenu.node.kind === 'attachment' && (
-                        <button
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            onOpen(nodeContextMenu.node.path)
-                            setNodeContextMenu(null)
-                          }}
-                        >
-                          デフォルトアプリで開く
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              onOpen(nodeContextMenu.node.path)
+                              setNodeContextMenu(null)
+                            }}
+                          >
+                            デフォルトアプリで開く
+                          </button>
+                          {onRevealInFolder && (
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                onRevealInFolder(nodeContextMenu.node.path)
+                                setNodeContextMenu(null)
+                              }}
+                            >
+                              フォルダで表示
+                            </button>
+                          )}
+                        </>
                       )}
                     </>
                   )}

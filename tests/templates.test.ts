@@ -30,7 +30,39 @@ describe('templates', () => {
         note('90_テンプレート/日報.md'),
         note('90_テンプレート/会議/記録.md')
       ]).map((item) => item.path)
-    ).toEqual(['90_テンプレート/会議/記録.md', '90_テンプレート/日報.md'])
+    ).toEqual([
+      '90_テンプレート/アイデアメモ.md',
+      '90_テンプレート/プロジェクトメモ.md',
+      '90_テンプレート/会議/記録.md',
+      '90_テンプレート/学びメモ.md',
+      '90_テンプレート/今日のノート.md',
+      '90_テンプレート/日報.md'
+    ])
+  })
+
+  it('provides built-in templates without writing them to the Vault', () => {
+    const templates = listTemplates([])
+    expect(templates.map((item) => item.path)).toEqual([
+      '90_テンプレート/アイデアメモ.md',
+      '90_テンプレート/プロジェクトメモ.md',
+      '90_テンプレート/学びメモ.md',
+      '90_テンプレート/今日のノート.md'
+    ])
+    expect(templates.every((item) => item.modifiedAt === 0)).toBe(true)
+    expect(templates.find((item) => item.path.endsWith('学びメモ.md'))?.content).toContain(
+      '{{title}}'
+    )
+    expect(templates.find((item) => item.path.endsWith('今日のノート.md'))?.content).toContain(
+      '{{date}}'
+    )
+  })
+
+  it('lets a real Vault template override a built-in with the same path', () => {
+    const custom = note('90_テンプレート/学びメモ.md')
+    custom.content = '# 自分用テンプレート'
+    expect(
+      listTemplates([custom]).filter((item) => item.path === custom.path)
+    ).toEqual([custom])
   })
 
   it('replaces supported placeholders and preserves unknown ones', () => {

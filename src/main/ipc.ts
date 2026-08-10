@@ -482,6 +482,12 @@ export function registerIpc(
     return null
   })
 
+  registerTrusted('system:revealVaultFile', async (path: string) => {
+    const absolutePath = await vault.resolveFileForOpen(path)
+    shell.showItemInFolder(absolutePath)
+    return null
+  })
+
   registerTrusted('system:openVaultFileWindow', async (path: string) => {
     if (!openVaultFileWindow) {
       throw new VaultError({

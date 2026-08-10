@@ -32,6 +32,14 @@ const attachmentLinkedViewProbe =
 const attachmentDefaultAppProbe =
   process.argv.includes('--attachment-default-app') ||
   process.env.TSUZUNE_GRAPH_ATTACHMENT_DEFAULT_APP_PROBE === '1'
+const attachmentFolderRevealProbe =
+  process.argv.includes('--attachment-folder-reveal') ||
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_FOLDER_REVEAL_PROBE === '1'
+const attachmentFileExplorerProbe =
+  process.argv.includes('--attachment-file-explorer') ||
+  process.env.TSUZUNE_GRAPH_ATTACHMENT_FILE_EXPLORER_PROBE === '1'
+const attachmentNativeInterceptProbe =
+  attachmentDefaultAppProbe || attachmentFolderRevealProbe || attachmentFileExplorerProbe
 const attachmentPathCopyScenario =
   process.argv.find((argument) => argument.startsWith('--path-copy-scenario='))?.split('=', 2)[1] ??
   process.env.TSUZUNE_GRAPH_ATTACHMENT_PATH_COPY_SCENARIO ??
@@ -64,14 +72,14 @@ const nodeNewTabProbe =
   process.env.TSUZUNE_GRAPH_NODE_NEW_TAB_PROBE === '1'
 const nodeMenuProbe =
   nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe ||
-  attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentDefaultAppProbe ||
+  attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentNativeInterceptProbe ||
   process.argv.includes('--node-menu') ||
   process.env.TSUZUNE_GRAPH_NODE_MENU_PROBE === '1'
 if (
   [
     cameraProbe,
     nodeDragProbe,
-    nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe && !attachmentDefaultAppProbe,
+    nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe && !attachmentNativeInterceptProbe,
     nodeNewTabProbe,
     attachmentNewTabProbe,
     attachmentNewWindowProbe,
@@ -79,14 +87,20 @@ if (
     attachmentBookmarkProbe,
     attachmentPathCopyProbe,
     attachmentLinkedViewProbe,
-    attachmentDefaultAppProbe
+    attachmentDefaultAppProbe,
+    attachmentFolderRevealProbe,
+    attachmentFileExplorerProbe
   ].filter(Boolean).length > 1
 ) {
   throw new Error(
-    '--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move、--attachment-bookmark、--attachment-path-copy、--attachment-linked-view、--attachment-default-app は同時に指定できません。'
+    '--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move、--attachment-bookmark、--attachment-path-copy、--attachment-linked-view、--attachment-default-app、--attachment-folder-reveal、--attachment-file-explorer は同時に指定できません。'
   )
 }
-const probeKind = attachmentDefaultAppProbe
+const probeKind = attachmentFolderRevealProbe
+  ? 'attachment-folder-reveal'
+  : attachmentFileExplorerProbe
+  ? 'attachment-file-explorer'
+  : attachmentDefaultAppProbe
   ? 'attachment-default-app'
   : attachmentPathCopyProbe
   ? `attachment-path-copy-${attachmentPathCopyScenario}`
@@ -123,6 +137,10 @@ const outputRoot = resolve(
   repoRoot,
   attachmentPathCopyProbe
     ? `docs/reports/assets/graph-gp0-attachment-path-copy/${attachmentPathCopyScenario}`
+    : attachmentFolderRevealProbe
+    ? 'docs/reports/assets/graph-gp0-attachment-folder-reveal'
+    : attachmentFileExplorerProbe
+    ? 'docs/reports/assets/graph-gp0-attachment-file-explorer'
     : attachmentDefaultAppProbe
     ? 'docs/reports/assets/graph-gp0-attachment-default-app'
     : attachmentLinkedViewProbe
@@ -149,6 +167,8 @@ const outputDirectory = resolve(outputRoot, 'obsidian-1.13.4')
 const observationPath = resolve(outputDirectory, 'observation.json')
 const manifestPath = resolve(outputRoot, 'manifest.json')
 const defaultAppCaptureKey = '__tsuzuneGp0AttachmentDefaultAppCapture'
+const folderRevealCaptureKey = '__tsuzuneGp0AttachmentFolderRevealCapture'
+const fileExplorerCaptureKey = '__tsuzuneGp0AttachmentFileExplorerCapture'
 const registryBackupPath = resolve(referenceWorkDirectory, 'obsidian-protocol-before.reg')
 const referenceRoot = resolve(
   process.env.TSUZUNE_OBSIDIAN_REFERENCE_ROOT ??
@@ -165,7 +185,7 @@ const expected = {
   asarSha256: '51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917',
   markdownCount: 7,
   search: cameraProbe || nodeDragProbe || nodeMenuProbe ? '' : 'path:"10_projects"',
-  filteredNodeIds: attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentDefaultAppProbe
+  filteredNodeIds: attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentNativeInterceptProbe
     ? [
         '00_Home.md',
         '10_projects/Project Alpha.md',
@@ -194,7 +214,8 @@ const expected = {
     : ['10_projects/Project Alpha.md', '10_projects/Project Beta.md'],
   viewport: { width: 1265, height: 768 },
   deviceScaleFactor: 1,
-  attachmentPathCopy: {
+  ...(attachmentPathCopyProbe && {
+    attachmentPathCopy: {
     targetNodeId: 'attachments/diagram.svg',
     scenario: attachmentPathCopyScenario,
     submenuItems: ['Obsidian URL として', '保管庫フォルダから', 'システムルートから'],
@@ -223,7 +244,8 @@ const expected = {
       'ファイルエクスプローラでファイルを表示',
       'ファイルを削除'
     ]
-  },
+    }
+  }),
   attachmentLinkedView: {
     targetNodeId: 'attachments/diagram.svg',
     parentLabel: 'リンクされたビューを開く',
@@ -259,9 +281,45 @@ const expected = {
       'ファイルを削除'
     ]
   },
+  attachmentFolderReveal: {
+    targetNodeId: 'attachments/diagram.svg',
+    actionLabel: 'フォルダで表示',
+    requestedPath: resolve(vaultDirectory, 'attachments/diagram.svg'),
+    menuItems: [
+      'diagram.svg',
+      '新規タブに開く',
+      '新規ウィンドウで開く',
+      'ファイルを移動…',
+      'ブックマーク…',
+      'パスをコピー',
+      'リンクされたビューを開く',
+      'デフォルトアプリで開く',
+      'フォルダで表示',
+      'ファイルエクスプローラでファイルを表示',
+      'ファイルを削除'
+    ]
+  },
+  attachmentFileExplorer: {
+    targetNodeId: 'attachments/diagram.svg',
+    actionLabel: 'ファイルエクスプローラでファイルを表示',
+    requestedPath: resolve(vaultDirectory, 'attachments/diagram.svg'),
+    menuItems: [
+      'diagram.svg',
+      '新規タブに開く',
+      '新規ウィンドウで開く',
+      'ファイルを移動…',
+      'ブックマーク…',
+      'パスをコピー',
+      'リンクされたビューを開く',
+      'デフォルトアプリで開く',
+      'フォルダで表示',
+      'ファイルエクスプローラでファイルを表示',
+      'ファイルを削除'
+    ]
+  },
   drag: {
     targetNodeId:
-      attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentDefaultAppProbe
+      attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentNativeInterceptProbe
         ? 'attachments/diagram.svg'
         : '00_Home.md',
     deltaX: 96,
@@ -301,7 +359,7 @@ const pathCopyEvidenceReplacements = [
 ].sort(([left], [right]) => right.length - left.length)
 
 const repositoryEvidence = (value) =>
-  attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentDefaultAppProbe
+  attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentNativeInterceptProbe
     ? sanitizeEvidence(value, pathCopyEvidenceReplacements)
     : value
 
@@ -722,7 +780,7 @@ async function setGraphSearch(cdp, query) {
     cdp,
     `app.workspace.getLeavesOfType('graph')[0]?.view.dataEngine.getOptions().search === ${JSON.stringify(query)}`
   )
-  if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe && !attachmentDefaultAppProbe) {
+  if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe && !attachmentNativeInterceptProbe) {
     await waitForRenderer(
       cdp,
       `JSON.stringify(app.workspace.getLeavesOfType('graph')[0]?.view.renderer.nodes.map(${nodeIdExpression()}).filter(Boolean).sort()) === ${JSON.stringify(JSON.stringify(expected.filteredNodeIds))}`
@@ -894,7 +952,7 @@ async function releaseNodeDragInput(cdp, target) {
 }
 
 async function openNodeContextMenu(cdp) {
-  if (attachmentLinkedViewProbe) {
+  if (attachmentLinkedViewProbe || attachmentNativeInterceptProbe) {
     await cdp.evaluate(`(() => {
       const view = app.workspace.getLeavesOfType('graph')[0]?.view
       const renderer = view?.renderer
@@ -943,6 +1001,7 @@ async function openNodeContextMenu(cdp) {
     await delay(150)
   }
   if (!hoverTarget?.inside) throw new Error('context menu対象nodeをGraph canvas内へ収められません。')
+  if (attachmentNativeInterceptProbe) await delay(300)
   if (zoomedOut) {
     await delay(500)
     await waitForTargetNodeStability(cdp)
@@ -1094,6 +1153,445 @@ function assertAttachmentDefaultAppCaptureRestored(restoration) {
     restoration.captureRemoved !== true
   ) {
     throw new Error(`default app capture hookを復元できませんでした: ${JSON.stringify(restoration)}`)
+  }
+}
+
+async function installAttachmentFolderRevealCapture(cdp, label) {
+  return cdp.evaluate(`(() => {
+    const key = ${JSON.stringify(folderRevealCaptureKey)}
+    if (globalThis[key]) throw new Error('folder reveal capture hookが既に存在します。')
+    const electronApi = globalThis.electron ?? require('electron')
+    const shell = electronApi?.remote?.shell
+    if (!shell) throw new Error('electron.remote.shellが見つかりません。')
+    const property = 'showItemInFolder'
+    const ownDescriptor = Object.getOwnPropertyDescriptor(shell, property) ?? null
+    const original = shell[property]
+    if (typeof original !== 'function') {
+      throw new Error('shell.showItemInFolderが関数ではありません。')
+    }
+    if (ownDescriptor && !('value' in ownDescriptor) && !ownDescriptor.configurable) {
+      throw new Error('shell.showItemInFolderのown accessorを安全に差し替えられません。')
+    }
+    if (ownDescriptor && 'value' in ownDescriptor && typeof ownDescriptor.value !== 'function') {
+      throw new Error('shell.showItemInFolderのown descriptorが関数ではありません。')
+    }
+    if (ownDescriptor && !ownDescriptor.configurable && !ownDescriptor.writable) {
+      throw new Error('shell.showItemInFolderを安全に差し替えられません。')
+    }
+    if (!ownDescriptor && !Object.isExtensible(shell)) {
+      throw new Error('electron.remote.shellへ一時プロパティを追加できません。')
+    }
+    const state = {
+      label: ${JSON.stringify(label)},
+      calls: [],
+      shell,
+      property,
+      original,
+      ownDescriptor,
+      replacement: null
+    }
+    state.replacement = function (path) {
+      state.calls.push({ path: String(path) })
+      return undefined
+    }
+    const replacementDescriptor = ownDescriptor
+      ? 'value' in ownDescriptor
+        ? { ...ownDescriptor, value: state.replacement }
+        : {
+            configurable: ownDescriptor.configurable,
+            enumerable: ownDescriptor.enumerable,
+            writable: true,
+            value: state.replacement
+          }
+      : { configurable: true, enumerable: false, writable: true, value: state.replacement }
+    Object.defineProperty(shell, property, replacementDescriptor)
+    if (shell[property] !== state.replacement) {
+      if (ownDescriptor) Object.defineProperty(shell, property, ownDescriptor)
+      else delete shell[property]
+      throw new Error('shell.showItemInFolder capture hookを設置できませんでした。')
+    }
+    globalThis[key] = state
+    return {
+      label: state.label,
+      apiSeam: 'electron.remote.shell.showItemInFolder',
+      installed: true,
+      hooked: shell.showItemInFolder === state.replacement,
+      callCount: state.calls.length,
+      descriptor: {
+        own: Boolean(ownDescriptor),
+        accessor: Boolean(ownDescriptor && !('value' in ownDescriptor)),
+        configurable: ownDescriptor?.configurable ?? true,
+        enumerable: ownDescriptor?.enumerable ?? false,
+        writable: ownDescriptor?.writable ?? true
+      }
+    }
+  })()`)
+}
+
+async function observeAttachmentFolderRevealCapture(cdp, label) {
+  return cdp.evaluate(`(() => {
+    const state = globalThis[${JSON.stringify(folderRevealCaptureKey)}]
+    if (!state) throw new Error('folder reveal capture hookが見つかりません。')
+    return {
+      label: ${JSON.stringify(label)},
+      apiSeam: 'electron.remote.shell.showItemInFolder',
+      hooked: state.shell.showItemInFolder === state.replacement,
+      callCount: state.calls.length,
+      calls: state.calls.map((call) => ({ ...call }))
+    }
+  })()`)
+}
+
+async function restoreAttachmentFolderRevealCapture(cdp, label) {
+  return cdp.evaluate(`(() => {
+    const key = ${JSON.stringify(folderRevealCaptureKey)}
+    const state = globalThis[key]
+    if (!state) throw new Error('restore対象のfolder reveal capture hookが見つかりません。')
+    const hookedBeforeRestore = state.shell[state.property] === state.replacement
+    if (state.ownDescriptor) Object.defineProperty(state.shell, state.property, state.ownDescriptor)
+    else delete state.shell[state.property]
+    const restored = state.shell[state.property] === state.original
+    const calls = state.calls.map((call) => ({ ...call }))
+    delete globalThis[key]
+    return {
+      label: ${JSON.stringify(label)},
+      hookedBeforeRestore,
+      restored,
+      captureRemoved: !globalThis[key],
+      callCount: calls.length,
+      calls
+    }
+  })()`)
+}
+
+async function restoreAttachmentFolderRevealCaptureIfPresent(cdp, label) {
+  const present = await cdp.evaluate(
+    `Boolean(globalThis[${JSON.stringify(folderRevealCaptureKey)}])`
+  )
+  return present
+    ? { present: true, ...(await restoreAttachmentFolderRevealCapture(cdp, label)) }
+    : { present: false, label, restored: true, captureRemoved: true }
+}
+
+function assertAttachmentFolderRevealCaptureRestored(restoration) {
+  if (
+    restoration.hookedBeforeRestore !== true ||
+    restoration.restored !== true ||
+    restoration.captureRemoved !== true
+  ) {
+    throw new Error(`folder reveal capture hookを復元できませんでした: ${JSON.stringify(restoration)}`)
+  }
+}
+
+async function installAttachmentFileExplorerCapture(cdp, label) {
+  let defaultAppSetup = null
+  let folderRevealSetup = null
+  try {
+    defaultAppSetup = await installAttachmentDefaultAppCapture(cdp, `${label}:window-open`)
+    folderRevealSetup = await installAttachmentFolderRevealCapture(
+      cdp,
+      `${label}:shell-show-item-in-folder`
+    )
+    const internalSetup = await cdp.evaluate(`(() => {
+      const key = ${JSON.stringify(fileExplorerCaptureKey)}
+      if (globalThis[key]) throw new Error('file explorer capture hookが既に存在します。')
+      const plugin = app.internalPlugins.getEnabledPluginById('file-explorer')
+      const property = 'revealInFolder'
+      if (!plugin || typeof plugin[property] !== 'function') {
+        throw new Error('file-explorer.revealInFolderが見つかりません。')
+      }
+      const ownDescriptor = Object.getOwnPropertyDescriptor(plugin, property) ?? null
+      if (ownDescriptor && !('value' in ownDescriptor) && !ownDescriptor.configurable) {
+        throw new Error('file-explorer.revealInFolderのown accessorを安全に差し替えられません。')
+      }
+      if (ownDescriptor && 'value' in ownDescriptor && typeof ownDescriptor.value !== 'function') {
+        throw new Error('file-explorer.revealInFolderのown descriptorが関数ではありません。')
+      }
+      if (ownDescriptor && !ownDescriptor.configurable && !ownDescriptor.writable) {
+        throw new Error('file-explorer.revealInFolderを安全に差し替えられません。')
+      }
+      if (!ownDescriptor && !Object.isExtensible(plugin)) {
+        throw new Error('file-explorer pluginへ一時プロパティを追加できません。')
+      }
+      const state = {
+        label: ${JSON.stringify(label)},
+        plugin,
+        property,
+        original: plugin[property],
+        ownDescriptor,
+        calls: [],
+        replacement: null
+      }
+      state.replacement = function (...args) {
+        state.calls.push({
+          path: args[0]?.path == null ? null : String(args[0].path)
+        })
+        return state.original.apply(this, args)
+      }
+      const replacementDescriptor = ownDescriptor
+        ? 'value' in ownDescriptor
+          ? { ...ownDescriptor, value: state.replacement }
+          : {
+              configurable: ownDescriptor.configurable,
+              enumerable: ownDescriptor.enumerable,
+              writable: true,
+              value: state.replacement
+            }
+        : { configurable: true, enumerable: false, writable: true, value: state.replacement }
+      Object.defineProperty(plugin, property, replacementDescriptor)
+      if (plugin[property] !== state.replacement) {
+        if (ownDescriptor) Object.defineProperty(plugin, property, ownDescriptor)
+        else delete plugin[property]
+        throw new Error('file-explorer.revealInFolder capture hookを設置できませんでした。')
+      }
+      globalThis[key] = state
+      return {
+        label: state.label,
+        apiSeam: 'internalPlugins.file-explorer.revealInFolder',
+        installed: true,
+        hooked: plugin[property] === state.replacement,
+        callCount: state.calls.length
+      }
+    })()`)
+    return {
+      apiSeam: 'internalPlugins.file-explorer.revealInFolder',
+      installed: true,
+      internal: internalSetup,
+      external: {
+        windowOpen: defaultAppSetup,
+        shellShowItemInFolder: folderRevealSetup
+      }
+    }
+  } catch (error) {
+    if (folderRevealSetup) {
+      try {
+        assertAttachmentFolderRevealCaptureRestored(
+          await restoreAttachmentFolderRevealCapture(cdp, `${label}:setup-failure`)
+        )
+      } catch {}
+    }
+    if (defaultAppSetup) {
+      try {
+        assertAttachmentDefaultAppCaptureRestored(
+          await restoreAttachmentDefaultAppCapture(cdp, `${label}:setup-failure`)
+        )
+      } catch {}
+    }
+    throw error
+  }
+}
+
+async function observeAttachmentFileExplorerCapture(cdp, label) {
+  const internal = await cdp.evaluate(`(() => {
+    const state = globalThis[${JSON.stringify(fileExplorerCaptureKey)}]
+    if (!state) throw new Error('file explorer capture hookが見つかりません。')
+    const leaves = app.workspace.getLeavesOfType('file-explorer')
+    const fileExplorerElements = [...document.querySelectorAll('.workspace-leaf-content[data-type="file-explorer"]')]
+    return {
+      label: ${JSON.stringify(label)},
+      apiSeam: 'internalPlugins.file-explorer.revealInFolder',
+      hooked: state.plugin[state.property] === state.replacement,
+      callCount: state.calls.length,
+      calls: state.calls.map((call) => ({ ...call })),
+      fileExplorer: {
+        leafCount: leaves.length,
+        activeLeafType: app.workspace.activeLeaf?.view?.getViewType?.() ?? null,
+        visible: fileExplorerElements.some((element) => {
+          const style = getComputedStyle(element)
+          return style.display !== 'none' && style.visibility !== 'hidden'
+        }),
+        entries: [...document.querySelectorAll('.nav-file-title')].map((element) => ({
+          path: element.getAttribute('data-path'),
+          className: element.className,
+          ariaSelected: element.getAttribute('aria-selected'),
+          ariaCurrent: element.getAttribute('aria-current'),
+          backgroundColor: getComputedStyle(element).backgroundColor
+        })),
+        selectedPaths: [...document.querySelectorAll('.nav-file-title')]
+          .filter((element) => {
+            const style = getComputedStyle(element)
+            return (
+              element.classList.contains('is-active') ||
+              element.classList.contains('is-selected') ||
+              element.classList.contains('has-focus') ||
+              element.getAttribute('aria-selected') === 'true' ||
+              element.getAttribute('aria-current') === 'true' ||
+              style.backgroundColor.includes('255, 208, 0')
+            )
+          })
+          .map((element) => element.getAttribute('data-path'))
+          .filter(Boolean)
+          .sort()
+      }
+    }
+  })()`)
+  const windowOpen = await observeAttachmentDefaultAppCapture(cdp, `${label}:window-open`)
+  const shellShowItemInFolder = await observeAttachmentFolderRevealCapture(
+    cdp,
+    `${label}:shell-show-item-in-folder`
+  )
+  return { ...internal, external: { windowOpen, shellShowItemInFolder } }
+}
+
+async function restoreAttachmentFileExplorerCapture(cdp, label) {
+  const internal = await cdp.evaluate(`(() => {
+    const key = ${JSON.stringify(fileExplorerCaptureKey)}
+    const state = globalThis[key]
+    if (!state) throw new Error('restore対象のfile explorer capture hookが見つかりません。')
+    const hookedBeforeRestore = state.plugin[state.property] === state.replacement
+    if (state.ownDescriptor) Object.defineProperty(state.plugin, state.property, state.ownDescriptor)
+    else delete state.plugin[state.property]
+    const restored = state.plugin[state.property] === state.original
+    const calls = state.calls.map((call) => ({ ...call }))
+    delete globalThis[key]
+    return {
+      label: ${JSON.stringify(label)},
+      hookedBeforeRestore,
+      restored,
+      captureRemoved: !globalThis[key],
+      callCount: calls.length,
+      calls
+    }
+  })()`)
+  const shellShowItemInFolder = await restoreAttachmentFolderRevealCapture(
+    cdp,
+    `${label}:shell-show-item-in-folder`
+  )
+  const windowOpen = await restoreAttachmentDefaultAppCapture(cdp, `${label}:window-open`)
+  return { internal, external: { windowOpen, shellShowItemInFolder } }
+}
+
+function assertAttachmentFileExplorerCaptureRestored(restoration) {
+  if (
+    restoration.internal?.hookedBeforeRestore !== true ||
+    restoration.internal?.restored !== true ||
+    restoration.internal?.captureRemoved !== true
+  ) {
+    throw new Error(`file explorer capture hookを復元できませんでした: ${JSON.stringify(restoration)}`)
+  }
+  assertAttachmentFolderRevealCaptureRestored(restoration.external.shellShowItemInFolder)
+  assertAttachmentDefaultAppCaptureRestored(restoration.external.windowOpen)
+}
+
+async function restoreAttachmentFileExplorerCaptureIfPresent(cdp, label) {
+  const presence = await cdp.evaluate(`(() => ({
+    internal: Boolean(globalThis[${JSON.stringify(fileExplorerCaptureKey)}]),
+    windowOpen: Boolean(globalThis[${JSON.stringify(defaultAppCaptureKey)}]),
+    shellShowItemInFolder: Boolean(globalThis[${JSON.stringify(folderRevealCaptureKey)}])
+  }))()`)
+  if (presence.internal) {
+    return { present: true, ...(await restoreAttachmentFileExplorerCapture(cdp, label)) }
+  }
+  const shellShowItemInFolder = presence.shellShowItemInFolder
+    ? await restoreAttachmentFolderRevealCapture(cdp, `${label}:shell-show-item-in-folder`)
+    : { present: false, restored: true, captureRemoved: true }
+  const windowOpen = presence.windowOpen
+    ? await restoreAttachmentDefaultAppCapture(cdp, `${label}:window-open`)
+    : { present: false, restored: true, captureRemoved: true }
+  return { present: Boolean(presence.windowOpen || presence.shellShowItemInFolder), windowOpen, shellShowItemInFolder }
+}
+
+async function activateAttachmentFolderReveal(cdp) {
+  const beforeGraph = await observeGraph(cdp, 'before-attachment-folder-reveal')
+  const beforeRequest = await observeAttachmentFolderRevealCapture(cdp, 'before-request')
+  if (!beforeRequest.hooked || beforeRequest.callCount !== 0) {
+    throw new Error(`folder reveal capture hookがfail-closed状態ではありません: ${JSON.stringify(beforeRequest)}`)
+  }
+  const target = await cdp.evaluate(`(() => {
+    const item = [...document.querySelectorAll('.menu .menu-item')]
+      .find((candidate) => candidate.textContent?.replace(/\\s+/g, ' ').trim() === ${JSON.stringify(expected.attachmentFolderReveal.actionLabel)})
+    if (!(item instanceof HTMLElement) || item.classList.contains('is-disabled')) {
+      throw new Error('有効な「フォルダで表示」が見つかりません。')
+    }
+    const bounds = item.getBoundingClientRect()
+    return { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 }
+  })()`)
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved', x: target.x, y: target.y, button: 'none', buttons: 0
+  })
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mousePressed', x: target.x, y: target.y, button: 'left', buttons: 1, clickCount: 1
+  })
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseReleased', x: target.x, y: target.y, button: 'left', buttons: 0, clickCount: 1
+  })
+  await waitForRenderer(
+    cdp,
+    `globalThis[${JSON.stringify(folderRevealCaptureKey)}]?.calls.length >= 1`
+  )
+  await waitForRenderer(cdp, `document.querySelector('.menu .menu-item') === null`)
+  await delay(250)
+  const afterRequest = await observeAttachmentFolderRevealCapture(cdp, 'after-request')
+  if (!afterRequest.hooked || afterRequest.callCount !== 1) {
+    throw new Error(`folder reveal requestが正確に1回ではありません: ${JSON.stringify(afterRequest)}`)
+  }
+  return {
+    beforeGraph,
+    afterGraph: await observeGraph(cdp, 'after-attachment-folder-reveal'),
+    beforeRequest,
+    afterRequest,
+    menuClosed: true,
+    actionError: null
+  }
+}
+
+async function activateAttachmentFileExplorer(cdp) {
+  const beforeGraph = await observeGraph(cdp, 'before-attachment-file-explorer')
+  const beforeRequest = await observeAttachmentFileExplorerCapture(cdp, 'before-request')
+  if (
+    !beforeRequest.hooked ||
+    beforeRequest.callCount !== 0 ||
+    beforeRequest.external.windowOpen.callCount !== 0 ||
+    beforeRequest.external.shellShowItemInFolder.callCount !== 0
+  ) {
+    throw new Error(`file explorer capture hookがfail-closed状態ではありません: ${JSON.stringify(beforeRequest)}`)
+  }
+  const target = await cdp.evaluate(`(() => {
+    const item = [...document.querySelectorAll('.menu .menu-item')]
+      .find((candidate) => candidate.textContent?.replace(/\\s+/g, ' ').trim() === ${JSON.stringify(expected.attachmentFileExplorer.actionLabel)})
+    if (!(item instanceof HTMLElement) || item.classList.contains('is-disabled')) {
+      throw new Error('有効な「ファイルエクスプローラでファイルを表示」が見つかりません。')
+    }
+    const bounds = item.getBoundingClientRect()
+    return { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 }
+  })()`)
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved', x: target.x, y: target.y, button: 'none', buttons: 0
+  })
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mousePressed', x: target.x, y: target.y, button: 'left', buttons: 1, clickCount: 1
+  })
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseReleased', x: target.x, y: target.y, button: 'left', buttons: 0, clickCount: 1
+  })
+  await waitForRenderer(cdp, `document.querySelector('.menu .menu-item') === null`)
+  await delay(500)
+  const afterRequest = await observeAttachmentFileExplorerCapture(cdp, 'after-request')
+  const internalCallCount = afterRequest.callCount
+  const externalCallCount =
+    afterRequest.external.windowOpen.callCount +
+    afterRequest.external.shellShowItemInFolder.callCount
+  const fileExplorerChanged =
+    JSON.stringify(beforeRequest.fileExplorer) !== JSON.stringify(afterRequest.fileExplorer)
+  const classification =
+    internalCallCount === 1 && externalCallCount === 0
+      ? 'internal-file-explorer'
+      : internalCallCount === 0 && externalCallCount === 1
+        ? 'os-or-external'
+        : internalCallCount === 0 && externalCallCount === 0 && fileExplorerChanged
+          ? 'internal-file-explorer-state-only'
+          : internalCallCount === 0 && externalCallCount === 0
+            ? 'no-observable-action'
+            : 'ambiguous-multiple-boundaries'
+  return {
+    beforeGraph,
+    afterGraph: await observeGraph(cdp, 'after-attachment-file-explorer'),
+    beforeRequest,
+    afterRequest,
+    fileExplorerChanged,
+    classification,
+    menuClosed: true,
+    actionError: null
   }
 }
 
@@ -2152,6 +2650,8 @@ async function main() {
     const first = await launchSession(1)
     sessions.push(first)
     let firstDefaultAppHookInstalled = false
+    let firstFolderRevealHookInstalled = false
+    let firstFileExplorerHookInstalled = false
     try {
     await first.whileChildAlive(first.cdp.evaluate(`(async () => {
       const home = app.vault.getAbstractFileByPath('00_Home.md')
@@ -2166,7 +2666,7 @@ async function main() {
       await first.whileChildAlive(openGlobalGraph(first.cdp))
     }
     await first.whileChildAlive(setGraphSearch(first.cdp, expected.search))
-    if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentDefaultAppProbe) {
+    if (attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentNativeInterceptProbe) {
       await first.whileChildAlive(setGraphAttachmentsVisible(first.cdp))
     }
     if (nodeDragProbe || nodeMenuProbe) {
@@ -2183,7 +2683,7 @@ async function main() {
               : 'before-camera-input'
         )
       )
-      if (!attachmentDefaultAppProbe) {
+      if (!attachmentNativeInterceptProbe) {
         observations.beforeEntry.screenshot = await first.whileChildAlive(
           captureScreenshot(first.cdp, resolve(outputDirectory, '00-baseline.png'))
         )
@@ -2296,6 +2796,32 @@ async function main() {
         observations.attachmentDefaultApp.screenshot = await first.whileChildAlive(
           captureScreenshot(first.cdp, resolve(outputDirectory, '02-after-default-app-request.png'))
         )
+      } else if (attachmentFolderRevealProbe) {
+        const firstHookSetup = await first.whileChildAlive(
+          installAttachmentFolderRevealCapture(first.cdp, 'first-session')
+        )
+        observations.attachmentFolderReveal = { firstHookSetup }
+        firstFolderRevealHookInstalled = true
+        Object.assign(
+          observations.attachmentFolderReveal,
+          await first.whileChildAlive(activateAttachmentFolderReveal(first.cdp))
+        )
+        observations.attachmentFolderReveal.screenshot = await first.whileChildAlive(
+          captureScreenshot(first.cdp, resolve(outputDirectory, '02-after-folder-reveal-request.png'))
+        )
+      } else if (attachmentFileExplorerProbe) {
+        const firstHookSetup = await first.whileChildAlive(
+          installAttachmentFileExplorerCapture(first.cdp, 'first-session')
+        )
+        observations.attachmentFileExplorer = { firstHookSetup }
+        firstFileExplorerHookInstalled = true
+        Object.assign(
+          observations.attachmentFileExplorer,
+          await first.whileChildAlive(activateAttachmentFileExplorer(first.cdp))
+        )
+        observations.attachmentFileExplorer.screenshot = await first.whileChildAlive(
+          captureScreenshot(first.cdp, resolve(outputDirectory, '02-after-file-explorer-request.png'))
+        )
       } else {
         await first.whileChildAlive(first.cdp.send('Input.dispatchKeyEvent', {
           type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27
@@ -2308,7 +2834,7 @@ async function main() {
         )
       }
     }
-    if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe && !attachmentDefaultAppProbe) {
+    if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe && !attachmentNativeInterceptProbe) {
       observations.afterEntry.screenshot = await first.whileChildAlive(
         captureScreenshot(
           first.cdp,
@@ -2339,7 +2865,7 @@ async function main() {
     observations.afterGraphReopen = await first.whileChildAlive(
       observeGraph(first.cdp, 'after-graph-reopen')
     )
-    if (!attachmentDefaultAppProbe) {
+    if (!attachmentNativeInterceptProbe) {
       observations.afterGraphReopen.screenshot = await first.whileChildAlive(
         captureScreenshot(
           first.cdp,
@@ -2364,6 +2890,14 @@ async function main() {
       observations.attachmentDefaultApp.afterGraphReopenCapture = await first.whileChildAlive(
         observeAttachmentDefaultAppCapture(first.cdp, 'after-graph-reopen')
       )
+    } else if (attachmentFolderRevealProbe) {
+      observations.attachmentFolderReveal.afterGraphReopenCapture = await first.whileChildAlive(
+        observeAttachmentFolderRevealCapture(first.cdp, 'after-graph-reopen')
+      )
+    } else if (attachmentFileExplorerProbe) {
+      observations.attachmentFileExplorer.afterGraphReopenCapture = await first.whileChildAlive(
+        observeAttachmentFileExplorerCapture(first.cdp, 'after-graph-reopen')
+      )
     }
     if (attachmentBookmarkProbe) {
       observations.bookmarkPluginAfterGraphReopen = await first.whileChildAlive(
@@ -2381,6 +2915,20 @@ async function main() {
         assertAttachmentDefaultAppCaptureRestored(restoration)
         observations.attachmentDefaultApp.firstHookRestore = restoration
       }
+      if (attachmentFolderRevealProbe && firstFolderRevealHookInstalled) {
+        const restoration = await first.whileChildAlive(
+          restoreAttachmentFolderRevealCapture(first.cdp, 'first-session')
+        )
+        assertAttachmentFolderRevealCaptureRestored(restoration)
+        observations.attachmentFolderReveal.firstHookRestore = restoration
+      }
+      if (attachmentFileExplorerProbe && firstFileExplorerHookInstalled) {
+        const restoration = await first.whileChildAlive(
+          restoreAttachmentFileExplorerCapture(first.cdp, 'first-session')
+        )
+        assertAttachmentFileExplorerCaptureRestored(restoration)
+        observations.attachmentFileExplorer.firstHookRestore = restoration
+      }
     }
     const firstExit = await first.stop()
     if (attachmentBookmarkProbe) {
@@ -2389,7 +2937,7 @@ async function main() {
       )
     }
 
-    if (!attachmentDefaultAppProbe) {
+    if (!attachmentNativeInterceptProbe) {
     const second = await launchSession(2)
     sessions.push(second)
     await second.whileChildAlive(second.cdp.evaluate(`(() => {
@@ -2483,6 +3031,22 @@ async function main() {
         if (attachmentDefaultAppProbe) {
           await session.whileChildAlive(
             restoreAttachmentDefaultAppCaptureIfPresent(
+              session.cdp,
+              `finally-session-${session.sessionNumber}`
+            )
+          ).catch(() => undefined)
+        }
+        if (attachmentFolderRevealProbe) {
+          await session.whileChildAlive(
+            restoreAttachmentFolderRevealCaptureIfPresent(
+              session.cdp,
+              `finally-session-${session.sessionNumber}`
+            )
+          ).catch(() => undefined)
+        }
+        if (attachmentFileExplorerProbe) {
+          await session.whileChildAlive(
+            restoreAttachmentFileExplorerCaptureIfPresent(
               session.cdp,
               `finally-session-${session.sessionNumber}`
             )
@@ -2590,6 +3154,13 @@ async function main() {
     ['targetScale', 'scale', 'panX', 'panY', 'graphOptionsScale'].every(
       (key) => Math.abs(left[key] - right[key]) < 0.000001
     )
+  const sameTabLabels = (left, right) =>
+    JSON.stringify(
+      (left ?? []).map((tab) => ({ ariaLabel: tab.ariaLabel, text: tab.text, title: tab.title }))
+    ) ===
+    JSON.stringify(
+      (right ?? []).map((tab) => ({ ariaLabel: tab.ariaLabel, text: tab.text, title: tab.title }))
+    )
   const attachmentPathCopyContract = attachmentPathCopyProbe
     ? {
         targetNodeId: expected.attachmentPathCopy.targetNodeId,
@@ -2651,6 +3222,59 @@ async function main() {
         afterAppRestart: null
       }
     : null
+  const attachmentFolderRevealContract = attachmentFolderRevealProbe
+    ? {
+        apiSeam: 'electron.remote.shell.showItemInFolder',
+        targetNodeId: expected.attachmentFolderReveal.targetNodeId,
+        menuItems: observations.nodeContextMenu.items.map((item) => item.text),
+        actionEnabled:
+          observations.nodeContextMenu.items.find(
+            (item) => item.text === expected.attachmentFolderReveal.actionLabel
+          )?.disabled === false,
+        request: observations.attachmentFolderReveal.afterRequest.calls[0] ?? null,
+        firstSession: {
+          setup: observations.attachmentFolderReveal.firstHookSetup,
+          afterRequest: observations.attachmentFolderReveal.afterRequest,
+          afterGraphReopen: observations.attachmentFolderReveal.afterGraphReopenCapture,
+          restore: observations.attachmentFolderReveal.firstHookRestore
+        },
+        appRestart: {
+          observed: false,
+          reason: 'No second Obsidian process was launched for this intercepted reference capture.'
+        },
+        graphBefore: observations.attachmentFolderReveal.beforeGraph,
+        graphAfter: observations.attachmentFolderReveal.afterGraph,
+        afterGraphReopen: observations.afterGraphReopen,
+        afterAppRestart: null
+      }
+    : null
+  const attachmentFileExplorerContract = attachmentFileExplorerProbe
+    ? {
+        apiSeam: 'internalPlugins.file-explorer.revealInFolder plus external boundary observers',
+        targetNodeId: expected.attachmentFileExplorer.targetNodeId,
+        menuItems: observations.nodeContextMenu.items.map((item) => item.text),
+        actionEnabled:
+          observations.nodeContextMenu.items.find(
+            (item) => item.text === expected.attachmentFileExplorer.actionLabel
+          )?.disabled === false,
+        classification: observations.attachmentFileExplorer.classification,
+        request: observations.attachmentFileExplorer.afterRequest,
+        firstSession: {
+          setup: observations.attachmentFileExplorer.firstHookSetup,
+          afterRequest: observations.attachmentFileExplorer.afterRequest,
+          afterGraphReopen: observations.attachmentFileExplorer.afterGraphReopenCapture,
+          restore: observations.attachmentFileExplorer.firstHookRestore
+        },
+        graphBefore: observations.attachmentFileExplorer.beforeGraph,
+        graphAfter: observations.attachmentFileExplorer.afterGraph,
+        afterGraphReopen: observations.afterGraphReopen,
+        afterAppRestart: null,
+        appRestart: {
+          observed: false,
+          reason: 'No second Obsidian process was launched while boundary hooks were installed.'
+        }
+      }
+    : null
   const assertions = {
     queryAccepted: observations.afterEntry.graphOptionsSearch === expected.search,
     queryVisibleAfterEntry: observations.afterEntry.searchInputValue === expected.search,
@@ -2662,7 +3286,7 @@ async function main() {
       observations.afterGraphReopen,
       expectedAfterActionNodeIds
     ),
-    ...(attachmentDefaultAppProbe
+    ...(attachmentNativeInterceptProbe
       ? {
           firstProcessExited: observations.sessions[0].exited !== null,
           appRestartNotObserved:
@@ -2754,7 +3378,152 @@ async function main() {
                   attachmentDefaultAppVaultUnchanged:
                     protectedBefore.combinedSha256 === protectedAfter.combinedSha256
                 }
-            : attachmentLinkedViewProbe
+            : attachmentFolderRevealProbe
+              ? {
+                  attachmentFolderRevealTargetExact:
+                    observations.nodeContextMenu.targetNodeId ===
+                    expected.attachmentFolderReveal.targetNodeId,
+                  attachmentFolderRevealMenuOrderExact:
+                    JSON.stringify(observations.nodeContextMenu.items.map((item) => item.text)) ===
+                    JSON.stringify(expected.attachmentFolderReveal.menuItems),
+                  attachmentFolderRevealEnabled:
+                    attachmentFolderRevealContract.actionEnabled === true,
+                  attachmentFolderRevealFirstHookInstalled:
+                    attachmentFolderRevealContract.firstSession.setup.installed === true &&
+                    attachmentFolderRevealContract.firstSession.setup.hooked === true &&
+                    attachmentFolderRevealContract.firstSession.setup.callCount === 0,
+                  attachmentFolderRevealRequestExact:
+                    attachmentFolderRevealContract.firstSession.afterRequest.callCount === 1 &&
+                    attachmentFolderRevealContract.request?.path ===
+                      expected.attachmentFolderReveal.requestedPath,
+                  attachmentFolderRevealMenuClosed:
+                    observations.attachmentFolderReveal.menuClosed === true,
+                  attachmentFolderRevealQueryKept:
+                    observations.attachmentFolderReveal.beforeGraph.graphOptionsSearch ===
+                      observations.attachmentFolderReveal.afterGraph.graphOptionsSearch &&
+                    observations.attachmentFolderReveal.beforeGraph.searchInputValue ===
+                      observations.attachmentFolderReveal.afterGraph.searchInputValue,
+                  attachmentFolderRevealCameraKept: sameCamera(
+                    observations.attachmentFolderReveal.beforeGraph.camera,
+                    observations.attachmentFolderReveal.afterGraph.camera
+                  ),
+                  attachmentFolderRevealNodesKept:
+                    JSON.stringify(observations.attachmentFolderReveal.beforeGraph.renderedNodeIds) ===
+                      JSON.stringify(observations.attachmentFolderReveal.afterGraph.renderedNodeIds) &&
+                    JSON.stringify(observations.attachmentFolderReveal.beforeGraph.renderedLinks) ===
+                      JSON.stringify(observations.attachmentFolderReveal.afterGraph.renderedLinks),
+                  attachmentFolderRevealTabsKept:
+                    observations.attachmentFolderReveal.beforeGraph.activeFile ===
+                      observations.attachmentFolderReveal.afterGraph.activeFile &&
+                    JSON.stringify(observations.attachmentFolderReveal.beforeGraph.activeLeaf) ===
+                      JSON.stringify(observations.attachmentFolderReveal.afterGraph.activeLeaf) &&
+                    JSON.stringify(observations.attachmentFolderReveal.beforeGraph.tabHeaders) ===
+                      JSON.stringify(observations.attachmentFolderReveal.afterGraph.tabHeaders) &&
+                    observations.attachmentFolderReveal.beforeGraph.graphLeafCount ===
+                      observations.attachmentFolderReveal.afterGraph.graphLeafCount,
+                  attachmentFolderRevealNoReplayAfterGraphReopen:
+                    attachmentFolderRevealContract.firstSession.afterGraphReopen.hooked === true &&
+                    attachmentFolderRevealContract.firstSession.afterGraphReopen.callCount === 1,
+                  attachmentFolderRevealFirstHookRestored:
+                    attachmentFolderRevealContract.firstSession.restore.hookedBeforeRestore === true &&
+                    attachmentFolderRevealContract.firstSession.restore.restored === true &&
+                    attachmentFolderRevealContract.firstSession.restore.captureRemoved === true &&
+                    attachmentFolderRevealContract.firstSession.restore.callCount === 1,
+                   attachmentFolderRevealVaultUnchanged:
+                     protectedBefore.combinedSha256 === protectedAfter.combinedSha256
+                 }
+             : attachmentFileExplorerProbe
+               ? {
+                   attachmentFileExplorerTargetExact:
+                     observations.nodeContextMenu.targetNodeId ===
+                     expected.attachmentFileExplorer.targetNodeId,
+                   attachmentFileExplorerMenuOrderExact:
+                     JSON.stringify(observations.nodeContextMenu.items.map((item) => item.text)) ===
+                     JSON.stringify(expected.attachmentFileExplorer.menuItems),
+                   attachmentFileExplorerEnabled:
+                     attachmentFileExplorerContract.actionEnabled === true,
+                   attachmentFileExplorerFirstHookInstalled:
+                     attachmentFileExplorerContract.firstSession.setup.installed === true &&
+                     attachmentFileExplorerContract.firstSession.setup.internal?.hooked === true &&
+                     attachmentFileExplorerContract.firstSession.setup.internal?.callCount === 0 &&
+                     attachmentFileExplorerContract.firstSession.setup.external?.windowOpen?.hooked === true &&
+                     attachmentFileExplorerContract.firstSession.setup.external?.shellShowItemInFolder?.hooked === true,
+                   attachmentFileExplorerClassificationObserved:
+                     ['internal-file-explorer', 'internal-file-explorer-state-only', 'os-or-external'].includes(
+                       attachmentFileExplorerContract.classification
+                     ),
+                   attachmentFileExplorerRequestExact:
+                     attachmentFileExplorerContract.classification === 'internal-file-explorer'
+                       ? attachmentFileExplorerContract.request.callCount === 1 &&
+                         attachmentFileExplorerContract.request.calls[0]?.path ===
+                           expected.attachmentFileExplorer.targetNodeId
+                       : attachmentFileExplorerContract.classification === 'os-or-external'
+                         ? attachmentFileExplorerContract.request.external.windowOpen.callCount +
+                             attachmentFileExplorerContract.request.external.shellShowItemInFolder.callCount ===
+                             1
+                         : attachmentFileExplorerContract.classification ===
+                             'internal-file-explorer-state-only',
+                   attachmentFileExplorerMenuClosed:
+                     observations.attachmentFileExplorer.menuClosed === true,
+                   attachmentFileExplorerQueryKept:
+                     observations.attachmentFileExplorer.beforeGraph.graphOptionsSearch ===
+                       observations.attachmentFileExplorer.afterGraph.graphOptionsSearch &&
+                     observations.attachmentFileExplorer.beforeGraph.searchInputValue ===
+                       observations.attachmentFileExplorer.afterGraph.searchInputValue,
+                   attachmentFileExplorerCameraKept: sameCamera(
+                     observations.attachmentFileExplorer.beforeGraph.camera,
+                     observations.attachmentFileExplorer.afterGraph.camera
+                   ),
+                   attachmentFileExplorerNodesKept:
+                     JSON.stringify(observations.attachmentFileExplorer.beforeGraph.renderedNodeIds) ===
+                       JSON.stringify(observations.attachmentFileExplorer.afterGraph.renderedNodeIds) &&
+                     JSON.stringify(observations.attachmentFileExplorer.beforeGraph.renderedLinks) ===
+                       JSON.stringify(observations.attachmentFileExplorer.afterGraph.renderedLinks),
+                   attachmentFileExplorerTabsKept:
+                     observations.attachmentFileExplorer.beforeGraph.graphLeafCount ===
+                       observations.attachmentFileExplorer.afterGraph.graphLeafCount &&
+                     (attachmentFileExplorerContract.classification === 'internal-file-explorer'
+                       ? observations.attachmentFileExplorer.afterRequest.fileExplorer.activeLeafType ===
+                           'file-explorer' &&
+                         observations.attachmentFileExplorer.afterRequest.fileExplorer.visible === true
+                       : observations.attachmentFileExplorer.beforeGraph.activeFile ===
+                         observations.attachmentFileExplorer.afterGraph.activeFile &&
+                         JSON.stringify(observations.attachmentFileExplorer.beforeGraph.activeLeaf) ===
+                           JSON.stringify(observations.attachmentFileExplorer.afterGraph.activeLeaf) &&
+                         sameTabLabels(
+                           observations.attachmentFileExplorer.beforeGraph.tabHeaders,
+                           observations.attachmentFileExplorer.afterGraph.tabHeaders
+                         )),
+                   attachmentFileExplorerNoReplayAfterGraphReopen:
+                     attachmentFileExplorerContract.firstSession.afterGraphReopen.hooked === true &&
+                     attachmentFileExplorerContract.firstSession.afterGraphReopen.callCount ===
+                       attachmentFileExplorerContract.request.callCount,
+                   attachmentFileExplorerGraphReopenKept:
+                     sameCamera(
+                       attachmentFileExplorerContract.graphBefore.camera,
+                       observations.afterGraphReopen.camera
+                     ) &&
+                     JSON.stringify(attachmentFileExplorerContract.graphBefore.renderedNodeIds) ===
+                       JSON.stringify(observations.afterGraphReopen.renderedNodeIds) &&
+                     JSON.stringify(attachmentFileExplorerContract.graphBefore.renderedLinks) ===
+                       JSON.stringify(observations.afterGraphReopen.renderedLinks) &&
+                     observations.afterGraphReopen.activeLeaf?.viewType === 'graph' &&
+                     observations.afterGraphReopen.graphLeafCount ===
+                       attachmentFileExplorerContract.graphBefore.graphLeafCount &&
+                     sameTabLabels(
+                       attachmentFileExplorerContract.graphBefore.tabHeaders,
+                       observations.afterGraphReopen.tabHeaders
+                     ),
+                   attachmentFileExplorerFirstHookRestored:
+                     attachmentFileExplorerContract.firstSession.restore.internal?.hookedBeforeRestore === true &&
+                     attachmentFileExplorerContract.firstSession.restore.internal?.restored === true &&
+                     attachmentFileExplorerContract.firstSession.restore.internal?.captureRemoved === true &&
+                     attachmentFileExplorerContract.firstSession.restore.external?.windowOpen?.restored === true &&
+                     attachmentFileExplorerContract.firstSession.restore.external?.shellShowItemInFolder?.restored === true,
+                   attachmentFileExplorerVaultUnchanged:
+                     protectedBefore.combinedSha256 === protectedAfter.combinedSha256
+                 }
+             : attachmentLinkedViewProbe
               ? {
                   attachmentLinkedViewTargetExact:
                     observations.nodeContextMenu.targetNodeId ===
@@ -3005,7 +3774,7 @@ async function main() {
     lightThemeEveryObservation: [
       observations.afterEntry,
       observations.afterGraphReopen,
-      ...(attachmentDefaultAppProbe ? [] : [observations.afterAppRestart])
+      ...(attachmentNativeInterceptProbe ? [] : [observations.afterAppRestart])
     ].every((observation) => observation.renderedTheme === 'light'),
     isolatedUserDataEverySession: observations.sessions.every(
       (session) => session.isolation.userData.toLowerCase() === userDataDirectory.toLowerCase()
@@ -3025,7 +3794,11 @@ async function main() {
   }
   const manifest = {
     capturedAt: new Date().toISOString(),
-    stage: attachmentDefaultAppProbe
+    stage: attachmentFolderRevealProbe
+      ? 'GP0-3b-o Obsidian Global Graph attachment folder-reveal probe'
+      : attachmentFileExplorerProbe
+      ? 'GP0-3b-p Obsidian Global Graph attachment file-explorer reveal probe'
+      : attachmentDefaultAppProbe
       ? 'GP0-3b-n Obsidian Global Graph attachment default-app probe'
       : attachmentLinkedViewProbe
       ? 'GP0-3b-m Obsidian Global Graph attachment linked-view probe'
@@ -3067,7 +3840,9 @@ async function main() {
       attachmentPathCopyScenario: attachmentPathCopyProbe ? attachmentPathCopyScenario : null,
       attachmentLinkedViewProbe,
       attachmentDefaultAppProbe,
-      lifecycle: attachmentDefaultAppProbe
+      attachmentFolderRevealProbe,
+      attachmentFileExplorerProbe,
+      lifecycle: attachmentNativeInterceptProbe
         ? ['entry', 'graph-close-reopen']
         : ['entry', 'graph-close-reopen', 'full-app-restart'],
       fixture: relative(repoRoot, fixtureDirectory).replaceAll('\\', '/'),
@@ -3079,7 +3854,7 @@ async function main() {
         'Fixed Obsidian Desktop 1.13.4 runtime and recorded binary hashes',
         'Chromium CDP Input.dispatchMouseEvent/Input.dispatchKeyEvent against an offscreen Electron window',
         'Fresh isolated Vault and user-data directory for each scenario',
-        ...(attachmentDefaultAppProbe
+        ...(attachmentNativeInterceptProbe
           ? ['Same-process Graph close/reopen after the intercepted action']
           : ['Graph close/reopen and a distinct second Obsidian process restart']),
         `Light theme at ${expected.viewport.width}x${expected.viewport.height}, deviceScaleFactor ${expected.deviceScaleFactor}`,
@@ -3088,7 +3863,11 @@ async function main() {
           : []),
         ...(attachmentDefaultAppProbe
           ? ['Renderer window.open intercepted before the single menu action and returned null; the observed request never reached the OS launcher']
-          : [])
+          : attachmentFolderRevealProbe
+            ? ['Renderer electron.remote.shell.showItemInFolder intercepted before the single menu action; the observed request never reached the OS file manager']
+            : attachmentFileExplorerProbe
+              ? ['Internal file-explorer reveal and adjacent external boundaries were observed with fail-closed hooks; no external boundary was allowed to reach the OS']
+              : [])
       ],
       notEstablished: [
         'Physical mouse or keyboard input',
@@ -3099,11 +3878,15 @@ async function main() {
         ...(attachmentPathCopyProbe
           ? ['Physical OS clipboard write/paste roundtrip (the write API was deliberately intercepted)']
           : []),
-        ...(attachmentDefaultAppProbe
-          ? [
-              'Real default application launch, selected OS file association, launch success, chooser, or cancellation',
-              'Full-app restart behavior; no second Obsidian process was launched for this capture'
-            ]
+           ...(attachmentNativeInterceptProbe
+             ? [
+                 ...(attachmentDefaultAppProbe
+                   ? ['Real default application launch, selected OS file association, launch success, chooser, or cancellation']
+                 : attachmentFileExplorerProbe
+                   ? ['Real Windows Explorer or other OS file-manager reveal, selection behavior, launch success, or cancellation']
+                   : ['Real Explorer or OS file-manager reveal, selection behavior, launch success, or cancellation']),
+               'Full-app restart behavior; no second Obsidian process was launched for this capture'
+             ]
           : [])
       ]
     },
@@ -3139,6 +3922,10 @@ async function main() {
     attachmentLinkedViewContract,
     attachmentDefaultApp: observations.attachmentDefaultApp ?? null,
     attachmentDefaultAppContract,
+    attachmentFolderReveal: observations.attachmentFolderReveal ?? null,
+    attachmentFolderRevealContract,
+    attachmentFileExplorer: observations.attachmentFileExplorer ?? null,
+    attachmentFileExplorerContract,
     bookmarkCounts,
     bookmarkPersistence: observations.bookmarkPersistence ?? null,
     protection: {
@@ -3182,8 +3969,10 @@ async function main() {
         attachmentNewTab: observations.attachmentNewTab ?? null,
         attachmentBookmark: observations.attachmentBookmark ?? null,
         attachmentPathCopyContract,
-        attachmentLinkedViewContract,
-        attachmentDefaultAppContract,
+         attachmentLinkedViewContract,
+         attachmentDefaultAppContract,
+         attachmentFileExplorerContract,
+         attachmentFolderRevealContract,
         bookmarkCounts,
         observation: manifest.scope.observation,
         sourceUnchanged: assertions.sourceUnchanged,

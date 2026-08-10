@@ -1,6 +1,6 @@
 # TSUZUNE Documentation Index
 
-更新日: 2026-08-10
+更新日: 2026-08-11
 
 ## まず読む
 
@@ -15,6 +15,7 @@
 - [Product Plan](../PLAN.md) — 現在の実行順、受入条件、保留Track、長期roadmap。
 - [Obsidian Graph Parity Reference](obsidian-graph-parity-reference.md) — 固定比較対象と受入契約。
 - [GP0-3b-n Attachment Default App Requirements](../.agent/requirements/20260810-1941-attachment-default-app/4_requirements.md) — 実外部アプリを起動せず、添付の既定アプリ要求を一項目だけ比較した設計、安全境界、停止条件。
+- [GP0-3b-p Attachment File Explorer Reveal Requirements](../.agent/requirements/20260811-0257-attachment-file-explorer-reveal/4_requirements.md) — `ファイルエクスプローラでファイルを表示`の意味を推測せず、内部File ExplorerかOS境界かを一項目・一添付で確定する設計、安全境界、停止条件。
 - [MCP Integration](mcp-integration.md) — Codex／ChatGPTデスクトップ連携と書込境界。
 - [Compact Context Requirements](../.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md) — X1-M1 MOC Title Routerの実装契約と、未実装のquery選定・MCP二重搬送削減を分離して記録。
 - [Templates and Freshness](templates-and-freshness.md) — Markdown雛形、placeholder、最終更新日、再確認表示の使い方。
@@ -56,6 +57,8 @@
 - [GP0-3b-m attachment linked-view comparison JSON](reports/assets/graph-gp0-attachment-linked-view/comparison.json) — 中核動作を`matched-core-behavior`とし、分割pane／視覚shell未証明とmenu 11対7を境界として残した機械可読比較。
 - [GP0-3b-n attachment default app](reports/graph-gp0-attachment-default-app-2026-08-10.html) — 外部アプリを起動せず、同じfixture fileへのopen要求1回、menu close、Graph／Vault保持を固定した画面証拠。
 - [GP0-3b-n attachment default-app comparison JSON](reports/assets/graph-gp0-attachment-default-app/comparison.json) — 中核動作を`matched-core-behavior`とし、API seam差、Obsidian再起動未観測、実OS既定app未証明、menu 11対8を境界として残した機械可読比較。
+- [GP0-3b-o attachment folder reveal](reports/graph-gp0-attachment-folder-reveal-2026-08-11.html) — 実Explorerを起動せず、同じfixture fileの親フォルダ要求1回、menu close、Graph／Vault保持、同一process再表示での非再生を固定した画面証拠。
+- [GP0-3b-o attachment folder-reveal comparison JSON](reports/assets/graph-gp0-attachment-folder-reveal/comparison.json) — 中核動作を`matched-core-behavior`とし、Obsidian再起動未観測、実Explorer未証明、menu 11対9を境界として残した機械可読比較。
 - [Large Vault performance](reports/tsuzune-large-vault-performance-2026-08-03.html) — 500件／2000件baseline。
 - [Large Vault public summary](reports/assets/large-vault-performance-2026-08-03/summary-public.json) — 性能値の耐久する機械可読版。
 - [Product optimization](reports/tsuzune-product-optimization-2026-08-03.html) — GUI、icon、画像preview、watcher、更新gate。

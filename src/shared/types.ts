@@ -289,6 +289,7 @@ export interface TsuzuneApi {
   readNote(path: string): Promise<Result<NoteDocument>>
   readVaultImage(path: string): Promise<Result<string>>
   openVaultFile(path: string): Promise<Result<null>>
+  revealVaultFile(path: string): Promise<Result<null>>
   openVaultFileWindow(path: string): Promise<Result<null>>
   copyText(text: string): Promise<Result<null>>
   saveNote(input: SaveNoteInput): Promise<Result<SaveNoteOutput>>

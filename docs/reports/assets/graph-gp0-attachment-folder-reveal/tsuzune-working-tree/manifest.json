@@ -1,0 +1,227 @@
+{
+  "capturedAt": "2026-08-10T16:34:22.635Z",
+  "stage": "GP0-3b-o Global Graph attachment folder-reveal working-tree evidence",
+  "status": "captured",
+  "attachmentDefaultApp": null,
+  "attachmentFolderReveal": {
+    "actionLabel": "フォルダで表示",
+    "targetPath": "attachments/diagram.svg",
+    "menuItemCount": 9,
+    "menuItems": [
+      {
+        "index": 0,
+        "text": "新規タブに開く",
+        "disabled": false,
+        "classes": []
+      },
+      {
+        "index": 1,
+        "text": "新規ウィンドウで開く",
+        "disabled": false,
+        "classes": []
+      },
+      {
+        "index": 2,
+        "text": "ファイルを移動…",
+        "disabled": false,
+        "classes": []
+      },
+      {
+        "index": 3,
+        "text": "ブックマーク…",
+        "disabled": false,
+        "classes": []
+      },
+      {
+        "index": 4,
+        "text": "パスをコピー ›",
+        "disabled": false,
+        "classes": []
+      },
+      {
+        "index": 5,
+        "text": "リンクされたビューを開く ›",
+        "disabled": false,
+        "classes": []
+      },
+      {
+        "index": 6,
+        "text": "デフォルトアプリで開く",
+        "disabled": false,
+        "classes": []
+      },
+      {
+        "index": 7,
+        "text": "フォルダで表示",
+        "disabled": false,
+        "classes": []
+      },
+      {
+        "index": 8,
+        "text": "ファイルを削除",
+        "disabled": false,
+        "classes": [
+          "is-danger"
+        ]
+      }
+    ],
+    "apiSeam": "electron.shell.showItemInFolder",
+    "expectedPath": "<TSUZUNE_VAULT_ROOT>\\attachments\\diagram.svg",
+    "calls": [
+      {
+        "path": "<TSUZUNE_VAULT_ROOT>\\attachments\\diagram.svg"
+      }
+    ],
+    "menuClosed": true,
+    "callCountAfterGraphReopen": 1,
+    "initialHook": {
+      "hookInstalled": true,
+      "identityVerifiedBeforeAction": true,
+      "hookRestored": true
+    },
+    "restartedHook": {
+      "calls": [],
+      "callCountAfterAppRestart": 0,
+      "hookInstalled": true,
+      "hookRestored": true
+    }
+  },
+  "comparisonStatus": "Compare with docs/reports/assets/graph-gp0-attachment-folder-reveal/obsidian-1.13.4/observation.json",
+  "command": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-folder-reveal",
+  "isolation": {
+    "sourceFixture": "fixtures/obsidian-graph-parity-vault",
+    "copiedVault": "work/graph-gp0-attachment-folder-reveal-working-tree/vault",
+    "userData": "work/graph-gp0-attachment-folder-reveal-working-tree/userdata",
+    "requestedContentViewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "offscreenOrigin": {
+      "x": -32000,
+      "y": -32000
+    },
+    "observedWindowGeometry": {
+      "initial": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      },
+      "restarted": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      }
+    },
+    "network": "host resolver blocked except localhost"
+  },
+  "evidenceBoundary": {
+    "established": [
+      "Fresh isolated fixture Vault and userData profile",
+      "Public TSUZUNE attachment context-menu action was used exactly once",
+      "electron.shell.showItemInFolder was replaced before the main-process import and restored in both processes",
+      "The exact sanitized filesystem path and call count were recorded without launching Windows Explorer",
+      "Graph query, camera transform, node paths, directed edge signature, and tabs were compared after the action, Graph reopen, and an additional TSUZUNE-only restart",
+      "Source fixture, isolated Vault content, product source, and built application were hashed before and after capture"
+    ],
+    "notEstablished": [
+      "A real Windows Explorer launch or shell association",
+      "Physical mouse or keyboard input",
+      "Visible onscreen foreground-window interaction",
+      "Touch or pen input",
+      "Screen reader or Windows High Contrast acceptance",
+      "Multi-DPI or pixel-identical parity",
+      "Obsidian restart behavior, because the fixed reference intentionally did not start a second process"
+    ],
+    "apiSeam": "electron.shell.showItemInFolder",
+    "externalApplicationLaunched": false
+  },
+  "processIds": [
+    7632,
+    3056
+  ],
+  "assertions": {
+    "exactNodeSetAtEveryCheckpoint": true,
+    "attachmentContextMenuOpened": true,
+    "externalActionMenuOrderExact": true,
+    "externalActionMenuItemEnabled": true,
+    "externalActionRequestExact": true,
+    "initialHookInstalledVerifiedAndRestored": true,
+    "actionClosedMenu": true,
+    "globalGraphRemainedVisible": true,
+    "noReplayAfterGraphReopen": true,
+    "restartedHookInstalledAndRestored": true,
+    "noReplayAfterAppRestart": true,
+    "edgeSignatureCapturedAtEveryCheckpoint": true,
+    "queryCameraNodesEdgesTabsPreservedAcrossActionReopenAndRestart": true,
+    "contentViewportStable": true,
+    "filteredNodeSetStable": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "isolatedVaultContentUnchanged": true,
+    "isolatedVaultChangedOnlyWhenMoving": true,
+    "noIsolatedProcessesRemaining": true
+  },
+  "artifacts": [
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-folder-reveal/tsuzune-working-tree/01-node-context-menu.png",
+      "bytes": 131166,
+      "sha256": "B79607A9D40EBC9D839ADE80069B9A93A1AF9C42F082171B5A8C864B08746F8B",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-folder-reveal/tsuzune-working-tree/02-after-folder-reveal-request.png",
+      "bytes": 122224,
+      "sha256": "A31872E9E0DF910B1AAEA8D135C6AD442F169D1306BFADD3BF3BF989BC0B390A",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-folder-reveal/tsuzune-working-tree/phase-initial.json",
+      "bytes": 39218,
+      "sha256": "8E13198D10A0C118646E8236E1B52C8840783B402B76D9FBFBB7D5418F457B07"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-folder-reveal/tsuzune-working-tree/phase-restarted.json",
+      "bytes": 5509,
+      "sha256": "5435906237F2767FFBA51C49175F155B8B3B8362A79A1CD69D4D51C8A81B7405"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-folder-reveal/tsuzune-working-tree/observation.json",
+      "bytes": 64628,
+      "sha256": "7AD5478598AC4B32A14C3AB1D792EB8C0828D777CD7CDC8996FDD74DCAF7D426"
+    }
+  ],
+  "next": "Build the fixed Obsidian/TSUZUNE GP0-3b-o comparison without widening scope to file-explorer or folder-selection behavior."
+}

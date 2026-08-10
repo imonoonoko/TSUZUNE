@@ -10,7 +10,7 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 
 ## TSUZUNEでできること
 
-- **自然に書く** — 通常ノート、同日一件の「今日のノート」、フォーム式の「アイデアを追加」、簡易書式ツールバー。
+- **自然に書く** — 通常ノートをすぐ編集画面で開き、Daily／Ideaを含む自由に増やせるテンプレートと簡易書式ツールバーを使えます。
 - **Markdownのまま残す** — ノートは`.md`、添付は通常ファイル。TSUZUNEがなくても一般的なeditorで読めます。
 - **知識をつなぐ** — `[[Wiki link]]`、backlink、未解決link、全文検索、Local/Global Graph。
 - **古さに気づく** — 最終更新日時と任意の`review_after`から、再確認の目安を非破壊で表示。
@@ -34,7 +34,7 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 1. [Private Releases](https://github.com/imonoonoko/TSUZUNE/releases)または手元で配布された`TSUZUNE-Setup-0.5.0.exe`を起動します。
 2. Start menuまたはdesktopの「TSUZUNE」を開きます。
 3. 「Vaultを開く」から、Markdownを保存するfolderを選びます。
-4. 「ノート」「今日のノート」「アイデアを追加」のいずれかで書き始めます。
+4. 「ノート」で空のノートを開くか、選択欄からテンプレートを選んで書き始めます。
 
 現在の個人用buildはcode signingしていないため、Windowsが発行元不明の警告を出す場合があります。入手元を確認して実行してください。通常のinstall先は`%LOCALAPPDATA%\Programs\tsuzune`です。uninstallしてもVaultは削除しません。
 
@@ -42,13 +42,13 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 
 ### Markdownを知らない場合
 
-- 「ノート」は名前だけでなく、改行や箇条書きを含む自由な本文を作成画面へそのまま書けます。
-- 「今日のノート」は日付を自動入力し、今日やったこと、気づき、自由メモ、複数の「次にすること」をフォームで保存します。
-- 「アイデアを追加」は、内容、思いついた理由、関連project、自由メモ、複数の次の一歩をフォームで保存します。
+- 「ノート」は同名衝突を避けた空のノートを作り、モーダルを挟まず通常の編集画面で開きます。
+- 「今日のノート」はテンプレートから選び、日付入りのDailyを同日一件だけ作ります。
+- 「アイデアメモ」はテンプレートから選び、見出し入りのノートを通常編集画面で開きます。
 - 見出し、太字、list、checkは書式ボタンから挿入でき、関連ノートはVault一覧から選べます。
-- `90_テンプレート`へ雛形を置けば、通常ノート作成時に選べます。
+- 「テンプレートを追加」で編集可能な雛形を作れます。`90_テンプレート`内のMarkdownは自動的に選択肢へ加わります。
 
-裏側では通常のMarkdownへ保存するため、検索、Wiki link、Graph、MCPとの互換性を失いません。TSUZUNEが生成した定型構造と完全一致する場合だけフォームへ戻し、手書きの見出しや追記がある場合はMarkdownソースを維持して内容を落としません。作成失敗や同名ノートでは入力画面を閉じず、編集中にアプリを終了する場合も保存前の入力を捨てないよう確認します。詳しくは[Templates and Freshness](docs/templates-and-freshness.md)を参照してください。
+裏側では通常のMarkdownへ保存するため、検索、Wiki link、Graph、MCPとの互換性を失いません。TSUZUNEが生成した既存の定型Daily／Ideaが完全一致する場合だけ、再編集用フォームも利用できます。手書きの見出しや追記がある場合はMarkdownソースを維持して内容を落としません。詳しくは[Templates and Freshness](docs/templates-and-freshness.md)を参照してください。
 
 ### Wiki linkを使う場合
 

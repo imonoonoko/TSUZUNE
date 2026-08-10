@@ -1,6 +1,6 @@
 # TSUZUNE Project Status
 
-更新日: 2026-08-10（JST）
+更新日: 2026-08-11（JST）
 
 この文書は、TSUZUNEの「今」を一枚で確認するための入口です。実行順と将来計画は[PLAN.md](PLAN.md)、製品の不変条件は[PRODUCT.md](PRODUCT.md)、画面・ブランド規約は[DESIGN.md](DESIGN.md)を正本とします。完了証拠は[docs/INDEX.md](docs/INDEX.md)から辿ります。
 
@@ -9,12 +9,12 @@
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
 | インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-10 20:50 JSTにcommit `49ac0f3`から更新し、GP0-3b-n、全508 tests、10/10 checks、packaged／installed smoke、build／installed hash一致、profile 57 files不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`。GP0-3b-n feature commit `49ac0f3`をpushし、同じclean sourceから本番反映済み | Git |
-| 直近slice | GP0-3b-nで添付nodeの`デフォルトアプリで開く`を追加し、同じfixture fileへの要求1回、menu close、Graph／Vault保持を実外部起動なしで固定比較 | [GP0-3b-n report](docs/reports/graph-gp0-attachment-default-app-2026-08-10.html) |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。本番は`49ac0f3`のまま。working treeではGP0-3b-o差分に加え、自由追加できるテンプレート、Daily／Ideaのテンプレート集約、通常編集画面へ直接開く新規作成を検証中。未commit・未push | Git |
+| 直近slice | GP0-3b-oで添付nodeの`フォルダで表示`を追加し、同じfixture fileの親フォルダ要求1回、menu close、Graph／Vault保持を実Explorer起動なしで固定比較 | [GP0-3b-o report](docs/reports/graph-gp0-attachment-folder-reveal-2026-08-11.html) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
-| 最優先Track | v0.6 Obsidian Graph Parity。GP0-3b-nを閉じ、次の未比較menu操作へ進む | [PLAN.md](PLAN.md#current-transition-queue) |
-| 次の縦切り | GP0-3b-o。attachment nodeの`フォルダで表示`について、固定参照、OS境界、停止条件を先に設計する | [PLAN.md](PLAN.md#current-transition-queue) |
-| Graph checkpoint | GP0-3b-nは`matched-core-behavior`。Obsidianはfile URL、TSUZUNEはabsolute filesystem pathを別APIへ渡すが、同じrelative fixture file identityへの1回の要求、menu close、同一process Graph再表示での非再生を確認。実外部アプリは未起動 | [comparison](docs/reports/assets/graph-gp0-attachment-default-app/comparison.json) |
+| 最優先Track | v0.6 Obsidian Graph Parity。GP0-3b-oを閉じ、GP0-3b-pの固定参照を試行したが、受入packetは未生成。製品実装・本番反映は未開始 | [PLAN.md](PLAN.md#current-transition-queue) |
+| 次の縦切り | `ファイルエクスプローラでファイルを表示`は初回に内部File Explorer遷移を示したものの、訂正後2試行が対象クリック前のmenu待機で停止。ハーネス事前待機を一度だけ直して再判定し、失敗なら製品変更なしでblockedとする | [GP0-3b-p requirements](.agent/requirements/20260811-0257-attachment-file-explorer-reveal/4_requirements.md) |
+| Graph checkpoint | GP0-3b-oは`matched-core-behavior`。Obsidian／TSUZUNEとも同じrelative fixture file identityの親フォルダ要求1回、menu close、同一process Graph再表示での非再生を確認。実Explorerは未起動、Obsidian別process再起動は未観測 | [comparison](docs/reports/assets/graph-gp0-attachment-folder-reveal/comparison.json) |
 | Context checkpoint | X1-M1は`type: moc`を全タイトル一覧へ投影し、X1-D1はbaseline candidate集合を変えず通常本文だけを質問で優先する。commit `e2d8621`として本番反映済み | [requirements](.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md) |
 | Context remaining | 固定4問の再評価とmodel-visible tokenは未計測。legacy text＋structuredContentの二重搬送は独立X1-T1でのみ扱う | [requirements](.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md) |
 
@@ -125,7 +125,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 1. M5-Cは要求単位snapshot indexで完了。Context構築median 151.123ms→35.934ms、p95 180.404ms→47.798ms、改善前後のMarkdown SHA-256と意味指標は一致した。
 2. retained heap比較は未測定。cacheを要求境界より長寿命化する提案が出た場合だけ、GCを分離したharnessを先に作る。永続DBやbackground cacheは追加しない。
 3. O2-P1 Path Alias Foundationは全486 tests、build、MCP検査をPASS。旧pathはWiki、backlink、Graph、Context、時間情報、MCP、bookmark、起動復元でcanonical pathへ解決され、実在する旧pathを優先する。
-4. O2-P2移行dry-runは完了。5 movesのpath、hash、参照、Graph、MCP、全Vault不変条件をmanifest化した。3 blockerが残るため物理移動とDrive applyは禁止する。Graphは[GP0-3b-n](docs/reports/graph-gp0-attachment-default-app-2026-08-10.html)まで完了し、次はGP0-3b-oの設計である。
+4. O2-P2移行dry-runは完了。5 movesのpath、hash、参照、Graph、MCP、全Vault不変条件をmanifest化した。3 blockerが残るため物理移動とDrive applyは禁止する。Graphは[GP0-3b-o](docs/reports/graph-gp0-attachment-folder-reveal-2026-08-11.html)まで完了し、次はGP0-3b-pの設計である。
 5. O1-W1の通常ノート／Daily／Idea自由入力、最小書式ツールバー、Vaultノート選択、round-trip guard、同名／同期競合／作成失敗／アプリ終了時の入力保護はcommit `b927171`として本番反映済み。
 6. node context menuの残差分を一項目ずつ閉じた後、720px／200% zoom、tree semantics、実Windows accessibilityを別sliceで扱う。
 7. さらにGoogle Tasks、Drive選択取込、YouTube、Data Portabilityから一つを再選択する。
@@ -134,7 +134,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 
 ## CheckpointとWorking treeの扱い
 
-Graph検索保持の製品コード、tests、fixture、再現script、report assetsは`ad26532`へ収録済みです。GP0-3b-cとGP0-3b-dは比較harness、raw observation、画像、比較表、HTMLレポートだけを追加し、製品sourceは変更していません。C0-A〜C1-CはGit管理外の`work/`へ個人本文とreviewを出す開発用CLI／純粋coreであり、Electron本番UI・packaged runtimeへは接続していません。C1-Cは既知誤検出を止めた一方、rule別review 10件未満のため自動適用を解禁せず、人物プロフィール5ノートへのwriteは0です。O1-W0／O1-W1のbaselineはElectron UIへ接続し、2026-08-09のproduction update gateでこのPCの本番へ反映済みです。GP0-3b-jは`b47671a`、production testの2-worker gateは`9bec872`／`4051f9f`として同名originへpushし、12:54 JSTにclean sourceから本番へ反映済みです。GP0-3b-kは`efe52ea`として同名originへpushし、19:58 JSTに同commitのclean sourceから全438 tests、packaged／installed smoke、hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。GP0-3b-lとMarkdown不要な自由入力拡張は`b927171`としてpushし、2026-08-10 00:25 JSTにclean sourceから全453 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。O2-P1 Path Alias Foundationは`0aacecf`／`df9146e`としてpushし、02:16 JSTにclean sourceから全486 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。GP0-3b-m Attachment Linked Viewsは`cb56cdf`としてpushし、04:18 JSTに同commitのclean sourceから全496 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。X1-M1 MOC Title Routerは`601b94e`としてpushし、05:41 JSTに同commitのclean sourceから全502 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。X1-D1 Recall-safe Query Bridgeは`e2d8621`としてpushし、14:03 JSTに同commitのclean sourceから全508 tests、packaged／installed smoke、build／installed hash一致、production profile 57 files不変、MCP再登録を確認して本番へ反映済みです。GP0-3b-n Attachment Default Appは`49ac0f3`としてpushし、20:50 JSTに同commitのclean sourceから全508 tests、10/10 checks、packaged／installed smoke、build／installed hash一致、production profile 57 files不変、MCP再登録を確認して本番へ反映済みです。
+Graph検索保持の製品コード、tests、fixture、再現script、report assetsは`ad26532`へ収録済みです。GP0-3b-cとGP0-3b-dは比較harness、raw observation、画像、比較表、HTMLレポートだけを追加し、製品sourceは変更していません。C0-A〜C1-CはGit管理外の`work/`へ個人本文とreviewを出す開発用CLI／純粋coreであり、Electron本番UI・packaged runtimeへは接続していません。C1-Cは既知誤検出を止めた一方、rule別review 10件未満のため自動適用を解禁せず、人物プロフィール5ノートへのwriteは0です。O1-W0／O1-W1のbaselineはElectron UIへ接続し、2026-08-09のproduction update gateでこのPCの本番へ反映済みです。GP0-3b-jは`b47671a`、production testの2-worker gateは`9bec872`／`4051f9f`として同名originへpushし、12:54 JSTにclean sourceから本番へ反映済みです。GP0-3b-kは`efe52ea`として同名originへpushし、19:58 JSTに同commitのclean sourceから全438 tests、packaged／installed smoke、hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。GP0-3b-lとMarkdown不要な自由入力拡張は`b927171`としてpushし、2026-08-10 00:25 JSTにclean sourceから全453 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。O2-P1 Path Alias Foundationは`0aacecf`／`df9146e`としてpushし、02:16 JSTにclean sourceから全486 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。GP0-3b-m Attachment Linked Viewsは`cb56cdf`としてpushし、04:18 JSTに同commitのclean sourceから全496 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。X1-M1 MOC Title Routerは`601b94e`としてpushし、05:41 JSTに同commitのclean sourceから全502 tests、packaged／installed smoke、build／installed hash一致、production profile不変、MCP再登録を確認して本番へ反映済みです。X1-D1 Recall-safe Query Bridgeは`e2d8621`としてpushし、14:03 JSTに同commitのclean sourceから全508 tests、packaged／installed smoke、build／installed hash一致、production profile 57 files不変、MCP再登録を確認して本番へ反映済みです。GP0-3b-n Attachment Default Appは`49ac0f3`としてpushし、20:50 JSTに同commitのclean sourceから全508 tests、10/10 checks、packaged／installed smoke、build／installed hash一致、production profile 57 files不変、MCP再登録を確認して本番へ反映済みです。GP0-3b-o Attachment Folder Revealはworking treeで実装・capture・比較reportまで完了し、Obsidian 29/29、TSUZUNE 23/23 assertion、build/typecheck、renderer/IPC対象テストを確認した。実Explorer起動、production update、commit/pushはこのcheckpointでは未実施である。
 
 - 次のsliceでも、sourceだけ、reportだけの機械的な分割commitをせず、共有型、App、Vault、testsを含む機能契約単位で切る。
 - fixture、日付付きreport、machine-readable artifactは比較の証拠として保持し、生成ゴミと決めつけて一括削除しない。

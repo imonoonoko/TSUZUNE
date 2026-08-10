@@ -857,6 +857,7 @@ describe('WikiGraphView', () => {
     const onBookmark = vi.fn()
     const onCopyPath = vi.fn()
     const onOpenLinkedView = vi.fn()
+    const onRevealInFolder = vi.fn()
     const onTrash = vi.fn()
     const graph: WikiGraph = {
       nodes: [
@@ -885,6 +886,7 @@ describe('WikiGraphView', () => {
         onBookmark={onBookmark}
         onCopyPath={onCopyPath}
         onOpenLinkedView={onOpenLinkedView}
+        onRevealInFolder={onRevealInFolder}
         onTrash={onTrash}
         onOpen={onOpen}
       />
@@ -926,6 +928,7 @@ describe('WikiGraphView', () => {
       'パスをコピー ›',
       'リンクされたビューを開く ›',
       'デフォルトアプリで開く',
+      'フォルダで表示',
       'ファイルを削除'
     ])
     await user.click(screen.getByRole('menuitem', { name: 'ブックマーク…' }))
@@ -979,6 +982,16 @@ describe('WikiGraphView', () => {
         name: 'diagram.png（添付書類）を開く'
       })
     )
+    await user.click(screen.getByRole('menuitem', { name: 'フォルダで表示' }))
+    expect(onRevealInFolder).toHaveBeenCalledOnce()
+    expect(onRevealInFolder).toHaveBeenCalledWith('assets/diagram.png')
+    expect(screen.queryByRole('menu', { name: 'diagram.png' })).toBeNull()
+
+    fireEvent.contextMenu(
+      screen.getByRole('button', {
+        name: 'diagram.png（添付書類）を開く'
+      })
+    )
     await user.click(screen.getByRole('menuitem', { name: 'ファイルを削除' }))
     expect(onTrash).toHaveBeenCalledWith('assets/diagram.png')
 
@@ -1017,6 +1030,9 @@ describe('WikiGraphView', () => {
     )
     expect(
       screen.queryByRole('menuitem', { name: 'デフォルトアプリで開く' })
+    ).toBeNull()
+    expect(
+      screen.queryByRole('menuitem', { name: 'フォルダで表示' })
     ).toBeNull()
     await user.click(screen.getByRole('menuitem', { name: 'ファイルを移動…' }))
     expect(onMove).toHaveBeenLastCalledWith('A.md')
@@ -1942,6 +1958,46 @@ describe('WikiGraphView', () => {
       stage?.style.transform.match(/scale\(([-\d.]+)\)/)?.[1]
     )
     expect(zoomedOutScale).toBeCloseTo(fittedZoomNumber / 1.5, 12)
+  })
+
+  it('provides Obsidian-like zoom and fit buttons', async () => {
+    const user = userEvent.setup()
+    const graph: WikiGraph = {
+      nodes: [{ path: 'A.md', name: 'A' }],
+      edges: []
+    }
+    const { container } = render(
+      <WikiGraphView
+        graph={graph}
+        currentPath="A.md"
+        scope="local"
+        includeOrphans={false}
+        onScopeChange={() => undefined}
+        onIncludeOrphansChange={() => undefined}
+        onOpen={() => undefined}
+      />
+    )
+
+    const canvas = screen.getByRole('region', { name: 'グラフキャンバス' })
+    const stage = container.querySelector('.wiki-graph-stage')
+    const node = container.querySelector<HTMLElement>('.wiki-graph-node')
+    Object.defineProperties(canvas, {
+      clientWidth: { configurable: true, value: 800 },
+      clientHeight: { configurable: true, value: 400 }
+    })
+    if (node) {
+      Object.defineProperties(node, {
+        offsetWidth: { configurable: true, value: 80 },
+        offsetHeight: { configurable: true, value: 40 }
+      })
+    }
+
+    await user.click(screen.getByRole('button', { name: 'グラフを拡大' }))
+    expect(stage?.style.transform).toContain('scale(1.5)')
+    await user.click(screen.getByRole('button', { name: 'グラフを縮小' }))
+    expect(stage?.style.transform).toContain('scale(1)')
+    await user.click(screen.getByRole('button', { name: 'グラフ全体を表示' }))
+    expect(stage?.style.transform).toContain('scale(')
   })
 
   it('zooms 1.5 times around the wheel pointer and keeps Obsidian zoom limits', () => {

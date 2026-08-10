@@ -2,6 +2,43 @@ import type { NoteDocument } from '../shared/types'
 import { joinRelative, withoutMarkdownExtension } from './paths'
 
 export const TEMPLATE_DIRECTORY = '90_テンプレート'
+export const DAILY_TEMPLATE_PATH = `${TEMPLATE_DIRECTORY}/今日のノート.md`
+export const IDEA_TEMPLATE_PATH = `${TEMPLATE_DIRECTORY}/アイデアメモ.md`
+
+const BUILTIN_TEMPLATES: readonly NoteDocument[] = [
+  {
+    path: IDEA_TEMPLATE_PATH,
+    name: 'アイデアメモ',
+    content:
+      '# {{title}}\n\n## 思いついたこと\n\n## なぜ思いついたか\n\n## 次の一歩\n\n',
+    modifiedAt: 0,
+    size: 0
+  },
+  {
+    path: `${TEMPLATE_DIRECTORY}/プロジェクトメモ.md`,
+    name: 'プロジェクトメモ',
+    content:
+      '# {{title}}\n\n## 目的\n\n## 現在地\n\n## 次にすること\n\n',
+    modifiedAt: 0,
+    size: 0
+  },
+  {
+    path: DAILY_TEMPLATE_PATH,
+    name: '今日のノート',
+    content:
+      '# {{date}}\n\n## 今日やったこと\n\n## 気づき\n\n## メモ\n\n## 次にすること\n\n',
+    modifiedAt: 0,
+    size: 0
+  },
+  {
+    path: `${TEMPLATE_DIRECTORY}/学びメモ.md`,
+    name: '学びメモ',
+    content:
+      '# {{title}}\n\n## 要点\n\n## 使えそうな場面\n\n## 関連ノート\n\n',
+    modifiedAt: 0,
+    size: 0
+  }
+]
 
 export interface TemplateValues {
   title: string
@@ -55,9 +92,13 @@ function localTime(date: Date): string {
 
 export function listTemplates(notes: NoteDocument[]): NoteDocument[] {
   const prefix = `${TEMPLATE_DIRECTORY}/`
-  return notes
+  const actualTemplates = notes
     .filter((note) => note.path.startsWith(prefix))
-    .sort((left, right) => left.path.localeCompare(right.path, 'ja'))
+  const actualPaths = new Set(actualTemplates.map((template) => template.path))
+  return [
+    ...BUILTIN_TEMPLATES.filter((template) => !actualPaths.has(template.path)),
+    ...actualTemplates
+  ].sort((left, right) => left.path.localeCompare(right.path, 'ja'))
 }
 
 export function renderTemplate(

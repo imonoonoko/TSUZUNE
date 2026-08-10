@@ -1,6 +1,6 @@
 # TSUZUNE Product Plan
 
-更新日: 2026-08-10（JST）
+更新日: 2026-08-11（JST）
 
 この文書は、TSUZUNEの「今から何を、どの順序で、どこまで作るか」を決める実行計画です。現在の本番状態と最新検証は[PROJECT_STATUS.md](PROJECT_STATUS.md)、変わりにくい製品原則は[PRODUCT.md](PRODUCT.md)、画面規約は[DESIGN.md](DESIGN.md)、日付付き証拠は[docs/INDEX.md](docs/INDEX.md)を正本とします。
 
@@ -46,21 +46,31 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 |---|---|
 | インストール済み本番 | v0.5.0。最新の正確なcommit、hash、検証結果は[production-update-latest.json](docs/reports/production-update-latest.json)を参照 |
 | 開発checkpoint | v0.6 Obsidian Graph Parity |
-| 完了した直近slice | GP0-3b-n Attachment Default App。同じfixture fileへの外部open要求1回、menu close、Graph／Vault保持を実外部起動なしで固定比較した |
-| 現役slice | GP0-3b-o Attachment Folder Reveal。次の未比較menu操作`フォルダで表示`は、固定参照と安全境界の設計から始める |
+| 完了した直近slice | GP0-3b-o Attachment Folder Reveal。同じfixture fileの親フォルダ要求1回、menu close、Graph／Vault保持を実Explorer起動なしで固定比較し、添付menuへ最小実装した |
+| 現役slice | GP0-3b-oの検証・記録を完了。GP0-3b-pは固定参照を試行したが、受入packetは未生成。次のmenu操作はハーネス事前待機を直してから一度だけ再判定し、製品変更へ自動拡張しない |
 | Context checkpoint | X1-M1 MOC Title RouterとX1-D1 Recall-safe Query Bridgeを本番反映済み。質問はbaseline候補を削除せず、通常本文の展開順だけを変える |
 | 現役Primary Track数 | 1。Google intakeとChatGPT candidate applyは保留 |
 
 ### Current Transition Queue
 
-1. **Now — GP0-3b-o:** attachment nodeの次の未比較操作`フォルダで表示`について、固定参照、OS境界、停止条件を先に設計する。
-2. **After Graph checkpoint:** アクセシビリティ、Personal Google Intake、AI write policyのどれを次の独立Trackにするか再選択する。
+1. **Completed — GP0-3b-o closeout:** `フォルダで表示`の製品テスト、隔離capture、比較report、未証明境界を固定済み。実Explorer起動・本番反映・commit/pushはこの作業では行わない。
+2. **Now — GP0-3b-p reference blocked:** `ファイルエクスプローラでファイルを表示`の初回観測は内部File Explorer遷移を示したが、訂正後の最終2試行は対象クリック前のcontext-menu待機で停止し、受入packetを生成していない。[Discussion log](.agent/requirements/20260811-0257-attachment-file-explorer-reveal/discussion_log.md)に境界を固定する。製品実装・比較report・本番反映は未開始。
+3. **Next after the block — GP0-3b-p preflight:** 事前のGraph context-menu検出だけを安定化し、同じ隔離fixtureで一度だけfresh captureを行う。再び対象クリック前に失敗したら、製品変更なしでこのsliceをblockedとして閉じる。
+4. **After Graph checkpoint:** アクセシビリティ、Personal Google Intake、AI write policyのどれを次の独立Trackにするか再選択する。
 
 新しいSupporting Trackを割り込ませる場合は、目的、停止条件、元Trackへ戻る条件をこの節へ先に記録します。
 
 **Completed bounded supporting slice — X1-D1:** `build_context`へ任意queryを渡し、query無しbaselineのcandidate集合を変えず、通常ノート本文の展開順だけを優先します。MOC全タイトル、Temporal、provenance、warningを保持したままcommit `e2d8621`から本番へ反映しました。X1-T1、embedding、要約、multi-seed APIへ拡張せず、Primary Queueへ戻しました。
 
 分類Trackを次に選ぶ場合のGateは、匿名一時Vaultだけでapplyとrollbackを往復するO2-P3、またはDriveがPath Alias sidecarを扱う契約判断です。どちらを先にするかを決めるまでCurrent Transition Queueへ割り込ませず、本番Vaultへのapplyは許可しません。
+
+### Completed GP0-3b-o — Attachment Folder Reveal
+
+- 状態: `matched-core-behavior`。固定Obsidian captureは29/29、TSUZUNE隔離captureは23/23 assertionを通過した。両方とも実Explorerを起動せず、OS境界hookを復元した。
+- 実装は添付nodeのmenuへ`フォルダで表示`を追加し、既存のtrusted IPC→Vault validation→`shell.showItemInFolder`経路を再利用した。新しい外部依存、DB、Explorer自動起動は追加していない。
+- 中核一致は同じ`attachments/diagram.svg`の親フォルダ要求1回、menu close、Graph／Vault保持、同一process内Graph再表示での非再生。TSUZUNEは別process再起動でも0回を追加確認し、Obsidianの別process再起動は安全境界上未観測とした。
+- 未証明: Windows Explorerの実起動・表示結果、物理入力、screen reader、High Contrast、multi-DPI、pixel identity。context menu全体はObsidian 11項目、TSUZUNE 9項目の残差である。
+- 正本: [要件](.agent/requirements/20260811-0006-attachment-folder-reveal/4_requirements.md)、[比較report](docs/reports/graph-gp0-attachment-folder-reveal-2026-08-11.html)、[machine-readable comparison](docs/reports/assets/graph-gp0-attachment-folder-reveal/comparison.json)
 
 ## Completed Supporting Slice: X1-M1 MOC Title Router
 
@@ -123,7 +133,7 @@ X1-D0自体は設計だけで停止しました。その後の明示認可によ
 
 ## Active Track: v0.6 Obsidian Graph Parity
 
-O2-P1／O2-P2の安全な分類基盤を閉じ、GP0-3b-nまで完了しました。次はGP0-3b-oです。`フォルダで表示`は、実Explorer操作を先走らず固定参照と安全境界の設計から開始します。
+O2-P1／O2-P2の安全な分類基盤を閉じ、GP0-3b-oまで完了しました。次はGP0-3b-pの対象を選び、固定参照と安全境界の設計から開始します。
 
 ### Completed GP0-3b-l — Attachment Path Copy
 
@@ -202,7 +212,7 @@ Obsidianは`window.open(file URL, "_external")`、TSUZUNEは既存trusted IPCと
 
 | Area | 現在 | 完了条件 |
 |---|---|---|
-| Context menu | 新規tab、新規window、file move、bookmark、path copy、linked view、default appまで比較済み | `フォルダで表示`から、残る操作、submenu、note/tag/attachment別挙動を一項目ずつ固定比較 |
+| Context menu | 新規tab、新規window、file move、bookmark、path copy、linked view、default app、`フォルダで表示`まで比較済み | GP0-3b-pとして次の操作、残るsubmenu、note/tag/attachment別挙動を一項目ずつ固定比較 |
 | Workspace state | Global query、zoom/pan境界、node drag、Graph tab保持の一部を比較済み | Local、fit/reset、zoom限界、workspace leaf復元を固定比較 |
 | Filters/Search | Search、tags、attachments、unresolved、excluded基礎を実装済み | malformed query、Manage UI、全surfaceへのExcluded files効果を比較 |
 | Groups | ordered groups基礎を実装済み | 作成、編集、順序、色、保存、復元、既定状態を比較 |
@@ -219,7 +229,7 @@ Graph parity全体は、P2/P3へ到達していない領域が残る限り完了
 
 | Stage | 到達目標 | 状態 / 次のGate |
 |---|---|---|
-| O0. Graph Parity | Local/Global Graph、filter、group、display、force、interaction、保存、アクセシビリティを徹底比較 | **Active**。GP0-3b-n完了、次はGP0-3b-o |
+| O0. Graph Parity | Local/Global Graph、filter、group、display、force、interaction、保存、アクセシビリティを徹底比較 | **Active**。GP0-3b-o完了、次はGP0-3b-pの設計 |
 | O1. Daily Writing & Navigation | Markdownを知らなくても作成・編集・日次運用できる | Daily/Ideaフォーム、toolbar、template、freshnessは実装済み。7日通常運用と残るnavigationは未完 |
 | O2. Organization & Retrieval | folders、tags、properties、outline、bookmarks、search、commandsを日常利用できる | O2-P1／O2-P2完了。物理applyは禁止を維持し、次Gateは匿名一時VaultのO2-P3またはDrive sidecar契約判断 |
 | O3. Structured Views | Markdown/frontmatter原本のtable/card/list view | Planned。実用queryと編集契約を固定してから開始 |
@@ -234,13 +244,12 @@ O0〜O7はGraphだけの計画ではありません。Obsidian 1.13.4の公式�
 
 実装済み:
 
-- `今日のノート`: `02_デイリー/YYYY-MM-DD.md`へ同日一件。既存なら開く。
-- `アイデアを追加`: 本文、理由、関連project、自由メモ、複数の次の一歩をフォーム入力し、通常Markdownへ保存。
-- 通常ノートは名前と自由な複数行本文を同じアプリ内フォームで新規作成。
-- 作成フォームとeditorで見出し、太字、list、checkの最小書式ボタンとVaultノート選択によるWiki link挿入。
+- `今日のノート`／`アイデアメモ`は専用ボタンを廃止し、テンプレート選択へ集約。Dailyは`02_デイリー/YYYY-MM-DD.md`へ同日一件、Ideaは`01_受信箱/アイデア`へ安全な連番名で作る。
+- 通常ノートは同名衝突を避けて即作成し、作成フォームを挟まず通常編集画面で開く。
+- editorで見出し、太字、list、checkの最小書式ボタンとVaultノート選択によるWiki link挿入。
 - Daily／Ideaはparse→renderが元Markdownと一致するときだけフォームへ戻すround-trip guard。
-- 同名／作成失敗では入力と画面内エラーを保持し、入力途中のアプリ終了は確認して未保存内容を保護。
-- `90_テンプレート`とcustom template読込。
+- 新規作成前に既存編集を保存し、作成失敗時は開いているノートと画面内エラーを保持。
+- 内蔵4テンプレート、`90_テンプレート`のcustom template読込、`テンプレートを追加`による編集可能な雛形作成。
 - filesystem更新日時と`review_after`による非破壊の鮮度表示。
 
 未完:

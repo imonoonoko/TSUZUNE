@@ -27,7 +27,9 @@ import { compilePathAliases, resolvePathAlias } from '../core/path-aliases'
 import { searchNotes } from '../core/search'
 import { getNoteFreshness } from '../core/freshness'
 import {
+  DAILY_TEMPLATE_PATH,
   dailyNoteLocation,
+  IDEA_TEMPLATE_PATH,
   ideaNoteLocation,
   listTemplates,
   parseDailyNote,
@@ -70,6 +72,7 @@ import MarkdownEditor from './components/MarkdownEditor'
 import MarkdownPreview from './components/MarkdownPreview'
 import BookmarkDialog from './components/BookmarkDialog'
 import MoveDialog from './components/MoveDialog'
+import RenameDialog from './components/RenameDialog'
 import RelatedNotes from './components/RelatedNotes'
 import TemporalDetails from './components/TemporalDetails'
 import WikiGraphView from './components/WikiGraphView'
@@ -232,6 +235,11 @@ export default function App(): React.JSX.Element {
   const [conflict, setConflict] = useState<ConflictState | null>(null)
   const conflictRef = useRef<ConflictState | null>(null)
   const [movePath, setMovePath] = useState<string | null>(null)
+  const [renameRequest, setRenameRequest] = useState<{
+    selection: TreeSelection
+    currentName: string
+  } | null>(null)
+  const [renameError, setRenameError] = useState<string | null>(null)
   const [bookmarkPath, setBookmarkPath] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [updateBusy, setUpdateBusy] = useState(false)
@@ -1007,16 +1015,6 @@ export default function App(): React.JSX.Element {
     }
   }
 
-  const createNote = (template?: NoteDocument): void => {
-    if (!snapshot) {
-      return
-    }
-    setCaptureError(null)
-    setNoteCreationTemplate(template ?? null)
-    setCaptureEditPath(null)
-    setCaptureKind('note')
-  }
-
   const ensureDirectory = async (directory: string): Promise<boolean> => {
     const known = new Set(snapshotRef.current?.directories ?? [])
     let parent = ''
@@ -1035,6 +1033,97 @@ export default function App(): React.JSX.Element {
       parent = path
     }
     return true
+  }
+
+  const availableNoteName = (directory: string, preferredName: string): string => {
+    const baseName = withoutMarkdownExtension(preferredName.trim()) || '無題のノート'
+    const paths = new Set(
+      (snapshotRef.current?.notes ?? []).map((note) => note.path.toLocaleLowerCase())
+    )
+    for (let suffix = 0; ; suffix += 1) {
+      const name = suffix === 0 ? baseName : `${baseName} ${suffix}`
+      const path = joinRelative(directory, withMarkdownExtension(name)).toLocaleLowerCase()
+      if (!paths.has(path)) {
+        return name
+      }
+    }
+  }
+
+  const createAndOpenNote = async (
+    directory: string,
+    preferredName: string,
+    content?: string | ((name: string) => string)
+  ): Promise<void> => {
+    if (!snapshot || !beginOperation()) {
+      return
+    }
+    try {
+      if (!(await flushSave()) || !(await ensureDirectory(directory))) {
+        return
+      }
+      const name = availableNoteName(directory, preferredName)
+      const renderedContent = typeof content === 'function' ? content(name) : content
+      const result = await window.tsuzune.createNote({
+        directory,
+        name,
+        content: renderedContent
+      })
+      if (!result.ok) {
+        setMessage(errorMessage(result.error))
+        return
+      }
+      const next = await refreshSnapshot()
+      const note = next?.notes.find((candidate) => candidate.path === result.value.path)
+      if (note) {
+        loadNoteState(note)
+        setViewMode('edit')
+      }
+    } finally {
+      finishOperation()
+    }
+  }
+
+  const createNote = async (): Promise<void> => {
+    await createAndOpenNote(targetDirectory(), '無題のノート')
+  }
+
+  const createFromTemplate = async (template: NoteDocument): Promise<void> => {
+    const now = new Date()
+    if (template.path === DAILY_TEMPLATE_PATH) {
+      const location = dailyNoteLocation(now)
+      const existing = snapshotRef.current?.notes.find(
+        (note) => note.path === location.path
+      )
+      if (existing) {
+        await openNote(existing.path)
+        setViewMode('edit')
+        return
+      }
+      await createAndOpenNote(location.directory, location.name, (name) =>
+        renderTemplate(template.content, { title: name, now })
+      )
+      return
+    }
+
+    const selectedDirectory = targetDirectory()
+    const directory =
+      template.path === IDEA_TEMPLATE_PATH
+        ? '01_受信箱/アイデア'
+        : selectedDirectory === TEMPLATE_DIRECTORY ||
+            selectedDirectory.startsWith(`${TEMPLATE_DIRECTORY}/`)
+          ? ''
+          : selectedDirectory
+    await createAndOpenNote(directory, template.name, (name) =>
+      renderTemplate(template.content, { title: name, now })
+    )
+  }
+
+  const addTemplate = async (): Promise<void> => {
+    await createAndOpenNote(
+      TEMPLATE_DIRECTORY,
+      '新しいテンプレート',
+      '# {{title}}\n\n'
+    )
   }
 
   const createCapturedNote = async (
@@ -1157,22 +1246,6 @@ export default function App(): React.JSX.Element {
     }
   }
 
-  const openTodayNote = async (): Promise<void> => {
-    if (!snapshot) {
-      return
-    }
-    const path = dailyNoteLocation(new Date()).path
-    const existing = snapshot.notes.find((note) => note.path === path)
-    if (existing) {
-      await openNote(existing.path)
-      setViewMode('preview')
-      return
-    }
-    setCaptureKind('daily')
-    setCaptureEditPath(null)
-    setCaptureError(null)
-  }
-
   const createDirectory = async (): Promise<void> => {
     if (!snapshot) {
       return
@@ -1233,7 +1306,7 @@ export default function App(): React.JSX.Element {
     )
   }
 
-  const renameSelected = async (): Promise<void> => {
+  const renameSelected = (): void => {
     if (!snapshot || !treeSelection || treeSelection.path === '') {
       return
     }
@@ -1243,11 +1316,24 @@ export default function App(): React.JSX.Element {
       selection.kind === 'note'
         ? withoutMarkdownExtension(basenameRelative(selection.path))
         : basenameRelative(selection.path)
-    const nextName = window.prompt('新しい名前', currentName)
-    if (!nextName || nextName === currentName) {
+    setRenameError(null)
+    setRenameRequest({ selection, currentName })
+  }
+
+  const confirmRename = async (requestedName: string): Promise<void> => {
+    const request = renameRequest
+    if (!request || !snapshot) {
       return
     }
-
+    const nextName = requestedName.trim()
+    if (!nextName) {
+      setRenameError('新しい名前を入力してください。')
+      return
+    }
+    if (nextName === request.currentName) {
+      setRenameError('現在と異なる名前を入力してください。')
+      return
+    }
     if (!beginOperation()) {
       return
     }
@@ -1258,25 +1344,32 @@ export default function App(): React.JSX.Element {
       }
 
       const finalName =
-        selection.kind === 'note' ? withMarkdownExtension(nextName) : nextName
-      const newPath = joinRelative(dirnameRelative(selection.path), finalName)
-      const changes = pathChangesForRename(selection, newPath)
+        request.selection.kind === 'note'
+          ? withMarkdownExtension(nextName)
+          : nextName
+      const newPath = joinRelative(
+        dirnameRelative(request.selection.path),
+        finalName
+      )
+      const changes = pathChangesForRename(request.selection, newPath)
       if (!confirmLinkImpact(changes)) {
         return
       }
 
       const result = await window.tsuzune.renameEntry({
-        path: selection.path,
+        path: request.selection.path,
         newName: nextName
       })
       if (!result.ok) {
-        setMessage(errorMessage(result.error))
+        setRenameError(errorMessage(result.error))
         return
       }
 
-      const previousSelectionPath = selection.path
+      const previousSelectionPath = request.selection.path
       const next = await refreshSnapshot()
-      setTreeSelection({ kind: selection.kind, path: result.value.path })
+      setTreeSelection({ kind: request.selection.kind, path: result.value.path })
+      setRenameRequest(null)
+      setRenameError(null)
 
       if (
         selectedPathRef.current &&
@@ -1511,6 +1604,18 @@ export default function App(): React.JSX.Element {
       return
     }
     void openNote(path)
+  }
+
+  const revealGraphNodeInFolder = (path: string): void => {
+    const node = visibleGraph.nodes.find((candidate) => candidate.path === path)
+    if (!node || node.kind !== 'attachment' || node.exists === false) {
+      return
+    }
+    void window.tsuzune.revealVaultFile(path).then((result) => {
+      if (!result.ok) {
+        setMessage(errorMessage(result.error))
+      }
+    })
   }
 
   const openGraphNodeLinkedView = async (path: string): Promise<void> => {
@@ -2200,6 +2305,7 @@ export default function App(): React.JSX.Element {
     settingsDialogOpen ||
     googleDialogOpen ||
     Boolean(movePath) ||
+    Boolean(renameRequest) ||
     Boolean(bookmarkPath) ||
     Boolean(captureKind)
 
@@ -2339,21 +2445,6 @@ export default function App(): React.JSX.Element {
             </label>
 
             <div className="tree-toolbar">
-              <button type="button" onClick={() => void openTodayNote()}>
-                <Icon name="note" />
-                今日のノート
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCaptureEditPath(null)
-                  setCaptureError(null)
-                  setCaptureKind('idea')
-                }}
-              >
-                <Icon name="note" />
-                アイデアを追加
-              </button>
               <button type="button" onClick={() => void createNote()}>
                 <Icon name="note" />
                 ノート
@@ -2384,7 +2475,9 @@ export default function App(): React.JSX.Element {
                     ) : (
                       templates.map((template) => (
                         <option key={template.path} value={template.path}>
-                          {template.path.slice(`${TEMPLATE_DIRECTORY}/`.length)}
+                          {withoutMarkdownExtension(
+                            template.path.slice(`${TEMPLATE_DIRECTORY}/`.length)
+                          )}
                         </option>
                       ))
                     )}
@@ -2398,11 +2491,14 @@ export default function App(): React.JSX.Element {
                       (candidate) => candidate.path === selectedTemplatePath
                     )
                     if (template) {
-                      void createNote(template)
+                      void createFromTemplate(template)
                     }
                   }}
                 >
                   テンプレートから作成
+                </button>
+                <button type="button" onClick={() => void addTemplate()}>
+                  テンプレートを追加
                 </button>
               </div>
             </div>
@@ -2421,7 +2517,7 @@ export default function App(): React.JSX.Element {
               <button
                 type="button"
                 disabled={!treeSelection || treeSelection.path === ''}
-                onClick={() => void renameSelected()}
+                onClick={renameSelected}
               >
                 <Icon name="rename" />
                 名前変更
@@ -2539,6 +2635,7 @@ export default function App(): React.JSX.Element {
                   onOpenInNewTab={(path) => void openGraphNodeInNewTab(path)}
                   onOpenInNewWindow={(path) => void openGraphNodeInNewWindow(path)}
                   onOpenLinkedView={(path) => void openGraphNodeLinkedView(path)}
+                  onRevealInFolder={revealGraphNodeInFolder}
                 />
               </>
             ) : activeAttachment ? (
@@ -2702,6 +2799,7 @@ export default function App(): React.JSX.Element {
                     onOpenInNewTab={(path) => void openGraphNodeInNewTab(path)}
                     onOpenInNewWindow={(path) => void openGraphNodeInNewWindow(path)}
                     onOpenLinkedView={(path) => void openGraphNodeLinkedView(path)}
+                    onRevealInFolder={revealGraphNodeInFolder}
                   />
                 )}
                 <footer className="note-footer">
@@ -2756,6 +2854,23 @@ export default function App(): React.JSX.Element {
           currentDirectory={dirnameRelative(movePath)}
           onCancel={() => setMovePath(null)}
           onConfirm={(directory) => void moveSelectedFile(directory)}
+        />
+      )}
+
+      {renameRequest && (
+        <RenameDialog
+          entryPath={renameRequest.selection.path}
+          entryKind={renameRequest.selection.kind}
+          currentName={renameRequest.currentName}
+          error={renameError}
+          busy={busy}
+          onCancel={() => {
+            if (!busy) {
+              setRenameRequest(null)
+              setRenameError(null)
+            }
+          }}
+          onConfirm={(name) => void confirmRename(name)}
         />
       )}
 

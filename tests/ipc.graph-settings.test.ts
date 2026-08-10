@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os'
 const electron = vi.hoisted(() => ({
   appData: '',
   handlers: new Map<string, (...args: unknown[]) => Promise<unknown>>(),
-  writeText: vi.fn()
+  writeText: vi.fn(),
+  showItemInFolder: vi.fn()
 }))
 
 vi.mock('electron', () => ({
@@ -28,7 +29,8 @@ vi.mock('electron', () => ({
     on: vi.fn()
   },
   shell: {
-    openExternal: vi.fn()
+    openExternal: vi.fn(),
+    showItemInFolder: electron.showItemInFolder
   }
 }))
 
@@ -42,6 +44,7 @@ describe('graph settings IPC', () => {
     electron.appData = await mkdtemp(join(tmpdir(), 'tsuzune-ipc-settings-'))
     electron.handlers.clear()
     electron.writeText.mockClear()
+    electron.showItemInFolder.mockClear()
   })
 
   afterEach(async () => {
@@ -125,6 +128,55 @@ describe('graph settings IPC', () => {
       )
     ).resolves.toEqual({ ok: true, value: null })
     expect(electron.writeText).toHaveBeenCalledWith('attachments/diagram.svg')
+  })
+
+  it('reveals a validated Vault file only for the active renderer', async () => {
+    const mainFrame = {}
+    const webContents = { mainFrame }
+    const window = { webContents }
+    const resolveFileForOpen = vi.fn(async (path: string) => {
+      if (path === 'attachments/missing.svg') {
+        throw new Error('見つかりません。')
+      }
+      return 'C:\\Vault\\attachments\\diagram.svg'
+    })
+    registerIpc(
+      { resolveFileForOpen } as never,
+      {} as never,
+      {
+        connection: {} as never,
+        driveSync: {} as never
+      },
+      {} as never,
+      () => window as never,
+      () => undefined
+    )
+    const handler = electron.handlers.get('system:revealVaultFile')!
+
+    await expect(
+      handler({ sender: {}, senderFrame: {} }, 'attachments/diagram.svg')
+    ).resolves.toMatchObject({ ok: false })
+    expect(electron.showItemInFolder).not.toHaveBeenCalled()
+
+    await expect(
+      handler(
+        { sender: webContents, senderFrame: mainFrame },
+        'attachments/diagram.svg'
+      )
+    ).resolves.toEqual({ ok: true, value: null })
+    expect(electron.showItemInFolder).toHaveBeenCalledOnce()
+    expect(electron.showItemInFolder).toHaveBeenCalledWith(
+      'C:\\Vault\\attachments\\diagram.svg'
+    )
+
+    electron.showItemInFolder.mockClear()
+    await expect(
+      handler(
+        { sender: webContents, senderFrame: mainFrame },
+        'attachments/missing.svg'
+      )
+    ).resolves.toMatchObject({ ok: false })
+    expect(electron.showItemInFolder).not.toHaveBeenCalled()
   })
 
   it('persists Obsidian graph display settings from the active renderer', async () => {
