@@ -110,8 +110,15 @@ function requireGrantedScopes(
   token: GoogleToken,
   requestedScopes: readonly string[]
 ): void {
+  const normalizeScope = (scope: string): string =>
+    scope === 'https://www.googleapis.com/auth/userinfo.email'
+      ? 'email'
+      : scope === 'https://www.googleapis.com/auth/userinfo.profile'
+        ? 'profile'
+        : scope
+  const grantedScopes = new Set(token.grantedScopes.map(normalizeScope))
   const missing = requestedScopes.filter(
-    (scope) => !token.grantedScopes.includes(scope)
+    (scope) => !grantedScopes.has(normalizeScope(scope))
   )
   if (missing.length > 0) {
     throw new Error(

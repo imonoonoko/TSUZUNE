@@ -172,15 +172,22 @@ describe('GoogleConnectionService', () => {
     })
   })
 
-  it('connects, stores one credential bundle, and exposes the account', async () => {
+  it('connects when Google canonicalizes userinfo scopes', async () => {
     const tokenStore = memoryTokenStore()
+    const grantedScopes = [
+      'openid',
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/drive.file'
+    ]
     const fetchImpl = vi.fn(async (input: string | URL) => {
       if (input.toString().includes('/token')) {
         return new Response(
           JSON.stringify({
             access_token: 'access-token',
             refresh_token: 'refresh-token',
-            expires_in: 3600
+            expires_in: 3600,
+            scope: grantedScopes.join(' ')
           }),
           { status: 200, headers: { 'content-type': 'application/json' } }
         )
@@ -211,7 +218,7 @@ describe('GoogleConnectionService', () => {
     expect(JSON.parse(tokenStore.value ?? '{}')).toEqual({
       version: 1,
       refreshToken: 'refresh-token',
-      grantedScopes: GOOGLE_OAUTH_SCOPES,
+      grantedScopes,
       accountSub: 'google-sub'
     })
     expect(status).toMatchObject({
