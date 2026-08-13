@@ -1,9 +1,17 @@
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { parseUserIgnoreFilters } from '../shared/excluded-files'
+import {
+  parseAiImmutablePaths,
+  parseAiReviewPaths
+} from '../shared/ai-write-policy'
 
 interface StoredSettings {
   lastVaultPath?: unknown
+  userIgnoreFilters?: unknown
+  aiImmutablePaths?: unknown
+  aiReviewPaths?: unknown
 }
 
 export interface VaultSourceOptions {
@@ -16,11 +24,21 @@ export function defaultSettingsPath(): string {
   return join(appData || join(homedir(), 'AppData', 'Roaming'), 'tsuzune', 'settings.json')
 }
 
-export async function resolveVaultPath(
+export async function resolveVaultSource(
   options: VaultSourceOptions = {}
-): Promise<string> {
+): Promise<{
+  vaultPath: string
+  userIgnoreFilters: string[]
+  aiImmutablePaths: string[]
+  aiReviewPaths: string[]
+}> {
   if (options.explicitVaultPath?.trim()) {
-    return resolve(options.explicitVaultPath)
+    return {
+      vaultPath: resolve(options.explicitVaultPath),
+      userIgnoreFilters: [],
+      aiImmutablePaths: [],
+      aiReviewPaths: []
+    }
   }
 
   const path = options.settingsPath || defaultSettingsPath()
@@ -46,5 +64,10 @@ export async function resolveVaultPath(
     )
   }
 
-  return resolve(parsed.lastVaultPath)
+  return {
+    vaultPath: resolve(parsed.lastVaultPath),
+    userIgnoreFilters: parseUserIgnoreFilters(parsed.userIgnoreFilters),
+    aiImmutablePaths: parseAiImmutablePaths(parsed.aiImmutablePaths),
+    aiReviewPaths: parseAiReviewPaths(parsed.aiReviewPaths)
+  }
 }
