@@ -1,6 +1,6 @@
-# Codex・ChatGPTデスクトップ連携
+# Codex Desktop ローカルMCP連携
 
-TSUZUNE v0.2以降は、現在開いているローカルVaultを、CodexとChatGPTデスクトップから検索・参照し、依頼に応じてノートを作成・更新できるMCPサーバーを含みます。
+TSUZUNE v0.2以降は、現在開いているローカルVaultをCodex Desktopから検索・参照し、依頼に応じてノートを作成・更新できるMCPサーバーを含みます。
 
 ## 最初の設定
 
@@ -19,11 +19,11 @@ TSUZUNE v0.2以降は、現在開いているローカルVaultを、CodexとChat
    npm run mcp:register
    ```
 
-5. ChatGPTデスクトップを再起動します。
-6. ChatまたはCodexの入力欄で`/mcp`を実行し、`tsuzune`が接続済みであることを確認します。
+5. Codex Desktopを再起動します。
+6. Codexタスクの入力欄で`/mcp`を実行し、`tsuzune`が接続済みであることを確認します。
 
 登録処理は`~/.codex/config.toml`に、コメントで囲んだTSUZUNE専用ブロックだけを追加します。既存設定がある場合は、同じ場所へタイムスタンプ付きバックアップを作ります。
-検索・参照と`autonomous_update_note`は自動利用でき、通常ノートのAI更新をユーザー承認なしで実行できます。`create_note`と通常の`update_note`は従来どおり確認を出す設定で登録します。
+検索・参照と`autonomous_update_note`は自動利用でき、保護されていない通常ノートのAI更新をユーザー承認なしで実行できます。`fetch`で得た`expected_revision`が一致し本文が完全に同一なら、後者は更新せず`unchanged: true`を返します。`create_note`と通常の`update_note`は従来どおり確認を出す設定で登録します。
 
 ## 使い方
 
@@ -70,7 +70,7 @@ NotebookLMの調査結果を「10_プロジェクト/TSUZUNE.md」へ自動反�
 
 既存ノートの更新では、`fetch`で完全な本文と改訂トークンを取得してから、`update_note`で本文全体を置き換えます。取得後に外部編集やVault切替が起きた場合は更新を拒否するため、再取得が必要です。
 
-## 公開する7ツール
+## Codex Desktopへ登録する7ツール
 
 | ツール | 用途 | 上限 |
 |---|---|---|
@@ -80,9 +80,21 @@ NotebookLMの調査結果を「10_プロジェクト/TSUZUNE.md」へ自動反�
 | `build_context` | 起点と関連ノートをMarkdownへまとめる | 既定1万5千文字 |
 | `create_note` | 既存フォルダ内へ新規ノートを作成 | 本文10万文字 |
 | `update_note` | 改訂トークンが一致する既存ノートの本文を更新 | 本文10万文字 |
-| `autonomous_update_note` | 承認を待たず通常ノートを更新し、旧本文・理由・出典を履歴へ保存 | 本文10万文字 |
+| `autonomous_update_note` | 承認を待たず通常ノートを更新し、変更時は旧本文・理由・出典を履歴へ保存 | 本文10万文字 |
+
+### Direct serverに実装済みの未登録3ツール
+
+| ツール | 用途 | 通常のCodex登録 |
+|---|---|---|
+| `suggest_links` | 既存ノートから重複しないWikiリンク候補を提案 | 無効 |
+| `move_note` | 既存Markdownノートを移動し、監査記録を保存 | 無効 |
+| `add_link` | 既存ノートへWikiリンクを追加し、監査記録を保存 | 無効 |
+
+direct serverは開発用smokeで10ツールを検証しますが、`npm run mcp:register`がCodex Desktopへ登録するのは上の7ツールだけです。未登録3ツールを暗黙に有効化して書き込み権限を広げません。
 
 `build_context`が辿るのは、起点ノート、リンク先最大5件、バックリンク最大3件の1段だけです。無制限にVault全体を読み込みません。関連するState NoteとEvent Noteがあれば、時間判定と選定理由も返します。
+
+`build_context`だけは同じ値をtext blockへ重複させず、`content: []`と`structuredContent`で返します。direct serverの他9ツールは従来どおりtext blockと`structuredContent`の両方を返します。これはMCP wireの重複を減らす出力契約であり、ホストがモデルへ渡すinput tokenの削減を意味しません。
 
 valid frontmatterが`type: moc`のノートは、探索用のタイトル索引として扱います。`build_context`はMOCの説明文やリンク先・バックリンク本文を一括展開せず、Wiki linkのタイトル一覧だけを返します。読みたいタイトルを選び、そのノートを次の`fetch`または`build_context`で取得してください。MOC原本を読む`fetch`、`type: moc`でない通常ノート、時間指定時の安全な本文省略は従来どおりです。
 
@@ -109,12 +121,15 @@ node out/mcp/server.js --vault "C:\path\to\Vault"
 
 ## データと安全境界
 
-- `search`、`fetch`、`get_backlinks`、`build_context`は読み取り専用です。
+- Codex登録面の`search`、`fetch`、`get_backlinks`、`build_context`は読み取り専用です。direct serverだけの`suggest_links`も読み取り専用です。
 - `create_note`は既存ノートを上書きせず、親フォルダも自動作成しません。
 - `update_note`は`fetch`で得た改訂トークンが一致する場合だけ、本文全体を更新します。
-- `autonomous_update_note`は通常ノートを自動更新し、更新前本文を`50_履歴/AI更新`へ保存します。`reason`、`source_refs`、`previous_revision`を出力し、原文・会話ログの自動更新には使いません。
+- `autonomous_update_note`は通常ノートを自動更新し、本文が変わるときは更新前本文を`50_履歴/AI更新`へ保存します。`fetch`で得た`expected_revision`が一致し本文が完全に同一なら`unchanged: true`を返し、`history_path`を省略して履歴を作りません。このno-opで返る`reason`と`source_refs`は履歴へ保存されません。原文・会話ログの自動更新には使いません。
+- direct serverの`move_note`は移動元が存在し、移動先に同名ノートが無い場合だけ移動します。Vault外・`.trash`／`.tsuzune`等の内部管理フォルダ・`40_情報源`／`50_履歴`等のAI変更不可ノート・Review対象ノートを拒否し、成功時は旧パス・新パスと`50_履歴/AI更新`への監査記録を返します。Wikiリンクの書換えとPath Aliasの自動登録は行いません（O2-P2/P3契約の範囲です）。
+- direct serverの`add_link`は既存Markdownノート同士だけを対象にし、重複、自分自身へのリンク、保護対象、古いrevisionを拒否して`note_link_add`監査記録を保存します。
+- `40_情報源`と`50_履歴`は常にAI書き込み不可です。設定の「AIから変更させないパス」へ追加したノート／フォルダも、`create_note`、`update_note`、`autonomous_update_note`の全経路で拒否され、`fetch.metadata.editable`は`false`になります。
 - 10万文字を超えるノートは途中までしか取得できないため、MCPからの更新を拒否します。
-- MCP経由では削除・移動・名前変更・フォルダ作成・強制上書きができません。
+- Codex登録面では削除・移動・名前変更・フォルダ作成・強制上書きができません。direct serverでの移動は未登録の`move_note`だけが監査記録付きで行えます。
 - Vault外の相対パス、絶対パス、シンボリックリンクは既存のVault境界で拒否します。
 - OpenAI APIキーは不要です。
 - MCPからGoogle認証やDrive同期を実行することはできません。Drive同期はデスクトップアプリで利用者がpreview／applyを明示した場合だけ動きます。
@@ -126,11 +141,11 @@ node out/mcp/server.js --vault "C:\path\to\Vault"
 npm run mcp:unregister
 ```
 
-TSUZUNEが追加したコメント付きブロックだけを削除し、変更前の設定をバックアップします。反映にはChatGPTデスクトップの再起動が必要です。
+TSUZUNEが追加したコメント付きブロックだけを削除し、変更前の設定をバックアップします。反映にはCodex Desktopの再起動が必要です。
 
-## ChatGPT Webについて
+## ChatGPTについて
 
-ChatGPT Webはローカルの`~/.codex/config.toml`やSTDIOサーバーを直接読みません。Web対応には、後の段階でリモートMCP化またはSecure MCP Tunnelが必要です。v0.2では、ローカルデータを外部公開しないCodex・ChatGPTデスクトップ連携を完成地点とします。
+ChatGPTはローカルの`~/.codex/config.toml`やSTDIOサーバーを直接読みません。ChatGPT連携には、後の段階でリモートMCP化またはSecure MCP Tunnelが必要です。v0.2のlocal scopeは、ローカルデータを外部公開しないCodex Desktop連携です。
 
 公式資料:
 

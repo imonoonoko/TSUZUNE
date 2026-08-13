@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppSettings,
+  AiWriteReviewProposal,
   AppUpdateStatus,
   CreateDirectoryInput,
   CreateNoteInput,
@@ -62,6 +63,16 @@ const api: TsuzuneApi = {
     invoke<null>('settings:setLastNote', path),
   setUserIgnoreFilters: (filters: string[]) =>
     invoke<null>('settings:setUserIgnoreFilters', filters),
+  setAiImmutablePaths: (paths: string[]) =>
+    invoke<null>('settings:setAiImmutablePaths', paths),
+  setAiReviewPaths: (paths: string[]) =>
+    invoke<null>('settings:setAiReviewPaths', paths),
+  listAiReviewProposals: () =>
+    invoke<AiWriteReviewProposal[]>('aiReview:list'),
+  approveAiReviewProposal: (id: string) =>
+    invoke<EntryOperationOutput>('aiReview:approve', id),
+  cancelAiReviewProposal: (id: string) =>
+    invoke<null>('aiReview:cancel', id),
   setGraphForces: (settings: GraphForceSettings) =>
     invoke<null>('settings:setGraphForces', settings),
   setGraphDisplay: (settings: GraphDisplaySettings) =>

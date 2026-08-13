@@ -114,6 +114,8 @@ export interface AppSettings {
   lastNotePath: string | null
   userIgnoreFilters: string[]
   graphForces: GraphForceSettings
+  aiImmutablePaths?: string[]
+  aiReviewPaths?: string[]
   graphDisplay: GraphDisplaySettings
   graphFilters: GraphFilterSettings
   graphGroups: GraphGroup[]
@@ -121,6 +123,17 @@ export interface AppSettings {
 }
 
 export type GraphViewScope = 'local' | 'vault'
+export interface AiWriteReviewProposal {
+  id: string
+  path: string
+  operation: 'create' | 'update'
+  content: string
+  expectedRevision: string | null
+  reason: string
+  sourceRefs: string[]
+  createdAt: string
+}
+
 
 export interface GraphSettingsSectionState {
   filters: boolean
@@ -303,6 +316,11 @@ export interface TsuzuneApi {
   setLastNote(path: string | null): Promise<Result<null>>
   setUserIgnoreFilters(filters: string[]): Promise<Result<null>>
   setGraphForces(settings: GraphForceSettings): Promise<Result<null>>
+  setAiImmutablePaths(paths: string[]): Promise<Result<null>>
+  setAiReviewPaths(paths: string[]): Promise<Result<null>>
+  listAiReviewProposals(): Promise<Result<AiWriteReviewProposal[]>>
+  approveAiReviewProposal(id: string): Promise<Result<EntryOperationOutput>>
+  cancelAiReviewProposal(id: string): Promise<Result<null>>
   setGraphDisplay(settings: GraphDisplaySettings): Promise<Result<null>>
   setGraphFilters(settings: GraphFilterSettings): Promise<Result<null>>
   setGraphGroups(groups: GraphGroup[]): Promise<Result<null>>

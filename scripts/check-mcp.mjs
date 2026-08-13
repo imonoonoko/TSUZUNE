@@ -37,6 +37,7 @@ transport.stderr?.on('data', (chunk) => {
 try {
   await mkdir(join(vaultPath, 'Projects'))
   await mkdir(join(vaultPath, 'History'))
+  await mkdir(join(vaultPath, 'Knowledge'))
   await writeFile(
     join(vaultPath, 'Home.md'),
     '# Home\n\nTSUZUNE MCP smoke test. [[Projects/TSUZUNE]]',
@@ -80,12 +81,16 @@ try {
   const listed = await client.listTools()
   const toolNames = listed.tools.map((tool) => tool.name).sort()
   const expected = [
+    'add_link',
     'autonomous_update_note',
     'build_context',
     'create_note',
     'fetch',
     'get_backlinks',
+    'move_note',
+    'patch_note',
     'search',
+    'suggest_links',
     'update_note'
   ]
   if (JSON.stringify(toolNames) !== JSON.stringify(expected)) {
@@ -101,7 +106,7 @@ try {
   ) {
     throw new Error('build_context query must be optional and limited to 500 characters.')
   }
-  for (const name of ['search', 'fetch', 'get_backlinks', 'build_context']) {
+  for (const name of ['search', 'fetch', 'get_backlinks', 'build_context', 'suggest_links']) {
     const annotations = toolsByName.get(name)?.annotations
     if (
       annotations?.readOnlyHint !== true ||
@@ -112,7 +117,7 @@ try {
       throw new Error(`${name} has incorrect read-only annotations.`)
     }
   }
-  for (const name of ['create_note', 'update_note', 'autonomous_update_note']) {
+  for (const name of ['create_note', 'update_note', 'autonomous_update_note', 'patch_note', 'move_note', 'add_link']) {
     const annotations = toolsByName.get(name)?.annotations
     if (
       annotations?.readOnlyHint !== false ||
@@ -136,12 +141,29 @@ try {
       'autonomous_update_note must disclose full-content replacement.'
     )
   }
+  if (toolsByName.get('patch_note')?.annotations?.destructiveHint !== true) {
+    throw new Error('patch_note must disclose that it modifies a note.')
+  }
+
+  if (toolsByName.get('move_note')?.annotations?.destructiveHint !== true) {
+    throw new Error('move_note must disclose that it relocates a note.')
+  }
+  if (toolsByName.get('add_link')?.annotations?.destructiveHint !== true) {
+    throw new Error('add_link must disclose that it modifies a note.')
+  }
 
   const search = await client.callTool({
     name: 'search',
     arguments: { query: 'Local Markdown' }
   })
-  if (search.isError || search.structuredContent?.results?.length !== 1) {
+  if (
+    search.isError ||
+    search.structuredContent?.results?.length !== 1 ||
+    search.content?.length !== 1 ||
+    search.content[0]?.type !== 'text' ||
+    search.content[0].text !==
+      JSON.stringify(search.structuredContent, null, 2)
+  ) {
     throw new Error('search did not return the expected note.')
   }
 
@@ -173,11 +195,13 @@ try {
   })
   if (
     context.isError ||
+    !Array.isArray(context.content) ||
+    context.content.length !== 0 ||
     !String(context.structuredContent?.markdown).includes(
       'Projects/TSUZUNE.md'
     )
   ) {
-    throw new Error('build_context did not include the linked note.')
+    throw new Error('build_context did not return the structured-only context.')
   }
 
   const queriedContext = await client.callTool({
@@ -193,6 +217,8 @@ try {
   )
   if (
     queriedContext.isError ||
+    !Array.isArray(queriedContext.content) ||
+    queriedContext.content.length !== 0 ||
     String(queriedContext.structuredContent?.markdown).includes('Query:') ||
     !queriedSource?.selection_reasons?.includes('質問語に一致')
   ) {
@@ -319,7 +345,7 @@ try {
     name: 'update_note',
     arguments: {
       id: 'Projects/AI-created.md',
-      content: '# AI-created\n\nUpdated through MCP.',
+      content: '# AI-created\n\nUpdated through MCP.\n\nUpdated through MCP.',
       expected_revision: revision
     }
   })
@@ -335,6 +361,34 @@ try {
   const updatedRevision = updated.structuredContent?.metadata?.revision
   if (typeof updatedRevision !== 'string') {
     throw new Error('update_note did not return a new revision token.')
+  }
+
+  const patched = await client.callTool({
+    name: 'patch_note',
+    arguments: {
+      id: 'Projects/AI-created.md',
+      expected_revision: updatedRevision,
+      operations: [
+        {
+          find: 'Updated through MCP.',
+          replace: 'Patched through MCP.',
+          replace_all: true
+        }
+      ],
+      reason: 'MCP replace_all smoke test'
+    }
+  })
+  const patchedText = await readFile(
+    join(vaultPath, 'Projects', 'AI-created.md'),
+    'utf8'
+  )
+  if (
+    patched.isError ||
+    patched.structuredContent?.patch?.operations?.[0]?.match_count !== 2 ||
+    patchedText.match(/Patched through MCP\./g)?.length !== 2 ||
+    patchedText.includes('Updated through MCP.')
+  ) {
+    throw new Error('patch_note did not honor replace_all through MCP.')
   }
 
   const autonomous = await client.callTool({
@@ -357,6 +411,29 @@ try {
     throw new Error('autonomous_update_note did not apply the AI update.')
   }
   const updatedPath = join(vaultPath, 'Projects', 'AI-created.md')
+  const autonomousRevision = autonomous.structuredContent?.metadata?.revision
+  if (typeof autonomousRevision !== 'string') {
+    throw new Error('autonomous_update_note did not return a revision token.')
+  }
+  const autonomousBefore = await stat(updatedPath)
+  const unchanged = await client.callTool({
+    name: 'autonomous_update_note',
+    arguments: {
+      id: 'Projects/AI-created.md',
+      content: '# AI-created\n\nUpdated autonomously through MCP.',
+      expected_revision: autonomousRevision,
+      reason: 'MCP unchanged smoke test',
+      source_refs: ['NotebookLM/smoke-test.md']
+    }
+  })
+  if (
+    unchanged.isError ||
+    unchanged.structuredContent?.unchanged !== true ||
+    unchanged.structuredContent?.provenance?.history_path !== undefined ||
+    (await stat(updatedPath)).mtimeMs !== autonomousBefore.mtimeMs
+  ) {
+    throw new Error('autonomous_update_note did not return the revision-aware no-op.')
+  }
   await writeFile(updatedPath, 'External change', 'utf8')
   const currentInfo = await stat(updatedPath)
   const externalTime = new Date(currentInfo.mtimeMs + 10_000)
@@ -376,7 +453,139 @@ try {
     throw new Error('update_note did not preserve an external change.')
   }
 
-  console.log('TSUZUNE MCP smoke check passed: 4 read tools and 3 write tools.')
+
+  await client.callTool({
+    name: 'create_note',
+    arguments: {
+      path: 'Knowledge/Context.md',
+      content: '# Context\n\nAI AgentのContext-Sidecar構想。'
+    }
+  })
+  const suggested = await client.callTool({
+    name: 'suggest_links',
+    arguments: { source: 'Home.md' }
+  })
+  if (
+    suggested.isError ||
+    !Array.isArray(suggested.structuredContent?.candidates) ||
+    suggested.structuredContent.candidates.some(
+      (candidate) => candidate?.target === 'Projects/TSUZUNE.md'
+    )
+  ) {
+    throw new Error('suggest_links errored or returned an already-linked target.')
+  }
+  const linked = await client.callTool({
+    name: 'add_link',
+    arguments: {
+      source: 'Home.md',
+      target: 'Knowledge/Context.md',
+      reason: 'MCP smoke test'
+    }
+  })
+  if (
+    linked.isError ||
+    typeof linked.structuredContent?.history_path !== 'string' ||
+    !(await readFile(join(vaultPath, 'Home.md'), 'utf8')).includes(
+      '[[Knowledge/Context]]'
+    )
+  ) {
+    throw new Error('add_link did not add the Wiki link with an audit trail.')
+  }
+  const linkAudit = await readFile(
+    join(vaultPath, ...linked.structuredContent.history_path.split('/')),
+    'utf8'
+  )
+  if (!linkAudit.includes('kind: note_link_add')) {
+    throw new Error('add_link did not write a note_link_add audit record.')
+  }
+
+  await client.callTool({
+    name: 'create_note',
+    arguments: { path: 'Projects/Movable.md', content: '# Movable\n\nMove me.' }
+  })
+  const preflight = await client.callTool({
+    name: 'move_note',
+    arguments: {
+      source: 'Projects/Movable.md',
+      destination: 'History/Movable.md',
+      preflight_only: true
+    }
+  })
+  if (
+    preflight.isError ||
+    preflight.structuredContent?.preflight !== true ||
+    !(await stat(join(vaultPath, 'Projects', 'Movable.md'))).isFile() ||
+    !Array.isArray(preflight.structuredContent?.manifest?.link_impact_paths)
+  ) {
+    throw new Error('move_note preflight did not report safety without moving.')
+  }
+  const moved = await client.callTool({
+    name: 'move_note',
+    arguments: {
+      source: 'Projects/Movable.md',
+      destination: 'History/Movable.md',
+      reason: 'MCP smoke test'
+    }
+  })
+  if (
+    moved.isError ||
+    moved.structuredContent?.old_path !== 'Projects/Movable.md' ||
+    moved.structuredContent?.new_path !== 'History/Movable.md' ||
+    moved.structuredContent?.provenance?.actor !== 'ai' ||
+    typeof moved.structuredContent?.history_path !== 'string' ||
+    !(await readFile(join(vaultPath, 'History', 'Movable.md'), 'utf8')).includes(
+      'Move me.'
+    )
+  ) {
+    throw new Error('move_note did not move the note with an audit trail.')
+  }
+  let sourceStillExists = true
+  try {
+    await stat(join(vaultPath, 'Projects', 'Movable.md'))
+  } catch {
+    sourceStillExists = false
+  }
+  if (sourceStillExists) {
+    throw new Error('move_note left the source note behind.')
+  }
+  const auditRecord = await readFile(
+    join(vaultPath, ...moved.structuredContent.history_path.split('/')),
+    'utf8'
+  )
+  if (!auditRecord.includes('kind: note_move')) {
+    throw new Error('move_note did not write a note_move audit record.')
+  }
+  const movedCollision = await client.callTool({
+    name: 'move_note',
+    arguments: { source: 'Home.md', destination: 'History/Home-active.md' }
+  })
+  if (!movedCollision.isError) {
+    throw new Error('move_note accepted an existing destination.')
+  }
+  const movedMissing = await client.callTool({
+    name: 'move_note',
+    arguments: { source: 'Projects/Nope.md', destination: 'History/Nope.md' }
+  })
+  if (!movedMissing.isError) {
+    throw new Error('move_note accepted a missing source.')
+  }
+  const movedToTrash = await client.callTool({
+    name: 'move_note',
+    arguments: { source: 'Home.md', destination: '.trash/Home.md' }
+  })
+  if (!movedToTrash.isError) {
+    throw new Error('move_note accepted an internal .trash destination.')
+  }
+  const movedNonMarkdown = await client.callTool({
+    name: 'move_note',
+    arguments: { source: 'Home.md', destination: 'History/Home.txt' }
+  })
+  if (!movedNonMarkdown.isError) {
+    throw new Error('move_note accepted a non-Markdown destination.')
+  }
+
+
+  console.log('TSUZUNE MCP smoke check passed: 5 read tools and 6 write tools.')
 } catch (error) {
   if (stderr.trim()) {
     console.error(stderr.trim())

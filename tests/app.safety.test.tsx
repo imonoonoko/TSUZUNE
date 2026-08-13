@@ -38,6 +38,7 @@ vi.mock('../src/renderer/components/MarkdownEditor', async () => {
 
 import App from '../src/renderer/App'
 import { DEFAULT_GRAPH_DISPLAY_SETTINGS } from '../src/shared/graph-display'
+import { DEFAULT_GRAPH_FORCE_SETTINGS } from '../src/shared/graph-settings'
 import { DEFAULT_GRAPH_FILTER_SETTINGS } from '../src/shared/graph-filters'
 import { DEFAULT_GRAPH_GROUPS } from '../src/shared/graph-groups'
 import { DEFAULT_GRAPH_VIEW_STATES } from '../src/shared/graph-view-state'
@@ -138,6 +139,11 @@ beforeEach(() => {
     removeBookmark: vi.fn(() => ok(null)),
     setLastNote: vi.fn(() => ok(null)),
     setUserIgnoreFilters: vi.fn(() => ok(null)),
+    setAiImmutablePaths: vi.fn(() => ok(null)),
+    setAiReviewPaths: vi.fn(() => ok(null)),
+    listAiReviewProposals: vi.fn(() => ok([])),
+    approveAiReviewProposal: vi.fn((id: string) => ok({ path: id })),
+    cancelAiReviewProposal: vi.fn(() => ok(null)),
     setGraphForces: vi.fn(() => ok(null)),
     setGraphDisplay: vi.fn(() => ok(null)),
     setGraphFilters: vi.fn(() => ok(null)),
@@ -1296,6 +1302,116 @@ describe('App data-loss guards', () => {
       expect(api.getSnapshot).toHaveBeenCalled()
     })
     expect(screen.queryByRole('dialog', { name: '設定' })).toBeNull()
+  })
+
+  it('shows additional paths that AI cannot change in the settings dialog', async () => {
+    vi.mocked(api.getSettings).mockResolvedValue(
+      await ok({
+        lastVaultPath: snapshot.rootPath,
+        lastNotePath: noteA.path,
+        userIgnoreFilters: [],
+        aiImmutablePaths: ['Private'],
+        graphForces: {
+          centerForce: 0.5,
+          repelForce: 10,
+          linkForce: 1,
+          linkDistance: 250
+        },
+        graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
+        graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
+        graphGroups: DEFAULT_GRAPH_GROUPS,
+        graphViewStates: DEFAULT_GRAPH_VIEW_STATES
+      })
+    )
+
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '設定' }))
+
+    expect(
+      (screen.getByRole('textbox', {
+        name: 'AIから変更させないパス'
+      }) as HTMLTextAreaElement).value
+    ).toBe('Private')
+    expect(screen.getByText(/40_情報源.*50_履歴/)).not.toBeNull()
+
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'AIから変更させないパス' }),
+      { target: { value: ' Private\n\nDrafts ' } }
+    )
+    fireEvent.click(screen.getByRole('button', { name: '設定を保存' }))
+
+    await waitFor(() => {
+      expect(api.setAiImmutablePaths).toHaveBeenCalledWith([
+        'Private',
+        'Drafts'
+      ])
+    })
+  })
+
+  it('saves review paths and lets the user approve a pending AI change', async () => {
+    vi.mocked(api.getSettings).mockResolvedValue(
+      await ok({
+        lastVaultPath: snapshot.rootPath,
+        lastNotePath: noteA.path,
+        userIgnoreFilters: [],
+        aiReviewPaths: ['Projects'],
+        graphForces: DEFAULT_GRAPH_FORCE_SETTINGS,
+        graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
+        graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
+        graphGroups: DEFAULT_GRAPH_GROUPS,
+        graphViewStates: DEFAULT_GRAPH_VIEW_STATES
+      })
+    )
+    vi.mocked(api.listAiReviewProposals)
+      .mockResolvedValueOnce(
+        await ok([
+          {
+            id: 'proposal-1',
+            path: noteA.path,
+            operation: 'update',
+            content: '# A\n\nAI change',
+            expectedRevision: 'sha256:old',
+            reason: '知識を更新',
+            sourceRefs: ['30_知識/設計.md', 'docs/reports/evidence.md'],
+            createdAt: '2026-08-12T00:00:00.000Z'
+          }
+        ])
+      )
+      .mockResolvedValue(await ok([]))
+
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '設定' }))
+
+    expect(
+      (await screen.findByRole('textbox', {
+        name: 'AI変更を承認制にするパス'
+      }) as HTMLTextAreaElement).value
+    ).toBe('Projects')
+    expect(await screen.findByText('知識を更新')).not.toBeNull()
+    expect(screen.getByText('操作: 更新')).not.toBeNull()
+    expect(
+      screen.getByText(
+        `作成時刻: ${new Date('2026-08-12T00:00:00.000Z').toLocaleString('ja-JP')}`
+      )
+    ).not.toBeNull()
+    expect(
+      screen.getByText('出典: 30_知識/設計.md、docs/reports/evidence.md')
+    ).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '承認して反映' }))
+
+    await waitFor(() => {
+      expect(api.approveAiReviewProposal).toHaveBeenCalledWith('proposal-1')
+      expect(api.getSnapshot).toHaveBeenCalled()
+    })
+
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'AI変更を承認制にするパス' }),
+      { target: { value: ' 30_知識\n\nDrafts ' } }
+    )
+    fireEvent.click(screen.getByRole('button', { name: '設定を保存' }))
+    await waitFor(() => {
+      expect(api.setAiReviewPaths).toHaveBeenCalledWith(['30_知識', 'Drafts'])
+    })
   })
 
   it('restores graph groups, colors matching nodes, and persists query edits', async () => {

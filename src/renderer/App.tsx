@@ -42,6 +42,7 @@ import {
 } from '../core/templates'
 import type {
   AppError,
+  AiWriteReviewProposal,
   AppUpdateStatus,
   DriveRemoteVault,
   DriveSyncPreview,
@@ -222,9 +223,14 @@ export default function App(): React.JSX.Element {
     DEFAULT_GRAPH_VIEW_STATES
   )
   const [userIgnoreFilters, setUserIgnoreFilters] = useState<string[]>([])
+  const [aiImmutablePaths, setAiImmutablePaths] = useState<string[]>([])
+  const [aiReviewPaths, setAiReviewPaths] = useState<string[]>([])
+  const [aiReviewProposals, setAiReviewProposals] = useState<AiWriteReviewProposal[]>([])
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [settingsBusy, setSettingsBusy] = useState(false)
   const [excludedFilesDraft, setExcludedFilesDraft] = useState('')
+  const [aiImmutablePathsDraft, setAiImmutablePathsDraft] = useState('')
+  const [aiReviewPathsDraft, setAiReviewPathsDraft] = useState('')
   const [query, setQuery] = useState('')
   const [selectedTemplatePath, setSelectedTemplatePath] = useState('')
   const [captureKind, setCaptureKind] = useState<'note' | 'daily' | 'idea' | null>(null)
@@ -739,6 +745,12 @@ export default function App(): React.JSX.Element {
       if (settingsResult.ok) {
         setUserIgnoreFilters(settingsResult.value.userIgnoreFilters)
         setExcludedFilesDraft(settingsResult.value.userIgnoreFilters.join('\n'))
+        setAiImmutablePaths(settingsResult.value.aiImmutablePaths ?? [])
+        setAiImmutablePathsDraft(
+          (settingsResult.value.aiImmutablePaths ?? []).join('\n')
+        )
+        setAiReviewPaths(settingsResult.value.aiReviewPaths ?? [])
+        setAiReviewPathsDraft((settingsResult.value.aiReviewPaths ?? []).join('\n'))
         setGraphForces(settingsResult.value.graphForces)
         setGraphDisplay(settingsResult.value.graphDisplay)
         setGraphFilters(settingsResult.value.graphFilters)
@@ -1848,7 +1860,7 @@ export default function App(): React.JSX.Element {
     setQuery(`tag:${tag}`)
   }
 
-  const openSettingsDialog = (): void => {
+  const openSettingsDialog = async (): Promise<void> => {
     settingsDialogPreviousFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null
     setExcludedFilesDraft(userIgnoreFilters.join('\n'))
@@ -1856,7 +1868,12 @@ export default function App(): React.JSX.Element {
   }
 
   const saveExcludedFiles = async (): Promise<void> => {
+    setAiImmutablePathsDraft(aiImmutablePaths.join('\n'))
+    setAiReviewPathsDraft(aiReviewPaths.join('\n'))
     const nextFilters = excludedFilesDraft
+    const proposals = await window.tsuzune.listAiReviewProposals()
+    if (proposals.ok) setAiReviewProposals(proposals.value)
+    else setMessage(errorMessage(proposals.error))
       .split(/\r?\n/)
       .map((filter) => filter.trim())
       .filter(Boolean)
@@ -1864,6 +1881,14 @@ export default function App(): React.JSX.Element {
     setSettingsBusy(true)
     try {
       const result = await window.tsuzune.setUserIgnoreFilters(nextFilters)
+    const nextAiImmutablePaths = aiImmutablePathsDraft
+      .split(/\r?\n/)
+      .map((path) => path.trim())
+      .filter(Boolean)
+    const nextAiReviewPaths = aiReviewPathsDraft
+      .split(/\r?\n/)
+      .map((path) => path.trim())
+      .filter(Boolean)
       if (!result.ok) {
         setMessage(errorMessage(result.error))
         return
@@ -1872,7 +1897,21 @@ export default function App(): React.JSX.Element {
       await refreshSnapshot()
       setSettingsDialogOpen(false)
     } finally {
+      const immutableResult = await window.tsuzune.setAiImmutablePaths(
+        nextAiImmutablePaths
+      )
+      if (!immutableResult.ok) {
+        setMessage(errorMessage(immutableResult.error))
+        return
+      }
+      const reviewResult = await window.tsuzune.setAiReviewPaths(nextAiReviewPaths)
+      if (!reviewResult.ok) {
+        setMessage(errorMessage(reviewResult.error))
+        return
+      }
       setSettingsBusy(false)
+      setAiImmutablePaths(nextAiImmutablePaths)
+      setAiReviewPaths(nextAiReviewPaths)
     }
   }
 
@@ -1880,6 +1919,26 @@ export default function App(): React.JSX.Element {
     googleDialogPreviousFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null
     setGoogleAdvancedOpen(false)
+  const resolveAiReviewProposal = async (
+    proposal: AiWriteReviewProposal,
+    approve: boolean
+  ): Promise<void> => {
+    setSettingsBusy(true)
+    try {
+      const result = approve
+        ? await window.tsuzune.approveAiReviewProposal(proposal.id)
+        : await window.tsuzune.cancelAiReviewProposal(proposal.id)
+      if (!result.ok) {
+        setMessage(errorMessage(result.error))
+      }
+      const proposals = await window.tsuzune.listAiReviewProposals()
+      if (proposals.ok) setAiReviewProposals(proposals.value)
+      if (approve && result.ok) await refreshSnapshot()
+    } finally {
+      setSettingsBusy(false)
+    }
+  }
+
     setGoogleError(null)
     setGoogleDialogOpen(true)
     setGoogleBusy(true)
@@ -2961,6 +3020,86 @@ export default function App(): React.JSX.Element {
 
             <div className="modal-actions">
               <button
+              <label>
+                <span>AIから変更させないパス</span>
+                <textarea
+                  aria-label="AIから変更させないパス"
+                  value={aiImmutablePathsDraft}
+                  disabled={settingsBusy}
+                  placeholder="例: Private"
+                  onChange={(event) =>
+                    setAiImmutablePathsDraft(event.target.value)
+                  }
+                />
+              </label>
+              <p>
+                40_情報源 と 50_履歴 は常に保護されます。追加するノートまたはフォルダを1行に1つ指定します。
+              </p>
+              <label>
+                <span>AI変更を承認制にするパス</span>
+                <textarea
+                  aria-label="AI変更を承認制にするパス"
+                  value={aiReviewPathsDraft}
+                  disabled={settingsBusy}
+                  placeholder="例: 30_知識"
+                  onChange={(event) => setAiReviewPathsDraft(event.target.value)}
+                />
+              </label>
+              <p>
+                対象ではAIの作成・更新を即時反映せず、ここで承認または取り消します。変更禁止の指定が優先されます。
+              </p>
+              <section aria-labelledby="ai-review-proposals-title">
+                <h4 id="ai-review-proposals-title">承認待ちのAI変更案</h4>
+                {aiReviewProposals.length === 0 ? (
+                  <p>承認待ちの変更案はありません。</p>
+                ) : (
+                  aiReviewProposals.map((proposal) => {
+                    const current = snapshot?.notes.find(
+                      (note) => note.path.toLowerCase() === proposal.path.toLowerCase()
+                    )
+                    return (
+                      <article key={proposal.id} className="ai-review-proposal">
+                        <strong>{proposal.path}</strong>
+                        <p>{proposal.reason}</p>
+                        <p>操作: {proposal.operation === 'create' ? '作成' : '更新'}</p>
+                        <p>
+                          作成時刻: {new Date(proposal.createdAt).toLocaleString('ja-JP')}
+                        </p>
+                        <p>
+                          出典: {proposal.sourceRefs.length > 0 ? proposal.sourceRefs.join('、') : 'なし'}
+                        </p>
+                        <div className="ai-review-comparison">
+                          <div>
+                            <span>現在</span>
+                            <pre>{current?.content ?? '（新規ノート）'}</pre>
+                          </div>
+                          <div>
+                            <span>変更案</span>
+                            <pre>{proposal.content}</pre>
+                          </div>
+                        </div>
+                        <div className="modal-actions">
+                          <button
+                            type="button"
+                            disabled={settingsBusy}
+                            onClick={() => void resolveAiReviewProposal(proposal, false)}
+                          >
+                            取り消す
+                          </button>
+                          <button
+                            type="button"
+                            className="primary-button"
+                            disabled={settingsBusy}
+                            onClick={() => void resolveAiReviewProposal(proposal, true)}
+                          >
+                            承認して反映
+                          </button>
+                        </div>
+                      </article>
+                    )
+                  })
+                )}
+              </section>
                 type="button"
                 disabled={settingsBusy}
                 onClick={() => setSettingsDialogOpen(false)}

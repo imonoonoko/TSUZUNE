@@ -9,6 +9,7 @@ import {
 import { readFile } from 'node:fs/promises'
 import type {
   AppError,
+  AiWriteReviewProposal,
   AppUpdateStatus,
   CreateDirectoryInput,
   CreateNoteInput,
@@ -35,7 +36,12 @@ import { parseGraphFilterSettings } from '../shared/graph-filters'
 import { parseGraphGroups } from '../shared/graph-groups'
 import { parseGraphViewState } from '../shared/graph-view-state'
 import { parseUserIgnoreFilters } from '../shared/excluded-files'
-import { updateSettings, readSettings } from './settings'
+import {
+  parseAiImmutablePaths,
+  parseAiReviewPaths
+} from '../shared/ai-write-policy'
+import { updateSettings, readSettings, settingsPath } from './settings'
+import { VaultMcpService } from '../mcp/service'
 import { VaultError, VaultService } from './vault'
 import { VaultWatcher } from './watcher'
 import type { GoogleConnectionService } from './google-connection'
@@ -346,6 +352,32 @@ export function registerIpc(
 
   registerTrusted('settings:setUserIgnoreFilters', async (filters: string[]) => {
     await updateSettings({ userIgnoreFilters: parseUserIgnoreFilters(filters) })
+    return null
+  })
+
+  registerTrusted('settings:setAiImmutablePaths', async (paths: string[]) => {
+    await updateSettings({ aiImmutablePaths: parseAiImmutablePaths(paths) })
+    return null
+  })
+
+  registerTrusted('settings:setAiReviewPaths', async (paths: string[]) => {
+    await updateSettings({ aiReviewPaths: parseAiReviewPaths(paths) })
+    return null
+  })
+
+  registerTrusted('aiReview:list', async (): Promise<AiWriteReviewProposal[]> => {
+    return new VaultMcpService({ settingsPath: settingsPath() }).listReviewProposals()
+  })
+
+  registerTrusted('aiReview:approve', async (id: string) => {
+    const result = await new VaultMcpService({
+      settingsPath: settingsPath()
+    }).approveReviewProposal(id)
+    return { path: result.id }
+  })
+
+  registerTrusted('aiReview:cancel', async (id: string) => {
+    await new VaultMcpService({ settingsPath: settingsPath() }).cancelReviewProposal(id)
     return null
   })
 

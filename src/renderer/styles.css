@@ -1174,6 +1174,8 @@ button:hover:not(:disabled) {
 
 .app-settings-modal {
   width: min(620px, 100%);
+  max-height: min(800px, calc(100vh - 48px));
+  overflow: auto;
 }
 
 .app-settings-modal:focus {
@@ -1208,6 +1210,30 @@ button:hover:not(:disabled) {
 .app-settings-section p {
   margin: 10px 0 0;
   word-break: normal;
+}
+
+.ai-review-proposal {
+  padding: 12px;
+  margin-top: 10px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.ai-review-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ai-review-comparison pre {
+  max-height: 180px;
+  padding: 8px;
+  overflow: auto;
+  white-space: pre-wrap;
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
 }
 
 .google-sync-modal {

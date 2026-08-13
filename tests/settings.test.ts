@@ -47,7 +47,9 @@ describe('App settings', () => {
       graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
       graphGroups: DEFAULT_GRAPH_GROUPS,
       graphViewStates: DEFAULT_GRAPH_VIEW_STATES,
-      userIgnoreFilters: []
+      userIgnoreFilters: [],
+      aiImmutablePaths: [],
+      aiReviewPaths: []
     })
   })
 
@@ -77,7 +79,9 @@ describe('App settings', () => {
       graphFilters,
       graphGroups: DEFAULT_GRAPH_GROUPS,
       graphViewStates: DEFAULT_GRAPH_VIEW_STATES,
-      userIgnoreFilters: []
+      userIgnoreFilters: [],
+      aiImmutablePaths: [],
+      aiReviewPaths: []
     })
   })
 
@@ -165,7 +169,9 @@ describe('App settings', () => {
       graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
       graphGroups: DEFAULT_GRAPH_GROUPS,
       graphViewStates: DEFAULT_GRAPH_VIEW_STATES,
-      userIgnoreFilters: []
+      userIgnoreFilters: [],
+      aiImmutablePaths: [],
+      aiReviewPaths: []
     })
   })
 
@@ -266,6 +272,24 @@ describe('App settings', () => {
       lastVaultPath: 'C:/Vault',
       lastNotePath: 'A.md',
       userIgnoreFilters: ['80_excluded', '/\\.private\\.md$/']
+    })
+  })
+
+  it('saves and normalizes additional AI immutable paths', async () => {
+    await writeFile(
+      join(appData.path, 'settings.json'),
+      JSON.stringify({ lastVaultPath: 'C:/Vault', lastNotePath: 'A.md' }),
+      'utf8'
+    )
+
+    await updateSettings({
+      aiImmutablePaths: [' Private ', '', 'Drafts']
+    })
+
+    await expect(readSettings()).resolves.toMatchObject({
+      lastVaultPath: 'C:/Vault',
+      lastNotePath: 'A.md',
+      aiImmutablePaths: ['Private', 'Drafts']
     })
   })
 })

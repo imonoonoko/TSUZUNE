@@ -390,10 +390,19 @@ async function main(): Promise<void> {
     },
     async ({ id, expected_revision, operations, reason, source_refs }) =>
       textResult(
-        await vault.patchNote(id, expected_revision, operations, {
-          reason,
-          sourceRefs: source_refs
-        })
+        await vault.patchNote(
+          id,
+          expected_revision,
+          operations.map(({ find, replace, replace_all }) => ({
+            find,
+            replace,
+            replaceAll: replace_all
+          })),
+          {
+            reason,
+            sourceRefs: source_refs
+          }
+        )
       )
   )
 

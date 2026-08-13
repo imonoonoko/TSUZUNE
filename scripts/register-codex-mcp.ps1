@@ -56,7 +56,7 @@ $block = @(
   'required = false'
   'startup_timeout_sec = 10'
   'tool_timeout_sec = 60'
-  'enabled_tools = ["search", "fetch", "get_backlinks", "build_context", "create_note", "update_note", "autonomous_update_note"]'
+  'enabled_tools = ["search", "fetch", "get_backlinks", "build_context", "create_note", "update_note", "autonomous_update_note", "patch_note"]'
   'default_tools_approval_mode = "auto"'
   ''
   '[mcp_servers.tsuzune.tools.create_note]'
@@ -67,6 +67,9 @@ $block = @(
   ''
   '[mcp_servers.tsuzune.tools.autonomous_update_note]'
   'approval_mode = "auto"'
+  ''
+  '[mcp_servers.tsuzune.tools.patch_note]'
+  'approval_mode = "prompt"'
   $endMarker
 ) -join [Environment]::NewLine
 $block += [Environment]::NewLine
@@ -105,4 +108,4 @@ if (Test-Path -LiteralPath $configPath) {
 )
 
 Write-Host "TSUZUNE MCPを登録しました: $configPath"
-Write-Host 'ChatGPTデスクトップを再起動し、入力欄で /mcp を実行してください。'
+Write-Host 'Codex Desktopを再起動し、タスクの入力欄で /mcp を実行してください。'
