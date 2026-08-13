@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "sample_count": 10,
+  "result_counts": {
+    "pass": 8,
+    "blocked": 2
+  },
+  "task_type_counts": {
+    "feature_change": 7,
+    "knowledge": 2,
+    "continuation": 1
+  },
+  "all_task_medians": {
+    "elapsed_ms": 696651.5,
+    "tool_calls": 41,
+    "search_calls": 8.5,
+    "read_calls": 17,
+    "retries": 2,
+    "input_tokens": 3329110,
+    "prompt_cache_tokens": 3211648,
+    "output_tokens": 18576,
+    "reasoning_tokens": 4497.5
+  },
+  "successful_task_medians": {
+    "elapsed_ms": 955964.5,
+    "tool_calls": 59.5,
+    "search_calls": 9,
+    "read_calls": 19,
+    "retries": 3.5,
+    "input_tokens": 5760227.5,
+    "prompt_cache_tokens": 5617408,
+    "output_tokens": 23145,
+    "reasoning_tokens": 4497.5
+  },
+  "usage_totals": {
+    "input_tokens": 42806336,
+    "prompt_cache_tokens": 41566464,
+    "output_tokens": 185616,
+    "reasoning_tokens": 54727,
+    "total_tokens": 42991952,
+    "token_events": 456,
+    "cached_input_ratio": 0.9710353158934228,
+    "actual_cost": null
+  },
+  "observation_counts": {
+    "partial": 10,
+    "unique_sources_not_observable": 10,
+    "repeated_reads_not_observable": 10,
+    "usage_observed": 10
+  },
+  "cp1_a_matched_comparison": {
+    "long_task": {
+      "task_id": "CP1-A-02",
+      "result": "pass",
+      "input_tokens": 1692645,
+      "prompt_cache_tokens": 1682432,
+      "output_tokens": 1889,
+      "reasoning_tokens": 415,
+      "token_events": 12,
+      "elapsed_ms": 136131,
+      "retries": 0
+    },
+    "fresh_task": {
+      "task_id": "CP1-A-03",
+      "result": "fail",
+      "failure": "production test worker OOM; 57 of 58 files and 510 of 529 tests passed",
+      "input_tokens": 313686,
+      "prompt_cache_tokens": 303616,
+      "output_tokens": 761,
+      "reasoning_tokens": 123,
+      "token_events": 10,
+      "elapsed_ms": 111966,
+      "retries": 0
+    },
+    "raw_input_difference": -1378959,
+    "raw_input_difference_ratio": -0.8146770291466905,
+    "adoptable_reduction": null,
+    "verdict": "inconclusive_quality_gate_failure"
+  },
+  "cp1_a_single_worker_comparison": {
+    "long_task": {
+      "task_id": "CP1-A-04",
+      "result": "pass",
+      "input_tokens": 289020,
+      "prompt_cache_tokens": 286976,
+      "output_tokens": 274,
+      "reasoning_tokens": 46,
+      "token_events": 3,
+      "elapsed_ms": 57748,
+      "tool_calls": 2,
+      "retries": 0
+    },
+    "fresh_task": {
+      "task_id": "CP1-A-05",
+      "result": "pass",
+      "input_tokens": 33004,
+      "prompt_cache_tokens": 31488,
+      "output_tokens": 274,
+      "reasoning_tokens": 38,
+      "token_events": 1,
+      "elapsed_ms": 43872,
+      "tool_calls": 2,
+      "retries": 0
+    },
+    "input_difference": -256016,
+    "input_difference_ratio": -0.8858072105736628,
+    "cached_input_difference_ratio": -0.8902765388046387,
+    "elapsed_difference_ratio": -0.2402853778485835,
+    "verdict": "pass_conditional_adoption"
+  },
+  "cp1_b_monitoring": {
+    "completed": 3,
+    "target": 3,
+    "samples": [
+      {
+        "task_id": "CP1-B-01",
+        "result": "fail",
+        "useful_partial_evidence": true,
+        "input_tokens": 2156261,
+        "prompt_cache_tokens": 2062848,
+        "output_tokens": 27301,
+        "reasoning_tokens": 5086,
+        "token_events": 31,
+        "elapsed_ms": 656499,
+        "retries": 5,
+        "quality_gap": "Frozen persistence condition was not established; add, populated-row, remove, and restart-persistence flows remain uncaptured."
+      },
+      {
+        "task_id": "CP1-B-02",
+        "result": "pass",
+        "input_tokens": 2879456,
+        "prompt_cache_tokens": 2810624,
+        "output_tokens": 5581,
+        "reasoning_tokens": 1513,
+        "token_events": 37,
+        "elapsed_ms": 304072,
+        "retries": 2,
+        "quality_gap": null
+      },
+      {
+        "task_id": "CP1-B-03",
+        "result": "blocked",
+        "input_tokens": 2303178,
+        "prompt_cache_tokens": 2212352,
+        "output_tokens": 10793,
+        "reasoning_tokens": 1931,
+        "token_events": 26,
+        "elapsed_ms": 427040,
+        "retries": 1,
+        "quality_gap": "Canonical TSUZUNE package/build/release entrypoint was absent because package.json contained an Obsidian 1.13.4 development manifest; audit stopped without overwriting the dirty user change."
+      }
+    ],
+    "reference_completion": {
+      "counted_as_monitoring_sample": false,
+      "result": "blocked",
+      "input_tokens": 3674978,
+      "prompt_cache_tokens": 3472896,
+      "output_tokens": 16415,
+      "reasoning_tokens": 2999,
+      "token_events": 46,
+      "elapsed_ms": 530700,
+      "retries": 4,
+      "blockers": [
+        "Archive package reported 1.13.4 while the isolated window reported 1.13.6.",
+        "No safe fixed UI route exposed the add control; guessed-coordinate input was not used."
+      ]
+    },
+    "status": "complete_conditional_use_requires_source_config_preflight"
+  },
+  "decision": "conditionally_use_fresh_task_boundary_for_clean_bounded_long_tasks_with_source_config_preflight",
+  "evaluated_context_optimization": "bounded fresh task plus durable handoff and targeted TSUZUNE retrieval",
+  "selection_basis": "Across 10 baseline tasks and 456 model token events, 42,806,336 input tokens were recorded; 97.10% were cached input. One single-worker matched pair passed with 88.58% lower fresh-side input, but the three natural CP1-B samples ended FAIL, PASS, and BLOCKED. Sample 3 used 2,303,178 input tokens and correctly stopped because the canonical package/build/release entrypoint was absent. Fresh boundaries remain useful only for clean, bounded long tasks with explicit source/config identity preflight; they are not a general token, cost, or quality guarantee.",
+  "token_reduction_claim": {
+    "scope": "CP1-A-04 versus CP1-A-05 only",
+    "input_reduction_ratio": 0.8858072105736628,
+    "generalized": false,
+    "cost_reduction_claim": null
+  }
+}

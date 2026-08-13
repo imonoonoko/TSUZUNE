@@ -131,3 +131,42 @@
 - 固定4問の回答品質とmodel-visible tokenは未計測である。
 - legacy text＋structuredContentの二重搬送は独立X1-T1まで変更しない。
 - TSUZUNEへ知識を書き戻した後、Primary QueueのGP0-3b-nへ戻る。
+
+## X1-T1 Measurement Protocol - 2026-08-11
+
+### User Input
+> 再開
+
+### Evidence Reviewed
+- `src/mcp/server.ts`の共通`textResult`は、同じ値をpretty JSONの`content[0].text`と`structuredContent`へ二重格納する。
+- `scripts/check-mcp.mjs`は実stdio serverを起動し、`build_context`のstructured resultを検査する。
+- 本番TSUZUNEのContext契約は、wire bytesとmodel-visible tokenを別指標として扱う。
+
+### Decisions
+- Accepted: R4/R5を変更せず、X1-T1専用の測定プロトコルを追加する。
+- Accepted: `build_context`だけを比較対象にし、他の6 tool、candidate selection、MOC、Temporal、warningを変更しない。
+- Accepted: hostが正確なper-call／per-turn input-token使用量を公開するときだけmodel-visible tokenを測る。bytesやtokenizer推定で代用しない。
+- Accepted: Codex DesktopとChatGPT Desktopの双方で固定4問・source表示を確認するまで、本番transport rolloutを行わない。
+- Rejected: このcheckpointでのtransport実装、新依存、汎用response profile、tokenizer推定、production update。
+
+### Outcome
+- 実装前に必要なbyte、決定性、latency、Desktop互換、token観測不能時の表現、rollback境界を`7_x1-t1-model-visible-token-benchmark.md`へ固定した。
+- 実測とtransport source変更は未実施のままである。
+
+## X1-C2 Context Budget Priority - 2026-08-12 02:21 JST
+
+### User Input
+> 再優先事項としてコンテキスト、トークン消費をどうにかしたい
+
+### Decisions
+- Accepted: 次の主作業をX1-C2 Context Budget Evaluationとし、既存`build_context`の4k／6k／8k／15kをfixed-question・read-onlyで比較する。
+- Accepted: 最小予算の採用には、回答4/4、source trace 3/3、future leakage 0、write 0、expected-source到達性を同時に要求する。
+- Accepted: `search`→`fetch`を単一ノートの標準経路とし、複数ノート、時点、provenanceが必要なときだけ`build_context`を使う運用も比較する。
+- Accepted: hostが正確なper-call／per-turn usageを公開する場合だけmodel-visible tokenを記録する。wire bytes、Markdown文字数、tokenizer推定で代用しない。
+- Held: 実Windows accessibility P1は放棄せずquality gateとして保持し、X1-C2の結論後に再開する。
+
+### Rejected for this Track
+- 既定15,000文字の即時変更、BM25、FTS、SQLite、embedding、vector／GraphRAG、persistent task state、Hooksのproduction導入。
+
+### Next Evidence
+- 同一質問、同一source fingerprint、同一tool設定で各予算を比較し、採用値または既定維持を一度だけ決める。

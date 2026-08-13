@@ -512,7 +512,20 @@ export class VaultService {
           left.localeCompare(right, 'ja')
         )
       )
-      await writeFile(temporaryPath, `${JSON.stringify(sorted, null, 2)}\n`, {
+      const serialized = `${JSON.stringify(sorted, null, 2)}\n`
+      try {
+        const registryInfo = await lstat(registryPath)
+        if (
+          registryInfo.isFile() &&
+          !registryInfo.isSymbolicLink() &&
+          (await readFile(registryPath, 'utf8')) === serialized
+        ) {
+          return
+        }
+      } catch {
+        // Missing or unreadable metadata is refreshed below.
+      }
+      await writeFile(temporaryPath, serialized, {
         encoding: 'utf8',
         flag: 'wx'
       })

@@ -1,4 +1,12 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  utimes,
+  writeFile
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -46,6 +54,23 @@ describe('VaultService logical creation times', () => {
     expect(await readFile(absolute('assets/写真.png'), 'utf8')).toBe(
       'image-bytes'
     )
+  })
+
+  it('does not rewrite an unchanged creation-time sidecar during a stable scan', async () => {
+    await writeFile(absolute('継続.md'), '本文', 'utf8')
+
+    const first = await vault.scan()
+    const registryPath = absolute('.tsuzune/graph-file-times.json')
+    const registryContents = await readFile(registryPath, 'utf8')
+    const fixedTimestamp = new Date('2001-01-01T00:00:00.000Z')
+    await utimes(registryPath, fixedTimestamp, fixedTimestamp)
+    const before = await stat(registryPath)
+
+    const second = await vault.scan()
+
+    expect(second.notes[0].createdAt).toBe(first.notes[0].createdAt)
+    expect(await readFile(registryPath, 'utf8')).toBe(registryContents)
+    expect((await stat(registryPath)).mtimeMs).toBe(before.mtimeMs)
   })
 
   it('records the pre-replace creation time when a note is saved before any scan', async () => {
