@@ -65,6 +65,7 @@ export interface ClassificationMigrationPrototypeOptions {
   plan: ClassificationMigrationPlan
   ownershipToken: string
   preimagesDirectory: string
+  rollbackPacketPath?: string
   failAfter?: PrototypeMutationStage
 }
 
@@ -528,6 +529,7 @@ async function captureRollbackPacket(options: {
   ownershipToken: string
   failpoint: PrototypeMutationStage | null
   createdDirectories: string[]
+  rollbackPacketPath?: string
 }): Promise<string> {
   const readPreimage = async (path: string): Promise<RollbackPacketPreimage> => {
     const bytes = await readFile(resolveVaultPath(options.vaultRoot, path))
@@ -574,10 +576,21 @@ async function captureRollbackPacket(options: {
     createdDirectories: options.createdDirectories,
     restored: false
   }
-  const packetPath = resolve(
-    options.preimagesDirectory,
-    `o2-p3-${randomUUID()}.json`
-  )
+  const packetPath = options.rollbackPacketPath
+    ? resolve(options.rollbackPacketPath)
+    : resolve(options.preimagesDirectory, `o2-p3-${randomUUID()}.json`)
+  if (
+    dirname(packetPath).toLocaleLowerCase() !==
+    resolve(options.preimagesDirectory).toLocaleLowerCase()
+  ) {
+    throw new Error('Rollback packet path must be inside the preimages directory.')
+  }
+  try {
+    await lstat(packetPath)
+    throw new Error('Rollback packet path already exists.')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
   await writeRollbackPacket(packetPath, packet)
   return packetPath
 }
@@ -808,7 +821,8 @@ export async function applyClassificationMigrationPrototype(
     sidecar,
     ownershipToken: options.ownershipToken,
     failpoint: options.failAfter ?? null,
-    createdDirectories
+    createdDirectories,
+    rollbackPacketPath: options.rollbackPacketPath
   })
 
   try {

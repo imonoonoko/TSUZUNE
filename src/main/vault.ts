@@ -1064,8 +1064,12 @@ export class VaultService {
     const root = this.requireRoot()
     const revision = this.rootRevision
     const source = this.absolutePath(input.path)
-    const destinationDirectory = this.absolutePath(input.destinationDirectory, true)
-    const requestedDestination = join(destinationDirectory, basename(source))
+    const destinationDirectory = input.destinationPath
+      ? this.absolutePath(dirnameRelative(input.destinationPath), true)
+      : this.absolutePath(input.destinationDirectory, true)
+    const requestedDestination = input.destinationPath
+      ? this.absolutePath(input.destinationPath)
+      : join(destinationDirectory, basename(source))
 
     try {
       await this.assertNoSymlinkTraversal(source)
@@ -1077,10 +1081,13 @@ export class VaultService {
           message: '移動先フォルダが見つかりません。'
         })
       }
-      const destination = await this.findAvailableMoveDestination(
-        source,
-        requestedDestination
-      )
+      const destination = input.destinationPath
+        ? requestedDestination
+        : await this.findAvailableMoveDestination(
+            source,
+            requestedDestination
+          )
+      await this.ensureDestinationAvailable(source, destination)
       await rename(source, destination)
       const oldPath = this.relativePathFrom(root, source)
       const newPath = this.relativePathFrom(root, destination)

@@ -486,6 +486,31 @@ describe('VaultService file operations', () => {
     await expect(access(absolute('作業中/完成.md'))).rejects.toBeDefined()
   })
 
+  it('uses an explicit move destination without auto-numbering or overwriting', async () => {
+    await vault.createDirectory({ parent: '', name: '移動先' })
+    await vault.createNote({ directory: '', name: '元', content: '元の本文' })
+
+    await expect(
+      vault.moveNote({
+        path: '元.md',
+        destinationDirectory: '移動先',
+        destinationPath: '移動先/指定名.md'
+      })
+    ).resolves.toEqual({ oldPath: '元.md', path: '移動先/指定名.md' })
+    expect(await readFile(absolute('移動先/指定名.md'), 'utf8')).toBe('元の本文')
+
+    await vault.createNote({ directory: '', name: '別', content: '別の本文' })
+    await expect(
+      vault.moveNote({
+        path: '別.md',
+        destinationDirectory: '移動先',
+        destinationPath: '移動先/指定名.md'
+      })
+    ).rejects.toMatchObject({ appError: { code: 'ALREADY_EXISTS' } })
+    expect(await readFile(absolute('別.md'), 'utf8')).toBe('別の本文')
+    expect(await readFile(absolute('移動先/指定名.md'), 'utf8')).toBe('元の本文')
+  })
+
   it('keeps rename collisions and auto-numbers move collisions without overwriting', async () => {
     await vault.createDirectory({ parent: '', name: '移動先' })
     await vault.createNote({ directory: '', name: '元', content: '元の本文' })

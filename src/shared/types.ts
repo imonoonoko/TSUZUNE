@@ -97,6 +97,7 @@ export interface RenameEntryInput {
 export interface MoveNoteInput {
   path: string
   destinationDirectory: string
+  destinationPath?: string
 }
 
 export interface EntryOperationOutput {
