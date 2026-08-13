@@ -149,6 +149,19 @@ export function transformWikiLinksForPreview(markdown: string): string {
   })
 }
 
+/**
+ * Rewrites Markdown by transforming each Wiki link with the same parser used
+ * for extraction, so fenced code blocks and inline code are left untouched.
+ * The transform receives the parsed occurrence plus the embedded (`![[..]]`)
+ * flag and must return the full replacement text for the link.
+ */
+export function transformWikiLinks(
+  markdown: string,
+  transform: (occurrence: WikiLinkOccurrence, embedded: boolean) => string
+): string {
+  return walkMarkdown(markdown, transform)
+}
+
 export interface WikiLinkIndex {
   readonly exactPaths: ReadonlyMap<string, string>
   readonly basenameCandidates: ReadonlyMap<string, readonly string[]>
