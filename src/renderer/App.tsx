@@ -1868,23 +1868,19 @@ export default function App(): React.JSX.Element {
     settingsDialogPreviousFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null
     setExcludedFilesDraft(userIgnoreFilters.join('\n'))
-    setSettingsDialogOpen(true)
-  }
-
-  const saveExcludedFiles = async (): Promise<void> => {
     setAiImmutablePathsDraft(aiImmutablePaths.join('\n'))
     setAiReviewPathsDraft(aiReviewPaths.join('\n'))
-    const nextFilters = excludedFilesDraft
+    setSettingsDialogOpen(true)
     const proposals = await window.tsuzune.listAiReviewProposals()
     if (proposals.ok) setAiReviewProposals(proposals.value)
     else setMessage(errorMessage(proposals.error))
+  }
+
+  const saveExcludedFiles = async (): Promise<void> => {
+    const nextFilters = excludedFilesDraft
       .split(/\r?\n/)
       .map((filter) => filter.trim())
       .filter(Boolean)
-
-    setSettingsBusy(true)
-    try {
-      const result = await window.tsuzune.setUserIgnoreFilters(nextFilters)
     const nextAiImmutablePaths = aiImmutablePathsDraft
       .split(/\r?\n/)
       .map((path) => path.trim())
@@ -1893,14 +1889,14 @@ export default function App(): React.JSX.Element {
       .split(/\r?\n/)
       .map((path) => path.trim())
       .filter(Boolean)
+
+    setSettingsBusy(true)
+    try {
+      const result = await window.tsuzune.setUserIgnoreFilters(nextFilters)
       if (!result.ok) {
         setMessage(errorMessage(result.error))
         return
       }
-      setUserIgnoreFilters(nextFilters)
-      await refreshSnapshot()
-      setSettingsDialogOpen(false)
-    } finally {
       const immutableResult = await window.tsuzune.setAiImmutablePaths(
         nextAiImmutablePaths
       )
@@ -1913,16 +1909,16 @@ export default function App(): React.JSX.Element {
         setMessage(errorMessage(reviewResult.error))
         return
       }
-      setSettingsBusy(false)
+      setUserIgnoreFilters(nextFilters)
       setAiImmutablePaths(nextAiImmutablePaths)
       setAiReviewPaths(nextAiReviewPaths)
+      await refreshSnapshot()
+      setSettingsDialogOpen(false)
+    } finally {
+      setSettingsBusy(false)
     }
   }
 
-  const openGoogleDialog = async (): Promise<void> => {
-    googleDialogPreviousFocusRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null
-    setGoogleAdvancedOpen(false)
   const resolveAiReviewProposal = async (
     proposal: AiWriteReviewProposal,
     approve: boolean
@@ -1943,6 +1939,10 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  const openGoogleDialog = async (): Promise<void> => {
+    googleDialogPreviousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setGoogleAdvancedOpen(false)
     setGoogleError(null)
     setGoogleDialogOpen(true)
     setGoogleBusy(true)
@@ -3020,10 +3020,6 @@ export default function App(): React.JSX.Element {
               <p>
                 1行に1つ、パスの一部または /正規表現/ を指定します。対象は一覧・検索・リンク・グラフから除外されます。
               </p>
-            </section>
-
-            <div className="modal-actions">
-              <button
               <label>
                 <span>AIから変更させないパス</span>
                 <textarea
@@ -3104,6 +3100,10 @@ export default function App(): React.JSX.Element {
                   })
                 )}
               </section>
+            </section>
+
+            <div className="modal-actions">
+              <button
                 type="button"
                 disabled={settingsBusy}
                 onClick={() => setSettingsDialogOpen(false)}
