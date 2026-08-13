@@ -1,6 +1,6 @@
 # TSUZUNE Documentation Index
 
-更新日: 2026-08-13
+更新日: 2026-08-14
 
 ## まず読む
 
@@ -17,6 +17,7 @@
 - [O2-P3 test-only migration prototype](reports/cp1-c-02-o2-p3-prototype-2026-08-13.md) — 匿名一時Vaultで4段階mutation、失敗注入、自動rollback、exact-byte復元を固定。本番applyではない。
 - [O2-P4 Drive Path Alias contract](reports/cp1-c-03-drive-path-alias-contract-2026-08-13.md) — P4A sidecar同期とP4B remote relocationを分離し、次をP4Aだけに限定。
 - [O2-P4A test-only sidecar sync prototype](reports/cp1-c-04-o2-p4a-sidecar-sync-prototype-2026-08-13.md) — fake remoteでexact bytes、ownership、ledger、conflict、local rollbackを固定。P4B／live Drive／本番applyは未実施。
+- [O2 disposable live Drive acceptance](reports/cp1-c-06-disposable-live-drive-acceptance-2026-08-14.md) — 受入専用の実Drive objectでfile ID、parent、private path metadata、version、Markdown／Alias bytesを往復し、3/3 cleanup。本番Vault applyは別承認。
 - [CP0-T09 AI Write Review mode](reports/cp0-t09-ai-write-review-mode-2026-08-12.md) — 3 MCP write toolの提案化、Vault外inbox、Settings承認／取消、競合失効、履歴付き適用と本番反映の証拠。
 - [CP0-T10 Review runtime acceptance](reports/cp0-t10-ai-write-review-runtime-acceptance-2026-08-12.md) — 再起動後の本番MCPでproposal化、Vault本文不変、試験状態cleanupを確認した可逆な受入。
 - [Context Profiler Native baseline](reports/context-profiler-native-baseline-2026-08-12.md) — 10件の集計、失敗pairの保持、single-worker matched pairで品質維持・fresh側input 88.58%減を確認した条件付き採用判定。

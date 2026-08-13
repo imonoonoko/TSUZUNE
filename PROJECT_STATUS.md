@@ -12,8 +12,8 @@
 | 開発ブランチ | `agent/tsuzune-mcp-integration`。C0〜C4、AI設定保存flow補修、Google OAuth scope修正を`f6e85f4`まで本番反映し、receipt／status追補commitがinstalled source commitの後に続く | [commit manifest](docs/reports/working-tree-commit-manifest-2026-08-14.md) |
 | Graph直近slice | CP1-B-02で実在Markdownノートにも`フォルダで表示`を接続。公式production updateの全529 tests／10 checksを通して本番反映済み | [CP1-B-02](docs/reports/cp1-b-02-note-folder-reveal-2026-08-13.md) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
-| 最優先Track | O2 Classification Migrationの安全境界。CP1-C-05でO2-P4B remote relocation／recoveryをtest-only fake remoteで完了。本番Vault applyは引き続き禁止 | [CP1-C-05](docs/reports/cp1-c-05-o2-p4b-relocation-recovery-prototype-2026-08-13.md) |
-| 次の縦切り | disposable live Drive acceptance。並行してO1 7-day dogfoodを継続し、MCPはhistory既定除外のactive-runtime受入だけを小さく行う。X1-C2／新規BM25／Hooks／Graph残件はresume条件までheld | [PLAN.md](PLAN.md#current-transition-queue) |
+| 最優先Track | O2 Classification Migrationの安全境界。CP1-C-06でdisposable live Driveのfile ID／parent／private path metadata／version／bytes往復をPASSし、3/3 cleanup。本番Vault applyは引き続き禁止 | [CP1-C-06](docs/reports/cp1-c-06-disposable-live-drive-acceptance-2026-08-14.md) |
+| 次の縦切り | production classification apply packet。正確な対象、preimage、rollback、Drive preview、停止条件を固定し、実行前にユーザー承認を得る。並行してO1 7-day dogfoodを継続。X1-C2／新規BM25／Hooks／Graph残件はresume条件までheld | [PLAN.md](PLAN.md#current-transition-queue) |
 | Graph／Excluded files checkpoint | CP0-T04で未解決Wiki nodeのidentityと検索保持を閉じ、CP0-T05でapp-wide Excluded filesを本番MCP search／Contextへ接続した。Manage UI、FileTree directory、全surfaceのObsidian固定比較は未完。GP0-3b-pはGraph再表示camera gate不成立で`blocked` | [CP0-T05 report](docs/reports/cp0-t05-excluded-files-mcp-retrieval-2026-08-12.md) |
 | Context checkpoint | X1-M1は`type: moc`を全タイトル一覧へ投影し、X1-D1はbaseline candidate集合を変えず通常本文だけを質問で優先する。X1-S1aはstable scanで同一canonical creation-time sidecarを再書込みせず、X1-S1bはmatching revisionと同一本文のAI自律更新を履歴なしno-opにして本番反映した。X1-T1は`build_context`だけをstructured-onlyにし、Codex Desktop local stdioで意味指標不変・wire 54.7%減・p95非悪化、fixture 12/12、回答品質4/4、source trace 3/3、future leakage 0、write 0を確認して本番反映した | [X1-T1 report](docs/reports/x1-t1-structured-only-transport-2026-08-12.md) |
 | MCP runtime correction | current sourceの`build_context`をstructured-onlyへ戻し、direct server 10ツールのsmoke、X1-T1 fixture 12/12、Codex登録7ツールを再確認。Codex再起動後の実呼出しも`content: []`＋structuredContentでPASSし、installed v0.5.0 receiptも更新済み | [reconciliation](docs/reports/mcp-contract-reconciliation-2026-08-13.md) |
@@ -57,6 +57,8 @@ CP1-C-03では残る`DRIVE_PATH_ALIAS_UNSUPPORTED`を、O2-P4Aのsidecar同期�
 CP1-C-04ではO2-P4Aをtest-only prototypeとして実装しました。local-only create、remote-only download、equal no-op、clean ledgerに基づく片側変更、履歴不足・両側変更・version driftのconflict、unique ownership、exact-byte transfer、preview/apply再検証、ledger失敗時のlocal preimage復元を16 testsで固定しました。関連5 files／69 tests、全61 files／585 tests、typecheckはPASSしています。実Drive、P4B remote relocation、製品entry point、本番Vault applyは未実施です。
 
 CP1-C-05ではO2-P4Bをtest-only prototypeとして実装しました。明示planだけを対象に既存Drive file ID、content hash、parentを保ったmetadata relocation、local P3／remote notes／remote alias／両ledgerのcombined recovery、remote／alias／ledger failpoint、remote／local rollback drift時のpacket保持と再実行block、完了時のremote再取得を12 testsで固定しました。関連3 files／43 tests、全62 files／608 tests、typecheckはPASSしています。実Drive、OAuth、製品entry point、本番Vault applyは未実施です。
+
+CP1-C-06では実Google資格情報と受入専用disposable Drive fixtureを使い、MarkdownとPath Alias objectの同一file ID、parent、private path metadata、version、exact bytesのforward／reverse roundtripをPASSしました。新規作成したfolder／Markdown／Aliasの3件は3/3でゴミ箱へ移し、既存Drive Vaultと本番Vaultは変更していません。`DRIVE_PATH_ALIAS_UNSUPPORTED`のlive契約blockerはclosedですが、本番classification applyは別承認です。
 
 - [O2-P2 Classification Migration Dry-run](docs/reports/o2-p2-classification-migration-dry-run-2026-08-10.md)
 - [O2-P2 explicit plan](docs/migrations/o2-p2-operations-plan.json)
@@ -141,7 +143,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 ## 優先キュー
 
 1. **P0 completed delivery:** frozen 245-file inventoryをC0〜C4、C5 exact-pin復旧、4 mixed-path解消、C6/C9 documentation、H1不採用削除へ分離してpushし、clean source `b2fd6bf`を公式`production:update`で本番受入した。
-2. **P1 next product acceptance:** O2-P4A／P4Bはtest-only prototype-proven。次はdisposable live Driveだけで同一file ID、private path metadata、version、reverse rollbackを受入する。本番Vault applyは別承認。
+2. **P1 next approval gate:** disposable live Drive acceptanceはPASS。次はproduction classification apply packetで対象、preimage、rollback、Drive preview、停止条件を固定し、本番applyの明示承認を得る。
 3. **P1 product observation:** O1 7-day dogfood。機能を追加せず、通常ノートの作成、検索、link、Graph、MCP handoffの摩擦を記録する。
 4. **P1 supporting acceptance:** MCP-R1は3/3完了し、履歴近似重複が2/3。新規BM25ではなく、sourceに実装済みの`50_履歴/**`既定除外をactive MCP runtimeで一度受入する。
 5. **Held:** X1-C2、新規BM25/cache/task-state、Hooks/co-occurrence、Excluded files残件、Graph backlog、実Windows accessibility、Google intake、ChatGPT C1-Dは各resume条件が満たされるまで開始しない。
