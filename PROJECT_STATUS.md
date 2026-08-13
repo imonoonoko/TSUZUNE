@@ -8,8 +8,8 @@
 
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
-| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-13 01:06 JSTにCP1-B-02を含むdirty working treeを本番へ更新し、全529 tests、10/10 checks、packaged／installed smoke、build／installed hash一致、profile 57 files不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`。origin `ae7d97d`からC0〜C4、AI設定保存flow補修、documentation closeoutを7 local commitsへ分離した。C5はexact pinへ復旧し、未採用H1 Hooks shadow 6 filesは削除済み。working treeはclean。push／production update前の現在sourceはinstalled v0.5.0とは別境界 | [commit manifest](docs/reports/working-tree-commit-manifest-2026-08-14.md) |
+| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-14 01:23 JSTにclean source `b2fd6bf`から更新し、全609 tests、10/10 checks、MCP 5 read＋6 write、packaged／installed smoke、build／installed hash一致、profile 57 files不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。C0〜C4、AI設定保存flow補修、documentation closeoutを`b2fd6bf`までpush済み。C5はexact pinへ復旧し、未採用H1 Hooks shadow 6 filesは削除済み。production receiptとstatus文書の追補commitだけがinstalled source commitの後に続く | [commit manifest](docs/reports/working-tree-commit-manifest-2026-08-14.md) |
 | Graph直近slice | CP1-B-02で実在Markdownノートにも`フォルダで表示`を接続。公式production updateの全529 tests／10 checksを通して本番反映済み | [CP1-B-02](docs/reports/cp1-b-02-note-folder-reveal-2026-08-13.md) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
 | 最優先Track | O2 Classification Migrationの安全境界。CP1-C-05でO2-P4B remote relocation／recoveryをtest-only fake remoteで完了。本番Vault applyは引き続き禁止 | [CP1-C-05](docs/reports/cp1-c-05-o2-p4b-relocation-recovery-prototype-2026-08-13.md) |
@@ -139,12 +139,11 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 
 ## 優先キュー
 
-1. **P0 completed local consolidation:** frozen 245-file inventoryをC0〜C4、C5 exact-pin復旧、4 mixed-path解消、C6/C9 documentation、H1不採用削除へ分離し、working treeをcleanにした。本番receiptと現在sourceはまだ混同しない。
-2. **P0 next delivery gate:** cleanな7 local commitsをpushし、`production:update`で現在sourceを本番受入する。
-3. **P1 next product acceptance:** O2-P4A／P4Bはtest-only prototype-proven。次はdisposable live Driveだけで同一file ID、private path metadata、version、reverse rollbackを受入する。本番Vault applyは別承認。
-4. **P1 product observation:** O1 7-day dogfood。機能を追加せず、通常ノートの作成、検索、link、Graph、MCP handoffの摩擦を記録する。
-5. **P1 supporting acceptance:** MCP-R1は3/3完了し、履歴近似重複が2/3。新規BM25ではなく、sourceに実装済みの`50_履歴/**`既定除外をactive MCP runtimeで一度受入する。
-6. **Held:** X1-C2、新規BM25/cache/task-state、Hooks/co-occurrence、Excluded files残件、Graph backlog、実Windows accessibility、Google intake、ChatGPT C1-Dは各resume条件が満たされるまで開始しない。
+1. **P0 completed delivery:** frozen 245-file inventoryをC0〜C4、C5 exact-pin復旧、4 mixed-path解消、C6/C9 documentation、H1不採用削除へ分離してpushし、clean source `b2fd6bf`を公式`production:update`で本番受入した。
+2. **P1 next product acceptance:** O2-P4A／P4Bはtest-only prototype-proven。次はdisposable live Driveだけで同一file ID、private path metadata、version、reverse rollbackを受入する。本番Vault applyは別承認。
+3. **P1 product observation:** O1 7-day dogfood。機能を追加せず、通常ノートの作成、検索、link、Graph、MCP handoffの摩擦を記録する。
+4. **P1 supporting acceptance:** MCP-R1は3/3完了し、履歴近似重複が2/3。新規BM25ではなく、sourceに実装済みの`50_履歴/**`既定除外をactive MCP runtimeで一度受入する。
+5. **Held:** X1-C2、新規BM25/cache/task-state、Hooks/co-occurrence、Excluded files残件、Graph backlog、実Windows accessibility、Google intake、ChatGPT C1-Dは各resume条件が満たされるまで開始しない。
 
 ## CheckpointとWorking treeの扱い
 

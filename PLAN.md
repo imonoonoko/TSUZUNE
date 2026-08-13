@@ -45,7 +45,7 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 | 対象 | 状態 |
 |---|---|
 | インストール済み本番 | v0.5.0。最新の正確なcommit、hash、検証結果は[production-update-latest.json](docs/reports/production-update-latest.json)を参照 |
-| ローカル整理checkpoint | origin `ae7d97d`から、C0〜C4とAI設定保存flow補修を6つのlocal commitへ分離した。C5の不要なSDK range拡張はexact pinへ復旧し、採用根拠のなかったH1 Hooks shadow 6 filesは削除した。working treeはclean。push／production updateは未実施 |
+| 配布checkpoint | C0〜C4、AI設定保存flow補修、documentation closeoutを`b2fd6bf`までpush済み。C5はexact pinへ復旧し、未採用H1 Hooks shadow 6 filesは削除した。clean source `b2fd6bf`から公式`production:update`を実行し、本番受入PASS |
 | 開発checkpoint | O2 Classification Migration safety。Graph Parityはcheckpoint化し、現役ではない |
 | Graph trackの直近slice | CP1-B-02 Markdown Note Folder Reveal。固定済み参照と既存安全経路を再利用し、実在Markdownノートにも`フォルダで表示`を接続。2026-08-13の公式production updateで本番反映済み |
 | 現役slice | CP1-C-05でO2-P4B test-only fake-remote prototypeを完了。明示plan、既存file ID、metadata relocation、combined recovery、rollback drift retentionを固定した。全62 files／608 tests PASS。次はdisposable live Drive acceptance。本番applyは別承認 |
@@ -69,8 +69,8 @@ Context／token調査は、単純なContext削減を最優先にせず、Cost pe
 8. **Parallel observation — O1 7-day dogfood:** 実Vaultで通常ノートを使い、capture／retrieval／navigation／AI handoffの摩擦だけを記録する。P4A通過後にP4Bへ進むか、日常摩擦へ優先を戻すかをこの観測で決める。
 9. **Completed — O2-P4B remote relocation／recovery prototype:** test-owned fake remoteでexplicit-plan-only、同一file ID、content／parent不変、remote→alias→ledger順、combined recovery、3 remote-stage failpoint、remote／local rollback drift packet retention、completion re-readを12 testsで固定。関連43 tests、全62 files／608 tests、typecheckをPASS。live Drive、UI、MCP、本番applyは未実施。[report](docs/reports/cp1-c-05-o2-p4b-relocation-recovery-prototype-2026-08-13.md)
 10. **Completed observation — MCP-R1 retrieval route:** 自然task 3/3を完了。sample 2・3で履歴近似重複が反復しsearch/rankingシグナル2/3。新規BM25やcacheは開始せず、既にdirty sourceへ存在する`50_履歴/**`既定除外をactive MCP runtimeで受入する一つの小実験を次候補とする。[protocol](docs/reports/mcp-retrieval-route-observation-2026-08-13.md)
-11. **Completed local consolidation — frozen 245-file inventory:** C0〜C4とAI設定保存flow補修を独立commitへ分離し、C5はexact pinへ復旧、未採用H1 Hooks shadow 6 filesは削除した。working treeはclean。push、production update、本番Vault applyはまだ行っていない。[manifest](docs/reports/working-tree-commit-manifest-2026-08-14.md)
-12. **Next delivery gate:** cleanなlocal commitsをpushし、`production:update`で型検査、全test、MCP smoke、build、installer、installed hash、profile不変性、MCP再登録を再受入する。
+11. **Completed delivery — frozen 245-file inventory:** C0〜C4とAI設定保存flow補修を独立commitへ分離し、C5はexact pinへ復旧、未採用H1 Hooks shadow 6 filesは削除した。`b2fd6bf`までpushし、clean sourceから公式`production:update`を実行。62 files／609 tests、10/10 checks、MCP 5 read＋6 write、package／installer、packaged／installed smoke、build／installed hash一致、profile 57 files不変、MCP再登録をPASSした。[manifest](docs/reports/working-tree-commit-manifest-2026-08-14.md)
+12. **Next product gate — disposable live Drive acceptance:** delivery整理は完了。O2-P4A／P4Bの隔離live受入へ戻り、本番Vault applyは別承認のまま維持する。
 13. **Next product gate — disposable live Drive acceptance:** O2-P4A／P4Bはprototype-proven。実資格情報と隔離Drive fixtureで同一file ID、private path metadata、version、rollbackを確認するまで、本番Vault applyは禁止する。
 
 新しいSupporting Trackを割り込ませる場合は、目的、停止条件、元Trackへ戻る条件をこの節へ先に記録します。
