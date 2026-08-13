@@ -72,7 +72,7 @@ Context／token調査は、単純なContext削減を最優先にせず、Cost pe
 11. **Completed delivery — frozen 245-file inventory:** C0〜C4とAI設定保存flow補修を独立commitへ分離し、C5はexact pinへ復旧、未採用H1 Hooks shadow 6 filesは削除した。`b2fd6bf`までpushし、clean sourceから公式`production:update`を実行。62 files／609 tests、10/10 checks、MCP 5 read＋6 write、package／installer、packaged／installed smoke、build／installed hash一致、profile 57 files不変、MCP再登録をPASSした。[manifest](docs/reports/working-tree-commit-manifest-2026-08-14.md)
 12. **Next product gate — disposable live Drive acceptance:** delivery整理は完了。O2-P4A／P4Bの隔離live受入へ戻り、本番Vault applyは別承認のまま維持する。
 13. **Next product gate — disposable live Drive acceptance:** O2-P4A／P4Bはprototype-proven。実資格情報と隔離Drive fixtureで同一file ID、private path metadata、version、rollbackを確認するまで、本番Vault applyは禁止する。
-14. **Completed correction — Google OAuth scope equivalence:** 失効tokenの再接続でGoogleが返すcanonical userinfo scopeを正当に受け入れる最小修正を`f6e85f4`へ収録し、production update 10/10 checksをPASS。次は修正版で再認証とDrive readを実runtime受入してから、項目13へ進む。[report](docs/reports/google-oauth-scope-reconnect-2026-08-14.md)
+14. **Completed correction and runtime acceptance — Google OAuth scope equivalence:** 失効tokenの再接続でGoogleが返すcanonical userinfo scopeを正当に受け入れる最小修正を`f6e85f4`へ収録し、production update 10/10 checksをPASS。修正版installed appで再認証、`bundle-v1`保存、refresh HTTP 200、Drive read HTTP 200まで実測した。同期・Drive書込みは未実施。項目13へ進める。[report](docs/reports/google-oauth-scope-reconnect-2026-08-14.md)
 
 新しいSupporting Trackを割り込ませる場合は、目的、停止条件、元Trackへ戻る条件をこの節へ先に記録します。
 

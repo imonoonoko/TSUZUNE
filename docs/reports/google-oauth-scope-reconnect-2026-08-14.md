@@ -13,10 +13,12 @@ TSUZUNEの保存済みGoogle refresh tokenはファイルとして残り、Windo
 - canonical userinfo scopeを返す公開接続テストをREDにし、`Googleで必要な権限がすべて許可されませんでした`で失敗することを確認した。
 - 最小修正後、同テストを含むGoogle関連3 files／20 tests、typecheck、diff checkがPASSした。
 - clean commit `f6e85f4`から公式`production:update`を実行し、62 files／609 tests、MCP、package、installer、packaged／installed smoke、hash、profile不変、MCP再登録の10/10 checksがPASSした。
+- 修正版installed appで再認証し、暗号化されたcredentialが`bundle-v1`へ更新されたこと、保存scope 4件にDriveとidentity scopeが含まれることを秘密値を出さずに確認した。
+- 保存refresh tokenによる更新はHTTP 200、Drive APIのread-only取得もHTTP 200だった。同期preview／apply、Drive書込み、本番Vault変更は行っていない。
 
-## Remaining acceptance
+## Runtime acceptance
 
-修正版installed appでGoogleへ再認証し、Drive readが成功することを実runtimeで確認する。これが終わるまでdisposable live Drive acceptanceは開始しない。本番Vaultへのclassification applyは禁止を維持する。
+Google再接続とread-only runtime受入は完了した。次は隔離したdisposable Drive fixtureだけでO2-P4A／P4Bの同一file ID、private path metadata、version、reverse rollbackを確認する。本番Vaultへのclassification applyは禁止を維持する。
 
 ## References
 
