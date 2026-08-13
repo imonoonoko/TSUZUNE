@@ -50,7 +50,7 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 | Graph trackの直近slice | CP1-B-02 Markdown Note Folder Reveal。固定済み参照と既存安全経路を再利用し、実在Markdownノートにも`フォルダで表示`を接続。2026-08-13の公式production updateで本番反映済み |
 | 現役slice | CP1-C-05でO2-P4B test-only fake-remote prototypeを完了。明示plan、既存file ID、metadata relocation、combined recovery、rollback drift retentionを固定した。全62 files／608 tests PASS。次はdisposable live Drive acceptance。本番applyは別承認 |
 | Context checkpoint | X1-M1 MOC Title Router、X1-D1 Recall-safe Query Bridge、X1-S1a creation-time sidecar no-op、X1-S1b revision-aware autonomous no-op、X1-T1 structured-only transportを本番反映済み。質問はbaseline候補を削除せず、通常本文の展開順だけを変える。X1-T1はCodex Desktop local stdioで受入済み。ChatGPT remote MCPは別Track。詳細は[report](docs/reports/x1-t1-structured-only-transport-2026-08-12.md) |
-| MCP correction checkpoint | current sourceで`build_context`のstructured-only搬送を復旧。direct serverは10ツールをsmokeし、Codex Desktop登録は安全な7ツールのまま。再起動後の実呼出しも`content: []`＋structuredContentでPASS。installed receiptは未更新。[reconciliation](docs/reports/mcp-contract-reconciliation-2026-08-13.md) |
+| MCP correction checkpoint | current sourceで`build_context`のstructured-only搬送を復旧。direct serverは10ツールをsmokeし、Codex Desktop登録は安全な7ツールのまま。再起動後の実呼出しも`content: []`＋structuredContentでPASSし、installed receiptも更新済み。[reconciliation](docs/reports/mcp-contract-reconciliation-2026-08-13.md) |
 | MCP retrieval observation | MCP-R1は3/3完了。sample 2・3で`50_履歴/AI更新`の近似重複を再観測し、search/rankingシグナルが2/3。新規BM25より先に、sourceに既存のhistory既定除外をruntimeで受入する。[observation](docs/reports/mcp-retrieval-route-observation-2026-08-13.md) |
 | 現役Primary Track数 | 1。O2-P4B prototype完了後の次候補はdisposable live Drive acceptance。O1 7-day dogfoodは機能追加なしの並行観測。X1-C2、BM25、Hooks、Graph残件、Google intake、ChatGPT candidate applyは保留 |
 
@@ -72,6 +72,7 @@ Context／token調査は、単純なContext削減を最優先にせず、Cost pe
 11. **Completed delivery — frozen 245-file inventory:** C0〜C4とAI設定保存flow補修を独立commitへ分離し、C5はexact pinへ復旧、未採用H1 Hooks shadow 6 filesは削除した。`b2fd6bf`までpushし、clean sourceから公式`production:update`を実行。62 files／609 tests、10/10 checks、MCP 5 read＋6 write、package／installer、packaged／installed smoke、build／installed hash一致、profile 57 files不変、MCP再登録をPASSした。[manifest](docs/reports/working-tree-commit-manifest-2026-08-14.md)
 12. **Next product gate — disposable live Drive acceptance:** delivery整理は完了。O2-P4A／P4Bの隔離live受入へ戻り、本番Vault applyは別承認のまま維持する。
 13. **Next product gate — disposable live Drive acceptance:** O2-P4A／P4Bはprototype-proven。実資格情報と隔離Drive fixtureで同一file ID、private path metadata、version、rollbackを確認するまで、本番Vault applyは禁止する。
+14. **Completed correction — Google OAuth scope equivalence:** 失効tokenの再接続でGoogleが返すcanonical userinfo scopeを正当に受け入れる最小修正を`f6e85f4`へ収録し、production update 10/10 checksをPASS。次は修正版で再認証とDrive readを実runtime受入してから、項目13へ進む。[report](docs/reports/google-oauth-scope-reconnect-2026-08-14.md)
 
 新しいSupporting Trackを割り込ませる場合は、目的、停止条件、元Trackへ戻る条件をこの節へ先に記録します。
 
