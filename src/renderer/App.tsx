@@ -1620,7 +1620,11 @@ export default function App(): React.JSX.Element {
 
   const revealGraphNodeInFolder = (path: string): void => {
     const node = visibleGraph.nodes.find((candidate) => candidate.path === path)
-    if (!node || node.kind !== 'attachment' || node.exists === false) {
+    if (
+      !node ||
+      (node.kind !== 'note' && node.kind !== 'attachment') ||
+      node.exists === false
+    ) {
       return
     }
     void window.tsuzune.revealVaultFile(path).then((result) => {

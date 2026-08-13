@@ -1,0 +1,84 @@
+{
+  "phase": "restarted",
+  "processId": 8536,
+  "windowGeometry": {
+    "frame": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1280,
+      "height": 800
+    },
+    "electronContentBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1280,
+      "height": 800
+    },
+    "rendererViewport": {
+      "width": 1280,
+      "height": 800,
+      "devicePixelRatio": 1
+    }
+  },
+  "restarted": {
+    "query": "(",
+    "graphLabel": "Vault全体グラフ",
+    "searchDiagnostics": {
+      "inputAriaInvalid": null,
+      "inputClasses": [],
+      "visibleErrorTexts": []
+    },
+    "settingsPanelVisible": true,
+    "filterSectionVisible": true,
+    "nodePaths": [],
+    "nodeDetails": [],
+    "edgeCount": 0,
+    "edgeSignature": null,
+    "stageTransform": "translate(0px, 0px) scale(1)",
+    "tabs": [
+      {
+        "label": "00_Home",
+        "selected": false
+      },
+      {
+        "label": "グラフビュー",
+        "selected": true
+      }
+    ],
+    "targetNode": null,
+    "canvasRect": {
+      "x": 260,
+      "y": 148,
+      "width": 780,
+      "height": 622
+    },
+    "dimensions": {
+      "innerWidth": 1280,
+      "innerHeight": 800,
+      "devicePixelRatio": 1
+    }
+  },
+  "bookmarkPersistenceAfterAppRestart": null,
+  "attachmentDefaultAppShell": null,
+  "attachmentFolderRevealShell": null,
+  "settingsGraphViewState": {
+    "scale": 1,
+    "query": "(",
+    "settingsOpen": true,
+    "settingsSections": {
+      "filters": true,
+      "groups": false,
+      "display": false,
+      "forces": false
+    }
+  },
+  "screenshots": [
+    {
+      "file": "03-app-restarted.png",
+      "bytes": 103754,
+      "sha256": "D5047517DCC4977A85B768BCE195EBCC0ECBD8A22E86FC9784E86441C68AFC21",
+      "width": 1280,
+      "height": 800
+    }
+  ]
+}

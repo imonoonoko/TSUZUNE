@@ -207,6 +207,7 @@ export function buildWikiGraph(
 
       let targetPath = resolution.path
       if (resolution.status === 'missing') {
+        targetPath = withoutMarkdownExtension(targetPath)
         const unresolvedKey = targetPath.toLocaleLowerCase()
         const existing = unresolvedNodes.get(unresolvedKey)
         if (existing) {
@@ -380,6 +381,20 @@ export function filterWikiGraph(
       })
       .map((node) => node.path)
   )
+
+  const unresolvedPaths = new Set(
+    graph.nodes
+      .filter((node) => node.kind === 'unresolved')
+      .map((node) => node.path)
+  )
+  for (const { sourcePath, targetPath } of graph.edges) {
+    if (
+      visiblePaths.has(sourcePath) &&
+      unresolvedPaths.has(targetPath)
+    ) {
+      visiblePaths.add(targetPath)
+    }
+  }
 
   return {
     nodes: graph.nodes.filter((node) => visiblePaths.has(node.path)),

@@ -1,0 +1,43 @@
+{
+  "capturedAt": "2026-08-12T11:40:32.948Z",
+  "version": "1.13.4",
+  "isolation": {
+    "vault": "C:\\Users\\Humin\\AppData\\Local\\Temp\\cp1b-effect-21940\\vault",
+    "userData": "C:\\Users\\Humin\\AppData\\Local\\Temp\\cp1b-effect-21940\\userdata"
+  },
+  "fixture": {
+    "sourceBefore": "C3A8A3C63F3EE766D448D9FEA049B7A441C3A93E2A83EF05A9B439AE2F63182B",
+    "sourceAfter": "C3A8A3C63F3EE766D448D9FEA049B7A441C3A93E2A83EF05A9B439AE2F63182B",
+    "sourceUnchanged": true,
+    "copyBefore": "C3A8A3C63F3EE766D448D9FEA049B7A441C3A93E2A83EF05A9B439AE2F63182B",
+    "copyAfter": "3514C8AD39E116490B2B00802670C831EA7B93CDB1B37CE2A6B6CEA6C3268D16"
+  },
+  "before": {
+    "files": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md"
+    ],
+    "filters": null
+  },
+  "after": {
+    "files": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md"
+    ],
+    "filters": [
+      "80_excluded/"
+    ],
+    "hiddenCached": true
+  },
+  "persistedInProfile": []
+}

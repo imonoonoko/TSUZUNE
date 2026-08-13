@@ -1,0 +1,317 @@
+{
+  "capturedAt": "2026-08-11T19:38:36.941Z",
+  "stage": "CP0-T02 Obsidian malformed query probe (trailing-or)",
+  "status": "reference-captured",
+  "scope": {
+    "product": "Obsidian Desktop",
+    "version": "1.13.4",
+    "query": "Project OR",
+    "malformedQueryCase": "trailing-or",
+    "cameraProbe": false,
+    "nodeDragProbe": false,
+    "nodeMenuProbe": false,
+    "nodeNewTabProbe": false,
+    "attachmentNewTabProbe": false,
+    "attachmentNewWindowProbe": false,
+    "attachmentMoveProbe": false,
+    "attachmentMoveScenario": null,
+    "attachmentBookmarkProbe": false,
+    "attachmentBookmarkScenario": null,
+    "attachmentPathCopyProbe": false,
+    "attachmentPathCopyScenario": null,
+    "attachmentLinkedViewProbe": false,
+    "attachmentDefaultAppProbe": false,
+    "attachmentFolderRevealProbe": false,
+    "attachmentFileExplorerProbe": false,
+    "lifecycle": [
+      "entry",
+      "graph-close-reopen",
+      "full-app-restart"
+    ],
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "isolatedVault": "work/gp0-malformed-query-trailing-or-capture/obsidian-1.13.4/vault",
+    "observation": "docs/reports/assets/graph-gp0-malformed-query/trailing-or/obsidian-1.13.4/observation.json"
+  },
+  "evidenceBoundary": {
+    "established": [
+      "Fixed Obsidian Desktop 1.13.4 runtime and recorded binary hashes",
+      "Chromium CDP Input.dispatchMouseEvent/Input.dispatchKeyEvent against an offscreen Electron window",
+      "Fresh isolated Vault and user-data directory for each scenario",
+      "Graph close/reopen and a distinct second Obsidian process restart",
+      "Light theme at 1265x768, deviceScaleFactor 1"
+    ],
+    "notEstablished": [
+      "Physical mouse or keyboard input",
+      "Visible on-screen interaction",
+      "Touch or pen input",
+      "Screen reader or Windows High Contrast behavior",
+      "Multi-DPI or pixel-identical rendering parity"
+    ]
+  },
+  "runtime": {
+    "installer": {
+      "path": "C:\\Users\\Humin\\AppData\\Local\\Temp\\tsuzune-obsidian-reference-1.13.4\\Obsidian-1.13.4.exe",
+      "bytes": 326879800,
+      "sha256": "8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0"
+    },
+    "executable": {
+      "path": "C:\\Users\\Humin\\AppData\\Local\\Temp\\tsuzune-obsidian-reference-1.13.4\\runtime-gp6-x64\\Obsidian.exe",
+      "bytes": 225514256,
+      "sha256": "C01BBD79583037639F5422396CDDB457EF48E89E159CA50A8492BBD1F1F10775"
+    },
+    "obsidianAsar": {
+      "path": "C:\\Users\\Humin\\AppData\\Local\\Temp\\tsuzune-obsidian-reference-1.13.4\\runtime-gp6-x64\\resources\\obsidian.asar",
+      "bytes": 25783388,
+      "sha256": "51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917"
+    }
+  },
+  "assertions": {
+    "queryAccepted": true,
+    "queryVisibleAfterEntry": true,
+    "filteredNodesAfterEntry": true,
+    "queryPersistedAfterGraphReopen": true,
+    "filteredNodesAfterGraphReopen": true,
+    "firstProcessExitedBeforeRestart": true,
+    "secondProcessStarted": true,
+    "queryPersistedAfterAppRestart": true,
+    "filteredNodesAfterAppRestart": true,
+    "lightThemeEveryObservation": true,
+    "isolatedUserDataEverySession": true,
+    "isolatedVaultEverySession": true,
+    "offscreenEverySession": true,
+    "sourceUnchanged": true,
+    "isolatedVaultProtectedFilesExpected": true,
+    "protocolRestored": true
+  },
+  "cameraContract": null,
+  "nodeDragContract": null,
+  "nodeContextMenu": null,
+  "nodeNewTab": null,
+  "attachmentNewTab": null,
+  "attachmentNewWindow": null,
+  "attachmentMove": null,
+  "attachmentBookmark": null,
+  "attachmentPathCopy": null,
+  "attachmentPathCopyContract": null,
+  "attachmentLinkedView": null,
+  "attachmentLinkedViewContract": null,
+  "attachmentDefaultApp": null,
+  "attachmentDefaultAppContract": null,
+  "attachmentFolderReveal": null,
+  "attachmentFolderRevealContract": null,
+  "attachmentFileExplorer": null,
+  "attachmentFileExplorerContract": null,
+  "bookmarkCounts": null,
+  "bookmarkPersistence": null,
+  "protection": {
+    "sourceBefore": {
+      "fileCount": 9,
+      "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3",
+      "files": [
+        {
+          "path": ".tsuzune/graph-file-times.json",
+          "bytes": 389,
+          "sha256": "A0BD3AAB7EAB2E0A7EAF7B567986FD93257342CABA97B8AD966DC1D9D19675A8"
+        },
+        {
+          "path": "00_Home.md",
+          "bytes": 139,
+          "sha256": "6427EC7102182E41BFC3E01257DF47974411E6142E74DAF043EE0D83275E8245"
+        },
+        {
+          "path": "10_projects/Project Alpha.md",
+          "bytes": 126,
+          "sha256": "EA436466218EC04E5FE3FB980C0C461BD1BF88A040539352F386F3AEB271F151"
+        },
+        {
+          "path": "10_projects/Project Beta.md",
+          "bytes": 85,
+          "sha256": "3C64509F2D6BEEC2D671808300C0B74F2F1D013D34D771F6C95481A7BC4C5006"
+        },
+        {
+          "path": "20_knowledge/Distillation.md",
+          "bytes": 103,
+          "sha256": "0DAF1774CBED1CC3538294B379F13E8ADE4EBDDA39F240887D1ADF76866CFBAE"
+        },
+        {
+          "path": "20_knowledge/Reference.md",
+          "bytes": 58,
+          "sha256": "36A49D5209013A7B47841A3BCB51AD8EB5CF47589FE71BAE2A7064EDF6A46CB8"
+        },
+        {
+          "path": "80_excluded/Hidden.md",
+          "bytes": 35,
+          "sha256": "D939F2F96B1CC7D6AD7BA6148791DC1B3A1E9C2591570468718471C494F4470F"
+        },
+        {
+          "path": "90_orphan/Orphan.md",
+          "bytes": 71,
+          "sha256": "84BA3D8EC90330596B6DA14D61C15205D2A95ECE20A8C051626188CD1F010BAC"
+        },
+        {
+          "path": "attachments/diagram.svg",
+          "bytes": 442,
+          "sha256": "4D0C9C3B4080FB4FF53B7E327A81E65718AD7629DD1462A7815C06D8A6B322EA"
+        }
+      ]
+    },
+    "sourceAfter": {
+      "fileCount": 9,
+      "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3",
+      "files": [
+        {
+          "path": ".tsuzune/graph-file-times.json",
+          "bytes": 389,
+          "sha256": "A0BD3AAB7EAB2E0A7EAF7B567986FD93257342CABA97B8AD966DC1D9D19675A8"
+        },
+        {
+          "path": "00_Home.md",
+          "bytes": 139,
+          "sha256": "6427EC7102182E41BFC3E01257DF47974411E6142E74DAF043EE0D83275E8245"
+        },
+        {
+          "path": "10_projects/Project Alpha.md",
+          "bytes": 126,
+          "sha256": "EA436466218EC04E5FE3FB980C0C461BD1BF88A040539352F386F3AEB271F151"
+        },
+        {
+          "path": "10_projects/Project Beta.md",
+          "bytes": 85,
+          "sha256": "3C64509F2D6BEEC2D671808300C0B74F2F1D013D34D771F6C95481A7BC4C5006"
+        },
+        {
+          "path": "20_knowledge/Distillation.md",
+          "bytes": 103,
+          "sha256": "0DAF1774CBED1CC3538294B379F13E8ADE4EBDDA39F240887D1ADF76866CFBAE"
+        },
+        {
+          "path": "20_knowledge/Reference.md",
+          "bytes": 58,
+          "sha256": "36A49D5209013A7B47841A3BCB51AD8EB5CF47589FE71BAE2A7064EDF6A46CB8"
+        },
+        {
+          "path": "80_excluded/Hidden.md",
+          "bytes": 35,
+          "sha256": "D939F2F96B1CC7D6AD7BA6148791DC1B3A1E9C2591570468718471C494F4470F"
+        },
+        {
+          "path": "90_orphan/Orphan.md",
+          "bytes": 71,
+          "sha256": "84BA3D8EC90330596B6DA14D61C15205D2A95ECE20A8C051626188CD1F010BAC"
+        },
+        {
+          "path": "attachments/diagram.svg",
+          "bytes": 442,
+          "sha256": "4D0C9C3B4080FB4FF53B7E327A81E65718AD7629DD1462A7815C06D8A6B322EA"
+        }
+      ]
+    },
+    "isolatedVaultBefore": {
+      "fileCount": 9,
+      "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3",
+      "files": [
+        {
+          "path": ".tsuzune/graph-file-times.json",
+          "bytes": 389,
+          "sha256": "A0BD3AAB7EAB2E0A7EAF7B567986FD93257342CABA97B8AD966DC1D9D19675A8"
+        },
+        {
+          "path": "00_Home.md",
+          "bytes": 139,
+          "sha256": "6427EC7102182E41BFC3E01257DF47974411E6142E74DAF043EE0D83275E8245"
+        },
+        {
+          "path": "10_projects/Project Alpha.md",
+          "bytes": 126,
+          "sha256": "EA436466218EC04E5FE3FB980C0C461BD1BF88A040539352F386F3AEB271F151"
+        },
+        {
+          "path": "10_projects/Project Beta.md",
+          "bytes": 85,
+          "sha256": "3C64509F2D6BEEC2D671808300C0B74F2F1D013D34D771F6C95481A7BC4C5006"
+        },
+        {
+          "path": "20_knowledge/Distillation.md",
+          "bytes": 103,
+          "sha256": "0DAF1774CBED1CC3538294B379F13E8ADE4EBDDA39F240887D1ADF76866CFBAE"
+        },
+        {
+          "path": "20_knowledge/Reference.md",
+          "bytes": 58,
+          "sha256": "36A49D5209013A7B47841A3BCB51AD8EB5CF47589FE71BAE2A7064EDF6A46CB8"
+        },
+        {
+          "path": "80_excluded/Hidden.md",
+          "bytes": 35,
+          "sha256": "D939F2F96B1CC7D6AD7BA6148791DC1B3A1E9C2591570468718471C494F4470F"
+        },
+        {
+          "path": "90_orphan/Orphan.md",
+          "bytes": 71,
+          "sha256": "84BA3D8EC90330596B6DA14D61C15205D2A95ECE20A8C051626188CD1F010BAC"
+        },
+        {
+          "path": "attachments/diagram.svg",
+          "bytes": 442,
+          "sha256": "4D0C9C3B4080FB4FF53B7E327A81E65718AD7629DD1462A7815C06D8A6B322EA"
+        }
+      ]
+    },
+    "isolatedVaultAfter": {
+      "fileCount": 9,
+      "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3",
+      "files": [
+        {
+          "path": ".tsuzune/graph-file-times.json",
+          "bytes": 389,
+          "sha256": "A0BD3AAB7EAB2E0A7EAF7B567986FD93257342CABA97B8AD966DC1D9D19675A8"
+        },
+        {
+          "path": "00_Home.md",
+          "bytes": 139,
+          "sha256": "6427EC7102182E41BFC3E01257DF47974411E6142E74DAF043EE0D83275E8245"
+        },
+        {
+          "path": "10_projects/Project Alpha.md",
+          "bytes": 126,
+          "sha256": "EA436466218EC04E5FE3FB980C0C461BD1BF88A040539352F386F3AEB271F151"
+        },
+        {
+          "path": "10_projects/Project Beta.md",
+          "bytes": 85,
+          "sha256": "3C64509F2D6BEEC2D671808300C0B74F2F1D013D34D771F6C95481A7BC4C5006"
+        },
+        {
+          "path": "20_knowledge/Distillation.md",
+          "bytes": 103,
+          "sha256": "0DAF1774CBED1CC3538294B379F13E8ADE4EBDDA39F240887D1ADF76866CFBAE"
+        },
+        {
+          "path": "20_knowledge/Reference.md",
+          "bytes": 58,
+          "sha256": "36A49D5209013A7B47841A3BCB51AD8EB5CF47589FE71BAE2A7064EDF6A46CB8"
+        },
+        {
+          "path": "80_excluded/Hidden.md",
+          "bytes": 35,
+          "sha256": "D939F2F96B1CC7D6AD7BA6148791DC1B3A1E9C2591570468718471C494F4470F"
+        },
+        {
+          "path": "90_orphan/Orphan.md",
+          "bytes": 71,
+          "sha256": "84BA3D8EC90330596B6DA14D61C15205D2A95ECE20A8C051626188CD1F010BAC"
+        },
+        {
+          "path": "attachments/diagram.svg",
+          "bytes": 442,
+          "sha256": "4D0C9C3B4080FB4FF53B7E327A81E65718AD7629DD1462A7815C06D8A6B322EA"
+        }
+      ]
+    },
+    "protocolBefore": {
+      "exists": false,
+      "text": ""
+    },
+    "protocolRestored": true
+  }
+}

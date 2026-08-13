@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   buildWikiGraph,
@@ -18,6 +19,31 @@ function note(path: string, content = ''): NoteDocument {
     modifiedAt: 0,
     size: Buffer.byteLength(content)
   }
+}
+
+const GRAPH_PARITY_FIXTURE_PATHS = [
+  '00_Home.md',
+  '10_projects/Project Alpha.md',
+  '10_projects/Project Beta.md',
+  '20_knowledge/Distillation.md',
+  '20_knowledge/Reference.md',
+  '80_excluded/Hidden.md',
+  '90_orphan/Orphan.md'
+] as const
+
+function graphParityFixtureNotes(): NoteDocument[] {
+  return GRAPH_PARITY_FIXTURE_PATHS.map((path) =>
+    note(
+      path,
+      readFileSync(
+        new URL(
+          `../fixtures/obsidian-graph-parity-vault/${path}`,
+          import.meta.url
+        ),
+        'utf8'
+      )
+    )
+  )
 }
 
 function existingNode(path: string, name: string) {
@@ -87,13 +113,13 @@ describe('Wiki graph', () => {
       nodes: [
         existingNode('A.md', 'A'),
         {
-          path: '未作成.md',
+          path: '未作成',
           name: '未作成',
           kind: 'unresolved',
           exists: false
         }
       ],
-      edges: [{ sourcePath: 'A.md', targetPath: '未作成.md' }]
+      edges: [{ sourcePath: 'A.md', targetPath: '未作成' }]
     })
   })
 
@@ -151,7 +177,7 @@ describe('Wiki graph', () => {
     const defaultGraph = buildWikiGraph(notes)
     expect(defaultGraph.nodes.every((node) => node.kind === 'note')).toBe(true)
     expect(defaultGraph.nodes.every((node) => node.exists === true)).toBe(true)
-    expect(defaultGraph.nodes.some((node) => node.path === '未作成.md')).toBe(false)
+    expect(defaultGraph.nodes.some((node) => node.path === '未作成')).toBe(false)
 
     expect(buildWikiGraph(notes, { includeUnresolved: true })).toEqual({
       nodes: [
@@ -160,13 +186,13 @@ describe('Wiki graph', () => {
         { path: '仕事/議事録.md', name: '議事録', kind: 'note', exists: true },
         { path: '知識/既存.md', name: '既存', kind: 'note', exists: true },
         { path: '入口.md', name: '入口', kind: 'note', exists: true },
-        { path: '未作成.md', name: '未作成', kind: 'unresolved', exists: false },
-        { path: '予定/あとで作る.md', name: 'あとで作る', kind: 'unresolved', exists: false }
+        { path: '未作成', name: '未作成', kind: 'unresolved', exists: false },
+        { path: '予定/あとで作る', name: 'あとで作る', kind: 'unresolved', exists: false }
       ],
       edges: [
         { sourcePath: '入口.md', targetPath: '知識/既存.md' },
-        { sourcePath: '入口.md', targetPath: '未作成.md' },
-        { sourcePath: '入口.md', targetPath: '予定/あとで作る.md' }
+        { sourcePath: '入口.md', targetPath: '未作成' },
+        { sourcePath: '入口.md', targetPath: '予定/あとで作る' }
       ]
     })
   })
@@ -512,6 +538,44 @@ describe('Wiki graph', () => {
     })
 
     expect(filterWikiGraph(graph, '入口.md', '   ')).toBe(graph)
+  })
+
+  it('matches the Obsidian unresolved-node sets for malformed graph queries', () => {
+    const projectNodePaths = [
+      '00_Home.md',
+      '10_projects/Project Alpha.md',
+      '10_projects/Project Beta.md',
+      '20_knowledge/Distillation.md',
+      'Missing Note'
+    ]
+    const allNodePaths = [
+      '00_Home.md',
+      '10_projects/Project Alpha.md',
+      '10_projects/Project Beta.md',
+      '20_knowledge/Distillation.md',
+      '20_knowledge/Reference.md',
+      '80_excluded/Hidden.md',
+      '90_orphan/Orphan.md',
+      'Missing Note'
+    ]
+    const cases: Array<[string, string[]]> = [
+      ['"Project', projectNodePaths],
+      ['Project OR', projectNodePaths],
+      ['(Project', projectNodePaths],
+      ['/Project', projectNodePaths],
+      ['[status:Act', []],
+      ['/(?/', allNodePaths],
+      ['(', []]
+    ]
+    const notes = graphParityFixtureNotes()
+    const graph = buildWikiGraph(notes, { includeUnresolved: true })
+
+    for (const [query, expectedNodePaths] of cases) {
+      const nodePaths = filterWikiGraph(graph, null, query, notes).nodes.map(
+        (node) => node.path
+      )
+      expect(nodePaths, query).toEqual(expectedNodePaths)
+    }
   })
 
   it('uses Obsidian search operators against note content and tags', () => {

@@ -806,7 +806,8 @@ export function matchesGraphQuery(
       field: 'all',
       caseSensitive: false
     })
-  } catch {
-    return false
+  } catch (error) {
+    // Obsidian ignores a regex that cannot compile, but keeps other malformed expressions closed.
+    return error instanceof SyntaxError
   }
 }

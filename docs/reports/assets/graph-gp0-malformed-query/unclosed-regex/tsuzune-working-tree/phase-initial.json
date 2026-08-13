@@ -1,0 +1,325 @@
+{
+  "phase": "initial",
+  "processId": 12496,
+  "windowGeometry": {
+    "frame": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1280,
+      "height": 800
+    },
+    "electronContentBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1280,
+      "height": 800
+    },
+    "rendererViewport": {
+      "width": 1280,
+      "height": 800,
+      "devicePixelRatio": 1
+    }
+  },
+  "graphClosed": true,
+  "baseline": {
+    "query": "/Project",
+    "graphLabel": "Vault全体グラフ",
+    "searchDiagnostics": {
+      "inputAriaInvalid": null,
+      "inputClasses": [],
+      "visibleErrorTexts": []
+    },
+    "settingsPanelVisible": true,
+    "filterSectionVisible": true,
+    "nodePaths": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md"
+    ],
+    "nodeDetails": [
+      {
+        "path": "00_Home.md",
+        "ariaLabel": "00_Home（現在のノート）",
+        "classes": [
+          "is-current",
+          "wiki-graph-node"
+        ]
+      },
+      {
+        "path": "10_projects/Project Alpha.md",
+        "ariaLabel": "Project Alpha（相互リンク）を開く",
+        "classes": [
+          "is-both",
+          "wiki-graph-node"
+        ]
+      },
+      {
+        "path": "10_projects/Project Beta.md",
+        "ariaLabel": "Project Beta（関連ノート）を開く",
+        "classes": [
+          "is-related",
+          "wiki-graph-node"
+        ]
+      },
+      {
+        "path": "20_knowledge/Distillation.md",
+        "ariaLabel": "Distillation（関連ノート）を開く",
+        "classes": [
+          "is-related",
+          "wiki-graph-node"
+        ]
+      }
+    ],
+    "edgeCount": 3,
+    "edgeSignature": null,
+    "stageTransform": "translate(0px, 0px) scale(1)",
+    "tabs": [
+      {
+        "label": "00_Home",
+        "selected": false
+      },
+      {
+        "label": "グラフビュー",
+        "selected": true
+      }
+    ],
+    "targetNode": {
+      "path": "00_Home.md",
+      "x": 104.35,
+      "y": 12.1293,
+      "clientX": 754.34375,
+      "clientY": 446.859375,
+      "dotWidth": 16,
+      "dotHeight": 16,
+      "styleLeft": "calc(50% + 104.35px)",
+      "styleTop": "calc(50% - 12.1293px)"
+    },
+    "canvasRect": {
+      "x": 260,
+      "y": 148,
+      "width": 780,
+      "height": 622
+    },
+    "dimensions": {
+      "innerWidth": 1280,
+      "innerHeight": 800,
+      "devicePixelRatio": 1
+    }
+  },
+  "input": null,
+  "duringDrag": null,
+  "afterReleaseImmediate": null,
+  "afterRelease250ms": null,
+  "nodeContextMenu": null,
+  "nodeNewTab": null,
+  "graphWorkspaceTab": null,
+  "attachmentContextMenu": null,
+  "attachmentNewTab": null,
+  "attachmentNewWindow": null,
+  "attachmentMove": null,
+  "attachmentBookmark": null,
+  "attachmentPathCopy": null,
+  "attachmentLinkedView": null,
+  "attachmentDefaultApp": null,
+  "attachmentFolderReveal": null,
+  "entered": {
+    "query": "/Project",
+    "graphLabel": "Vault全体グラフ",
+    "searchDiagnostics": {
+      "inputAriaInvalid": null,
+      "inputClasses": [],
+      "visibleErrorTexts": []
+    },
+    "settingsPanelVisible": true,
+    "filterSectionVisible": true,
+    "nodePaths": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md"
+    ],
+    "nodeDetails": [
+      {
+        "path": "00_Home.md",
+        "ariaLabel": "00_Home（現在のノート）",
+        "classes": [
+          "is-current",
+          "wiki-graph-node"
+        ]
+      },
+      {
+        "path": "10_projects/Project Alpha.md",
+        "ariaLabel": "Project Alpha（相互リンク）を開く",
+        "classes": [
+          "is-both",
+          "wiki-graph-node"
+        ]
+      },
+      {
+        "path": "10_projects/Project Beta.md",
+        "ariaLabel": "Project Beta（関連ノート）を開く",
+        "classes": [
+          "is-related",
+          "wiki-graph-node"
+        ]
+      },
+      {
+        "path": "20_knowledge/Distillation.md",
+        "ariaLabel": "Distillation（関連ノート）を開く",
+        "classes": [
+          "is-related",
+          "wiki-graph-node"
+        ]
+      }
+    ],
+    "edgeCount": 3,
+    "edgeSignature": null,
+    "stageTransform": "translate(0px, 0px) scale(1)",
+    "tabs": [
+      {
+        "label": "00_Home",
+        "selected": false
+      },
+      {
+        "label": "グラフビュー",
+        "selected": true
+      }
+    ],
+    "targetNode": {
+      "path": "00_Home.md",
+      "x": 104.35,
+      "y": 12.1293,
+      "clientX": 754.34375,
+      "clientY": 446.859375,
+      "dotWidth": 16,
+      "dotHeight": 16,
+      "styleLeft": "calc(50% + 104.35px)",
+      "styleTop": "calc(50% - 12.1293px)"
+    },
+    "canvasRect": {
+      "x": 260,
+      "y": 148,
+      "width": 780,
+      "height": 622
+    },
+    "dimensions": {
+      "innerWidth": 1280,
+      "innerHeight": 800,
+      "devicePixelRatio": 1
+    }
+  },
+  "reopened": {
+    "query": "/Project",
+    "graphLabel": "Vault全体グラフ",
+    "searchDiagnostics": {
+      "inputAriaInvalid": null,
+      "inputClasses": [],
+      "visibleErrorTexts": []
+    },
+    "settingsPanelVisible": true,
+    "filterSectionVisible": true,
+    "nodePaths": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md"
+    ],
+    "nodeDetails": [
+      {
+        "path": "00_Home.md",
+        "ariaLabel": "00_Home（現在のノート）",
+        "classes": [
+          "is-current",
+          "wiki-graph-node"
+        ]
+      },
+      {
+        "path": "10_projects/Project Alpha.md",
+        "ariaLabel": "Project Alpha（相互リンク）を開く",
+        "classes": [
+          "is-both",
+          "wiki-graph-node"
+        ]
+      },
+      {
+        "path": "10_projects/Project Beta.md",
+        "ariaLabel": "Project Beta（関連ノート）を開く",
+        "classes": [
+          "is-related",
+          "wiki-graph-node"
+        ]
+      },
+      {
+        "path": "20_knowledge/Distillation.md",
+        "ariaLabel": "Distillation（関連ノート）を開く",
+        "classes": [
+          "is-related",
+          "wiki-graph-node"
+        ]
+      }
+    ],
+    "edgeCount": 3,
+    "edgeSignature": null,
+    "stageTransform": "translate(0px, 0px) scale(1)",
+    "tabs": [
+      {
+        "label": "00_Home",
+        "selected": false
+      },
+      {
+        "label": "グラフビュー",
+        "selected": true
+      }
+    ],
+    "targetNode": {
+      "path": "00_Home.md",
+      "x": 101.492,
+      "y": 39.4243,
+      "clientX": 751.484375,
+      "clientY": 419.5625,
+      "dotWidth": 16,
+      "dotHeight": 16,
+      "styleLeft": "calc(50% + 101.492px)",
+      "styleTop": "calc(50% - 39.4243px)"
+    },
+    "canvasRect": {
+      "x": 260,
+      "y": 148,
+      "width": 780,
+      "height": 622
+    },
+    "dimensions": {
+      "innerWidth": 1280,
+      "innerHeight": 800,
+      "devicePixelRatio": 1
+    }
+  },
+  "settingsGraphViewState": {
+    "scale": 1,
+    "query": "/Project",
+    "settingsOpen": true,
+    "settingsSections": {
+      "filters": true,
+      "groups": false,
+      "display": false,
+      "forces": false
+    }
+  },
+  "screenshots": [
+    {
+      "file": "01-query-entered.png",
+      "bytes": 113654,
+      "sha256": "522F44CDA0A39F456D35B68C31A7133DD92B57A94A72D7BEA3A7276CF2993F8F",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "file": "02-graph-reopened.png",
+      "bytes": 114511,
+      "sha256": "250BAF661B2A88AB107138015EE4494F78B05E9DC2241B6A009990B34575264F",
+      "width": 1280,
+      "height": 800
+    }
+  ]
+}

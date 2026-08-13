@@ -1794,6 +1794,14 @@ describe('App data-loss guards', () => {
     expect(api.revealVaultFile).toHaveBeenCalledOnce()
     expect(api.revealVaultFile).toHaveBeenCalledWith('assets/diagram.svg')
 
+    vi.mocked(api.revealVaultFile).mockClear()
+    fireEvent.contextMenu(
+      screen.getByRole('button', { name: 'A（現在のノート）' })
+    )
+    fireEvent.click(screen.getByRole('menuitem', { name: 'フォルダで表示' }))
+    expect(api.revealVaultFile).toHaveBeenCalledOnce()
+    expect(api.revealVaultFile).toHaveBeenCalledWith('A.md')
+
     vi.mocked(api.openVaultFile).mockResolvedValueOnce({
       ok: false,
       error: { code: 'UNKNOWN', message: '既定アプリを開けません。' }

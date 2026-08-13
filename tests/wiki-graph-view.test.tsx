@@ -1002,6 +1002,12 @@ describe('WikiGraphView', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Obsidian URL として' }))
     expect(onCopyPath).toHaveBeenLastCalledWith('A.md', 'obsidian-url')
 
+    fireEvent.contextMenu(
+      screen.getByRole('button', { name: 'A（現在のノート）' })
+    )
+    await user.click(screen.getByRole('menuitem', { name: 'フォルダで表示' }))
+    expect(onRevealInFolder).toHaveBeenLastCalledWith('A.md')
+
     const canvas = document.querySelector('.wiki-graph-canvas')
     expect(canvas).toBeTruthy()
     Object.defineProperty(canvas, 'clientWidth', {
@@ -1033,7 +1039,7 @@ describe('WikiGraphView', () => {
     ).toBeNull()
     expect(
       screen.queryByRole('menuitem', { name: 'フォルダで表示' })
-    ).toBeNull()
+    ).toBeTruthy()
     await user.click(screen.getByRole('menuitem', { name: 'ファイルを移動…' }))
     expect(onMove).toHaveBeenLastCalledWith('A.md')
   })

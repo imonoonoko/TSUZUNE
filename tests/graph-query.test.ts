@@ -155,13 +155,13 @@ describe('Obsidian graph search query', () => {
     expect(matchesGraphQuery(properties, '[owners:(Alice Jones)]')).toBe(false)
   })
 
-  it('keeps valid in-progress input searchable while invalid regex stays closed', () => {
+  it('keeps valid in-progress input and compile-invalid regex searchable', () => {
     expect(matchesGraphQuery(document, '"whisky')).toBe(true)
     expect(matchesGraphQuery(document, 'whisky OR')).toBe(true)
     expect(matchesGraphQuery(document, '(TSUZUNE')).toBe(true)
     expect(matchesGraphQuery(document, '/whis')).toBe(true)
     expect(matchesGraphQuery(document, '[status:Act')).toBe(true)
-    expect(matchesGraphQuery(document, '/(?/')).toBe(false)
+    expect(matchesGraphQuery(document, '/(?/')).toBe(true)
   })
 
   it('requires file or path operators to match binary attachment names', () => {
@@ -176,9 +176,9 @@ describe('Obsidian graph search query', () => {
     expect(matchesGraphQuery(attachment, 'path:attachments')).toBe(true)
   })
 
-  it('treats an empty query as visible and malformed queries as no match', () => {
+  it('keeps compile-invalid regex open while expressionless groups stay closed', () => {
     expect(matchesGraphQuery(document, '')).toBe(true)
     expect(matchesGraphQuery(document, '(')).toBe(false)
-    expect(matchesGraphQuery(document, '/[/')).toBe(false)
+    expect(matchesGraphQuery(document, '/[/')).toBe(true)
   })
 })

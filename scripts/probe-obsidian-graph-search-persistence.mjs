@@ -7,6 +7,15 @@ import { relative, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const repoRoot = resolve(import.meta.dirname, '..')
+const malformedQueryCase = process.env.TSUZUNE_GRAPH_MALFORMED_QUERY_CASE?.trim() ?? ''
+const malformedQueryProbe = malformedQueryCase.length > 0
+const malformedQuery = process.env.TSUZUNE_GRAPH_SEARCH_QUERY
+if (malformedQueryProbe && malformedQuery === undefined) {
+  throw new Error('TSUZUNE_GRAPH_SEARCH_QUERY を指定してください。')
+}
+if (malformedQueryProbe && !/^[a-z0-9-]+$/.test(malformedQueryCase)) {
+  throw new Error('TSUZUNE_GRAPH_MALFORMED_QUERY_CASE は英小文字、数字、ハイフンで指定してください。')
+}
 const cameraProbe =
   process.argv.includes('--camera') || process.env.TSUZUNE_GRAPH_CAMERA_PROBE === '1'
 const nodeDragProbe =
@@ -89,14 +98,17 @@ if (
     attachmentLinkedViewProbe,
     attachmentDefaultAppProbe,
     attachmentFolderRevealProbe,
-    attachmentFileExplorerProbe
+    attachmentFileExplorerProbe,
+    malformedQueryProbe
   ].filter(Boolean).length > 1
 ) {
   throw new Error(
     '--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move、--attachment-bookmark、--attachment-path-copy、--attachment-linked-view、--attachment-default-app、--attachment-folder-reveal、--attachment-file-explorer は同時に指定できません。'
   )
 }
-const probeKind = attachmentFolderRevealProbe
+const probeKind = malformedQueryProbe
+  ? `malformed-query-${malformedQueryCase}`
+  : attachmentFolderRevealProbe
   ? 'attachment-folder-reveal'
   : attachmentFileExplorerProbe
   ? 'attachment-file-explorer'
@@ -135,7 +147,9 @@ const vaultDirectory = resolve(referenceWorkDirectory, 'vault')
 const userDataDirectory = resolve(referenceWorkDirectory, 'userdata')
 const outputRoot = resolve(
   repoRoot,
-  attachmentPathCopyProbe
+  malformedQueryProbe
+    ? `docs/reports/assets/graph-gp0-malformed-query/${malformedQueryCase}`
+    : attachmentPathCopyProbe
     ? `docs/reports/assets/graph-gp0-attachment-path-copy/${attachmentPathCopyScenario}`
     : attachmentFolderRevealProbe
     ? 'docs/reports/assets/graph-gp0-attachment-folder-reveal'
@@ -184,7 +198,11 @@ const expected = {
   installerSha256: '8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0',
   asarSha256: '51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917',
   markdownCount: 7,
-  search: cameraProbe || nodeDragProbe || nodeMenuProbe ? '' : 'path:"10_projects"',
+  search: malformedQueryProbe
+    ? malformedQuery
+    : cameraProbe || nodeDragProbe || nodeMenuProbe
+      ? ''
+      : 'path:"10_projects"',
   filteredNodeIds: attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentNativeInterceptProbe
     ? [
         '00_Home.md',
@@ -617,6 +635,17 @@ async function observeGraph(cdp, label) {
       left.source.localeCompare(right.source) || left.target.localeCompare(right.target)
     )
     const input = document.querySelector('.graph-control-section.mod-filter input[type="search"]')
+    const filterSection = input?.closest('.graph-control-section.mod-filter')
+    const visibleText = (element) => {
+      const style = getComputedStyle(element)
+      if (style.display === 'none' || style.visibility === 'hidden') return null
+      const text = element.textContent?.replace(/\\s+/g, ' ').trim()
+      return text || null
+    }
+    const searchErrorTexts = [
+      ...(filterSection?.querySelectorAll('[role="alert"], .mod-error, .mod-warning') ?? []),
+      ...document.querySelectorAll('.notice-container .notice')
+    ].map(visibleText).filter(Boolean)
     const window = require('@electron/remote').getCurrentWindow()
     const interactiveBounds = view.renderer.interactiveEl?.getBoundingClientRect() ?? null
     const targetNode = view.renderer.nodes.find(
@@ -661,6 +690,11 @@ async function observeGraph(cdp, label) {
       })),
       searchInputValue: input?.value ?? null,
       graphOptionsSearch: view.dataEngine.getOptions().search,
+      searchDiagnostics: {
+        inputAriaInvalid: input?.getAttribute('aria-invalid') ?? null,
+        inputClasses: input ? [...input.classList].sort() : [],
+        visibleErrorTexts: [...new Set(searchErrorTexts)]
+      },
       camera: {
         targetScale: view.renderer.targetScale,
         scale: view.renderer.scale,
@@ -780,7 +814,24 @@ async function setGraphSearch(cdp, query) {
     cdp,
     `app.workspace.getLeavesOfType('graph')[0]?.view.dataEngine.getOptions().search === ${JSON.stringify(query)}`
   )
-  if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe && !attachmentNativeInterceptProbe) {
+  if (malformedQueryProbe) {
+    const deadline = Date.now() + 10_000
+    let previous = null
+    let stableSamples = 0
+    while (Date.now() < deadline) {
+      const nodeIds = await cdp.evaluate(
+        `app.workspace.getLeavesOfType('graph')[0]?.view.renderer.nodes.map(${nodeIdExpression()}).filter(Boolean).sort() ?? []`
+      )
+      const current = JSON.stringify(nodeIds)
+      stableSamples = current === previous ? stableSamples + 1 : 0
+      if (stableSamples >= 3) break
+      previous = current
+      await delay(200)
+    }
+    if (stableSamples < 3) {
+      throw new Error('Obsidianのmalformed query node集合が安定しませんでした。')
+    }
+  } else if (!attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe && !attachmentNativeInterceptProbe) {
     await waitForRenderer(
       cdp,
       `JSON.stringify(app.workspace.getLeavesOfType('graph')[0]?.view.renderer.nodes.map(${nodeIdExpression()}).filter(Boolean).sort()) === ${JSON.stringify(JSON.stringify(expected.filteredNodeIds))}`
@@ -3278,14 +3329,15 @@ async function main() {
   const assertions = {
     queryAccepted: observations.afterEntry.graphOptionsSearch === expected.search,
     queryVisibleAfterEntry: observations.afterEntry.searchInputValue === expected.search,
-    filteredNodesAfterEntry: exactNodeIds(observations.afterEntry),
+    filteredNodesAfterEntry: malformedQueryProbe
+      ? Array.isArray(observations.afterEntry.renderedNodeIds)
+      : exactNodeIds(observations.afterEntry),
     queryPersistedAfterGraphReopen:
       observations.afterGraphReopen.graphOptionsSearch === expected.search &&
       observations.afterGraphReopen.searchInputValue === expected.search,
-    filteredNodesAfterGraphReopen: exactNodeIds(
-      observations.afterGraphReopen,
-      expectedAfterActionNodeIds
-    ),
+    filteredNodesAfterGraphReopen: malformedQueryProbe
+      ? Array.isArray(observations.afterGraphReopen.renderedNodeIds)
+      : exactNodeIds(observations.afterGraphReopen, expectedAfterActionNodeIds),
     ...(attachmentNativeInterceptProbe
       ? {
           firstProcessExited: observations.sessions[0].exited !== null,
@@ -3299,10 +3351,9 @@ async function main() {
           queryPersistedAfterAppRestart:
             observations.afterAppRestart.graphOptionsSearch === expected.search &&
             observations.afterAppRestart.searchInputValue === expected.search,
-          filteredNodesAfterAppRestart: exactNodeIds(
-            observations.afterAppRestart,
-            expectedAfterActionNodeIds
-          )
+          filteredNodesAfterAppRestart: malformedQueryProbe
+            ? Array.isArray(observations.afterAppRestart.renderedNodeIds)
+            : exactNodeIds(observations.afterAppRestart, expectedAfterActionNodeIds)
         }),
     ...(nodeMenuProbe
       ? {
@@ -3794,7 +3845,9 @@ async function main() {
   }
   const manifest = {
     capturedAt: new Date().toISOString(),
-    stage: attachmentFolderRevealProbe
+    stage: malformedQueryProbe
+      ? `CP0-T02 Obsidian malformed query probe (${malformedQueryCase})`
+      : attachmentFolderRevealProbe
       ? 'GP0-3b-o Obsidian Global Graph attachment folder-reveal probe'
       : attachmentFileExplorerProbe
       ? 'GP0-3b-p Obsidian Global Graph attachment file-explorer reveal probe'
@@ -3826,6 +3879,7 @@ async function main() {
       product: 'Obsidian Desktop',
       version: expected.version,
       query: expected.search,
+      malformedQueryCase: malformedQueryProbe ? malformedQueryCase : null,
       cameraProbe,
       nodeDragProbe,
       nodeMenuProbe,

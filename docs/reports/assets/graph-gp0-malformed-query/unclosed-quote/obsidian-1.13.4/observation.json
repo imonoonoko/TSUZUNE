@@ -1,0 +1,1031 @@
+{
+  "expected": {
+    "version": "1.13.4",
+    "installerSha256": "8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0",
+    "asarSha256": "51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917",
+    "markdownCount": 7,
+    "search": "\"Project",
+    "filteredNodeIds": [
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md"
+    ],
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "attachmentLinkedView": {
+      "targetNodeId": "attachments/diagram.svg",
+      "parentLabel": "リンクされたビューを開く",
+      "menuItems": [
+        "diagram.svg",
+        "新規タブに開く",
+        "新規ウィンドウで開く",
+        "ファイルを移動…",
+        "ブックマーク…",
+        "パスをコピー",
+        "リンクされたビューを開く",
+        "デフォルトアプリで開く",
+        "フォルダで表示",
+        "ファイルエクスプローラでファイルを表示",
+        "ファイルを削除"
+      ]
+    },
+    "attachmentDefaultApp": {
+      "targetNodeId": "attachments/diagram.svg",
+      "actionLabel": "デフォルトアプリで開く",
+      "requestedUrl": "file:///C:/Users/Humin/Documents/Codex/TSUZUNE/work/gp0-malformed-query-unclosed-quote-capture/obsidian-1.13.4/vault/attachments/diagram.svg",
+      "menuItems": [
+        "diagram.svg",
+        "新規タブに開く",
+        "新規ウィンドウで開く",
+        "ファイルを移動…",
+        "ブックマーク…",
+        "パスをコピー",
+        "リンクされたビューを開く",
+        "デフォルトアプリで開く",
+        "フォルダで表示",
+        "ファイルエクスプローラでファイルを表示",
+        "ファイルを削除"
+      ]
+    },
+    "attachmentFolderReveal": {
+      "targetNodeId": "attachments/diagram.svg",
+      "actionLabel": "フォルダで表示",
+      "requestedPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-malformed-query-unclosed-quote-capture\\obsidian-1.13.4\\vault\\attachments\\diagram.svg",
+      "menuItems": [
+        "diagram.svg",
+        "新規タブに開く",
+        "新規ウィンドウで開く",
+        "ファイルを移動…",
+        "ブックマーク…",
+        "パスをコピー",
+        "リンクされたビューを開く",
+        "デフォルトアプリで開く",
+        "フォルダで表示",
+        "ファイルエクスプローラでファイルを表示",
+        "ファイルを削除"
+      ]
+    },
+    "attachmentFileExplorer": {
+      "targetNodeId": "attachments/diagram.svg",
+      "actionLabel": "ファイルエクスプローラでファイルを表示",
+      "requestedPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-malformed-query-unclosed-quote-capture\\obsidian-1.13.4\\vault\\attachments\\diagram.svg",
+      "menuItems": [
+        "diagram.svg",
+        "新規タブに開く",
+        "新規ウィンドウで開く",
+        "ファイルを移動…",
+        "ブックマーク…",
+        "パスをコピー",
+        "リンクされたビューを開く",
+        "デフォルトアプリで開く",
+        "フォルダで表示",
+        "ファイルエクスプローラでファイルを表示",
+        "ファイルを削除"
+      ]
+    },
+    "drag": {
+      "targetNodeId": "00_Home.md",
+      "deltaX": 96,
+      "deltaY": 64
+    }
+  },
+  "afterEntry": {
+    "label": "after-entry",
+    "capturedAt": "2026-08-11T19:37:33.552Z",
+    "processId": 17060,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-malformed-query-unclosed-quote-capture\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "activeFile": null,
+    "activeLeaf": {
+      "id": "8f08c5386016db73",
+      "viewType": "graph",
+      "filePath": null
+    },
+    "tabHeaders": [
+      {
+        "ariaLabel": "ファイルエクスプローラ",
+        "title": null,
+        "text": "ファイルエクスプローラ",
+        "classes": [
+          "is-active",
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "検索",
+        "title": null,
+        "text": "検索",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "ブックマーク",
+        "title": null,
+        "text": "ブックマーク",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "グラフビュー",
+        "title": null,
+        "text": "グラフビュー",
+        "classes": [
+          "is-active",
+          "mod-active",
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "バックリンク",
+        "title": null,
+        "text": "バックリンク",
+        "classes": [
+          "is-active",
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "アウトゴーイングリンク",
+        "title": null,
+        "text": "アウトゴーイングリンク",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "タグ",
+        "title": null,
+        "text": "タグ",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "すべてのプロパティ",
+        "title": null,
+        "text": "すべてのプロパティ",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "アウトライン",
+        "title": null,
+        "text": "アウトライン",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      }
+    ],
+    "searchInputValue": "\"Project",
+    "graphOptionsSearch": "\"Project",
+    "searchDiagnostics": {
+      "inputAriaInvalid": null,
+      "inputClasses": [],
+      "visibleErrorTexts": []
+    },
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "Missing Note"
+    ],
+    "renderedNodeCount": 5,
+    "renderedLinkCount": 7,
+    "renderedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md"
+      },
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md"
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md"
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md"
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md"
+      }
+    ],
+    "metadataResolvedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "20_knowledge/Reference.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "attachments/diagram.svg",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "20_knowledge/Reference.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "20_knowledge/Distillation.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "80_excluded/Hidden.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      }
+    ],
+    "metadataUnresolvedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note",
+        "count": 1,
+        "resolved": false
+      }
+    ],
+    "targetNode": {
+      "id": "00_Home.md",
+      "x": -27.46111297607422,
+      "y": 108.52406311035156,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 777.0388870239258,
+      "clientY": 531.4928131103516
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-malformed-query/unclosed-quote/obsidian-1.13.4/01-after-entry.png",
+      "bytes": 49280,
+      "sha256": "3291A4409D88CF328FFDF1EAAFEFF79680E4CAD07A91602646E1D95F1CE381AF"
+    }
+  },
+  "afterGraphReopen": {
+    "label": "after-graph-reopen",
+    "capturedAt": "2026-08-11T19:37:35.020Z",
+    "processId": 17060,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-malformed-query-unclosed-quote-capture\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "activeFile": null,
+    "activeLeaf": {
+      "id": "765163f38dd1a40c",
+      "viewType": "graph",
+      "filePath": null
+    },
+    "tabHeaders": [
+      {
+        "ariaLabel": "ファイルエクスプローラ",
+        "title": null,
+        "text": "ファイルエクスプローラ",
+        "classes": [
+          "is-active",
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "検索",
+        "title": null,
+        "text": "検索",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "ブックマーク",
+        "title": null,
+        "text": "ブックマーク",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "グラフビュー",
+        "title": null,
+        "text": "グラフビュー",
+        "classes": [
+          "is-active",
+          "mod-active",
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "バックリンク",
+        "title": null,
+        "text": "バックリンク",
+        "classes": [
+          "is-active",
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "アウトゴーイングリンク",
+        "title": null,
+        "text": "アウトゴーイングリンク",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "タグ",
+        "title": null,
+        "text": "タグ",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "すべてのプロパティ",
+        "title": null,
+        "text": "すべてのプロパティ",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "アウトライン",
+        "title": null,
+        "text": "アウトライン",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      }
+    ],
+    "searchInputValue": "\"Project",
+    "graphOptionsSearch": "\"Project",
+    "searchDiagnostics": {
+      "inputAriaInvalid": null,
+      "inputClasses": [],
+      "visibleErrorTexts": []
+    },
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "Missing Note"
+    ],
+    "renderedNodeCount": 5,
+    "renderedLinkCount": 7,
+    "renderedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md"
+      },
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md"
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md"
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md"
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md"
+      }
+    ],
+    "metadataResolvedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "20_knowledge/Reference.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "attachments/diagram.svg",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "20_knowledge/Reference.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "20_knowledge/Distillation.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "80_excluded/Hidden.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      }
+    ],
+    "metadataUnresolvedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note",
+        "count": 1,
+        "resolved": false
+      }
+    ],
+    "targetNode": {
+      "id": "00_Home.md",
+      "x": -55.13291931152344,
+      "y": 148.8566131591797,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 749.3670806884766,
+      "clientY": 571.8253631591797
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-malformed-query/unclosed-quote/obsidian-1.13.4/02-after-graph-reopen.png",
+      "bytes": 49423,
+      "sha256": "E2EAE87283BF7C01CD8484A5D8C6390009F72940E4C363698EEF234BBAF06641"
+    }
+  },
+  "afterAppRestart": {
+    "label": "after-app-restart",
+    "capturedAt": "2026-08-11T19:37:37.890Z",
+    "processId": 26384,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-malformed-query-unclosed-quote-capture\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "activeFile": null,
+    "activeLeaf": {
+      "id": "765163f38dd1a40c",
+      "viewType": "graph",
+      "filePath": null
+    },
+    "tabHeaders": [
+      {
+        "ariaLabel": "ファイルエクスプローラ",
+        "title": null,
+        "text": "ファイルエクスプローラ",
+        "classes": [
+          "is-active",
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "検索",
+        "title": null,
+        "text": "検索",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "ブックマーク",
+        "title": null,
+        "text": "ブックマーク",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "グラフビュー",
+        "title": null,
+        "text": "グラフビュー",
+        "classes": [
+          "is-active",
+          "mod-active",
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "バックリンク",
+        "title": null,
+        "text": "バックリンク",
+        "classes": [
+          "is-active",
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "アウトゴーイングリンク",
+        "title": null,
+        "text": "アウトゴーイングリンク",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "タグ",
+        "title": null,
+        "text": "タグ",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "すべてのプロパティ",
+        "title": null,
+        "text": "すべてのプロパティ",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      },
+      {
+        "ariaLabel": "アウトライン",
+        "title": null,
+        "text": "アウトライン",
+        "classes": [
+          "tappable",
+          "workspace-tab-header"
+        ]
+      }
+    ],
+    "searchInputValue": "\"Project",
+    "graphOptionsSearch": "\"Project",
+    "searchDiagnostics": {
+      "inputAriaInvalid": null,
+      "inputClasses": [],
+      "visibleErrorTexts": []
+    },
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "Missing Note"
+    ],
+    "renderedNodeCount": 5,
+    "renderedLinkCount": 7,
+    "renderedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md"
+      },
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md"
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md"
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md"
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md"
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md"
+      }
+    ],
+    "metadataResolvedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "20_knowledge/Reference.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "attachments/diagram.svg",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "20_knowledge/Reference.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "20_knowledge/Distillation.md",
+        "count": 1,
+        "resolved": true
+      },
+      {
+        "source": "80_excluded/Hidden.md",
+        "target": "00_Home.md",
+        "count": 1,
+        "resolved": true
+      }
+    ],
+    "metadataUnresolvedLinks": [
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note",
+        "count": 1,
+        "resolved": false
+      }
+    ],
+    "targetNode": {
+      "id": "00_Home.md",
+      "x": 176.47933959960938,
+      "y": 19.103944778442383,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 980.9793395996094,
+      "clientY": 442.0726947784424
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "graphLeafCountAtRestart": 1,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-malformed-query/unclosed-quote/obsidian-1.13.4/03-after-app-restart.png",
+      "bytes": 49381,
+      "sha256": "DF3E2A029975F162DDBA4FA7E257076F47FDF5BA3C369E7FD7E65895371DE7DF"
+    }
+  },
+  "sessions": [
+    {
+      "sessionNumber": 1,
+      "pid": 2828,
+      "cdpPort": 49862,
+      "startedAt": "2026-08-11T19:37:30.398Z",
+      "exited": {
+        "code": 0,
+        "signal": null,
+        "at": "2026-08-11T19:37:35.242Z"
+      },
+      "starterUsed": false,
+      "isolation": {
+        "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-malformed-query-unclosed-quote-capture\\obsidian-1.13.4\\userdata",
+        "vault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-malformed-query-unclosed-quote-capture\\obsidian-1.13.4\\vault",
+        "bounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "skipTaskbarRequested": true
+      }
+    },
+    {
+      "sessionNumber": 2,
+      "pid": 27988,
+      "cdpPort": 56847,
+      "startedAt": "2026-08-11T19:37:36.671Z",
+      "exited": {
+        "code": 0,
+        "signal": null,
+        "at": "2026-08-11T19:37:38.056Z"
+      },
+      "starterUsed": false,
+      "isolation": {
+        "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-malformed-query-unclosed-quote-capture\\obsidian-1.13.4\\userdata",
+        "vault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-malformed-query-unclosed-quote-capture\\obsidian-1.13.4\\vault",
+        "bounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "skipTaskbarRequested": true
+      }
+    }
+  ]
+}

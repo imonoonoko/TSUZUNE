@@ -1,0 +1,123 @@
+{
+  "capturedAt": "2026-08-11T19:40:16.724Z",
+  "stage": "CP0-T02 Global Graph malformed query working-tree evidence (expressionless-paren)",
+  "status": "captured",
+  "attachmentDefaultApp": null,
+  "attachmentFolderReveal": null,
+  "comparisonStatus": "Compare with docs/reports/assets/graph-gp0-malformed-query/expressionless-paren/obsidian-1.13.4/observation.json",
+  "command": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs",
+  "isolation": {
+    "sourceFixture": "fixtures/obsidian-graph-parity-vault",
+    "copiedVault": "work/graph-gp0-malformed-query-expressionless-paren-working-tree/vault",
+    "userData": "work/graph-gp0-malformed-query-expressionless-paren-working-tree/userdata",
+    "requestedContentViewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "offscreenOrigin": {
+      "x": -32000,
+      "y": -32000
+    },
+    "observedWindowGeometry": {
+      "initial": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1280,
+          "height": 800
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1280,
+          "height": 800
+        },
+        "rendererViewport": {
+          "width": 1280,
+          "height": 800,
+          "devicePixelRatio": 1
+        }
+      },
+      "restarted": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1280,
+          "height": 800
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1280,
+          "height": 800
+        },
+        "rendererViewport": {
+          "width": 1280,
+          "height": 800,
+          "devicePixelRatio": 1
+        }
+      }
+    },
+    "network": "host resolver blocked except localhost"
+  },
+  "evidenceBoundary": null,
+  "processIds": [
+    17716,
+    8536
+  ],
+  "assertions": {
+    "queryEntered": true,
+    "queryRestoredAfterGraphReopen": true,
+    "queryRestoredAfterAppRestart": true,
+    "settingsPersisted": true,
+    "contentViewportStable": true,
+    "filteredNodeSetStable": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "isolatedVaultContentUnchanged": true,
+    "isolatedVaultChangedOnlyWhenMoving": true,
+    "noIsolatedProcessesRemaining": true
+  },
+  "artifacts": [
+    {
+      "path": "docs/reports/assets/graph-gp0-malformed-query/expressionless-paren/tsuzune-working-tree/01-query-entered.png",
+      "bytes": 103754,
+      "sha256": "D5047517DCC4977A85B768BCE195EBCC0ECBD8A22E86FC9784E86441C68AFC21",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-malformed-query/expressionless-paren/tsuzune-working-tree/02-graph-reopened.png",
+      "bytes": 103754,
+      "sha256": "D5047517DCC4977A85B768BCE195EBCC0ECBD8A22E86FC9784E86441C68AFC21",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-malformed-query/expressionless-paren/tsuzune-working-tree/03-app-restarted.png",
+      "bytes": 103754,
+      "sha256": "D5047517DCC4977A85B768BCE195EBCC0ECBD8A22E86FC9784E86441C68AFC21",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-malformed-query/expressionless-paren/tsuzune-working-tree/phase-initial.json",
+      "bytes": 3963,
+      "sha256": "61F588D46070F653D39EB387A65628C1CF3A886BDB1E85A543A7F3EB39B38D37"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-malformed-query/expressionless-paren/tsuzune-working-tree/phase-restarted.json",
+      "bytes": 1776,
+      "sha256": "956FBC72BF106790E167B3D4EBC0E155916D2DCBDA0E6BA135041054F15ACF9D"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-malformed-query/expressionless-paren/tsuzune-working-tree/observation.json",
+      "bytes": 10290,
+      "sha256": "AF4272ABC298D44598FDBF7DBB084A80A51FF32EAC99793A6EB76C7F0FAC1C8E"
+    }
+  ],
+  "next": "Continue GP0-3b with the remaining camera, drag, menu, animation, and reset behaviors."
+}

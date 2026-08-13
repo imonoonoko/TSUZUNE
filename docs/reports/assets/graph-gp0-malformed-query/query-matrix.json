@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "taskId": "CP0-T02",
+  "fixture": "fixtures/obsidian-graph-parity-vault",
+  "cases": [
+    { "id": "unclosed-quote", "query": "\"Project", "class": "input-progress" },
+    { "id": "trailing-or", "query": "Project OR", "class": "input-progress" },
+    { "id": "unclosed-paren", "query": "(Project", "class": "input-progress" },
+    { "id": "unclosed-regex", "query": "/Project", "class": "input-progress" },
+    { "id": "unclosed-property", "query": "[status:Act", "class": "input-progress" },
+    { "id": "invalid-regex", "query": "/(?/", "class": "compile-invalid" },
+    { "id": "expressionless-paren", "query": "(", "class": "expressionless" }
+  ]
+}

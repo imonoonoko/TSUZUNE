@@ -5,6 +5,15 @@ import { extname, relative, resolve, sep } from 'node:path'
 
 const repoRoot = resolve(import.meta.dirname, '..')
 const scriptPath = resolve(import.meta.filename)
+const malformedQueryCase = process.env.TSUZUNE_GRAPH_MALFORMED_QUERY_CASE?.trim() ?? ''
+const malformedQueryProbe = malformedQueryCase.length > 0
+const malformedQuery = process.env.TSUZUNE_GRAPH_SEARCH_QUERY
+if (malformedQueryProbe && malformedQuery === undefined) {
+  throw new Error('TSUZUNE_GRAPH_SEARCH_QUERY を指定してください。')
+}
+if (malformedQueryProbe && !/^[a-z0-9-]+$/.test(malformedQueryCase)) {
+  throw new Error('TSUZUNE_GRAPH_MALFORMED_QUERY_CASE は英小文字、数字、ハイフンで指定してください。')
+}
 const cameraProbe =
   process.argv.includes('--camera') || process.env.TSUZUNE_GRAPH_CAMERA_PROBE === '1'
 const nodeDragProbe =
@@ -66,10 +75,12 @@ const nodeMenuProbe =
   nodeNewTabProbe || attachmentNewTabProbe || attachmentNewWindowProbe || attachmentMoveProbe || attachmentBookmarkProbe || attachmentPathCopyProbe || attachmentLinkedViewProbe || attachmentExternalProbe ||
   process.argv.includes('--node-menu') ||
   process.env.TSUZUNE_GRAPH_NODE_MENU_PROBE === '1'
-if ([cameraProbe, nodeDragProbe, nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe && !attachmentExternalProbe, nodeNewTabProbe, attachmentNewTabProbe, attachmentNewWindowProbe, attachmentMoveProbe, attachmentBookmarkProbe, attachmentPathCopyProbe, attachmentLinkedViewProbe, attachmentExternalProbe].filter(Boolean).length > 1) {
+if ([cameraProbe, nodeDragProbe, nodeMenuProbe && !nodeNewTabProbe && !attachmentNewTabProbe && !attachmentNewWindowProbe && !attachmentMoveProbe && !attachmentBookmarkProbe && !attachmentPathCopyProbe && !attachmentLinkedViewProbe && !attachmentExternalProbe, nodeNewTabProbe, attachmentNewTabProbe, attachmentNewWindowProbe, attachmentMoveProbe, attachmentBookmarkProbe, attachmentPathCopyProbe, attachmentLinkedViewProbe, attachmentExternalProbe, malformedQueryProbe].filter(Boolean).length > 1) {
   throw new Error('--camera、--node-drag、--node-menu、--node-new-tab、--attachment-new-tab、--attachment-new-window、--attachment-move、--attachment-bookmark、--attachment-path-copy、--attachment-linked-view、--attachment-default-app、--attachment-folder-reveal は同時に指定できません。')
 }
-const probeKind = attachmentFolderRevealProbe
+const probeKind = malformedQueryProbe
+  ? `malformed-query-${malformedQueryCase}`
+  : attachmentFolderRevealProbe
   ? 'attachment-folder-reveal'
   : attachmentDefaultAppProbe
   ? 'attachment-default-app'
@@ -99,7 +110,9 @@ const probeKind = attachmentFolderRevealProbe
 const sourceFixture = resolve(repoRoot, 'fixtures/obsidian-graph-parity-vault')
 const workRoot = resolve(
   repoRoot,
-  attachmentFolderRevealProbe
+  malformedQueryProbe
+    ? `work/graph-gp0-malformed-query-${malformedQueryCase}-working-tree`
+    : attachmentFolderRevealProbe
     ? 'work/graph-gp0-attachment-folder-reveal-working-tree'
     : attachmentDefaultAppProbe
     ? 'work/graph-gp0-attachment-default-app-working-tree'
@@ -131,7 +144,9 @@ const vault = resolve(workRoot, 'vault')
 const userData = resolve(workRoot, 'userdata')
 const outputRoot = resolve(
   repoRoot,
-  attachmentFolderRevealProbe
+  malformedQueryProbe
+    ? `docs/reports/assets/graph-gp0-malformed-query/${malformedQueryCase}/tsuzune-working-tree`
+    : attachmentFolderRevealProbe
     ? 'docs/reports/assets/graph-gp0-attachment-folder-reveal/tsuzune-working-tree'
     : attachmentDefaultAppProbe
     ? 'docs/reports/assets/graph-gp0-attachment-default-app/tsuzune-working-tree'
@@ -160,7 +175,11 @@ const outputRoot = resolve(
       : 'docs/reports/assets/graph-gp0-3b-search-restart-working-tree'
 )
 const settingsPath = resolve(userData, 'settings.json')
-const query = cameraProbe || nodeDragProbe || nodeMenuProbe ? '' : 'path:"10_projects"'
+const query = malformedQueryProbe
+  ? malformedQuery
+  : cameraProbe || nodeDragProbe || nodeMenuProbe
+    ? ''
+    : 'path:"10_projects"'
 const viewport = cameraProbe || nodeDragProbe || nodeMenuProbe
   ? { width: 1265, height: 768 }
   : { width: 1280, height: 800 }
@@ -543,6 +562,14 @@ async function graphState(window) {
   return evaluate(
     window,
     `(() => {
+      const searchInput = document.querySelector('[aria-label="ファイルを検索…"]')
+      const searchRegion = searchInput?.closest('aside')
+      const visibleText = (element) => {
+        const style = getComputedStyle(element)
+        if (style.display === 'none' || style.visibility === 'hidden') return null
+        const text = element.textContent?.replace(/\\s+/g, ' ').trim()
+        return text || null
+      }
       const targetButton = [...document.querySelectorAll('button.wiki-graph-node')]
         .find((node) => node.title === ${JSON.stringify(drag.targetNodePath)})
       const targetDot = targetButton?.querySelector('.wiki-graph-node-dot')
@@ -550,8 +577,15 @@ async function graphState(window) {
       const leftMatch = targetButton?.style.left.match(/(-?[0-9]+(?:[.][0-9]+)?)px/)
       const topMatch = targetButton?.style.top.match(/(-?[0-9]+(?:[.][0-9]+)?)px/)
       return {
-      query: document.querySelector('[aria-label="ファイルを検索…"]')?.value ?? null,
+      query: searchInput?.value ?? null,
       graphLabel: document.querySelector('.wiki-graph-view')?.getAttribute('aria-label') ?? null,
+      searchDiagnostics: {
+        inputAriaInvalid: searchInput?.getAttribute('aria-invalid') ?? null,
+        inputClasses: searchInput ? [...searchInput.classList].sort() : [],
+        visibleErrorTexts: [...(searchRegion?.querySelectorAll('[role="alert"], .error, .mod-error') ?? [])]
+          .map(visibleText)
+          .filter(Boolean)
+      },
       settingsPanelVisible: Boolean(document.querySelector('aside[aria-label="グラフ設定"]')),
       filterSectionVisible: Boolean(document.querySelector('[aria-label="ファイルを検索…"]')),
       nodePaths: [...document.querySelectorAll('button.wiki-graph-node')]
@@ -628,7 +662,9 @@ async function waitForStableGraph(window, expectedQuery) {
       nodePaths: state.nodePaths,
       edgeCount: state.edgeCount
     })
-    stableSamples = state.query === expectedQuery && state.nodePaths.length > 0 && signature === previous
+    stableSamples = state.query === expectedQuery &&
+      (malformedQueryProbe || state.nodePaths.length > 0) &&
+      signature === previous
       ? stableSamples + 1
       : 0
     if (stableSamples >= 3) return state
@@ -1790,6 +1826,7 @@ function assertFilteredState(state, label) {
   if (state.query !== query || state.graphLabel !== 'Vault全体グラフ') {
     throw new Error(`${label}のGlobal Graph queryが一致しません: ${JSON.stringify(state)}`)
   }
+  if (malformedQueryProbe) return
   if (!projectPaths.every((path) => state.nodePaths.includes(path))) {
     throw new Error(`${label}で10_projects配下の2ノートを表示できません: ${JSON.stringify(state.nodePaths)}`)
   }
@@ -3202,6 +3239,7 @@ async function runController() {
   const observation = {
     capturedAt: new Date().toISOString(),
     query,
+    malformedQueryCase: malformedQueryProbe ? malformedQueryCase : null,
     cameraProbe,
     nodeDragProbe,
     nodeMenuProbe,
@@ -3368,7 +3406,9 @@ async function runController() {
   ].map((name) => resolve(outputRoot, name))
   const manifest = {
     capturedAt: observation.capturedAt,
-    stage: attachmentFolderRevealProbe
+    stage: malformedQueryProbe
+      ? `CP0-T02 Global Graph malformed query working-tree evidence (${malformedQueryCase})`
+      : attachmentFolderRevealProbe
       ? 'GP0-3b-o Global Graph attachment folder-reveal working-tree evidence'
       : attachmentDefaultAppProbe
       ? 'GP0-3b-n Global Graph attachment default-app working-tree evidence'
@@ -3428,7 +3468,9 @@ async function runController() {
           restartedHook: attachmentExternalRestartShell
         }
       : null,
-    comparisonStatus: attachmentFolderRevealProbe
+    comparisonStatus: malformedQueryProbe
+      ? `Compare with docs/reports/assets/graph-gp0-malformed-query/${malformedQueryCase}/obsidian-1.13.4/observation.json`
+      : attachmentFolderRevealProbe
       ? 'Compare with docs/reports/assets/graph-gp0-attachment-folder-reveal/obsidian-1.13.4/observation.json'
       : attachmentDefaultAppProbe
       ? 'Compare with docs/reports/assets/graph-gp0-attachment-default-app/obsidian-1.13.4/observation.json'

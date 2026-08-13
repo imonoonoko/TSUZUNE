@@ -1,0 +1,27 @@
+{
+  "capturedAt": "2026-08-12T11:41:09.394Z",
+  "version": "1.13.4",
+  "result": {
+    "before": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md"
+    ],
+    "after": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "90_orphan/Orphan.md",
+      "Missing Note"
+    ],
+    "filters": [
+      "80_excluded/"
+    ]
+  }
+}

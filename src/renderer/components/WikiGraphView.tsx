@@ -1875,30 +1875,28 @@ export default function WikiGraphView({
                         </div>
                       )}
                       {nodeContextMenu.node.kind === 'attachment' && (
-                        <>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => {
-                              onOpen(nodeContextMenu.node.path)
-                              setNodeContextMenu(null)
-                            }}
-                          >
-                            デフォルトアプリで開く
-                          </button>
-                          {onRevealInFolder && (
-                            <button
-                              type="button"
-                              role="menuitem"
-                              onClick={() => {
-                                onRevealInFolder(nodeContextMenu.node.path)
-                                setNodeContextMenu(null)
-                              }}
-                            >
-                              フォルダで表示
-                            </button>
-                          )}
-                        </>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            onOpen(nodeContextMenu.node.path)
+                            setNodeContextMenu(null)
+                          }}
+                        >
+                          デフォルトアプリで開く
+                        </button>
+                      )}
+                      {onRevealInFolder && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            onRevealInFolder(nodeContextMenu.node.path)
+                            setNodeContextMenu(null)
+                          }}
+                        >
+                          フォルダで表示
+                        </button>
                       )}
                     </>
                   )}
