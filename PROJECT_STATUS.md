@@ -1,6 +1,6 @@
 # TSUZUNE Project Status
 
-更新日: 2026-08-11（JST）
+更新日: 2026-08-14（JST）
 
 この文書は、TSUZUNEの「今」を一枚で確認するための入口です。実行順と将来計画は[PLAN.md](PLAN.md)、製品の不変条件は[PRODUCT.md](PRODUCT.md)、画面・ブランド規約は[DESIGN.md](DESIGN.md)を正本とします。完了証拠は[docs/INDEX.md](docs/INDEX.md)から辿ります。
 
@@ -8,20 +8,24 @@
 
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
-| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-11 05:00 JSTにcommit `2ee914c`から更新し、テンプレート／直接ノート作成／名前変更／Graph操作、GP0-3b-o、全509 tests、10/10 checks、packaged／installed smoke、build／installed hash一致、profile 57 files不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`。commit `2ee914c`をpush済み。本番も同commitで検証済み。次のGP0-3b-pは固定参照の事前待機が不安定なため、製品変更なしで一度だけ再判定する | Git |
-| 直近slice | GP0-3b-oの`フォルダで表示`、自由追加できるテンプレート、通常編集画面へ直接開く新規作成、アプリ内名前変更、Graphズーム／fitと添付操作を機能契約単位で本番反映 | [GP0-3b-o report](docs/reports/graph-gp0-attachment-folder-reveal-2026-08-11.html) |
+| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-13 01:06 JSTにCP1-B-02を含むdirty working treeを本番へ更新し、全529 tests、10/10 checks、packaged／installed smoke、build／installed hash一致、profile 57 files不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。origin `ae7d97d`からC0〜C4、AI設定保存flow補修、documentation closeoutを7 local commitsへ分離した。C5はexact pinへ復旧し、未採用H1 Hooks shadow 6 filesは削除済み。working treeはclean。push／production update前の現在sourceはinstalled v0.5.0とは別境界 | [commit manifest](docs/reports/working-tree-commit-manifest-2026-08-14.md) |
+| Graph直近slice | CP1-B-02で実在Markdownノートにも`フォルダで表示`を接続。公式production updateの全529 tests／10 checksを通して本番反映済み | [CP1-B-02](docs/reports/cp1-b-02-note-folder-reveal-2026-08-13.md) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
-| 最優先Track | v0.6 Obsidian Graph Parity。GP0-3b-oを閉じ、GP0-3b-pの固定参照を試行したが、受入packetは未生成。製品実装・本番反映は未開始 | [PLAN.md](PLAN.md#current-transition-queue) |
-| 次の縦切り | `ファイルエクスプローラでファイルを表示`は初回に内部File Explorer遷移を示したものの、訂正後2試行が対象クリック前のmenu待機で停止。ハーネス事前待機を一度だけ直して再判定し、失敗なら製品変更なしでblockedとする | [GP0-3b-p requirements](.agent/requirements/20260811-0257-attachment-file-explorer-reveal/4_requirements.md) |
-| Graph checkpoint | GP0-3b-oは`matched-core-behavior`。Obsidian／TSUZUNEとも同じrelative fixture file identityの親フォルダ要求1回、menu close、同一process Graph再表示での非再生を確認。実Explorerは未起動、Obsidian別process再起動は未観測。製品変更は`2ee914c`で本番反映済み | [comparison](docs/reports/assets/graph-gp0-attachment-folder-reveal/comparison.json) |
-| Context checkpoint | X1-M1は`type: moc`を全タイトル一覧へ投影し、X1-D1はbaseline candidate集合を変えず通常本文だけを質問で優先する。commit `e2d8621`として本番反映済み | [requirements](.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md) |
-| Context remaining | 固定4問の再評価とmodel-visible tokenは未計測。legacy text＋structuredContentの二重搬送は独立X1-T1でのみ扱う | [requirements](.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md) |
+| 最優先Track | O2 Classification Migrationの安全境界。CP1-C-05でO2-P4B remote relocation／recoveryをtest-only fake remoteで完了。本番Vault applyは引き続き禁止 | [CP1-C-05](docs/reports/cp1-c-05-o2-p4b-relocation-recovery-prototype-2026-08-13.md) |
+| 次の縦切り | disposable live Drive acceptance。並行してO1 7-day dogfoodを継続し、MCPはhistory既定除外のactive-runtime受入だけを小さく行う。X1-C2／新規BM25／Hooks／Graph残件はresume条件までheld | [PLAN.md](PLAN.md#current-transition-queue) |
+| Graph／Excluded files checkpoint | CP0-T04で未解決Wiki nodeのidentityと検索保持を閉じ、CP0-T05でapp-wide Excluded filesを本番MCP search／Contextへ接続した。Manage UI、FileTree directory、全surfaceのObsidian固定比較は未完。GP0-3b-pはGraph再表示camera gate不成立で`blocked` | [CP0-T05 report](docs/reports/cp0-t05-excluded-files-mcp-retrieval-2026-08-12.md) |
+| Context checkpoint | X1-M1は`type: moc`を全タイトル一覧へ投影し、X1-D1はbaseline candidate集合を変えず通常本文だけを質問で優先する。X1-S1aはstable scanで同一canonical creation-time sidecarを再書込みせず、X1-S1bはmatching revisionと同一本文のAI自律更新を履歴なしno-opにして本番反映した。X1-T1は`build_context`だけをstructured-onlyにし、Codex Desktop local stdioで意味指標不変・wire 54.7%減・p95非悪化、fixture 12/12、回答品質4/4、source trace 3/3、future leakage 0、write 0を確認して本番反映した | [X1-T1 report](docs/reports/x1-t1-structured-only-transport-2026-08-12.md) |
+| MCP runtime correction | current sourceの`build_context`をstructured-onlyへ戻し、direct server 10ツールのsmoke、X1-T1 fixture 12/12、Codex登録7ツールを再確認。Codex再起動後の実呼出しも`content: []`＋structuredContentでPASS。installed v0.5.0 receiptは未更新 | [reconciliation](docs/reports/mcp-contract-reconciliation-2026-08-13.md) |
+| MCP retrieval observation | MCP-R1は3/3完了。sample 2・3で`50_履歴/AI更新`の近似重複を再観測し、search/rankingシグナル2/3。新規BM25より、既存history既定除外のruntime受入を先に行う | [protocol](docs/reports/mcp-retrieval-route-observation-2026-08-13.md) |
+| Context remaining | host usageはrolloutからtask別に再取得済み。single-worker pairのfresh側88.58%減は一対だけで一般化しない。CP1-B 3件はFAIL／PASS／BLOCKED、sample 3もinput 2,303,178・cached 96.06%。source／revision／range単位の再読と実費は未観測。X1-C2はContext bundle量が次の主要因と判明するまでheld。Hooks shadowは採用根拠なし | [PLAN.md](PLAN.md#primary-track--x1-cp0-context-profiler-baseline) |
+
+2026-08-12のdelivery-boundary checkpointでは、現行sourceの58 files／519 tests、MCP smoke、X1-T1 fixture 12/12を再確認した。installed executable／app.asar hashはreceiptと一致するが、通常利用後のproduction profile digestはreceipt時点と異なる。これは現在のprofileを受領書の不変性で主張しないための記録であり、P0はprofile、installer、releaseを変更していない。[詳細](docs/reports/delivery-boundary-checkpoint-2026-08-12.md)
 
 ## 実装済みの基盤
 
 - ローカルMarkdown編集、folder、Wiki link、backlink、検索、添付preview。
-- MCPによる検索、取得、backlink、Context、明示作成、revision付き更新、履歴付きAI自律更新。
+- MCPによる検索、取得、backlink、Context、明示作成、revision付き更新、履歴付きAI自律更新。Codex Desktopへはこの7ツールだけを登録し、direct serverの`suggest_links`／`move_note`／`add_link`は未登録のままにする。`40_情報源`／`50_履歴`と設定した追加pathはAIの全登録MCP書き込み経路から保護し、明示Review pathでは3 write toolをVault外inboxへ保留してSettingsから承認／取消する。
 - Path Alias読取基盤。旧pathを現行ノートへ一意に解決しつつ、実在する旧path、壊れた設定、MCP revision、bookmark／last noteの整合性を保護する。
 - Temporal Memory Lite M0〜M5。valid-timeとknowledge-timeを分け、過去時点への未来情報混入を保守的に抑制する。
 - Local／Global Graph、円形node、Canvas edge、Force runtime、Graph設定、Groups、検索、Animate、状態復元のcheckpoint実装。
@@ -33,7 +37,9 @@
 
 X1-M1のread-only本番Vault比較では、`00_入口/知識地図.md`のContextを15,000文字／included 9／omitted 21から、1,130文字／included 1／omitted 0へ削減しました。MOC原本、リンク先本文、通常ノートのContext経路は変更せず、時間指定時の本文省略も維持します。92.47%はContext Markdown文字数の削減であり、model-visible token削減率ではありません。実装は`installed-and-verified`の本番へ反映済みです。
 
-X1-D0の将来案にあったscore 0候補の除外は撤回しました。X1-D1では、queryが通常候補本文の展開優先順だけを変え、本文を見送った候補も`omitted_ids`から追加取得できます。MOC全タイトル順、query有無のcandidate到達性、Temporal／provenance／warning、最大500文字queryでもContext予算を消費しない境界、2k／4k／6k／8k／15k sweepを回帰固定し、`e2d8621`から本番反映しました。structured-only搬送はRecallと分離したX1-T1で評価します。
+X1-D0の将来案にあったscore 0候補の除外は撤回しました。X1-D1では、queryが通常候補本文の展開優先順だけを変え、本文を見送った候補も`omitted_ids`から追加取得できます。MOC全タイトル順、query有無のcandidate到達性、Temporal／provenance／warning、最大500文字queryでもContext予算を消費しない境界、2k／4k／6k／8k／15k sweepを回帰固定し、`e2d8621`から本番反映しました。structured-only搬送はRecallと分離したX1-T1で評価し、Codex Desktop local MCPの固定fixtureと通常本番runtimeで受入を完了しました。ChatGPT remote MCPは別Trackです。
+
+2026-08-13のcurrent source監査では、direct serverの拡張後に`build_context`がlegacy text blockを再び重複していたことを検出しました。専用transportへ戻し、通常／query付きの`content: []`、他ツールのlegacy形状、direct 10ツールsmoke、Codex登録7ツールを再固定しました。再構築済みartifactはCodex Desktop再起動後に読み込まれます。この修復はwire契約の回復であり、model-visible tokenまたは実費削減の新しい証明ではありません。
 
 ## 検証済みだが、完了と言わない範囲
 
@@ -43,10 +49,20 @@ O2-P2では、明示JSON planを入力するread-only CLIで本番Vaultを2回�
 
 本番Vault全301 files／9,727,936 bytesのfingerprintは`C97351EF6D99F628AA099374961217008153E6E136351C418C92D76BB3FBF875`で2回不変、manifest SHA-256も`789384A9845CB9CBCAC49AF97F5EDEC6E4FE89A5F9891C1FEB309AF563540992`で一致しました。Path Alias sidecarは存在せず、Vault write、物理move、Markdown write、Drive操作は0件です。
 
-この結果はapplyの安全性を証明していません。`DRIVE_PATH_ALIAS_UNSUPPORTED`、`REFERENCE_REWRITE_NOT_APPLIED`、`ROLLBACK_PREIMAGES_NOT_CAPTURED`が残るため`applyAllowed=false`です。次の分類Gateは匿名一時VaultだけでのO2-P3 apply／rollback prototype、またはDrive sidecar契約判断です。本番Vaultへのapplyは禁止します。
+O2-P3では匿名一時Vaultだけを使うtest-only prototypeをHEAD `560b54d`へ収録し、directory、reference、move、sidecarの4段階mutation、失敗注入、自動rollback、exact-byte復元を13 testsで固定しました。関連7 files／107 tests、全60 files／564 tests、typecheck、diff checkは実装時にPASSしています。これは本番apply経路ではありません。
+
+CP1-C-03では残る`DRIVE_PATH_ALIAS_UNSUPPORTED`を、O2-P4Aのsidecar同期とO2-P4Bの既存Drive file IDによる明示remote relocationへ分割しました。先にP4Aだけをfake remoteで実装し、P4B、live Drive、本番Vault applyへ自動的に進みません。
+
+CP1-C-04ではO2-P4Aをtest-only prototypeとして実装しました。local-only create、remote-only download、equal no-op、clean ledgerに基づく片側変更、履歴不足・両側変更・version driftのconflict、unique ownership、exact-byte transfer、preview/apply再検証、ledger失敗時のlocal preimage復元を16 testsで固定しました。関連5 files／69 tests、全61 files／585 tests、typecheckはPASSしています。実Drive、P4B remote relocation、製品entry point、本番Vault applyは未実施です。
+
+CP1-C-05ではO2-P4Bをtest-only prototypeとして実装しました。明示planだけを対象に既存Drive file ID、content hash、parentを保ったmetadata relocation、local P3／remote notes／remote alias／両ledgerのcombined recovery、remote／alias／ledger failpoint、remote／local rollback drift時のpacket保持と再実行block、完了時のremote再取得を12 testsで固定しました。関連3 files／43 tests、全62 files／608 tests、typecheckはPASSしています。実Drive、OAuth、製品entry point、本番Vault applyは未実施です。
 
 - [O2-P2 Classification Migration Dry-run](docs/reports/o2-p2-classification-migration-dry-run-2026-08-10.md)
 - [O2-P2 explicit plan](docs/migrations/o2-p2-operations-plan.json)
+- [O2-P3 test-only prototype](docs/reports/cp1-c-02-o2-p3-prototype-2026-08-13.md)
+- [O2-P4 Drive Path Alias contract](docs/reports/cp1-c-03-drive-path-alias-contract-2026-08-13.md)
+- [O2-P4A test-only sidecar sync prototype](docs/reports/cp1-c-04-o2-p4a-sidecar-sync-prototype-2026-08-13.md)
+- [O2-P4B test-only relocation／recovery prototype](docs/reports/cp1-c-05-o2-p4b-relocation-recovery-prototype-2026-08-13.md)
 
 ### Graph
 
@@ -116,22 +132,19 @@ M5固定dogfoodでは時間整合性が1/4から4/4、State NoteからSourceへ�
 1. 実行中の事実: インストール済み本体と最新のproduction receipt。
 2. 実装の事実: source、tests、fixture、machine-readable artifacts。
 3. 製品境界: `PRODUCT.md`、`DESIGN.md`、`AGENTS.md`。
-4. 実行順: `PLAN.md`のActive TrackとCurrent Transition Queue。
+4. 実行順: `PLAN.md`のCurrent StateとCurrent Transition Queue。
 5. 本番TSUZUNE Vault: 現在地への検索導線、判断履歴、日付付きEvidence。repo仕様の複製ではない。
 
 SemVerやHEADだけで同一性を判断しません。現在の本番commit、source fingerprint、clean/dirty状態、EXE／`app.asar` hashは[production-update-latest.json](docs/reports/production-update-latest.json)を唯一の正本とし、この段落へ可変値を複製しません。
 
 ## 優先キュー
 
-1. M5-Cは要求単位snapshot indexで完了。Context構築median 151.123ms→35.934ms、p95 180.404ms→47.798ms、改善前後のMarkdown SHA-256と意味指標は一致した。
-2. retained heap比較は未測定。cacheを要求境界より長寿命化する提案が出た場合だけ、GCを分離したharnessを先に作る。永続DBやbackground cacheは追加しない。
-3. O2-P1 Path Alias Foundationは全486 tests、build、MCP検査をPASS。旧pathはWiki、backlink、Graph、Context、時間情報、MCP、bookmark、起動復元でcanonical pathへ解決され、実在する旧pathを優先する。
-4. O2-P2移行dry-runは完了。5 movesのpath、hash、参照、Graph、MCP、全Vault不変条件をmanifest化した。3 blockerが残るため物理移動とDrive applyは禁止する。Graphは[GP0-3b-o](docs/reports/graph-gp0-attachment-folder-reveal-2026-08-11.html)まで完了し、次はGP0-3b-pの設計である。
-5. O1-W1の通常ノート／Daily／Idea自由入力、最小書式ツールバー、Vaultノート選択、round-trip guard、同名／同期競合／作成失敗／アプリ終了時の入力保護はcommit `b927171`として本番反映済み。
-6. node context menuの残差分を一項目ずつ閉じた後、720px／200% zoom、tree semantics、実Windows accessibilityを別sliceで扱う。
-7. さらにGoogle Tasks、Drive選択取込、YouTube、Data Portabilityから一つを再選択する。
-8. ChatGPT候補は新しい高信頼例が10件以上たまるまで自動適用を解禁せず、C1-Dへ進まない。
-9. X1-M1 MOC Title RouterとX1-D1 Recall-safe Query Bridgeは本番反映済み。固定4問の再評価とmodel-visible tokenは未計測で、structured-only搬送は独立X1-T1とする。より深い時間モデル、GraphRAG、独自DBは固定評価または計測で必要性が出てから一つずつ導入する。
+1. **P0 completed local consolidation:** frozen 245-file inventoryをC0〜C4、C5 exact-pin復旧、4 mixed-path解消、C6/C9 documentation、H1不採用削除へ分離し、working treeをcleanにした。本番receiptと現在sourceはまだ混同しない。
+2. **P0 next delivery gate:** cleanな7 local commitsをpushし、`production:update`で現在sourceを本番受入する。
+3. **P1 next product acceptance:** O2-P4A／P4Bはtest-only prototype-proven。次はdisposable live Driveだけで同一file ID、private path metadata、version、reverse rollbackを受入する。本番Vault applyは別承認。
+4. **P1 product observation:** O1 7-day dogfood。機能を追加せず、通常ノートの作成、検索、link、Graph、MCP handoffの摩擦を記録する。
+5. **P1 supporting acceptance:** MCP-R1は3/3完了し、履歴近似重複が2/3。新規BM25ではなく、sourceに実装済みの`50_履歴/**`既定除外をactive MCP runtimeで一度受入する。
+6. **Held:** X1-C2、新規BM25/cache/task-state、Hooks/co-occurrence、Excluded files残件、Graph backlog、実Windows accessibility、Google intake、ChatGPT C1-Dは各resume条件が満たされるまで開始しない。
 
 ## CheckpointとWorking treeの扱い
 

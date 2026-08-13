@@ -62,7 +62,7 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 
 link先、backlink、未作成・曖昧・無効linkを右panelで確認できます。Local Graphは現在ノートの直接linkだけ、Global Graphは孤立ノートを含むVault全体を表示します。
 
-## Codex・ChatGPTと連携する
+## Codex Desktopと連携する
 
 TSUZUNEで使うVaultを一度開いた後、開発repositoryで次を実行します。
 
@@ -70,7 +70,7 @@ TSUZUNEで使うVaultを一度開いた後、開発repositoryで次を実行し�
 npm run mcp:register
 ```
 
-公開するMCP toolは7つです。
+Codex Desktopへ登録するMCP toolは7つです。
 
 | Tool | 用途 |
 |---|---|
@@ -80,9 +80,11 @@ npm run mcp:register
 | `build_context` | 起点と関連noteを文字数上限付きで構築 |
 | `create_note` | 既存folderへ新規noteを作成 |
 | `update_note` | revision一致時だけ更新 |
-| `autonomous_update_note` | 通常noteを更新し、旧本文を`50_履歴/AI更新`へ保存 |
+| `autonomous_update_note` | 通常noteを更新し、変更時は旧本文を`50_履歴/AI更新`へ保存 |
 
-AI更新でも出典、理由、旧revisionを履歴へ残します。Raw Source、監査log、削除、移動、強制上書き、Google認証・同期はMCPへ公開しません。ノート/フォルダ単位の`auto`、`review`、`immutable`切替UIは将来計画で、現在は未実装です。
+AI更新でも、本文が変わるときは出典、理由、旧revisionを履歴へ残します。`fetch`で得た`expected_revision`が一致し、本文が完全に同一なら`unchanged: true`を返して履歴を作りません。`40_情報源`、`50_履歴`、設定の「AIから変更させないパス」に一致するノートは、MCPの作成・通常更新・自動更新を拒否します。設定の「AIレビュー対象パス」では、この3ツールを即時適用せずVault外の提案へ切り替え、Settingsから承認・取消できます。
+
+通常のCodex登録面には、削除、移動、名前変更、フォルダ作成、強制上書き、Google認証・同期を含めません。direct serverに実装済みの`suggest_links`、`move_note`、`add_link`は開発smokeの対象ですが、通常のCodex登録面には公開しません。個別ノート用policy UIは将来計画です。
 
 登録解除:
 

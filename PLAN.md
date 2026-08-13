@@ -1,6 +1,6 @@
 # TSUZUNE Product Plan
 
-更新日: 2026-08-11（JST）
+更新日: 2026-08-14（JST）
 
 この文書は、TSUZUNEの「今から何を、どの順序で、どこまで作るか」を決める実行計画です。現在の本番状態と最新検証は[PROJECT_STATUS.md](PROJECT_STATUS.md)、変わりにくい製品原則は[PRODUCT.md](PRODUCT.md)、画面規約は[DESIGN.md](DESIGN.md)、日付付き証拠は[docs/INDEX.md](docs/INDEX.md)を正本とします。
 
@@ -45,22 +45,133 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 | 対象 | 状態 |
 |---|---|
 | インストール済み本番 | v0.5.0。最新の正確なcommit、hash、検証結果は[production-update-latest.json](docs/reports/production-update-latest.json)を参照 |
-| 開発checkpoint | v0.6 Obsidian Graph Parity |
-| 完了した直近slice | GP0-3b-o Attachment Folder Reveal。同じfixture fileの親フォルダ要求1回、menu close、Graph／Vault保持を実Explorer起動なしで固定比較し、添付menuへ最小実装した |
-| 現役slice | GP0-3b-oとテンプレート／名前変更／Graph操作拡張を本番反映済み。GP0-3b-pは固定参照を試行したが受入packet未生成のためblocked。次のmenu操作はハーネス事前待機を直してから一度だけ再判定し、製品変更へ自動拡張しない |
-| Context checkpoint | X1-M1 MOC Title RouterとX1-D1 Recall-safe Query Bridgeを本番反映済み。質問はbaseline候補を削除せず、通常本文の展開順だけを変える |
-| 現役Primary Track数 | 1。Google intakeとChatGPT candidate applyは保留 |
+| ローカル整理checkpoint | origin `ae7d97d`から、C0〜C4とAI設定保存flow補修を6つのlocal commitへ分離した。C5の不要なSDK range拡張はexact pinへ復旧し、採用根拠のなかったH1 Hooks shadow 6 filesは削除した。working treeはclean。push／production updateは未実施 |
+| 開発checkpoint | O2 Classification Migration safety。Graph Parityはcheckpoint化し、現役ではない |
+| Graph trackの直近slice | CP1-B-02 Markdown Note Folder Reveal。固定済み参照と既存安全経路を再利用し、実在Markdownノートにも`フォルダで表示`を接続。2026-08-13の公式production updateで本番反映済み |
+| 現役slice | CP1-C-05でO2-P4B test-only fake-remote prototypeを完了。明示plan、既存file ID、metadata relocation、combined recovery、rollback drift retentionを固定した。全62 files／608 tests PASS。次はdisposable live Drive acceptance。本番applyは別承認 |
+| Context checkpoint | X1-M1 MOC Title Router、X1-D1 Recall-safe Query Bridge、X1-S1a creation-time sidecar no-op、X1-S1b revision-aware autonomous no-op、X1-T1 structured-only transportを本番反映済み。質問はbaseline候補を削除せず、通常本文の展開順だけを変える。X1-T1はCodex Desktop local stdioで受入済み。ChatGPT remote MCPは別Track。詳細は[report](docs/reports/x1-t1-structured-only-transport-2026-08-12.md) |
+| MCP correction checkpoint | current sourceで`build_context`のstructured-only搬送を復旧。direct serverは10ツールをsmokeし、Codex Desktop登録は安全な7ツールのまま。再起動後の実呼出しも`content: []`＋structuredContentでPASS。installed receiptは未更新。[reconciliation](docs/reports/mcp-contract-reconciliation-2026-08-13.md) |
+| MCP retrieval observation | MCP-R1は3/3完了。sample 2・3で`50_履歴/AI更新`の近似重複を再観測し、search/rankingシグナルが2/3。新規BM25より先に、sourceに既存のhistory既定除外をruntimeで受入する。[observation](docs/reports/mcp-retrieval-route-observation-2026-08-13.md) |
+| 現役Primary Track数 | 1。O2-P4B prototype完了後の次候補はdisposable live Drive acceptance。O1 7-day dogfoodは機能追加なしの並行観測。X1-C2、BM25、Hooks、Graph残件、Google intake、ChatGPT candidate applyは保留 |
 
 ### Current Transition Queue
 
-1. **Completed — GP0-3b-o closeout:** `フォルダで表示`の製品テスト、隔離capture、比較report、未証明境界を固定し、commit `2ee914c`から本番反映済み。実Explorer起動とObsidian別process再起動は未証明のまま残す。
-2. **Now — GP0-3b-p reference blocked:** `ファイルエクスプローラでファイルを表示`の初回観測は内部File Explorer遷移を示したが、訂正後の最終2試行は対象クリック前のcontext-menu待機で停止し、受入packetを生成していない。[Discussion log](.agent/requirements/20260811-0257-attachment-file-explorer-reveal/discussion_log.md)に境界を固定する。製品実装・比較report・本番反映は未開始。
-3. **Next after the block — GP0-3b-p preflight:** 事前のGraph context-menu検出だけを安定化し、同じ隔離fixtureで一度だけfresh captureを行う。再び対象クリック前に失敗したら、製品変更なしでこのsliceをblockedとして閉じる。
-4. **After Graph checkpoint:** アクセシビリティ、Personal Google Intake、AI write policyのどれを次の独立Trackにするか再選択する。
+Context／token調査は、単純なContext削減を最優先にせず、Cost per Successful Taskと再探索を観測する方針まで確立した。single-worker matched pairのinput 88.58%減は一例であり、一般化しない。X1-C2、BM25、永続cache、Hooksは主要因が測定されるまでheldとする。TSUZUNEはAIやProfiler本体にならず、Markdown・出典・履歴・revisionを提供するknowledge sourceであり続ける。
+
+0. **Completed — delivery-boundary checkpoint (2026-08-12):** dirty working treeを本番受領済みX1、非製品Hooks shadow、証拠／計画に分類し、現行sourceの58 files／519 tests、MCP smoke、X1-T1 fixture 12/12を確認した。installed binary hashはreceiptと一致する一方、profile digestはreceipt時点と異なるため、受領書を現在profileの証明へ拡張しない。commit、push、再インストール、releaseは行っていない。[checkpoint](docs/reports/delivery-boundary-checkpoint-2026-08-12.md)
+1. **Completed blocker repair and production update — canonical package/release entrypoint:** 原因は隔離Obsidianの版確認で`asar extract-file ... package.json`をrepository rootから実行した診断事故。Obsidian archive内manifestとのhash一致で所有元を確定し、`package.json`だけをcommit `5266131`のcanonical TSUZUNE 0.5.0 manifestへ復旧した。lockfileは変更せず、58 files／529 tests、MCP smoke、製品build、10/10 production checks、built／installed hash一致、profile 57 files不変を確認して本番反映済み。[repair](docs/reports/package-manifest-repair-2026-08-13.md)
+2. **Held experiment — X1-C2 Context Budget Evaluation:** 固定4問・同一fixtureで4k／6k／8k／15kを比較するrunbookは準備済みだが、fixture MCPが公開されるまで実行しない。ProfilerがContext bundle量を主要因として示した場合の最初の候補実験とし、通常Vaultへfallbackしない。既定15kは変更しない。[runbook](docs/reports/x1-c2-context-budget-acceptance-runbook-2026-08-12.md)
+3. **Held quality gate — Windows accessibility:** installed appで実WindowsのGraph keyboard flow、720px幅、100〜200%拡大、screen reader、High Contrastを手動packetで測定する。現在のUI Automation名とDOM 42 testsは補助証拠であり、未実測項目はSKIPのままにする。X1-CP0の最初のボトルネック選定後に再開し、失敗が確認された時だけ最小修正sliceを要件化する。[要件](.agent/requirements/20260812-0150-windows-accessibility-baseline/4_requirements.md)／[baseline report](docs/reports/windows-accessibility-baseline-2026-08-12.md)
+4. **Parallel observation — O1 7-day dogfood:** 実VaultでDaily／Idea／通常ノートを7日使い、検索、Wiki link、backlink、Graph、MCPへの自然な接続と入力摩擦を記録する。これは新機能を作る条件を得るための観測であり、主製品sliceを増やさない。
+5. **Completed — O2-P3 anonymous apply／rollback prototype:** HEAD `560b54d`へtest-only CLIと13 testsを収録。4 mutation段階、failpoint、自動rollback、exact-byte復元を固定したが、本番apply経路は追加していない。[report](docs/reports/cp1-c-02-o2-p3-prototype-2026-08-13.md)
+6. **Completed safety slice — AI Write Review Mode:** `40_情報源`／`50_履歴`とユーザー追加pathのimmutable保護に加え、明示したreview pathではMCPの作成／通常更新／自動更新を即時適用せず、Vault外inboxへ提案化する。Settingsで差分確認、承認、取消ができ、承認時はrevision／存在状態を再検査して履歴付きで適用する。通知、複数人承認、汎用workflow engineは対象外。
+7. **Completed — O2-P4A Path Alias sidecar sync:** test-owned fake remoteでexact bytes、unique ownership、preview/apply revalidation、conflict、ledger、rollback-safe local replacementを16 testsで固定。61 files／585 testsとtypecheckをPASS。live Drive、remote rename、UI、MCP、本番applyは未実施。[report](docs/reports/cp1-c-04-o2-p4a-sidecar-sync-prototype-2026-08-13.md)
+8. **Parallel observation — O1 7-day dogfood:** 実Vaultで通常ノートを使い、capture／retrieval／navigation／AI handoffの摩擦だけを記録する。P4A通過後にP4Bへ進むか、日常摩擦へ優先を戻すかをこの観測で決める。
+9. **Completed — O2-P4B remote relocation／recovery prototype:** test-owned fake remoteでexplicit-plan-only、同一file ID、content／parent不変、remote→alias→ledger順、combined recovery、3 remote-stage failpoint、remote／local rollback drift packet retention、completion re-readを12 testsで固定。関連43 tests、全62 files／608 tests、typecheckをPASS。live Drive、UI、MCP、本番applyは未実施。[report](docs/reports/cp1-c-05-o2-p4b-relocation-recovery-prototype-2026-08-13.md)
+10. **Completed observation — MCP-R1 retrieval route:** 自然task 3/3を完了。sample 2・3で履歴近似重複が反復しsearch/rankingシグナル2/3。新規BM25やcacheは開始せず、既にdirty sourceへ存在する`50_履歴/**`既定除外をactive MCP runtimeで受入する一つの小実験を次候補とする。[protocol](docs/reports/mcp-retrieval-route-observation-2026-08-13.md)
+11. **Completed local consolidation — frozen 245-file inventory:** C0〜C4とAI設定保存flow補修を独立commitへ分離し、C5はexact pinへ復旧、未採用H1 Hooks shadow 6 filesは削除した。working treeはclean。push、production update、本番Vault applyはまだ行っていない。[manifest](docs/reports/working-tree-commit-manifest-2026-08-14.md)
+12. **Next delivery gate:** cleanなlocal commitsをpushし、`production:update`で型検査、全test、MCP smoke、build、installer、installed hash、profile不変性、MCP再登録を再受入する。
+13. **Next product gate — disposable live Drive acceptance:** O2-P4A／P4Bはprototype-proven。実資格情報と隔離Drive fixtureで同一file ID、private path metadata、version、rollbackを確認するまで、本番Vault applyは禁止する。
 
 新しいSupporting Trackを割り込ませる場合は、目的、停止条件、元Trackへ戻る条件をこの節へ先に記録します。
 
+### Primary Track — X1-CP0 Context Profiler Baseline
+
+#### North Star
+
+> AIが同じ情報を何度も探さず、その時点のタスクに必要な情報だけを、適切なコストで利用できるようにする。
+
+評価単位は単純なtoken数ではなく、**Cost per Successful Task**とする。Context削減で追加検索、再推論、失敗、手戻りが増えた場合は改善と扱わない。
+
+#### 境界
+
+- ProfilerはTSUZUNE本体へ組み込まない。最初は既存Codex taskの観測とローカル集計だけにする。
+- Raw transcript、個人本文、秘密、token、認証情報はGitやTSUZUNEへ複製しない。必要なraw evidenceは`work/context-profiler/`へローカル保持し、Gitには匿名化した集計と再現条件だけを残す。
+- background service、常時Hook、SQLite、FTS、BM25、embedding、vector／Graph DB、LLM router、別Agent、永続task stateを追加しない。
+- token、料金、prompt cache、reasoning costはhostがtaskへ結び付けた正確な値を公開した場合だけ記録し、それ以外は`not_observable`とする。
+
+#### CP0-A — 測定契約を固定する
+
+- [x] CP0-T01〜T10を予約し、eligible／ineligible条件と、次の自然な依頼を順番どおり採る規則を固定した。
+- [x] 各taskは実際の依頼後、substantiveな探索・読取・実装より前に、目的、1〜3個の成功条件、対象repository／Vault、開始revision、停止条件、write境界をignored `work/`へ固定する。
+- [x] 次の共通schemaを一つだけ定義した: task ID、card参照、task種別、成功／失敗、開始／終了時刻、tool call総数と種類、search回数、read回数、unique source数、同一`source + revision + range`の再読数、再試行数、変更file数、観測可能なusage、証拠参照。
+- [x] 同じsourceでもrevisionまたはrangeが違う読取は重複と数えない。「見つからなかった」はquery、scope、method、revisionが揃う場合だけnegative evidenceとして数える。
+
+完了条件: schema、10件の予約枠、連続採取規則、card template、採点基準、privacy境界をレビューでき、製品コード、本番アプリ、本番Vaultの測定対象本文／fixtureの変更が0である。既存project tracking noteへの契約と状態の同期はsample外とする。[測定契約](.agent/requirements/20260812-0329-context-profiler-baseline/4_requirements.md)／[task registry](.agent/requirements/20260812-0329-context-profiler-baseline/task_cards.md)
+
+#### CP0-B — Native baselineを10件採取する
+
+- [x] 次に自然発生するeligibleなCodex作業を連続順で10 task採取し、各taskのsubstantiveな作業前にcardを固定して、raw evidenceからschemaを埋めた。
+- [x] 途中で最適化機能、cache、検索index、prompt短縮を導入しなかった。
+- [x] taskごとに成功条件を採点し、blocked 2件も除外しなかった。
+- [x] task種別を揃えるための人工task、除外、順序変更を行わず、feature change 7、knowledge 2、continuation 1と欠落categoryを報告した。
+- [x] 集計は中央値と件数を基本とし、10件から一般的な削減率を主張していない。
+
+採取状況: CP0-T01とCP0-T07は`blocked`、残る8件は`pass`として10/10を固定した。T10は再起動後の本番MCPでReview proposal化、本文不変、cleanupを確認した。成功taskだけへの差し替えや、同じtaskへの追加修正は行わない。[task registry](.agent/requirements/20260812-0329-context-profiler-baseline/task_cards.md)／[baseline](docs/reports/context-profiler-native-baseline-2026-08-12.md)
+
+完了条件の判定: 10/10 task、成功率、経過時間、tool call、再試行、host usage再取得はPASS。`unique source`と再読は10/10で`null`のままだが、token bottleneckを選ぶための共通証拠は得られた。CP0を閉じ、CP1-Aへ進む。
+
+#### CP0-C — 最大の無駄を一つだけ選ぶ
+
+候補は観測結果から選び、先に実装を決めない。
+
+現在判定: **長大taskで安定prefixがmodel turnごとに再送されることを最初の比較対象に選定した。** 10 taskすべてでcached input比率が92.82%〜98.57%、合計input 42,806,336、456 token eventだった。cached input全量を無駄とは扱わず、fresh taskへの分割が品質を保って実測inputを減らすかをCP1-Aで判定する。
+
+| 観測された主因 | 最初に比較する最小介入 |
+|---|---|
+| 同一revision・同一rangeの再読 | task内の既取得結果の再利用／重複投入抑制 |
+| repository検索の反復 | 既存`rg`、Git、AST／LSPの直接利用順 |
+| 巨大tool output | まずsection／range指定または既存のbounded output。3 task以上で再現し、それだけでは不足する場合はRTKを限定A/B候補にする |
+| TSUZUNE探索の反復 | `search → fetch`と`build_context`の適応的使い分け |
+| Context bundle量 | 準備済みX1-C2 4k／6k／8k／15k受入 |
+| 長い会話履歴 | **選定済み。短いdurable handoffを持つfresh taskと現task継続を比較する。独自要約serviceは作らない** |
+
+選定gate:
+
+1. 同じ無駄が最低3 taskで再現する。
+2. source、revision、tool callまたは時間の証拠で説明できる。
+3. 一つの小さな介入でA/B比較できる。
+4. 成功率、安全性、出典追跡を落とさずに検証できる。
+
+##### RTKの位置付け
+
+- RTKはTSUZUNE本体の機能や依存関係ではなく、Codexが読むshell／tool出力を用途別に圧縮する外部開発支援候補として扱う。TSUZUNEは知識の選択、RTKはtool出力の圧縮という別責務を維持する。
+- CP0 Native baseline中は導入しない。巨大tool outputが最低3 taskで主要因として再現し、既存のsection／range指定やbounded outputで不足する場合だけCP1の一介入として比較する。
+- 比較対象は`git status`、`git log`、大量の成功テスト、定型lint、一覧出力など低リスク経路から選ぶ。初見の失敗、stack trace、複雑なdiff、security診断はrawを既定とする。
+- Codex連携は現時点で`AGENTS.md`／awareness documentによるprompt-level guidanceであり、機械的なcommand hookではない。取りこぼし、誤ったprefix、情報欠落を前提に、raw escape hatchを必須にする。
+- 採用gateは同一task／source revisionで、成功率と安全性を維持し、経過時間、tool出力量、再試行、raw再取得回数が悪化しないこと。RTKのbytes推定をhost tokenや費用の証拠にしない。
+
+##### Agent HarnessとTSUZUNEの責務境界
+
+- TSUZUNEはAI agent、planner、model router、実行loopにならず、Markdown、検索、リンク、時間、出典、revisionを提供する交換可能なknowledge sourceであり続ける。
+- Plan／Search／Execute／Verify／Retry、tool orchestration、失敗時のescalationはCodexなど外部Agent Harnessの責務とする。モデルやharness固有の状態を通常ノートの契約へ埋め込まない。
+- 長いcontext windowや新しいopen-weight modelを、全情報投入や独自agent framework実装の根拠にしない。Selection、provenance、revision-awareな再確認を優先する。
+- Kimi K3やAgentENV等は技術動向の参照候補であり、現時点の製品依存・model採用・新Trackにはしない。CP0で観測した一つのボトルネックに対し、既存Codex機能で不足すると実証された場合だけ境界上の最小介入を要件化する。
+
+該当する主因がなければ、同じ連続採取を最大30件まで続ける。欠落categoryを埋めるための人工taskは作らない。30件でも再現しなければSidecar実装を開始せず、このTrackを「共通ボトルネック未確認」で閉じる。
+
+#### CP1 — 一つの介入を比較する
+
+- [x] CP0-Cで選んだ一因だけを対象にする: 長大taskの安定prefix再送。
+- [x] 同じtask card、source revision、host／model（表示される範囲）でNative baselineと介入後を比較した。
+- [x] task成功率、Git安全性、tool callを維持し、input／cached inputとelapsedが悪化しないことを確認した。
+- [x] input／cached inputはrollout実測値を使い、実費は`not_observable`のため費用削減率を結論にしていない。
+
+CP1がPASSした後にだけ、Basic Context Sidecar、revision-aware state、検索indexなど次の一機能を要件化する。Phase 2以降の完成アーキテクチャを先行実装しない。
+
+#### 最初の停止地点
+
+CP0-Aの測定契約、CP0-T01〜T10の連続採取、rollout usage再採点は2026-08-12に完了した。結果は8 pass／2 blocked、全task中央値は696,651.5 ms／41 tool calls／8.5 searches／17 reads／2 retriesだった。10 task／456 eventのinputは42,806,336、cached inputは41,566,464（97.10%）で、全recordが再計算と一致した。CP1-Aのsingle-worker matched pairは両方が全529 testsをPASSし、fresh側inputは88.58%減、tool call不変、retry 0だった。CP1-B監視3件はFAIL／PASS／BLOCKED。fresh境界はcleanで境界明確な長大taskに限り条件付きで使い、source/config identity preflightを必須とする。個別pairの88.58%を一般化せず、品質・実費・再読削減の保証にしない。[証拠](docs/reports/context-profiler-native-baseline-2026-08-12.md)
+
 **Completed bounded supporting slice — X1-D1:** `build_context`へ任意queryを渡し、query無しbaselineのcandidate集合を変えず、通常ノート本文の展開順だけを優先します。MOC全タイトル、Temporal、provenance、warningを保持したままcommit `e2d8621`から本番へ反映しました。X1-T1、embedding、要約、multi-seed APIへ拡張せず、Primary Queueへ戻しました。
+
+**Completed supporting slice — X1-T1 structured-only transport:** `build_context`だけを`content: []`と`structuredContent`へ分離し、Codex登録面の他6ツールはlegacy二重形状のままにした。`Generated:`時刻だけをcanonical metricsから分離した固定fixtureで、意味指標／source Vault不変、wire 2,761→1,252 UTF-8 bytes（54.7%減）、p95 5.282→3.471ms、57 files／513 tests、MCP smokeを確認した。Codex Desktop local MCPのfresh task 2件でfixture 12/12、回答品質4/4、source trace 3/3、future leakage 0、write 0を確認し、通常本番runtimeも再起動後にstructured-onlyを直接確認した。production updateは10/10 PASS。2026-08-13のcurrent sourceではdirect-only 3ツールを含む10ツール構成へ広がったため、structured-only回帰を修復し、公式登録7／direct server 10の境界を[再固定](docs/reports/mcp-contract-reconciliation-2026-08-13.md)した。ChatGPT remote MCPとhost model-visible tokenは別Track／未計測であり、wire byteから推定しない。[証拠](docs/reports/x1-t1-structured-only-transport-2026-08-12.md)を正本とする。
+
+**Completed bounded supporting slice — X1-S1a creation-time sidecar no-op:** `writeCreationTimes`は保存予定のcanonical JSONと既存regular sidecarのraw bytesが一致するときだけreturnし、stable scanのtemp file→renameを止めた。欠損、壊れたJSON、不正値、非canonical形式は従来どおり修復する。固定mtimeを使うred→green回帰でbytes／mtime／`createdAt`を、Graph Timeline回帰で時系列の意味を保持し、全510 testsと10/10 production gateを通して本番反映した。[証拠](docs/reports/x1-s1a-creation-time-sidecar-noop-2026-08-11.md)を正本とし、性能／token削減は主張しない。
+
+**Completed bounded supporting slice — X1-S1b revision-aware autonomous no-op:** `expected_revision`が一致し本文が完全に同一な`autonomous_update_note`だけをopt-in no-opにした。`unchanged: true`を返して`history_path`を省略し、Markdown・AI履歴・stable canonical sidecarへ書かない。revisionなしは既存の履歴付き更新を維持し、stale revisionは本文一致より先に拒否する。固定fixtureでtarget／history／sidecar不変、stale拒否、changed path保持を確認し、全513 testsと10/10 production gateを通して本番反映した。[証拠](docs/reports/x1-s1b-revision-aware-autonomous-noop-2026-08-11.md)を正本とし、snapshotの全Vault scan、欠損／非canonical sidecar修復、性能／token削減は対象外とする。
+
+**Remaining X1-S1 boundary:** 既知pathのfetch/create/updateで全Vault scanを避ける変更は、profileで必要性が確認できた場合だけ選ぶ。本文、revision、createdAt、MOC／Temporal／provenance、`build_context`のcandidate集合、通常Graph／searchの対象範囲を保持する。永続cache、SQLite、BM25、閲覧・検索行動ログは追加しない。`50_履歴/AI更新/`の通常Graph／search扱いは、このcheckpointで変更せず、必要なら既存Excluded filesまたは別の固定parity sliceとして扱う。Primary Queueへ戻る。
 
 分類Trackを次に選ぶ場合のGateは、匿名一時Vaultだけでapplyとrollbackを往復するO2-P3、またはDriveがPath Alias sidecarを扱う契約判断です。どちらを先にするかを決めるまでCurrent Transition Queueへ割り込ませず、本番Vaultへのapplyは許可しません。
 
@@ -78,17 +189,17 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 
 インストール済み本番をread-onlyで使った固定比較では、`00_入口/知識地図.md`の15,000文字Contextが1,130文字になり、includedは9件からMOC 1件、omittedは21件から0件になりました。削減は13,870文字、92.47%です。これはContext Markdown文字数の比較であり、model-visible token削減は未計測です。
 
-時間指定時の本文省略、Path Alias、未解決link、source fence、通常ノートのquery無し経路を維持します。MOCから選んだノート本文は、次の`fetch`または`build_context`で初めて読みます。query bridgeと本文budget priorityはX1-D1として本番反映し、MCP structured-only transportは独立したX1-T1へ残します。
+時間指定時の本文省略、Path Alias、未解決link、source fence、通常ノートのquery無し経路を維持します。MOCから選んだノート本文は、次の`fetch`または`build_context`で初めて読みます。query bridgeと本文budget priorityはX1-D1として本番反映し、MCP structured-only transportは独立したX1-T1としてCodex Desktop local MCPへ本番反映しました。
 
 ## Revised Design Checkpoint: X1-D0 Recall-safe Progressive Context
 
 第一段階ではMOCの全タイトルを記述順で返し、第二段階で選択したノート本文だけを`fetch`または`build_context`します。queryは通常候補本文の展開優先順にだけ使い、score 0を理由に候補やMOCタイトルを削除しません。query無しbaselineのcandidate集合を保ち、文字予算で本文を見送った候補も`omitted_ids`から追加取得できる設計を[requirements package](.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md)へ固定しました。
 
-回答に十分な根拠がなければMOCまたは`omitted_ids`へ戻って追加取得し、最初のtop-kだけで「情報がない」と結論しません。MCP二重搬送はsource recallと独立したX1-T1とし、実Codex／ChatGPT Desktop gateを通る場合だけ`build_context`をstructured-onlyへ狭く変更します。wire削減をmodel-visible token削減とは呼びません。
+回答に十分な根拠がなければMOCまたは`omitted_ids`へ戻って追加取得し、最初のtop-kだけで「情報がない」と結論しません。MCP二重搬送はsource recallと独立したX1-T1とし、Codex Desktop local MCPのgateを通して`build_context`だけをstructured-onlyへ狭く変更しました。ChatGPT remote MCPは別Trackです。wire削減をmodel-visible token削減とは呼びません。
 
 外部の永続code graphであるIxは設計比較だけを行い、X1-D0へ導入しません。code再読込の損失が別の固定課題で測定された場合だけ隔離比較します。判断根拠と変動する外部状態は[Alternatives](.agent/requirements/20260810-0440-query-aware-compact-context/2_alternatives.md)へ分離しました。
 
-X1-D0自体は設計だけで停止しました。その後の明示認可により、R1〜R3を独立したX1-D1 supporting sliceとして実装し、MOC全タイトル順、query有無のcandidate到達性、Temporal／provenance／warning、最大500文字query、2k／4k／6k／8k／15k budget sweepを検証して本番反映しました。固定4問の回答品質、model-visible token、X1-T1 transportは未証明のまま分離し、Primary Queueへ復帰しました。
+X1-D0自体は設計だけで停止しました。その後の明示認可により、R1〜R3を独立したX1-D1 supporting sliceとして実装し、MOC全タイトル順、query有無のcandidate到達性、Temporal／provenance／warning、最大500文字query、2k／4k／6k／8k／15k budget sweepを検証して本番反映しました。X1-T1 transportはCodex Desktop local MCPで固定4問の回答品質とstructured-only搬送を受入済みです。host model-visible tokenとChatGPT remote MCPは別Trackとして分離し、Primary Queueへ復帰しました。
 
 ## Completed Supporting Track: O2-P2 Classification Migration Dry-run
 
@@ -131,9 +242,9 @@ X1-D0自体は設計だけで停止しました。その後の明示認可によ
 
 同じ旧pathがUI、Graph、MCPで一意に同じ新pathへ解決され、循環・衝突fixtureがfail-closedになったら止めます。分類移動は別sliceのmanifest、rollback、Drive previewを通してから実行します。
 
-## Active Track: v0.6 Obsidian Graph Parity
+## Checkpoint Track: v0.6 Obsidian Graph Parity
 
-O2-P1／O2-P2の安全な分類基盤を閉じ、GP0-3b-oまで完了しました。次はGP0-3b-pの対象を選び、固定参照と安全境界の設計から開始します。
+O2-P1／O2-P2の安全な分類基盤を閉じ、GP0-3b-oまで完了しました。GP0-3b-pは対象の意味分類まで確認したものの、Graph再表示camera gate不成立でblockedとして閉じています。次は独立Trackを再選択し、pの再開はcamera契約を先に改訂した場合だけ許可します。
 
 ### Completed GP0-3b-l — Attachment Path Copy
 
@@ -212,7 +323,7 @@ Obsidianは`window.open(file URL, "_external")`、TSUZUNEは既存trusted IPCと
 
 | Area | 現在 | 完了条件 |
 |---|---|---|
-| Context menu | 新規tab、新規window、file move、bookmark、path copy、linked view、default app、`フォルダで表示`まで比較済み | GP0-3b-pとして次の操作、残るsubmenu、note/tag/attachment別挙動を一項目ずつ固定比較 |
+| Context menu | 新規tab、新規window、file move、bookmark、path copy、linked view、default app、`フォルダで表示`まで比較済み。GP0-3b-pはreference blocked | camera再表示契約を明示的に改訂して再開する場合だけ、残るsubmenu、note/tag/attachment別挙動を一項目ずつ固定比較 |
 | Workspace state | Global query、zoom/pan境界、node drag、Graph tab保持の一部を比較済み | Local、fit/reset、zoom限界、workspace leaf復元を固定比較 |
 | Filters/Search | Search、tags、attachments、unresolved、excluded基礎を実装済み | malformed query、Manage UI、全surfaceへのExcluded files効果を比較 |
 | Groups | ordered groups基礎を実装済み | 作成、編集、順序、色、保存、復元、既定状態を比較 |
@@ -229,10 +340,10 @@ Graph parity全体は、P2/P3へ到達していない領域が残る限り完了
 
 | Stage | 到達目標 | 状態 / 次のGate |
 |---|---|---|
-| O0. Graph Parity | Local/Global Graph、filter、group、display、force、interaction、保存、アクセシビリティを徹底比較 | **Active**。GP0-3b-o完了、次はGP0-3b-pの設計 |
+| O0. Graph Parity | Local/Global Graph、filter、group、display、force、interaction、保存、アクセシビリティを徹底比較 | Checkpoint。GP0-3b-o完了、GP0-3b-pはcamera gate不成立でblocked。resume条件までheld |
 | O1. Daily Writing & Navigation | Markdownを知らなくても作成・編集・日次運用できる | Daily/Ideaフォーム、toolbar、template、freshnessは実装済み。7日通常運用と残るnavigationは未完 |
-| O2. Organization & Retrieval | folders、tags、properties、outline、bookmarks、search、commandsを日常利用できる | O2-P1／O2-P2完了。物理applyは禁止を維持し、次Gateは匿名一時VaultのO2-P3またはDrive sidecar契約判断 |
-| O3. Structured Views | Markdown/frontmatter原本のtable/card/list view | Planned。実用queryと編集契約を固定してから開始 |
+| O2. Organization & Retrieval | folders、tags、properties、outline、bookmarks、search、commandsを日常利用できる | O2-P1／P2完了、P3 test-only prototype収録、P4契約固定。次はP4A fake-remote sidecar sync。物理applyは禁止 |
+| O3. Structured Views | Markdown/frontmatter原本のtable/card/list view | Obsidian Bases適合性を確認済み。O1 dogfoodで反復queryが観測された場合、1つの`.base` fixture＋read-only tableから開始。独自DBは作らない |
 | O4. Canvas & Rich Media | freeform canvas、embed、PDF/audio/video、properties view | Planned。O2/O3の保存契約後 |
 | O5. Recovery, Sync, Import & Publish | recovery、version history、import/export、optional sync/publish | `.trash`、AI history、Drive手動同期、ChatGPT preview基礎あり。往復dogfoodとrecovery UIは未完 |
 | O6. Customization & Plugin Platform | theme、hotkeys、commands、safe plugin API | Planned。実利用で安定したcore surfaceだけ公開 |
@@ -263,7 +374,7 @@ O0〜O7はGraphだけの計画ではありません。Obsidian 1.13.4の公式�
 
 | Stage | 目的 | 導入Gate |
 |---|---|---|
-| X1. Context Compiler 2.0 | X1-M1でMOCを全タイトル索引化。X1-D1で候補を消さず本文だけ段階取得するquery bridgeを本番反映。X1-T1 transportは未着手 | expected-source reachability 100%、silent omission 0、固定質問で出典・時間整合性を維持 |
+| X1. Context Compiler 2.0 | X1-M1でMOCを全タイトル索引化。X1-D1で候補を消さず本文だけ段階取得するquery bridgeを本番反映。X1-T1 transportはCodex Desktop local MCPで本番反映済み | expected-source reachability 100%、silent omission 0、固定質問で出典・時間整合性を維持 |
 | X2. Provenance-backed Personalization | 会話や資料から本人情報候補を抽出し、出典・確認状態を保つ | raw/derived/knowledge分離、stable source ID、再取込重複0、本人確認導線 |
 | X3. Temporal Memory Lifecycle | valid time、knowledge time、review due、supersedesを日常運用する | 現在/過去の誤混入0、状態更新の手作業が負担にならない |
 | X4. AI-assisted Maintenance | 通常ノートの整理、更新、矛盾候補、link候補をAIが行う | 履歴、出典、policy、rollback、失敗fixtureを用意 |
@@ -326,11 +437,11 @@ C0-A〜C1-Cのread-only preview、branch復元、provenance、candidate eligibil
 
 詳細契約は[ChatGPT Export Intake](docs/chatgpt-export-intake.md)を参照します。
 
-### AI Write Policy UI — Paused
+### AI Write Policy UI — Review Mode Complete
 
-MCPの`autonomous_update_note`は通常ノートの履歴付き更新まで実装済みです。ノート/フォルダ単位の`auto`、`review`、`immutable`切替UIは未実装です。
+MCPの`create_note`／`update_note`／`autonomous_update_note`は、通常pathでは従来どおり適用し、`40_情報源`／`50_履歴`とSettingsで追加したimmutable pathでは拒否し、Settingsで追加したreview pathではVault外inboxへ提案化します。
 
-再開時は、既存更新経路を再利用し、policy解決、表示、rollback、Raw Source拒否を一つのvertical sliceで確認します。別のagent frameworkやqueueは追加しません。
+Settingsではreview pathの指定、現在内容と提案内容の比較、承認、取消ができます。承認時は対象の存在状態とrevisionを再検査し、競合した提案を失効させ、更新は既存の履歴・provenance経路で適用します。個別ノート用policy UI、通知、rollback UI、複数人承認、汎用workflow engineは未実装です。
 
 ### Installer And Updater Follow-up — Pending
 
@@ -366,6 +477,7 @@ NotebookLMや外部資料は、原典package、派生要約、更新対象知識
 - Plugin APIは、core surfaceと保存契約が安定し、実際に複数機能が同じextension pointを必要とした時だけ始める。
 - AI提案はprecision/recallと出典で評価し、便利そうという理由だけで自動applyしない。
 - 情報の古さは真偽と分ける。filesystem更新日や`review_after`は再確認の手掛かりであり、古い情報を自動削除しない。
+- 閲覧・検索頻度や共起を真偽・鮮度の代理値にしない。`last_viewed`等のread-on-writeメタデータをMarkdownへ追加しない。検索順位への導入は、production Vaultへ行動ログを永続化せず、固定corpus／fixtureで`included`等の確定イベントだけを使うcandidate集合不変のshadow評価を通った場合に限る。客観ラベルなしに`source-used`や`successful`を推定しない。
 - 未来時点の情報を過去Contextへ混ぜない。valid timeとknowledge timeを分ける。
 - 安全、データ損失防止、security、accessibility、利用者が明示した互換水準はPonytailで省略しない。
 
@@ -376,14 +488,14 @@ NotebookLMや外部資料は、原典package、派生要約、更新対象知識
 | Foundation | 現在の意味 | Evidence / Contract |
 |---|---|---|
 | v0.1 Local Markdown Notes | 作成、編集、folder、Wiki link、backlink、search、trash、競合検知 | [README](README.md)、[v0.1 scope](docs/v0.1-scope.md) |
-| MCP Integration | search/fetch/backlinks/context/create/update/autonomous updateの7 tools | [MCP Guide](docs/mcp-integration.md) |
+| MCP Integration | Codex Desktop登録はsearch/fetch/backlinks/context/create/update/autonomous updateの7 tools。direct serverは未登録のsuggest/move/addを含む10 tools | [MCP Guide](docs/mcp-integration.md) |
 | Temporal Memory Lite M0-M5 | valid/knowledge time、review due、supersedes、as-of context、source trace | [M5 Dogfood](docs/m5-dogfood.md) |
 | Context Snapshot Index M5-C | request内の重複parse/indexを削減し、出力同一性を保持 | [PROJECT_STATUS](PROJECT_STATUS.md) |
 | Human Capture O1-W0/W1 | template、freshness、通常作成、Daily/Idea、toolbar | [Templates and Freshness](docs/templates-and-freshness.md) |
 | Google v0.4 Foundation | Desktop OAuth、profile、Drive manual preview/apply、local graph | [README](README.md) |
 | Windows v0.5 Foundation | installer、updater、packaged/installed smoke、production gate | [Windows Production](docs/windows-production.md) |
 | Graph GP0-a〜n | settings、search/camera/drag、tabs、attachment open/move/bookmark/path copy/linked view/default appの固定比較 | [Parity Reference](docs/obsidian-graph-parity-reference.md) |
-| Classification O2-P1／P2 | Path Alias読取基盤と、物理移動なしの本番Vault migration dry-run | [Path Alias](docs/path-aliases.md)、[O2-P2 report](docs/reports/o2-p2-classification-migration-dry-run-2026-08-10.md) |
+| Classification O2-P1〜P4 contract | Path Alias読取、read-only dry-run、匿名test-only apply／rollback、Drive sidecar／relocation契約 | [Path Alias](docs/path-aliases.md)、[O2-P3 report](docs/reports/cp1-c-02-o2-p3-prototype-2026-08-13.md)、[O2-P4 contract](docs/reports/cp1-c-03-drive-path-alias-contract-2026-08-13.md) |
 | TSUZUNE Benchmark | TSUZUNEあり/なしの品質とlatencyを分離計測 | [Benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
 | ChatGPT Export C0-A〜C1-C | read-only normalization、provenance、candidate preview、安全回帰 | [Intake Contract](docs/chatgpt-export-intake.md) |
 

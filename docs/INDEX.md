@@ -1,6 +1,6 @@
 # TSUZUNE Documentation Index
 
-更新日: 2026-08-11
+更新日: 2026-08-13
 
 ## まず読む
 
@@ -12,12 +12,32 @@
 
 ## 現在の開発
 
+- [Current-state consolidation 2026-08-13](reports/tsuzune-consolidation-2026-08-13.md) — 製品中心、installed／source境界、96-entry working tree、完了／保留、優先順を一枚に固定。
 - [Product Plan](../PLAN.md) — 現在の実行順、受入条件、保留Track、長期roadmap。
+- [O2-P3 test-only migration prototype](reports/cp1-c-02-o2-p3-prototype-2026-08-13.md) — 匿名一時Vaultで4段階mutation、失敗注入、自動rollback、exact-byte復元を固定。本番applyではない。
+- [O2-P4 Drive Path Alias contract](reports/cp1-c-03-drive-path-alias-contract-2026-08-13.md) — P4A sidecar同期とP4B remote relocationを分離し、次をP4Aだけに限定。
+- [O2-P4A test-only sidecar sync prototype](reports/cp1-c-04-o2-p4a-sidecar-sync-prototype-2026-08-13.md) — fake remoteでexact bytes、ownership、ledger、conflict、local rollbackを固定。P4B／live Drive／本番applyは未実施。
+- [CP0-T09 AI Write Review mode](reports/cp0-t09-ai-write-review-mode-2026-08-12.md) — 3 MCP write toolの提案化、Vault外inbox、Settings承認／取消、競合失効、履歴付き適用と本番反映の証拠。
+- [CP0-T10 Review runtime acceptance](reports/cp0-t10-ai-write-review-runtime-acceptance-2026-08-12.md) — 再起動後の本番MCPでproposal化、Vault本文不変、試験状態cleanupを確認した可逆な受入。
+- [Context Profiler Native baseline](reports/context-profiler-native-baseline-2026-08-12.md) — 10件の集計、失敗pairの保持、single-worker matched pairで品質維持・fresh側input 88.58%減を確認した条件付き採用判定。
+- [CP1-B-01 Obsidian Excluded files reference](reports/cp1-b-01-obsidian-excluded-files-reference-2026-08-12.md) — 専用画面、追加用＋control、Graph除外効果を固定。再起動永続性未確認によりFAILとした監視sample 1/3。
+- [CP1-B-01 Excluded files reference completion](reports/cp1-b-01-excluded-files-reference-completion-2026-08-12.md) — version表示不一致と安全なUI操作経路不足でblocked。自然task監視には数えず、追加GUI retryを停止した記録。
+- [CP1-B-02 Markdown note folder reveal](reports/cp1-b-02-note-folder-reveal-2026-08-13.md) — 固定参照と既存Vault検証経路を再利用し、実在Markdownノートの`フォルダで表示`を109 tests／型検査PASSで閉じた監視sample 2/3。
+- [CP1-B-03 Production readiness audit](reports/cp1-b-03-production-readiness-audit-2026-08-13.md) — source型検査はPASSしたが、root `package.json`のTSUZUNE配布契約欠損を正式build失敗とrelease test 2件で検出し、本番更新をblockedとした監視sample 3/3。
+- [Package manifest repair](reports/package-manifest-repair-2026-08-13.md) — Obsidian archive確認コマンドによるroot manifest上書きを特定し、canonical TSUZUNE 0.5.0 manifestへ最小復旧。全529 tests、型検査、MCP smoke、製品buildをPASSし、明示了承後に本番反映済み。
 - [Obsidian Graph Parity Reference](obsidian-graph-parity-reference.md) — 固定比較対象と受入契約。
 - [GP0-3b-n Attachment Default App Requirements](../.agent/requirements/20260810-1941-attachment-default-app/4_requirements.md) — 実外部アプリを起動せず、添付の既定アプリ要求を一項目だけ比較した設計、安全境界、停止条件。
 - [GP0-3b-p Attachment File Explorer Reveal Requirements](../.agent/requirements/20260811-0257-attachment-file-explorer-reveal/4_requirements.md) — `ファイルエクスプローラでファイルを表示`の意味を推測せず、内部File ExplorerかOS境界かを一項目・一添付で確定する設計、安全境界、停止条件。
-- [MCP Integration](mcp-integration.md) — Codex／ChatGPTデスクトップ連携と書込境界。
+- [MCP Integration](mcp-integration.md) — Codex Desktopの公式7ツール登録、direct server 10ツール、書込境界。
 - [Compact Context Requirements](../.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md) — X1-M1 MOC Title Routerの実装契約と、未実装のquery選定・MCP二重搬送削減を分離して記録。
+- [X1-T1 Structured-only Transport Measurement Protocol](../.agent/requirements/20260810-0440-query-aware-compact-context/7_x1-t1-model-visible-token-benchmark.md) — `build_context`の二重搬送を、wire bytesとmodel-visible tokenを混同せずに実測するgate。
+- [X1-T1 structured-only transport](reports/x1-t1-structured-only-transport-2026-08-12.md) — local stdioでの実装・wire／latency計測とCodex Desktop local MCPのfixture受入。ChatGPT remote MCPは別Track。
+- [MCP contract reconciliation](reports/mcp-contract-reconciliation-2026-08-13.md) — `build_context`のstructured-only回帰を修復し、Codex登録7ツール／direct server 10ツールの境界を再固定。
+- [Context Budget Priority](reports/context-budget-priority-2026-08-12.md) — Context文字予算、品質gate、host tokenの観測境界を分けたX1-C2 runbook。現在は主要因が観測されるまでheld。
+- [Codex/BM25 Context Gateway Assessment](reports/codex-bm25-context-gateway-assessment-2026-08-11.md) — 外部会話のBM25／永続状態案を、現行Context契約、未検証境界、実装前の比較条件へ分けた研究メモ。
+- [Priority Reset 2026-08-12](reports/tsuzune-priority-reset-2026-08-12.md) — dirty working tree、実Windows accessibility、7日dogfood、Graph、AI write、organization、integrationを現在の根拠で再順位付けした実行キュー。
+- [Delivery boundary checkpoint](reports/delivery-boundary-checkpoint-2026-08-12.md) — receiptと現行dirty source、非製品Hooks shadow、現在profileの境界を分けたP0検証記録。
+- [Windows accessibility baseline](reports/windows-accessibility-baseline-2026-08-12.md) — installed appの確認済みUI Automationと、実Windowsで測定するSKIP境界。
 - [Templates and Freshness](templates-and-freshness.md) — Markdown雛形、placeholder、最終更新日、再確認表示の使い方。
 - [Path Alias](path-aliases.md) — 分類移動後の旧Wikiリンク・MCP IDをcanonical pathへ安全に解決するsidecar契約。
 - [O2-P2 Classification Migration Dry-run](reports/o2-p2-classification-migration-dry-run-2026-08-10.md) — 本番Vaultを変更せず、5 movesの参照・Graph・Context・fingerprintと適用blockerを固定した証拠。
@@ -27,6 +47,9 @@
 ## 現行の検証証拠
 
 - [Latest production receipt](reports/production-update-latest.json) — インストール済み本番の機械可読な固定点。
+- [Working-tree commit manifest 2026-08-14](reports/working-tree-commit-manifest-2026-08-14.md) — frozen 245-file inventoryをlocal commits、exact-pin復旧、mixed-path解消、H1 holdへ分離したcloseout台帳。push／production updateは含まない。
+- [X1-S1a creation-time sidecar no-op](reports/x1-s1a-creation-time-sidecar-noop-2026-08-11.md) — stable scanで同一canonical sidecarを再書込みしない最小変更、回帰、不変条件、本番受入の記録。
+- [X1-S1b revision-aware autonomous no-op](reports/x1-s1b-revision-aware-autonomous-noop-2026-08-11.md) — matching revisionと同一本文ではAI履歴も対象保存も行わない、opt-in MCP no-op契約、回帰、本番受入の記録。
 - [O2-P2 Classification Migration Dry-run](reports/o2-p2-classification-migration-dry-run-2026-08-10.md) — 同一manifestを2回得て、Vault write／物理move／Markdown write／Drive操作が0件だったread-only移行検査。
 - [GP6 production comparison](reports/graph-gp6-production-comparison-2026-08-02.html) — 配布済み0.5.0とObsidian固定版の比較。
 - [GP6 working-tree manifest](reports/assets/graph-gp6/tsuzune-working-tree/manifest.json) — `5c0f4bb3`へ収録された、GP6-0W採取時working treeの構造証拠。
@@ -59,6 +82,8 @@
 - [GP0-3b-n attachment default-app comparison JSON](reports/assets/graph-gp0-attachment-default-app/comparison.json) — 中核動作を`matched-core-behavior`とし、API seam差、Obsidian再起動未観測、実OS既定app未証明、menu 11対8を境界として残した機械可読比較。
 - [GP0-3b-o attachment folder reveal](reports/graph-gp0-attachment-folder-reveal-2026-08-11.html) — 実Explorerを起動せず、同じfixture fileの親フォルダ要求1回、menu close、Graph／Vault保持、同一process再表示での非再生を固定した画面証拠。
 - [GP0-3b-o attachment folder-reveal comparison JSON](reports/assets/graph-gp0-attachment-folder-reveal/comparison.json) — 中核動作を`matched-core-behavior`とし、Obsidian再起動未観測、実Explorer未証明、menu 11対9を境界として残した機械可読比較。
+- [GP0-3b-p attachment file-explorer reveal](reports/graph-gp0-attachment-file-explorer-2026-08-11.md) — 対象クリックとinternal File Explorer分類は成立したが、Graph再表示後のcamera完全一致gateで`blocked`。TSUZUNE実装とOS Explorer起動は未実施。
+- [GP0-3b-p attachment file-explorer comparison JSON](reports/assets/graph-gp0-attachment-file-explorer/comparison.json) — 1回のinternal reveal、menu close、query／node／edge／Vault保持、camera gate不成立を機械可読化した診断記録。
 - [Large Vault performance](reports/tsuzune-large-vault-performance-2026-08-03.html) — 500件／2000件baseline。
 - [Large Vault public summary](reports/assets/large-vault-performance-2026-08-03/summary-public.json) — 性能値の耐久する機械可読版。
 - [Product optimization](reports/tsuzune-product-optimization-2026-08-03.html) — GUI、icon、画像preview、watcher、更新gate。
@@ -80,10 +105,13 @@ HTMLは閲覧用、`.artifact.json`と`assets/**/*.json`は機械可読な証拠
 - [Graph Explorer GP1](reports/graph-explorer-gp1-2026-08-02.html)
 - [Graph Explorer GP2-2](reports/graph-explorer-gp2-2-2026-08-02.html)
 
-これらは当時の完了条件と退行確認に使う履歴です。現在のGraph仕様はParity Referenceと`PLAN.md`のActive Trackを優先します。`graph-explorer-gp1-2026-08-02.html`はファイル名と内部見出しが一致していない既知の資料上の問題があり、内容を改変せず履歴として残しています。
+これらは当時の完了条件と退行確認に使う履歴です。現在のGraph仕様はParity Referenceと`PLAN.md`のGraph checkpointを優先します。`graph-explorer-gp1-2026-08-02.html`はファイル名と内部見出しが一致していない既知の資料上の問題があり、内容を改変せず履歴として残しています。
 
 ## 将来計画
 
+- [O2-P4B test-only relocation／recovery prototype](reports/cp1-c-05-o2-p4b-relocation-recovery-prototype-2026-08-13.md) — 明示plan、既存Drive file ID、metadata-only relocation、combined recovery、rollback drift retentionをfake remoteで固定。live Driveと本番applyは別Gate。
+
+- [Obsidian Bases assessment](reports/obsidian-bases-assessment-2026-08-13.md) — Markdown原本のStructured Viewsとしての適合性、現行TSUZUNEとの差、最小read-only table Gate。
 - Google Tasks、Drive選択取込、YouTube、Data Portability: `PLAN.md`のPersonal Google Intake。
 - ChatGPT export取込: C1-Cの安全回帰は完了。rule別reviewが10件未満のためC1-D自動適用は停止中。
 - Context Compiler 2.0、AI時間モデル、GraphRAG、Plugin API、独自DB: 固定評価または計測で導入条件を満たしてから着手。
