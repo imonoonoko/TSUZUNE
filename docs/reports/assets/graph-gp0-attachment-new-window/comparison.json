@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "stage": "GP0-3b-i",
+  "capturedAt": "2026-08-08T20:49:04.249Z",
+  "status": "matched",
+  "fixedConditions": {
+    "reference": "Obsidian Desktop 1.13.4",
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "scope": "Global Graph attachment node new-window action",
+    "targetNode": "attachments/diagram.svg",
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "theme": "light"
+  },
+  "comparisons": [
+    {
+      "id": "new-window-action",
+      "label": "右クリック「新規ウィンドウで開く」でトップレベルウィンドウを生成",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "internal-image-preview",
+      "label": "SVGを外部アプリへ渡さず内部画像ビューで表示",
+      "obsidian": "image",
+      "tsuzune": "internal image preview",
+      "status": "matched"
+    },
+    {
+      "id": "source-graph-retained",
+      "label": "元Global Graphを開いたまま保持",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "context-menu-closes",
+      "label": "操作後にcontext menuを閉じる",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "attachment-context-menu-size",
+      "label": "添付ノードの右クリックメニュー項目数",
+      "obsidian": 11,
+      "tsuzune": 3,
+      "status": "known-gap-outside-slice"
+    },
+    {
+      "id": "detached-window-visual-shell",
+      "label": "独立ウィンドウのタブ・パス・余白の視覚一致",
+      "obsidian": "Obsidian workspace shell",
+      "tsuzune": "minimal TSUZUNE attachment shell",
+      "status": "known-gap-outside-slice"
+    }
+  ],
+  "established": [
+    "両製品で添付ノードから2つ目のトップレベルウィンドウを生成できる",
+    "両製品でSVGをOS既定アプリではなく内部画像ビューとして表示する",
+    "両製品で元Global Graphを保持し、操作後にcontext menuを閉じる"
+  ],
+  "remainingGap": {
+    "summary": "公開操作と状態遷移は一致した。独立ウィンドウのworkspace装飾とcontext menu全11項目の網羅は未一致。",
+    "obsidianItems": [
+      "diagram.svg",
+      "新規タブに開く",
+      "新規ウィンドウで開く",
+      "ファイルを移動…",
+      "ブックマーク…",
+      "パスをコピー",
+      "リンクされたビューを開く",
+      "デフォルトアプリで開く",
+      "フォルダで表示",
+      "ファイルエクスプローラでファイルを表示",
+      "ファイルを削除"
+    ],
+    "tsuzuneItems": [
+      "新規タブに開く",
+      "新規ウィンドウで開く",
+      "ファイルを削除"
+    ]
+  },
+  "safeguards": {
+    "obsidian": {
+      "sourceUnchanged": true,
+      "isolatedVaultProtectedFilesUnchanged": true,
+      "protocolRestored": true
+    },
+    "tsuzune": {
+      "exactNodeSetAtEveryCheckpoint": true,
+      "nodeContextMenuOpened": true,
+      "nodeContextMenuItemsHaveText": true,
+      "attachmentContextMenuOpened": true,
+      "attachmentWindowCreated": true,
+      "attachmentWindowActivated": true,
+      "sourceGraphKeptOpen": true,
+      "attachmentContextMenuClosedAfterAction": true,
+      "contentViewportStable": true,
+      "filteredNodeSetStable": true,
+      "separateApplicationProcesses": true,
+      "sourceFixtureUnchanged": true,
+      "productSourceUnchanged": true,
+      "builtApplicationUnchanged": true,
+      "isolatedMarkdownUnchanged": true,
+      "noIsolatedProcessesRemaining": true
+    }
+  },
+  "notEstablished": [
+    "添付context menuの残り操作の同等実装",
+    "独立ウィンドウのpixel-identical workspace chrome",
+    "物理マウスと実OSアクセシビリティ"
+  ],
+  "conclusion": "GP0-3b-iでは添付ノードの「新規ウィンドウで開く」の公開操作と状態遷移を一致確認した。TSUZUNEは元Graphを保持し、SVGを安全な内部画像ウィンドウに表示する。視覚shellと残りcontext menu項目は後続差分である。"
+}

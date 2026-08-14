@@ -1,0 +1,135 @@
+{
+  "capturedAt": "2026-08-03T12:26:42.364Z",
+  "stage": "GP0-3b-d Global Graph node drag lifecycle working-tree evidence",
+  "status": "captured",
+  "comparisonStatus": "Compare with docs/reports/assets/graph-gp0-node-drag-persistence/comparison.json",
+  "command": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --node-drag",
+  "isolation": {
+    "sourceFixture": "fixtures/obsidian-graph-parity-vault",
+    "copiedVault": "work/graph-gp0-node-drag-restart-working-tree/vault",
+    "userData": "work/graph-gp0-node-drag-restart-working-tree/userdata",
+    "requestedContentViewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "offscreenOrigin": {
+      "x": -32000,
+      "y": -32000
+    },
+    "observedWindowGeometry": {
+      "initial": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      },
+      "restarted": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      }
+    },
+    "network": "host resolver blocked except localhost"
+  },
+  "processIds": [
+    19856,
+    8208
+  ],
+  "assertions": {
+    "exactNodeSetAtEveryCheckpoint": true,
+    "nodeDragApplied": true,
+    "nodeHeldAtPointer": true,
+    "nodeMovedAfterRelease": true,
+    "nodeResetNearBaselineAfterGraphReopen": true,
+    "nodeResetNearBaselineAfterAppRestart": true,
+    "nodePositionNotPersistedInSettings": true,
+    "contentViewportStable": true,
+    "filteredNodeSetStable": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "noIsolatedProcessesRemaining": true
+  },
+  "artifacts": [
+    {
+      "path": "docs/reports/assets/graph-gp0-node-drag-persistence/tsuzune-working-tree/00-baseline.png",
+      "bytes": 109044,
+      "sha256": "4BBDAB75281CB882C02D61E186BF109E26096060757B8FB27B83C6DD745E51F2",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-drag-persistence/tsuzune-working-tree/01-during-node-drag.png",
+      "bytes": 108505,
+      "sha256": "C33831BFCBAD26F4C382949D94EC31D7C163954AD262E178600A03F134B7D2F1",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-drag-persistence/tsuzune-working-tree/02-after-node-release.png",
+      "bytes": 110231,
+      "sha256": "9C902259511D440E50AE61DF3298B1A94C56AB9F802F5A3A7EB4C1B0EC1DD5F2",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-drag-persistence/tsuzune-working-tree/03-after-graph-reopen.png",
+      "bytes": 109044,
+      "sha256": "4BBDAB75281CB882C02D61E186BF109E26096060757B8FB27B83C6DD745E51F2",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-drag-persistence/tsuzune-working-tree/04-after-app-restart.png",
+      "bytes": 109044,
+      "sha256": "4BBDAB75281CB882C02D61E186BF109E26096060757B8FB27B83C6DD745E51F2",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-drag-persistence/tsuzune-working-tree/phase-initial.json",
+      "bytes": 7324,
+      "sha256": "14BA5B870985BB022C1C4A017A150BF5DB2780616FDFE4EA985A497673675EDA"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-drag-persistence/tsuzune-working-tree/phase-restarted.json",
+      "bytes": 1826,
+      "sha256": "0A44AFAB4CCD94141FC8462F19A63F59F466A1D96CE0A921A48B28E18960DB07"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-drag-persistence/tsuzune-working-tree/observation.json",
+      "bytes": 14822,
+      "sha256": "BF3015160CD5D57584AA95CFF7327F27D0D40DE764CD8F6C5583E7294DCD8ADE"
+    }
+  ],
+  "next": "Document the observed Obsidian/TSUZUNE node drag lifecycle contract before the next parity slice."
+}

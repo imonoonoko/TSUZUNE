@@ -1,0 +1,174 @@
+{
+  "capturedAt": "2026-08-09T15:11:12.024Z",
+  "stage": "GP0-3b-l Global Graph attachment path copy (vault) working-tree evidence",
+  "status": "captured",
+  "comparisonStatus": "Compare with docs/reports/assets/graph-gp0-attachment-path-copy/vault/obsidian-1.13.4/observation.json",
+  "command": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-path-copy --path-copy-scenario=vault",
+  "isolation": {
+    "sourceFixture": "fixtures/obsidian-graph-parity-vault",
+    "copiedVault": "work/graph-gp0-attachment-path-copy-working-tree/vault",
+    "userData": "work/graph-gp0-attachment-path-copy-working-tree/userdata",
+    "requestedContentViewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "offscreenOrigin": {
+      "x": -32000,
+      "y": -32000
+    },
+    "observedWindowGeometry": {
+      "initial": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      },
+      "restarted": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      }
+    },
+    "network": "host resolver blocked except localhost"
+  },
+  "evidenceBoundary": {
+    "established": [
+      "Fresh isolated fixture Vault and userData profile",
+      "Public TSUZUNE graph node context menu and three-item path-copy submenu were used",
+      "Parent click retained the main menu; child selection closed both menus",
+      "Electron clipboard.writeText was intercepted inside the capture process and restored before exit",
+      "Clipboard equality was checked in memory; only the unchanged boolean was recorded",
+      "Graph query, camera transform, rendered node paths, rendered edge count, and workspace tabs were compared immediately, after Graph reopen, and after a distinct-process restart",
+      "Source fixture and isolated Vault were hashed before and after the capture"
+    ],
+    "notEstablished": [
+      "Physical mouse or keyboard input",
+      "Visible onscreen foreground-window interaction",
+      "Touch or pen input",
+      "Screen reader or Windows High Contrast acceptance",
+      "Multi-DPI or pixel-identical parity",
+      "A real OS clipboard write and paste round-trip",
+      "Semantic edge identities beyond the public canvas edge-count signal"
+    ],
+    "submenuPlacement": "right",
+    "submenuFullyInsideViewport": true,
+    "fixedReferencePlacement": "left at the captured right-edge position"
+  },
+  "processIds": [
+    4464,
+    576
+  ],
+  "assertions": {
+    "exactNodeSetAtEveryCheckpoint": true,
+    "attachmentContextMenuOpened": true,
+    "pathCopyImmediatelyAfterBookmark": true,
+    "parentClickKeptMainMenuOpen": true,
+    "submenuItemsExact": true,
+    "submenuEnabled": true,
+    "submenuPlacementMatchesCapturedPosition": true,
+    "exactPlainTextCopied": true,
+    "clipboardHookInstalledAndRestored": true,
+    "userClipboardUnchanged": true,
+    "childSelectionClosedMenus": true,
+    "globalGraphRemainedVisible": true,
+    "graphSurfacePreservedImmediately": true,
+    "queryCameraNodesLinksTabsPreservedAcrossReopenAndRestart": true,
+    "contentViewportStable": true,
+    "filteredNodeSetStable": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "isolatedVaultContentUnchanged": true,
+    "isolatedVaultChangedOnlyWhenMoving": true,
+    "noIsolatedProcessesRemaining": true
+  },
+  "artifacts": [
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-path-copy/vault/tsuzune-working-tree/00-baseline.png",
+      "bytes": 126356,
+      "sha256": "B02E5C0A68D4359F8F8FE9B8B92162707B206D9ECD53400599396BB3CDF5DC9D",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-path-copy/vault/tsuzune-working-tree/01-node-context-menu.png",
+      "bytes": 129851,
+      "sha256": "293F890A7E1235E1A605BF17A4191FE931682BABAAF85A3E5A3BBFE154DCAD7D",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-path-copy/vault/tsuzune-working-tree/02-path-copy-submenu.png",
+      "bytes": 136213,
+      "sha256": "0F370C23DBFFF47102F9BDBDAC28D276E7CE7F829F744733BFEC6149B1EEB880",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-path-copy/vault/tsuzune-working-tree/03-after-path-copy.png",
+      "bytes": 122257,
+      "sha256": "AD53167B5EF2A88DE5A2AE3A9E0E253420E747D2B1E36E068AC0A2D1358282E9",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-path-copy/vault/tsuzune-working-tree/04-after-graph-reopen.png",
+      "bytes": 128738,
+      "sha256": "F54EC834BDFE197B1A2BDC301A0F6CB89832132C96F329B2FC7B70B898D36079",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-path-copy/vault/tsuzune-working-tree/05-after-app-restart.png",
+      "bytes": 128738,
+      "sha256": "F54EC834BDFE197B1A2BDC301A0F6CB89832132C96F329B2FC7B70B898D36079",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-path-copy/vault/tsuzune-working-tree/phase-initial.json",
+      "bytes": 22039,
+      "sha256": "2BE7C19958CBCFA9E3A8F3C3BDC5ED619EBCF321293338855F64006AD8634E7A"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-path-copy/vault/tsuzune-working-tree/phase-restarted.json",
+      "bytes": 3953,
+      "sha256": "2CF0A72BE522E4A519C80C382E2E9372EA8735CD034823CEE3BE935B9470BCE6"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-attachment-path-copy/vault/tsuzune-working-tree/observation.json",
+      "bytes": 42089,
+      "sha256": "309FED7696186D9A6F0FB7DFC21D2AEA3ACEB728DCADCFB25A150A9DAB52D3D6"
+    }
+  ],
+  "next": "Compare the vault path format and adaptive submenu placement with the fixed Obsidian 1.13.4 evidence."
+}

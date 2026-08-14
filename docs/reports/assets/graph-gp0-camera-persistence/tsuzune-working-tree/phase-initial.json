@@ -1,0 +1,154 @@
+{
+  "phase": "initial",
+  "processId": 16212,
+  "windowGeometry": {
+    "frame": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "electronContentBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "rendererViewport": {
+      "width": 1265,
+      "height": 768,
+      "devicePixelRatio": 1
+    }
+  },
+  "graphClosed": true,
+  "baseline": {
+    "query": "",
+    "graphLabel": "Vault全体グラフ",
+    "settingsPanelVisible": true,
+    "filterSectionVisible": true,
+    "nodePaths": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note.md"
+    ],
+    "edgeCount": 8,
+    "stageTransform": "translate(0px, 0px) scale(1)",
+    "canvasRect": {
+      "x": 260,
+      "y": 111,
+      "width": 765,
+      "height": 627
+    },
+    "dimensions": {
+      "innerWidth": 1265,
+      "innerHeight": 768,
+      "devicePixelRatio": 1
+    }
+  },
+  "input": {
+    "centerX": 642.5,
+    "centerY": 424.5,
+    "drag": {
+      "x": 96,
+      "y": 64
+    },
+    "wheelDeltaY": -120
+  },
+  "entered": {
+    "query": "",
+    "graphLabel": "Vault全体グラフ",
+    "settingsPanelVisible": true,
+    "filterSectionVisible": true,
+    "nodePaths": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note.md"
+    ],
+    "edgeCount": 8,
+    "stageTransform": "translate(96px, 64px) scale(1.5)",
+    "canvasRect": {
+      "x": 260,
+      "y": 111,
+      "width": 765,
+      "height": 627
+    },
+    "dimensions": {
+      "innerWidth": 1265,
+      "innerHeight": 768,
+      "devicePixelRatio": 1
+    }
+  },
+  "reopened": {
+    "query": "",
+    "graphLabel": "Vault全体グラフ",
+    "settingsPanelVisible": true,
+    "filterSectionVisible": true,
+    "nodePaths": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note.md"
+    ],
+    "edgeCount": 8,
+    "stageTransform": "translate(0px, 0px) scale(1.5)",
+    "canvasRect": {
+      "x": 260,
+      "y": 111,
+      "width": 765,
+      "height": 627
+    },
+    "dimensions": {
+      "innerWidth": 1265,
+      "innerHeight": 768,
+      "devicePixelRatio": 1
+    }
+  },
+  "settingsGraphViewState": {
+    "scale": 1.5,
+    "query": "",
+    "settingsOpen": true,
+    "settingsSections": {
+      "filters": true,
+      "groups": false,
+      "display": false,
+      "forces": false
+    }
+  },
+  "screenshots": [
+    {
+      "file": "00-baseline.png",
+      "bytes": 108833,
+      "sha256": "B658BA1EBEBC39FAD2C055492234606BB0D24E620B84ED4AD251BB3500796EA4",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "file": "01-after-camera-input.png",
+      "bytes": 113201,
+      "sha256": "2F3519D74C26A1F6FFEC5B83B425DB506C03DDDCA5C74804A5018473D80461F7",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "file": "02-after-graph-reopen.png",
+      "bytes": 114341,
+      "sha256": "AB896AB7BE548842A04813B421EF3621402EF13A5778E1DC517DB625EC916D8E",
+      "width": 1265,
+      "height": 768
+    }
+  ]
+}

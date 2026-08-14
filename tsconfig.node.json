@@ -4,6 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "target": "ES2023",
+    "noEmit": true,
     "strict": true,
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
@@ -19,6 +20,9 @@
     "src/preload/**/*.ts",
     "src/shared/**/*.ts",
     "src/core/**/*.ts",
+    "src/cli/**/*.ts",
+    "src/mcp/**/*.ts",
+    "scripts/**/*.ts",
     "tests/**/*.ts",
     "vitest.config.ts"
   ]

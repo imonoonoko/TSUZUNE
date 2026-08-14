@@ -1,0 +1,128 @@
+{
+  "capturedAt": "2026-08-03T11:57:36.861Z",
+  "stage": "GP0-3b-c Global Graph camera persistence working-tree evidence",
+  "status": "captured",
+  "comparisonStatus": "Compare with docs/reports/assets/graph-gp0-camera-persistence/comparison.json",
+  "command": "$env:TSUZUNE_GRAPH_CAMERA_PROBE=1; npm run build; node scripts/capture-graph-gp0-3b-search-restart.mjs",
+  "isolation": {
+    "sourceFixture": "fixtures/obsidian-graph-parity-vault",
+    "copiedVault": "work/graph-gp0-camera-restart-working-tree/vault",
+    "userData": "work/graph-gp0-camera-restart-working-tree/userdata",
+    "requestedContentViewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "offscreenOrigin": {
+      "x": -32000,
+      "y": -32000
+    },
+    "observedWindowGeometry": {
+      "initial": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      },
+      "restarted": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      }
+    },
+    "network": "host resolver blocked except localhost"
+  },
+  "processIds": [
+    16212,
+    27768
+  ],
+  "assertions": {
+    "exactNodeSetAtEveryCheckpoint": true,
+    "cameraInputApplied": true,
+    "zoomRestoredAfterGraphReopen": true,
+    "panResetAfterGraphReopen": true,
+    "zoomRestoredAfterAppRestart": true,
+    "panResetAfterAppRestart": true,
+    "settingsPersisted": true,
+    "contentViewportStable": true,
+    "filteredNodeSetStable": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "noIsolatedProcessesRemaining": true
+  },
+  "artifacts": [
+    {
+      "path": "docs/reports/assets/graph-gp0-camera-persistence/tsuzune-working-tree/00-baseline.png",
+      "bytes": 108833,
+      "sha256": "B658BA1EBEBC39FAD2C055492234606BB0D24E620B84ED4AD251BB3500796EA4",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-camera-persistence/tsuzune-working-tree/01-after-camera-input.png",
+      "bytes": 113201,
+      "sha256": "2F3519D74C26A1F6FFEC5B83B425DB506C03DDDCA5C74804A5018473D80461F7",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-camera-persistence/tsuzune-working-tree/02-after-graph-reopen.png",
+      "bytes": 114341,
+      "sha256": "AB896AB7BE548842A04813B421EF3621402EF13A5778E1DC517DB625EC916D8E",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-camera-persistence/tsuzune-working-tree/03-after-app-restart.png",
+      "bytes": 114385,
+      "sha256": "826982E4DECE9F8060C577B1389F1425F48A5E72C6C8E45312413E4E34CF0C35",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-camera-persistence/tsuzune-working-tree/phase-initial.json",
+      "bytes": 3518,
+      "sha256": "D615E92CDD3467F03F1702FE8CDBBEBE30ABF8284DD61B94863D82CF654A46E9"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-camera-persistence/tsuzune-working-tree/phase-restarted.json",
+      "bytes": 1550,
+      "sha256": "8A5213C37CF81F57C714DB602EB816C13AE6C1324C4CFBF1CD03016A3DFA0442"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-camera-persistence/tsuzune-working-tree/observation.json",
+      "bytes": 8301,
+      "sha256": "5FD35DC4A7B4E10DD1592CBDCD4BBCD6020803192C152493C1E75CCE3E70CEF1"
+    }
+  ],
+  "next": "Document the observed Obsidian/TSUZUNE camera persistence contract before the next parity slice."
+}

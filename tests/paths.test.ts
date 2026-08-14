@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   basenameRelative,
   dirnameRelative,
+  formatPathForCopy,
   isPathInsideOrEqual,
   joinRelative,
   validateEntryName,
@@ -44,5 +45,18 @@ describe('path validation', () => {
   it('does not confuse a sibling path with a child path', () => {
     expect(isPathInsideOrEqual('C:/Vault/notes/a.md', 'C:/Vault')).toBe(true)
     expect(isPathInsideOrEqual('C:/Vault-copy/a.md', 'C:/Vault')).toBe(false)
+  })
+
+  it('formats the three Obsidian path-copy choices exactly', () => {
+    const root = 'C:\\Vault'
+    const path = 'attachments/diagram.svg'
+
+    expect(formatPathForCopy(root, 'vault', path, 'obsidian-url')).toBe(
+      'obsidian://open?vault=vault&file=attachments%2Fdiagram.svg'
+    )
+    expect(formatPathForCopy(root, 'vault', path, 'vault-relative')).toBe(path)
+    expect(formatPathForCopy(root, 'vault', path, 'system-absolute')).toBe(
+      'C:\\Vault\\attachments\\diagram.svg'
+    )
   })
 })

@@ -1,0 +1,124 @@
+{
+  "capturedAt": "2026-08-08T19:06:47.769Z",
+  "stage": "GP0-3b-e Global Graph node context menu working-tree evidence",
+  "status": "captured",
+  "comparisonStatus": "Compare with docs/reports/assets/graph-gp0-node-context-menu/comparison.json",
+  "command": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --node-menu",
+  "isolation": {
+    "sourceFixture": "fixtures/obsidian-graph-parity-vault",
+    "copiedVault": "work/graph-gp0-node-context-menu-working-tree/vault",
+    "userData": "work/graph-gp0-node-context-menu-working-tree/userdata",
+    "requestedContentViewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "offscreenOrigin": {
+      "x": -32000,
+      "y": -32000
+    },
+    "observedWindowGeometry": {
+      "initial": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      },
+      "restarted": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      }
+    },
+    "network": "host resolver blocked except localhost"
+  },
+  "processIds": [
+    11064,
+    28056
+  ],
+  "assertions": {
+    "exactNodeSetAtEveryCheckpoint": true,
+    "nodeContextMenuOpened": true,
+    "nodeContextMenuItemsHaveText": true,
+    "contentViewportStable": true,
+    "filteredNodeSetStable": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "noIsolatedProcessesRemaining": true
+  },
+  "artifacts": [
+    {
+      "path": "docs/reports/assets/graph-gp0-node-context-menu/tsuzune-working-tree/00-baseline.png",
+      "bytes": 122013,
+      "sha256": "7EC26FCF29102B4F8626AF4644CDCA9E44B19DBF9947CBA6F508EDD9188DDE98",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-context-menu/tsuzune-working-tree/01-node-context-menu.png",
+      "bytes": 127866,
+      "sha256": "4E0AABD074EBF8DB0619286B1D3693146C832AE4B395C0D7130F46FDD322DD65",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-context-menu/tsuzune-working-tree/02-after-graph-reopen.png",
+      "bytes": 124073,
+      "sha256": "60D0243EEA05BFBDC44B9BFDD0D00A57DE09980F72CB4A24831CF61A05B23136",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-context-menu/tsuzune-working-tree/03-after-app-restart.png",
+      "bytes": 122013,
+      "sha256": "7EC26FCF29102B4F8626AF4644CDCA9E44B19DBF9947CBA6F508EDD9188DDE98",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-context-menu/tsuzune-working-tree/phase-initial.json",
+      "bytes": 4850,
+      "sha256": "7CEFCDD21EF0AA4E907B4BD79410510A921150CF410CD300F9AF06DEEFCFE368"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-context-menu/tsuzune-working-tree/phase-restarted.json",
+      "bytes": 1827,
+      "sha256": "41FB7E22511F387A915A2EB0C79418DB1A1307529BD9DFBE1562ED8C5828E2CE"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-node-context-menu/tsuzune-working-tree/observation.json",
+      "bytes": 10146,
+      "sha256": "4600717E8DE42DCAC499C77B08F4E1CDBDF513442FB58B60EA9B011BE96FD4C2"
+    }
+  ],
+  "next": "Document the observed Obsidian/TSUZUNE node context menu differences before the next parity slice."
+}

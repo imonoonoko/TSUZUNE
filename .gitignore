@@ -2,8 +2,22 @@ node_modules/
 out/
 dist/
 coverage/
+.env
+.env.local
+.env.*.local
 *.tsbuildinfo
+# Legacy adjacent output from running `tsc -b` before the projects were no-emit.
+/electron.vite.config.js
+/electron.vite.config.d.ts
+/vitest.config.js
+/vitest.config.d.ts
+/scripts/m5-dogfood.js
+/scripts/m5-dogfood.d.ts
+/scripts/measure-large-vault-core.js
+/scripts/measure-large-vault-core.d.ts
 work/
+.playwright-cli/
+output/playwright/
 *.log
 .DS_Store
 Thumbs.db

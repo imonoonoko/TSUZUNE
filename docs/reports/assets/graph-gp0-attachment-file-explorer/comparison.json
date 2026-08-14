@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "stage": "GP0-3b-p",
+  "status": "blocked",
+  "capturedAt": "2026-08-10T20:25:53.771Z",
+  "fixedConditions": {
+    "reference": "Obsidian Desktop 1.13.4",
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "targetNode": "attachments/diagram.svg",
+    "viewport": { "width": 1265, "height": 768 },
+    "deviceScaleFactor": 1,
+    "theme": "light",
+    "installerSha256": "8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0",
+    "asarSha256": "51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917"
+  },
+  "classification": {
+    "kind": "internal-file-explorer",
+    "apiSeam": "internalPlugins.file-explorer.revealInFolder",
+    "relativePath": "attachments/diagram.svg",
+    "callCount": 1,
+    "externalWindowOpenCalls": 0,
+    "externalShellRevealCalls": 0
+  },
+  "assertions": {
+    "menuTargetOrderEnabled": true,
+    "preActionHookInstalled": true,
+    "menuClosed": true,
+    "actionCameraKept": true,
+    "actionNodesKept": true,
+    "actionEdgesKept": true,
+    "graphReopenNoReplay": true,
+    "graphReopenQueryKept": true,
+    "graphReopenNodesKept": true,
+    "graphReopenEdgesKept": true,
+    "graphReopenWorkspaceKept": true,
+    "graphReopenCameraExact": false,
+    "hooksRestored": true,
+    "vaultUnchanged": true,
+    "sourceUnchanged": true,
+    "protocolRestored": true
+  },
+  "cameraDifference": {
+    "actionBaseline": { "panX": 715.5051116943359, "panY": 489.482177734375 },
+    "graphReopen": { "panX": 460.5, "panY": 345 },
+    "reason": "Obsidian Graph reopen returned its default centered camera after the harness centered the target for the context-menu preflight."
+  },
+  "evidenceBoundary": {
+    "notEstablished": [
+      "Windows Explorer or other OS file-manager launch and selection",
+      "physical input",
+      "screen reader, High Contrast, multi-DPI, or pixel identity",
+      "full-app restart",
+      "TSUZUNE product implementation or parity"
+    ],
+    "sourceObservation": "assets/graph-gp0-attachment-file-explorer/obsidian-1.13.4/observation.json",
+    "sourceManifest": "assets/graph-gp0-attachment-file-explorer/manifest.json"
+  }
+}

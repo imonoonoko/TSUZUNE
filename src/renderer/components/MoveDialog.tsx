@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+
 interface MoveDialogProps {
   notePath: string
   directories: string[]
@@ -12,22 +14,67 @@ export default function MoveDialog({
   onCancel,
   onConfirm
 }: MoveDialogProps): React.JSX.Element {
+  const dialogRef = useRef<HTMLFormElement | null>(null)
+  const selectRef = useRef<HTMLSelectElement | null>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    selectRef.current?.focus()
+    return () => {
+      const previousFocus = previousFocusRef.current
+      if (previousFocus?.isConnected) {
+        previousFocus.focus()
+      }
+    }
+  }, [])
+
   return (
     <div className="modal-backdrop" role="presentation">
       <form
+        ref={dialogRef}
         className="modal"
+        role="dialog"
+        aria-modal="true"
         aria-labelledby="move-dialog-title"
+        aria-describedby="move-dialog-description"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            onCancel()
+            return
+          }
+          if (event.key !== 'Tab') {
+            return
+          }
+          const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+            'select, button:not(:disabled)'
+          )
+          if (!focusable || focusable.length === 0) {
+            return
+          }
+          const first = focusable[0]
+          const last = focusable[focusable.length - 1]
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault()
+            last.focus()
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault()
+            first.focus()
+          }
+        }}
         onSubmit={(event) => {
           event.preventDefault()
           const data = new FormData(event.currentTarget)
           onConfirm(String(data.get('directory') ?? ''))
         }}
       >
-        <h2 id="move-dialog-title">ノートを移動</h2>
-        <p>{notePath}</p>
+        <h2 id="move-dialog-title">ファイルを移動</h2>
+        <p id="move-dialog-description">{notePath}</p>
         <label>
           移動先
-          <select name="directory" defaultValue={currentDirectory} autoFocus>
+          <select ref={selectRef} name="directory" defaultValue={currentDirectory}>
             {directories.map((directory) => (
               <option value={directory} key={directory || '__root__'}>
                 {directory || 'Vault直下'}

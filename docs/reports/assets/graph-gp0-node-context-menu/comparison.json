@@ -1,0 +1,264 @@
+{
+  "schemaVersion": 1,
+  "stage": "GP0-3b-e",
+  "capturedAt": "2026-08-08T19:08:04.613Z",
+  "status": "different",
+  "fixedConditions": {
+    "reference": "Obsidian Desktop 1.13.4",
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "scope": "Global Graph",
+    "query": "",
+    "targetNode": "00_Home.md",
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "theme": "light"
+  },
+  "obsidian": {
+    "title": "00_Home",
+    "actions": [
+      {
+        "index": 1,
+        "text": "新規タブに開く",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 2,
+        "text": "新規ウィンドウで開く",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 3,
+        "text": "ファイルを移動…",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 4,
+        "text": "ブックマーク…",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 5,
+        "text": "ファイル全体を別ファイルに統合…",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 6,
+        "text": "パスをコピー",
+        "disabled": false,
+        "classes": [
+          "has-submenu",
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 7,
+        "text": "リンクされたビューを開く",
+        "disabled": false,
+        "classes": [
+          "has-submenu",
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 8,
+        "text": "デフォルトアプリで開く",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 9,
+        "text": "フォルダで表示",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 10,
+        "text": "ファイルエクスプローラでファイルを表示",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 11,
+        "text": "ファイルを削除",
+        "disabled": false,
+        "classes": [
+          "is-warning",
+          "menu-item",
+          "tappable"
+        ]
+      }
+    ]
+  },
+  "tsuzune": {
+    "title": "00_Home",
+    "actions": [
+      {
+        "index": 0,
+        "text": "新規タブに開く",
+        "disabled": true,
+        "classes": []
+      },
+      {
+        "index": 1,
+        "text": "ファイルを削除",
+        "disabled": false,
+        "classes": [
+          "is-danger"
+        ]
+      }
+    ]
+  },
+  "comparisons": [
+    {
+      "id": "target-label",
+      "label": "対象nodeラベル",
+      "obsidian": "00_Home",
+      "tsuzune": "00_Home",
+      "status": "matched"
+    },
+    {
+      "id": "action-count",
+      "label": "操作項目数（ラベルを除く）",
+      "obsidian": 11,
+      "tsuzune": 2,
+      "status": "different"
+    },
+    {
+      "id": "action-order",
+      "label": "操作名と順序",
+      "obsidian": [
+        "新規タブに開く",
+        "新規ウィンドウで開く",
+        "ファイルを移動…",
+        "ブックマーク…",
+        "ファイル全体を別ファイルに統合…",
+        "パスをコピー",
+        "リンクされたビューを開く",
+        "デフォルトアプリで開く",
+        "フォルダで表示",
+        "ファイルエクスプローラでファイルを表示",
+        "ファイルを削除"
+      ],
+      "tsuzune": [
+        "新規タブに開く",
+        "ファイルを削除"
+      ],
+      "status": "different"
+    },
+    {
+      "id": "first-action-label",
+      "label": "先頭操作の文言",
+      "obsidian": "新規タブに開く",
+      "tsuzune": "新規タブに開く",
+      "status": "matched"
+    },
+    {
+      "id": "first-action-enabled",
+      "label": "先頭操作の有効状態",
+      "obsidian": true,
+      "tsuzune": false,
+      "status": "different"
+    },
+    {
+      "id": "delete-action",
+      "label": "削除操作の文言と有効状態",
+      "obsidian": {
+        "index": 11,
+        "text": "ファイルを削除",
+        "disabled": false,
+        "classes": [
+          "is-warning",
+          "menu-item",
+          "tappable"
+        ]
+      },
+      "tsuzune": {
+        "index": 1,
+        "text": "ファイルを削除",
+        "disabled": false,
+        "classes": [
+          "is-danger"
+        ]
+      },
+      "status": "matched"
+    }
+  ],
+  "safeguards": {
+    "obsidian": {
+      "queryAccepted": true,
+      "queryVisibleAfterEntry": true,
+      "filteredNodesAfterEntry": true,
+      "queryPersistedAfterGraphReopen": true,
+      "filteredNodesAfterGraphReopen": true,
+      "firstProcessExitedBeforeRestart": true,
+      "secondProcessStarted": true,
+      "queryPersistedAfterAppRestart": true,
+      "filteredNodesAfterAppRestart": true,
+      "nodeContextMenuOpened": true,
+      "nodeContextMenuItemsHaveText": true,
+      "lightThemeEveryObservation": true,
+      "isolatedUserDataEverySession": true,
+      "isolatedVaultEverySession": true,
+      "offscreenEverySession": true,
+      "sourceUnchanged": true,
+      "isolatedVaultProtectedFilesUnchanged": true,
+      "protocolRestored": true
+    },
+    "tsuzune": {
+      "exactNodeSetAtEveryCheckpoint": true,
+      "nodeContextMenuOpened": true,
+      "nodeContextMenuItemsHaveText": true,
+      "contentViewportStable": true,
+      "filteredNodeSetStable": true,
+      "separateApplicationProcesses": true,
+      "sourceFixtureUnchanged": true,
+      "productSourceUnchanged": true,
+      "builtApplicationUnchanged": true,
+      "isolatedMarkdownUnchanged": true,
+      "noIsolatedProcessesRemaining": true
+    }
+  },
+  "changeInThisSlice": "先頭操作の文言だけを「新規タブに開く」へ一致させた。",
+  "notEstablished": [
+    "残る9操作と2 submenuの実装互換",
+    "新規タブ操作の有効化と実際のtab生成",
+    "attachment、tag、unresolved nodeのObsidian実機menu",
+    "物理マウスと実OS context-menu acceptance",
+    "pixel-identical menu geometry and styling"
+  ],
+  "conclusion": "ラベル、先頭文言、削除操作は一致したが、TSUZUNEは2操作、Obsidianは11操作で、先頭操作の有効状態も異なる。GP0-3b-eはdifferent。"
+}

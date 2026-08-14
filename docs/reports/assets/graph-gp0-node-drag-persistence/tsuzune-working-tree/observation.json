@@ -1,0 +1,559 @@
+{
+  "capturedAt": "2026-08-03T12:26:42.364Z",
+  "query": "",
+  "cameraProbe": false,
+  "nodeDragProbe": true,
+  "cameraContract": null,
+  "nodeDragContract": {
+    "targetNodePath": "00_Home.md",
+    "requestedDeltaCssPx": {
+      "x": 96,
+      "y": 64
+    },
+    "baseline": {
+      "path": "00_Home.md",
+      "x": 114.47,
+      "y": 35.6859,
+      "clientX": 756.96875,
+      "clientY": 460.171875,
+      "dotWidth": 16,
+      "dotHeight": 16,
+      "styleLeft": "calc(50% + 114.47px)",
+      "styleTop": "calc(50% + 35.6859px)"
+    },
+    "duringHold": {
+      "path": "00_Home.md",
+      "x": 210.469,
+      "y": 99.6719,
+      "clientX": 852.96875,
+      "clientY": 524.171875,
+      "dotWidth": 16,
+      "dotHeight": 16,
+      "styleLeft": "calc(50% + 210.469px)",
+      "styleTop": "calc(50% + 99.6719px)"
+    },
+    "afterReleaseImmediate": {
+      "path": "00_Home.md",
+      "x": 210.469,
+      "y": 99.6719,
+      "clientX": 852.96875,
+      "clientY": 524.171875,
+      "dotWidth": 16,
+      "dotHeight": 16,
+      "styleLeft": "calc(50% + 210.469px)",
+      "styleTop": "calc(50% + 99.6719px)"
+    },
+    "afterRelease250ms": {
+      "path": "00_Home.md",
+      "x": 150.084,
+      "y": 97.4942,
+      "clientX": 792.578125,
+      "clientY": 521.984375,
+      "dotWidth": 16,
+      "dotHeight": 16,
+      "styleLeft": "calc(50% + 150.084px)",
+      "styleTop": "calc(50% + 97.4942px)"
+    },
+    "afterReleaseSettled": {
+      "path": "00_Home.md",
+      "x": 147.146,
+      "y": 99.3076,
+      "clientX": 789.640625,
+      "clientY": 523.796875,
+      "dotWidth": 16,
+      "dotHeight": 16,
+      "styleLeft": "calc(50% + 147.146px)",
+      "styleTop": "calc(50% + 99.3076px)"
+    },
+    "afterGraphReopen": {
+      "path": "00_Home.md",
+      "x": 114.47,
+      "y": 35.6859,
+      "clientX": 756.96875,
+      "clientY": 460.171875,
+      "dotWidth": 16,
+      "dotHeight": 16,
+      "styleLeft": "calc(50% + 114.47px)",
+      "styleTop": "calc(50% + 35.6859px)"
+    },
+    "afterAppRestart": {
+      "path": "00_Home.md",
+      "x": 114.47,
+      "y": 35.6859,
+      "clientX": 756.96875,
+      "clientY": 460.171875,
+      "dotWidth": 16,
+      "dotHeight": 16,
+      "styleLeft": "calc(50% + 114.47px)",
+      "styleTop": "calc(50% + 35.6859px)"
+    },
+    "appliedDeltaCssPx": {
+      "x": 96,
+      "y": 64
+    },
+    "heldAtPointer": true,
+    "movedAfterRelease": true,
+    "resetNearBaselineAfterGraphReopen": true,
+    "resetNearBaselineAfterAppRestart": true,
+    "nodePositionAbsentFromSettings": true
+  },
+  "repository": {
+    "head": "16984a34cec4bc92075d3e24e70637fda32673c2",
+    "dirty": true,
+    "changedEntryCount": 3,
+    "porcelainSha256": "75DD6673067B32E399015D83615E3B0C92D7A7EEF78ABAA36CF5BB375C729A48"
+  },
+  "initial": {
+    "phase": "initial",
+    "processId": 19856,
+    "windowGeometry": {
+      "frame": {
+        "x": -32000,
+        "y": -32000,
+        "width": 1265,
+        "height": 768
+      },
+      "electronContentBounds": {
+        "x": -32000,
+        "y": -32000,
+        "width": 1265,
+        "height": 768
+      },
+      "rendererViewport": {
+        "width": 1265,
+        "height": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "graphClosed": true,
+    "baseline": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md"
+      ],
+      "edgeCount": 8,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 114.47,
+        "y": 35.6859,
+        "clientX": 756.96875,
+        "clientY": 460.171875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 114.47px)",
+        "styleTop": "calc(50% + 35.6859px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 111,
+        "width": 765,
+        "height": 627
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "input": {
+      "startX": 756.96875,
+      "startY": 460.171875,
+      "endX": 852.96875,
+      "endY": 524.171875
+    },
+    "duringDrag": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md"
+      ],
+      "edgeCount": 8,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 210.469,
+        "y": 99.6719,
+        "clientX": 852.96875,
+        "clientY": 524.171875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 210.469px)",
+        "styleTop": "calc(50% + 99.6719px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 111,
+        "width": 765,
+        "height": 627
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "afterReleaseImmediate": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md"
+      ],
+      "edgeCount": 8,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 210.469,
+        "y": 99.6719,
+        "clientX": 852.96875,
+        "clientY": 524.171875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 210.469px)",
+        "styleTop": "calc(50% + 99.6719px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 111,
+        "width": 765,
+        "height": 627
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "afterRelease250ms": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md"
+      ],
+      "edgeCount": 8,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 150.084,
+        "y": 97.4942,
+        "clientX": 792.578125,
+        "clientY": 521.984375,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 150.084px)",
+        "styleTop": "calc(50% + 97.4942px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 111,
+        "width": 765,
+        "height": 627
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "entered": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md"
+      ],
+      "edgeCount": 8,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 147.146,
+        "y": 99.3076,
+        "clientX": 789.640625,
+        "clientY": 523.796875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 147.146px)",
+        "styleTop": "calc(50% + 99.3076px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 111,
+        "width": 765,
+        "height": 627
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "reopened": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md"
+      ],
+      "edgeCount": 8,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 114.47,
+        "y": 35.6859,
+        "clientX": 756.96875,
+        "clientY": 460.171875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 114.47px)",
+        "styleTop": "calc(50% + 35.6859px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 111,
+        "width": 765,
+        "height": 627
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "settingsGraphViewState": {
+      "scale": 1,
+      "query": "",
+      "settingsOpen": true,
+      "settingsSections": {
+        "filters": true,
+        "groups": false,
+        "display": false,
+        "forces": false
+      }
+    },
+    "screenshots": [
+      {
+        "file": "00-baseline.png",
+        "bytes": 109044,
+        "sha256": "4BBDAB75281CB882C02D61E186BF109E26096060757B8FB27B83C6DD745E51F2",
+        "width": 1265,
+        "height": 768
+      },
+      {
+        "file": "02-after-node-release.png",
+        "bytes": 110231,
+        "sha256": "9C902259511D440E50AE61DF3298B1A94C56AB9F802F5A3A7EB4C1B0EC1DD5F2",
+        "width": 1265,
+        "height": 768
+      },
+      {
+        "file": "03-after-graph-reopen.png",
+        "bytes": 109044,
+        "sha256": "4BBDAB75281CB882C02D61E186BF109E26096060757B8FB27B83C6DD745E51F2",
+        "width": 1265,
+        "height": 768
+      }
+    ]
+  },
+  "restarted": {
+    "phase": "restarted",
+    "processId": 8208,
+    "windowGeometry": {
+      "frame": {
+        "x": -32000,
+        "y": -32000,
+        "width": 1265,
+        "height": 768
+      },
+      "electronContentBounds": {
+        "x": -32000,
+        "y": -32000,
+        "width": 1265,
+        "height": 768
+      },
+      "rendererViewport": {
+        "width": 1265,
+        "height": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "restarted": {
+      "query": "",
+      "graphLabel": "Vault全体グラフ",
+      "settingsPanelVisible": true,
+      "filterSectionVisible": true,
+      "nodePaths": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md"
+      ],
+      "edgeCount": 8,
+      "stageTransform": "translate(0px, 0px) scale(1)",
+      "targetNode": {
+        "path": "00_Home.md",
+        "x": 114.47,
+        "y": 35.6859,
+        "clientX": 756.96875,
+        "clientY": 460.171875,
+        "dotWidth": 16,
+        "dotHeight": 16,
+        "styleLeft": "calc(50% + 114.47px)",
+        "styleTop": "calc(50% + 35.6859px)"
+      },
+      "canvasRect": {
+        "x": 260,
+        "y": 111,
+        "width": 765,
+        "height": 627
+      },
+      "dimensions": {
+        "innerWidth": 1265,
+        "innerHeight": 768,
+        "devicePixelRatio": 1
+      }
+    },
+    "settingsGraphViewState": {
+      "scale": 1,
+      "query": "",
+      "settingsOpen": true,
+      "settingsSections": {
+        "filters": true,
+        "groups": false,
+        "display": false,
+        "forces": false
+      }
+    },
+    "screenshots": [
+      {
+        "file": "04-after-app-restart.png",
+        "bytes": 109044,
+        "sha256": "4BBDAB75281CB882C02D61E186BF109E26096060757B8FB27B83C6DD745E51F2",
+        "width": 1265,
+        "height": 768
+      }
+    ]
+  },
+  "persistedGraphViewState": {
+    "scale": 1,
+    "query": "",
+    "settingsOpen": true,
+    "settingsSections": {
+      "filters": true,
+      "groups": false,
+      "display": false,
+      "forces": false
+    }
+  },
+  "protection": {
+    "before": {
+      "sourceFixture": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3"
+      },
+      "productSource": {
+        "fileCount": 63,
+        "combinedSha256": "88E371A6728930B58D21837E3BF6093A21F55729B60361576CFA40B984BE0380"
+      },
+      "builtApplication": {
+        "fileCount": 8,
+        "combinedSha256": "246E54C36602BDD47E070ACDD3843E615456D7B54BB88314BAEB7EB6487C3EED"
+      },
+      "isolatedMarkdown": {
+        "fileCount": 7,
+        "combinedSha256": "54B472FF4C646CF8858BBAF700F562CD001927123A18B72FE98398BCDBDBC59B"
+      }
+    },
+    "after": {
+      "sourceFixture": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3"
+      },
+      "productSource": {
+        "fileCount": 63,
+        "combinedSha256": "88E371A6728930B58D21837E3BF6093A21F55729B60361576CFA40B984BE0380"
+      },
+      "builtApplication": {
+        "fileCount": 8,
+        "combinedSha256": "246E54C36602BDD47E070ACDD3843E615456D7B54BB88314BAEB7EB6487C3EED"
+      },
+      "isolatedMarkdown": {
+        "fileCount": 7,
+        "combinedSha256": "54B472FF4C646CF8858BBAF700F562CD001927123A18B72FE98398BCDBDBC59B"
+      }
+    }
+  },
+  "assertions": {
+    "exactNodeSetAtEveryCheckpoint": true,
+    "nodeDragApplied": true,
+    "nodeHeldAtPointer": true,
+    "nodeMovedAfterRelease": true,
+    "nodeResetNearBaselineAfterGraphReopen": true,
+    "nodeResetNearBaselineAfterAppRestart": true,
+    "nodePositionNotPersistedInSettings": true,
+    "contentViewportStable": true,
+    "filteredNodeSetStable": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "noIsolatedProcessesRemaining": true
+  }
+}

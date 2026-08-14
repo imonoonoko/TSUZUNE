@@ -2,17 +2,25 @@ import { useEffect, useRef } from 'react'
 import { basicSetup, EditorView } from 'codemirror'
 import { markdown } from '@codemirror/lang-markdown'
 import { Compartment, EditorState } from '@codemirror/state'
+import {
+  formatMarkdownSelection,
+  insertWikiLink,
+  type MarkdownFormat
+} from '../../core/markdown-edit'
+import type { NoteDocument } from '../../shared/types'
 
 interface MarkdownEditorProps {
   value: string
   onChange: (value: string) => void
   readOnly?: boolean
+  notes?: NoteDocument[]
 }
 
 export default function MarkdownEditor({
   value,
   onChange,
-  readOnly = false
+  readOnly = false,
+  notes = []
 }: MarkdownEditorProps): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -103,12 +111,96 @@ export default function MarkdownEditor({
     }
   }, [readOnly])
 
+  const applyFormat = (format: MarkdownFormat): void => {
+    const view = viewRef.current
+    if (!view || readOnly) {
+      return
+    }
+    const selection = view.state.selection.main
+    const result = formatMarkdownSelection(
+      view.state.doc.toString(),
+      selection.from,
+      selection.to,
+      format
+    )
+    view.dispatch({
+      changes: {
+        from: 0,
+        to: view.state.doc.length,
+        insert: result.value
+      },
+      selection: {
+        anchor: result.selectionStart,
+        head: result.selectionEnd
+      }
+    })
+    view.focus()
+  }
+
+  const addLink = (path: string): void => {
+    const view = viewRef.current
+    if (!view || !path || readOnly) {
+      return
+    }
+    const selection = view.state.selection.main
+    const result = insertWikiLink(
+      view.state.doc.toString(),
+      selection.from,
+      selection.to,
+      path
+    )
+    view.dispatch({
+      changes: {
+        from: 0,
+        to: view.state.doc.length,
+        insert: result.value
+      },
+      selection: {
+        anchor: result.selectionStart,
+        head: result.selectionEnd
+      }
+    })
+    view.focus()
+  }
+
   return (
-    <div
-      className="markdown-editor"
-      ref={hostRef}
-      aria-label="Markdown編集欄"
-      aria-busy={readOnly}
-    />
+    <div className="markdown-editor-shell">
+      <div className="markdown-format-toolbar" role="toolbar" aria-label="書式ツール">
+        <button type="button" disabled={readOnly} onClick={() => applyFormat('heading')}>
+          見出し
+        </button>
+        <button type="button" disabled={readOnly} onClick={() => applyFormat('bold')}>
+          太字
+        </button>
+        <button type="button" disabled={readOnly} onClick={() => applyFormat('list')}>
+          箇条書き
+        </button>
+        <button type="button" disabled={readOnly} onClick={() => applyFormat('task')}>
+          チェック
+        </button>
+        <button type="button" disabled={readOnly} onClick={() => applyFormat('link')}>
+          ノートリンク
+        </button>
+        <select
+          aria-label="関連ノートを挿入"
+          value=""
+          disabled={readOnly}
+          onChange={(event) => addLink(event.target.value)}
+        >
+          <option value="">既存ノートを選ぶ…</option>
+          {notes.map((note) => (
+            <option key={note.path} value={note.path}>
+              {note.path.replace(/\.md$/i, '')}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div
+        className="markdown-editor"
+        ref={hostRef}
+        aria-label="Markdown編集欄"
+        aria-busy={readOnly}
+      />
+    </div>
   )
 }

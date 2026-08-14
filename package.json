@@ -1,6 +1,6 @@
 {
   "name": "tsuzune",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "description": "書いて、つないで、あとで尋ねる。ローカルMarkdownとWikiリンクのWindowsメモ帳。",
   "private": true,
   "type": "module",
@@ -11,23 +11,106 @@
     "dev": "electron-vite dev",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
+    "test:production": "vitest run --maxWorkers=2",
     "test:watch": "vitest",
-    "build": "npm run typecheck && electron-vite build",
+    "dogfood:m5": "node scripts/build-m5-dogfood.mjs",
+    "capture:graph:gp1": "electron scripts/capture-graph-gp1.mjs",
+    "capture:graph:gp6:obsidian": "node scripts/capture-graph-gp6-obsidian.mjs",
+    "capture:graph:gp6:tsuzune": "node scripts/capture-graph-gp6-tsuzune.mjs",
+    "capture:graph:gp6:working-tree": "npm run build && electron scripts/capture-graph-gp6-working-tree.mjs",
+    "capture:graph:gp0-3b:obsidian": "node scripts/probe-obsidian-graph-search-persistence.mjs",
+    "capture:graph:gp0-3b:tsuzune": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs",
+    "capture:graph:gp0-camera:obsidian": "node scripts/probe-obsidian-graph-search-persistence.mjs --camera",
+    "capture:graph:gp0-camera:tsuzune": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --camera",
+    "report:graph:gp0-camera": "node scripts/build-graph-gp0-camera-report.mjs",
+    "capture:graph:gp0-node-drag:obsidian": "node scripts/probe-obsidian-graph-search-persistence.mjs --node-drag",
+    "capture:graph:gp0-node-drag:tsuzune": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --node-drag",
+    "report:graph:gp0-node-drag": "node scripts/build-graph-gp0-node-drag-report.mjs",
+    "capture:graph:gp0-node-menu:obsidian": "node scripts/probe-obsidian-graph-search-persistence.mjs --node-menu",
+    "capture:graph:gp0-node-menu:tsuzune": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --node-menu",
+    "report:graph:gp0-node-menu": "node scripts/build-graph-gp0-node-context-menu-report.mjs",
+    "capture:graph:gp0-node-new-tab:obsidian": "node scripts/probe-obsidian-graph-search-persistence.mjs --node-new-tab",
+    "capture:graph:gp0-node-new-tab:tsuzune": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --node-new-tab",
+    "report:graph:gp0-node-new-tab": "node scripts/build-graph-gp0-node-new-tab-report.mjs",
+    "capture:graph:gp0-attachment-new-tab:obsidian": "node scripts/probe-obsidian-graph-search-persistence.mjs --attachment-new-tab",
+    "capture:graph:gp0-attachment-new-tab:tsuzune": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-new-tab",
+    "report:graph:gp0-attachment-new-tab": "node scripts/build-graph-gp0-attachment-new-tab-report.mjs",
+    "capture:graph:gp0-attachment-new-window:obsidian": "node scripts/probe-obsidian-graph-search-persistence.mjs --attachment-new-window",
+    "capture:graph:gp0-attachment-new-window:tsuzune": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-new-window",
+    "report:graph:gp0-attachment-new-window": "node scripts/build-graph-gp0-attachment-new-window-report.mjs",
+    "capture:graph:gp0-attachment-file-move:obsidian:cancel": "node scripts/probe-obsidian-graph-search-persistence.mjs --attachment-move --move-scenario=cancel",
+    "capture:graph:gp0-attachment-file-move:obsidian:success": "node scripts/probe-obsidian-graph-search-persistence.mjs --attachment-move --move-scenario=success",
+    "capture:graph:gp0-attachment-file-move:obsidian:collision": "node scripts/probe-obsidian-graph-search-persistence.mjs --attachment-move --move-scenario=collision",
+    "capture:graph:gp0-attachment-file-move:tsuzune:cancel": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-move --move-scenario=cancel",
+    "capture:graph:gp0-attachment-file-move:tsuzune:success": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-move --move-scenario=success",
+    "capture:graph:gp0-attachment-file-move:tsuzune:collision": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-move --move-scenario=collision",
+    "report:graph:gp0-attachment-file-move": "node scripts/build-graph-gp0-attachment-file-move-report.mjs",
+    "capture:graph:gp0-attachment-bookmark:obsidian:cancel": "node scripts/probe-obsidian-graph-search-persistence.mjs --attachment-bookmark --bookmark-scenario=cancel",
+    "capture:graph:gp0-attachment-bookmark:obsidian:create": "node scripts/probe-obsidian-graph-search-persistence.mjs --attachment-bookmark --bookmark-scenario=create",
+    "capture:graph:gp0-attachment-bookmark:obsidian:duplicate": "node scripts/probe-obsidian-graph-search-persistence.mjs --attachment-bookmark --bookmark-scenario=duplicate",
+    "capture:graph:gp0-attachment-bookmark:tsuzune:cancel": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-bookmark --bookmark-scenario=cancel",
+    "capture:graph:gp0-attachment-bookmark:tsuzune:create": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-bookmark --bookmark-scenario=create",
+    "capture:graph:gp0-attachment-bookmark:tsuzune:duplicate": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-bookmark --bookmark-scenario=duplicate",
+    "report:graph:gp0-attachment-bookmark": "node scripts/build-graph-gp0-attachment-bookmark-report.mjs",
+    "capture:graph:gp0-attachment-path-copy:obsidian:url": "node scripts/probe-obsidian-graph-search-persistence.mjs --attachment-path-copy --path-copy-scenario=url",
+    "capture:graph:gp0-attachment-path-copy:obsidian:vault": "node scripts/probe-obsidian-graph-search-persistence.mjs --attachment-path-copy --path-copy-scenario=vault",
+    "capture:graph:gp0-attachment-path-copy:obsidian:system": "node scripts/probe-obsidian-graph-search-persistence.mjs --attachment-path-copy --path-copy-scenario=system",
+    "capture:graph:gp0-attachment-path-copy:tsuzune:url": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-path-copy --path-copy-scenario=url",
+    "capture:graph:gp0-attachment-path-copy:tsuzune:vault": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-path-copy --path-copy-scenario=vault",
+    "capture:graph:gp0-attachment-path-copy:tsuzune:system": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-path-copy --path-copy-scenario=system",
+    "report:graph:gp0-attachment-path-copy": "node scripts/build-graph-gp0-attachment-path-copy-report.mjs",
+    "capture:graph:gp0-attachment-linked-view:obsidian": "node scripts/probe-obsidian-graph-search-persistence.mjs --attachment-linked-view",
+    "capture:graph:gp0-attachment-linked-view:tsuzune": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-linked-view",
+    "report:graph:gp0-attachment-linked-view": "node scripts/build-graph-gp0-attachment-linked-view-report.mjs",
+    "capture:graph:gp0-attachment-default-app:obsidian": "node scripts/probe-obsidian-graph-search-persistence.mjs --attachment-default-app",
+    "capture:graph:gp0-attachment-default-app:tsuzune": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-default-app",
+    "report:graph:gp0-attachment-default-app": "node scripts/build-graph-gp0-attachment-default-app-report.mjs",
+    "capture:graph:gp0-attachment-folder-reveal:obsidian": "node scripts/probe-obsidian-graph-search-persistence.mjs --attachment-folder-reveal",
+    "capture:graph:gp0-attachment-folder-reveal:tsuzune": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --attachment-folder-reveal",
+    "report:graph:gp0-attachment-folder-reveal": "node scripts/build-graph-gp0-attachment-folder-reveal-report.mjs",
+    "capture:graph:gp0-workspace-tab:tsuzune": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --workspace-tab",
+    "report:graph:gp0-workspace-tab": "node scripts/build-graph-gp0-workspace-tab-report.mjs",
+    "capture:optimization-ui": "electron scripts/capture-optimization-ui.mjs",
+    "measure:vault:large": "npm run build && node scripts/run-large-vault-performance.mjs",
+    "build:mcp": "node scripts/build-mcp.mjs",
+    "build:chatgpt-export": "node scripts/build-chatgpt-export-preview.mjs",
+    "preview:chatgpt-export": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preview-chatgpt-export.ps1",
+    "build:chatgpt-candidates": "node scripts/build-chatgpt-candidate-preview.mjs",
+    "preview:chatgpt-candidates": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preview-chatgpt-candidates.ps1",
+    "build:chatgpt-candidate-quality": "node scripts/build-chatgpt-candidate-quality.mjs",
+    "preview:chatgpt-candidate-quality": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preview-chatgpt-candidate-quality.ps1",
+    "build:classification-migration": "node scripts/build-classification-migration-preview.mjs",
+    "preview:classification-migration": "npm run build:classification-migration && node work/tools/classification-migration-preview.js",
+    "check:mcp": "npm run build:mcp && node scripts/check-mcp.mjs",
+    "mcp": "node out/mcp/server.js",
+    "mcp:register": "npm run build:mcp && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/register-codex-mcp.ps1",
+    "mcp:unregister": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/unregister-codex-mcp.ps1",
+    "build": "npm run typecheck && electron-vite build && npm run build:mcp",
     "pack:dir": "npm run build && electron-builder --dir",
-    "pack:win": "npm run build && electron-builder --win portable --x64"
+    "pack:win": "npm run build && electron-builder --win nsis --x64",
+    "check:packaged": "node scripts/check-packaged-startup.mjs",
+    "check:installer": "node scripts/check-installer.mjs",
+    "production:update": "node scripts/update-production.mjs",
+    "release:win": "npm run build && electron-builder --win nsis --x64 --publish always"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "6.5.1",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "chokidar": "5.0.0",
     "codemirror": "6.0.2",
+    "d3-force": "3.0.0",
+    "electron-updater": "6.8.9",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "react-markdown": "10.1.0"
+    "react-markdown": "10.1.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
+    "@electron/asar": "3.4.1",
     "@testing-library/jest-dom": "7.0.0",
     "@testing-library/react": "16.3.2",
     "@testing-library/user-event": "14.6.1",
+    "@types/d3-force": "3.0.10",
     "@types/node": "24.13.3",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
@@ -35,6 +118,7 @@
     "electron": "43.2.0",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
+    "esbuild": "0.25.12",
     "jsdom": "29.1.1",
     "typescript": "5.9.3",
     "vite": "7.3.6",
@@ -49,21 +133,40 @@
     "directories": {
       "output": "dist"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "imonoonoko",
+        "repo": "TSUZUNE",
+        "private": false,
+        "releaseType": "release"
+      }
+    ],
     "files": [
       "out/**/*",
       "package.json"
     ],
     "win": {
+      "icon": "src/renderer/assets/tsuzune-app-icon.png",
       "target": [
         {
-          "target": "portable",
+          "target": "nsis",
           "arch": [
             "x64"
           ]
         }
       ],
       "executableName": "TSUZUNE",
-      "artifactName": "TSUZUNE-${version}-portable.${ext}"
+      "artifactName": "TSUZUNE-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false,
+      "shortcutName": "TSUZUNE"
     }
   }
 }

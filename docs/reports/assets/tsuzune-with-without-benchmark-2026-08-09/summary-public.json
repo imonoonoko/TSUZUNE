@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "benchmark": "tsuzune-with-without-context",
+  "measuredOn": "2026-08-09",
+  "scope": "context-build-and-analysis-only",
+  "comparison": {
+    "withoutTsuzune": "three fixed seed markdown documents",
+    "withTsuzune": "temporal context compiled from the same three seeds"
+  },
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "node": "v22.17.1",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-13700F",
+    "physicalCores": 16,
+    "logicalProcessors": 24
+  },
+  "inputSnapshot": {
+    "fileCount": 247,
+    "byteCount": 9397940,
+    "digestBeforeAndAfterMatched": true
+  },
+  "protocol": {
+    "trialCount": 3,
+    "warmupRunsPerTrial": 20,
+    "measuredRunsPerTrial": 200,
+    "currentAsOf": "2026-08-09",
+    "pastAsOf": "2026-07-22",
+    "p95Method": "nearest-rank"
+  },
+  "quality": {
+    "source": "2026-07-31 fixed-question blind evaluation",
+    "withoutTsuzune": {
+      "exactAnswers": 1,
+      "questionCount": 4,
+      "stateToSourceMatches": 0,
+      "stateToSourceCount": 3
+    },
+    "withTsuzune": {
+      "exactAnswers": 4,
+      "questionCount": 4,
+      "stateToSourceMatches": 3,
+      "stateToSourceCount": 3
+    }
+  },
+  "latencyMs": {
+    "withoutTsuzune": {
+      "trialMedians": [0.013, 0.021, 0.021],
+      "trialP95s": [0.016, 0.048, 0.031],
+      "medianOfTrialMedians": 0.021,
+      "medianOfTrialP95s": 0.031
+    },
+    "withTsuzune": {
+      "trialMedians": [148.434, 154.161, 149.685],
+      "trialP95s": [166.104, 175.514, 173.339],
+      "medianOfTrialMedians": 149.685,
+      "medianOfTrialP95s": 173.339
+    },
+    "absoluteMedianOverhead": 149.664,
+    "relativeMedianRatio": 7127.9,
+    "relativeRatioWarning": "The baseline is only string concatenation; use absolute overhead for decisions."
+  },
+  "context": {
+    "withoutTsuzune": {
+      "current": {
+        "characters": 7391,
+        "utf8Bytes": 12495,
+        "includedNotes": 3,
+        "unscopedNormalBodies": 3,
+        "resolvedProvenance": 0
+      },
+      "past": {
+        "characters": 7391,
+        "utf8Bytes": 12495,
+        "includedNotes": 3,
+        "unscopedNormalBodies": 3,
+        "resolvedProvenance": 0
+      }
+    },
+    "withTsuzune": {
+      "current": {
+        "characters": 33412,
+        "utf8Bytes": 60042,
+        "includedNotes": 24,
+        "unscopedNormalBodies": 18,
+        "resolvedProvenance": 6,
+        "reviewWarnings": 3
+      },
+      "past": {
+        "characters": 3585,
+        "utf8Bytes": 5623,
+        "includedNotes": 6,
+        "unscopedNormalBodies": 0,
+        "resolvedProvenance": 3,
+        "reviewWarnings": 0
+      }
+    }
+  },
+  "safety": {
+    "pastFutureLeaksWithTsuzune": 0,
+    "conflictPreserved": true,
+    "conflictWarningPresent": true,
+    "unknownObservedAtOmitted": true,
+    "unknownObservedAtWarningPresent": true
+  },
+  "excludedCosts": [
+    "vault scan",
+    "MCP transport",
+    "model generation",
+    "UI rendering",
+    "human note entry"
+  ],
+  "nonClaims": [
+    "general intelligence improvement",
+    "universal answer-quality multiplier",
+    "full application latency"
+  ]
+}

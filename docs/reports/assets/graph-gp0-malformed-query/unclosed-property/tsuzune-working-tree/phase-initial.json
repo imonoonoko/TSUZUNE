@@ -1,0 +1,181 @@
+{
+  "phase": "initial",
+  "processId": 21088,
+  "windowGeometry": {
+    "frame": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1280,
+      "height": 800
+    },
+    "electronContentBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1280,
+      "height": 800
+    },
+    "rendererViewport": {
+      "width": 1280,
+      "height": 800,
+      "devicePixelRatio": 1
+    }
+  },
+  "graphClosed": true,
+  "baseline": {
+    "query": "[status:Act",
+    "graphLabel": "Vault全体グラフ",
+    "searchDiagnostics": {
+      "inputAriaInvalid": null,
+      "inputClasses": [],
+      "visibleErrorTexts": []
+    },
+    "settingsPanelVisible": true,
+    "filterSectionVisible": true,
+    "nodePaths": [],
+    "nodeDetails": [],
+    "edgeCount": 0,
+    "edgeSignature": null,
+    "stageTransform": "translate(0px, 0px) scale(1)",
+    "tabs": [
+      {
+        "label": "00_Home",
+        "selected": false
+      },
+      {
+        "label": "グラフビュー",
+        "selected": true
+      }
+    ],
+    "targetNode": null,
+    "canvasRect": {
+      "x": 260,
+      "y": 148,
+      "width": 780,
+      "height": 622
+    },
+    "dimensions": {
+      "innerWidth": 1280,
+      "innerHeight": 800,
+      "devicePixelRatio": 1
+    }
+  },
+  "input": null,
+  "duringDrag": null,
+  "afterReleaseImmediate": null,
+  "afterRelease250ms": null,
+  "nodeContextMenu": null,
+  "nodeNewTab": null,
+  "graphWorkspaceTab": null,
+  "attachmentContextMenu": null,
+  "attachmentNewTab": null,
+  "attachmentNewWindow": null,
+  "attachmentMove": null,
+  "attachmentBookmark": null,
+  "attachmentPathCopy": null,
+  "attachmentLinkedView": null,
+  "attachmentDefaultApp": null,
+  "attachmentFolderReveal": null,
+  "entered": {
+    "query": "[status:Act",
+    "graphLabel": "Vault全体グラフ",
+    "searchDiagnostics": {
+      "inputAriaInvalid": null,
+      "inputClasses": [],
+      "visibleErrorTexts": []
+    },
+    "settingsPanelVisible": true,
+    "filterSectionVisible": true,
+    "nodePaths": [],
+    "nodeDetails": [],
+    "edgeCount": 0,
+    "edgeSignature": null,
+    "stageTransform": "translate(0px, 0px) scale(1)",
+    "tabs": [
+      {
+        "label": "00_Home",
+        "selected": false
+      },
+      {
+        "label": "グラフビュー",
+        "selected": true
+      }
+    ],
+    "targetNode": null,
+    "canvasRect": {
+      "x": 260,
+      "y": 148,
+      "width": 780,
+      "height": 622
+    },
+    "dimensions": {
+      "innerWidth": 1280,
+      "innerHeight": 800,
+      "devicePixelRatio": 1
+    }
+  },
+  "reopened": {
+    "query": "[status:Act",
+    "graphLabel": "Vault全体グラフ",
+    "searchDiagnostics": {
+      "inputAriaInvalid": null,
+      "inputClasses": [],
+      "visibleErrorTexts": []
+    },
+    "settingsPanelVisible": true,
+    "filterSectionVisible": true,
+    "nodePaths": [],
+    "nodeDetails": [],
+    "edgeCount": 0,
+    "edgeSignature": null,
+    "stageTransform": "translate(0px, 0px) scale(1)",
+    "tabs": [
+      {
+        "label": "00_Home",
+        "selected": false
+      },
+      {
+        "label": "グラフビュー",
+        "selected": true
+      }
+    ],
+    "targetNode": null,
+    "canvasRect": {
+      "x": 260,
+      "y": 148,
+      "width": 780,
+      "height": 622
+    },
+    "dimensions": {
+      "innerWidth": 1280,
+      "innerHeight": 800,
+      "devicePixelRatio": 1
+    }
+  },
+  "settingsGraphViewState": {
+    "scale": 1,
+    "query": "[status:Act",
+    "settingsOpen": true,
+    "settingsSections": {
+      "filters": true,
+      "groups": false,
+      "display": false,
+      "forces": false
+    }
+  },
+  "screenshots": [
+    {
+      "file": "01-query-entered.png",
+      "bytes": 104663,
+      "sha256": "BF36551815E7B176F283750D6B9CA8C21D40EB196E6CCF0837A070B0FC05CF95",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "file": "02-graph-reopened.png",
+      "bytes": 104663,
+      "sha256": "BF36551815E7B176F283750D6B9CA8C21D40EB196E6CCF0837A070B0FC05CF95",
+      "width": 1280,
+      "height": 800
+    }
+  ]
+}

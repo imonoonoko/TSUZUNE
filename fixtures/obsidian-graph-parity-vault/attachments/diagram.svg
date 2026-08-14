@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+  <rect width="320" height="180" rx="16" fill="#dcebe8"/>
+  <circle cx="86" cy="90" r="28" fill="#365f59"/>
+  <circle cx="234" cy="90" r="28" fill="#d1b984"/>
+  <path d="M116 90H202" stroke="#5d584f" stroke-width="5"/>
+  <text x="160" y="154" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#4f4b43">Graph parity fixture</text>
+</svg>

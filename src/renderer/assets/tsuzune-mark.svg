@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="TSUZUNE">
+  <rect width="512" height="512" rx="108" fill="#283b38"/>
+  <path
+    d="M146 166H366M256 166V358"
+    fill="none"
+    stroke="#dcebe6"
+    stroke-width="40"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle cx="146" cy="166" r="54" fill="#fffdf8" stroke="#2f655f" stroke-width="24"/>
+  <circle cx="366" cy="166" r="54" fill="#fffdf8" stroke="#2f655f" stroke-width="24"/>
+  <circle cx="256" cy="358" r="54" fill="#fffdf8" stroke="#2f655f" stroke-width="24"/>
+  <circle cx="256" cy="166" r="28" fill="#2f655f"/>
+</svg>

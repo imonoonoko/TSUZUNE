@@ -1,0 +1,304 @@
+{
+  "schemaVersion": 1,
+  "stage": "GP0-3b-j",
+  "capturedAt": "2026-08-09T03:34:45.182Z",
+  "status": "matched-core-behavior",
+  "fixedConditions": {
+    "reference": "Obsidian Desktop 1.13.4",
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "scope": "Global Graph attachment node file move",
+    "targetNode": "attachments/diagram.svg",
+    "destinationDirectory": "20_knowledge",
+    "scenarios": [
+      "cancel",
+      "success",
+      "collision"
+    ],
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "theme": "light"
+  },
+  "comparisons": [
+    {
+      "id": "menu-action-order",
+      "label": "右クリックで「新規ウィンドウで開く」の次に「ファイルを移動…」を表示",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "cancel",
+      "label": "取消時は元添付・埋め込み・Graphを変更しない",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "success-move",
+      "label": "通常移動で元添付を消し、20_knowledge/diagram.svgを作る",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "no-link-rewrite",
+      "label": "移動後も![[attachments/diagram.svg]]を自動書換えしない",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "unresolved-and-moved-nodes",
+      "label": "旧pathを未解決node、新pathを実在する孤立attachment nodeとして表示",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "collision-auto-number",
+      "label": "同名衝突時は既存diagram.svgを保持し、移動元をdiagram 1.svgへ採番",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "reopen-restart",
+      "label": "取消／通常移動／衝突の結果をGraph再表示・アプリ再起動後も維持",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "global-graph-retained",
+      "label": "操作後もGlobal Graphを開いたまま保持",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "move-dialog-ui",
+      "label": "移動先選択UI",
+      "obsidian": "検索できるtypeahead prompt",
+      "tsuzune": "selectと移動／キャンセルbutton",
+      "status": "known-ui-gap"
+    },
+    {
+      "id": "attachment-context-menu-size",
+      "label": "添付nodeの右クリックmenu行数",
+      "obsidian": 11,
+      "tsuzune": 4,
+      "status": "known-ui-gap"
+    }
+  ],
+  "established": [
+    "取消、通常移動、同名衝突のファイル状態遷移が両製品で一致する",
+    "通常移動と衝突では埋め込みを自動書換えせず、旧pathを未解決nodeとして残す",
+    "移動後の実ファイルを孤立attachment nodeとして表示し、Graph再表示とアプリ再起動後も維持する",
+    "衝突時は既存ファイルを上書きせず、空いている「diagram 1.svg」へ自動採番する"
+  ],
+  "remainingGap": {
+    "summary": "ファイル移動の中核動作は一致した。移動先UIはObsidianのtypeahead promptに対してTSUZUNEはselect/buttonであり、menu全体も11対4のままである。",
+    "obsidianItems": [
+      "diagram.svg",
+      "新規タブに開く",
+      "新規ウィンドウで開く",
+      "ファイルを移動…",
+      "ブックマーク…",
+      "パスをコピー",
+      "リンクされたビューを開く",
+      "デフォルトアプリで開く",
+      "フォルダで表示",
+      "ファイルエクスプローラでファイルを表示",
+      "ファイルを削除"
+    ],
+    "tsuzuneItems": [
+      "新規タブに開く",
+      "新規ウィンドウで開く",
+      "ファイルを移動…",
+      "ファイルを削除"
+    ],
+    "remainingMenuActions": [
+      "ブックマーク…",
+      "パスをコピー",
+      "リンクされたビューを開く",
+      "デフォルトアプリで開く",
+      "フォルダで表示",
+      "ファイルエクスプローラでファイルを表示"
+    ],
+    "nextSlice": "GP0-3b-k ブックマーク…"
+  },
+  "safeguards": {
+    "cancel": {
+      "obsidian": {
+        "queryAccepted": true,
+        "queryVisibleAfterEntry": true,
+        "filteredNodesAfterEntry": true,
+        "queryPersistedAfterGraphReopen": true,
+        "filteredNodesAfterGraphReopen": true,
+        "firstProcessExitedBeforeRestart": true,
+        "secondProcessStarted": true,
+        "queryPersistedAfterAppRestart": true,
+        "filteredNodesAfterAppRestart": true,
+        "nodeContextMenuOpened": true,
+        "nodeContextMenuItemsHaveText": true,
+        "attachmentMoveDialogOpened": true,
+        "attachmentMoveDialogClosed": true,
+        "nodeContextMenuClosedAfterAction": true,
+        "attachmentMoveOutcomeSafe": true,
+        "attachmentMoveLinkTextPreserved": true,
+        "movedAttachmentLinkBecameUnresolved": true,
+        "movedAttachmentDestinationIsOrphan": true,
+        "collisionDestinationPreserved": true,
+        "movedAttachmentBytesPreserved": true,
+        "lightThemeEveryObservation": true,
+        "isolatedUserDataEverySession": true,
+        "isolatedVaultEverySession": true,
+        "offscreenEverySession": true,
+        "sourceUnchanged": true,
+        "isolatedVaultProtectedFilesExpected": true,
+        "protocolRestored": true
+      },
+      "tsuzune": {
+        "exactNodeSetBeforeAction": true,
+        "exactNodeSetAfterActionAndRestart": true,
+        "attachmentEdgeCountStable": true,
+        "attachmentContextMenuOpened": true,
+        "moveMenuItemInExpectedOrder": true,
+        "moveDialogRecorded": true,
+        "dialogAndContextMenuClosed": true,
+        "globalGraphRemainedVisible": true,
+        "homeEmbedUnchanged": true,
+        "sourceAndDestinationMatchScenario": true,
+        "oldAttachmentResolutionMatchesScenario": true,
+        "movedAttachmentsResolved": true,
+        "contentViewportStable": true,
+        "filteredNodeSetStable": true,
+        "separateApplicationProcesses": true,
+        "sourceFixtureUnchanged": true,
+        "productSourceUnchanged": true,
+        "builtApplicationUnchanged": true,
+        "isolatedMarkdownUnchanged": true,
+        "isolatedVaultChangedOnlyWhenMoving": true,
+        "noIsolatedProcessesRemaining": true
+      }
+    },
+    "success": {
+      "obsidian": {
+        "queryAccepted": true,
+        "queryVisibleAfterEntry": true,
+        "filteredNodesAfterEntry": true,
+        "queryPersistedAfterGraphReopen": true,
+        "filteredNodesAfterGraphReopen": true,
+        "firstProcessExitedBeforeRestart": true,
+        "secondProcessStarted": true,
+        "queryPersistedAfterAppRestart": true,
+        "filteredNodesAfterAppRestart": true,
+        "nodeContextMenuOpened": true,
+        "nodeContextMenuItemsHaveText": true,
+        "attachmentMoveDialogOpened": true,
+        "attachmentMoveDialogClosed": true,
+        "nodeContextMenuClosedAfterAction": true,
+        "attachmentMoveOutcomeSafe": true,
+        "attachmentMoveLinkTextPreserved": true,
+        "movedAttachmentLinkBecameUnresolved": true,
+        "movedAttachmentDestinationIsOrphan": true,
+        "collisionDestinationPreserved": true,
+        "movedAttachmentBytesPreserved": true,
+        "lightThemeEveryObservation": true,
+        "isolatedUserDataEverySession": true,
+        "isolatedVaultEverySession": true,
+        "offscreenEverySession": true,
+        "sourceUnchanged": true,
+        "isolatedVaultProtectedFilesExpected": true,
+        "protocolRestored": true
+      },
+      "tsuzune": {
+        "exactNodeSetBeforeAction": true,
+        "exactNodeSetAfterActionAndRestart": true,
+        "attachmentEdgeCountStable": true,
+        "attachmentContextMenuOpened": true,
+        "moveMenuItemInExpectedOrder": true,
+        "moveDialogRecorded": true,
+        "dialogAndContextMenuClosed": true,
+        "globalGraphRemainedVisible": true,
+        "homeEmbedUnchanged": true,
+        "sourceAndDestinationMatchScenario": true,
+        "oldAttachmentResolutionMatchesScenario": true,
+        "movedAttachmentsResolved": true,
+        "contentViewportStable": true,
+        "filteredNodeSetStable": true,
+        "separateApplicationProcesses": true,
+        "sourceFixtureUnchanged": true,
+        "productSourceUnchanged": true,
+        "builtApplicationUnchanged": true,
+        "isolatedMarkdownUnchanged": true,
+        "isolatedVaultChangedOnlyWhenMoving": true,
+        "noIsolatedProcessesRemaining": true
+      }
+    },
+    "collision": {
+      "obsidian": {
+        "queryAccepted": true,
+        "queryVisibleAfterEntry": true,
+        "filteredNodesAfterEntry": true,
+        "queryPersistedAfterGraphReopen": true,
+        "filteredNodesAfterGraphReopen": true,
+        "firstProcessExitedBeforeRestart": true,
+        "secondProcessStarted": true,
+        "queryPersistedAfterAppRestart": true,
+        "filteredNodesAfterAppRestart": true,
+        "nodeContextMenuOpened": true,
+        "nodeContextMenuItemsHaveText": true,
+        "attachmentMoveDialogOpened": true,
+        "attachmentMoveDialogClosed": true,
+        "nodeContextMenuClosedAfterAction": true,
+        "attachmentMoveOutcomeSafe": true,
+        "attachmentMoveLinkTextPreserved": true,
+        "movedAttachmentLinkBecameUnresolved": true,
+        "movedAttachmentDestinationIsOrphan": true,
+        "collisionDestinationPreserved": true,
+        "movedAttachmentBytesPreserved": true,
+        "lightThemeEveryObservation": true,
+        "isolatedUserDataEverySession": true,
+        "isolatedVaultEverySession": true,
+        "offscreenEverySession": true,
+        "sourceUnchanged": true,
+        "isolatedVaultProtectedFilesExpected": true,
+        "protocolRestored": true
+      },
+      "tsuzune": {
+        "exactNodeSetBeforeAction": true,
+        "exactNodeSetAfterActionAndRestart": true,
+        "attachmentEdgeCountStable": true,
+        "attachmentContextMenuOpened": true,
+        "moveMenuItemInExpectedOrder": true,
+        "moveDialogRecorded": true,
+        "dialogAndContextMenuClosed": true,
+        "globalGraphRemainedVisible": true,
+        "homeEmbedUnchanged": true,
+        "sourceAndDestinationMatchScenario": true,
+        "oldAttachmentResolutionMatchesScenario": true,
+        "movedAttachmentsResolved": true,
+        "contentViewportStable": true,
+        "filteredNodeSetStable": true,
+        "separateApplicationProcesses": true,
+        "sourceFixtureUnchanged": true,
+        "productSourceUnchanged": true,
+        "builtApplicationUnchanged": true,
+        "isolatedMarkdownUnchanged": true,
+        "isolatedVaultChangedOnlyWhenMoving": true,
+        "noIsolatedProcessesRemaining": true
+      }
+    }
+  },
+  "notEstablished": [
+    "Obsidian typeahead promptとTSUZUNE select/button dialogの視覚・操作一致",
+    "添付context menuの残り6操作と対象ラベル行",
+    "pixel-identicalなGraph配置・dialog・menu",
+    "物理マウス、実OS keyboard、screen reader、High Contrast、複数DPI"
+  ],
+  "conclusion": "GP0-3b-jでは添付ファイル移動の取消、通常移動、同名衝突、自動採番、リンク非書換え、未解決／実在node分離、再表示／再起動保持を一致確認した。中核挙動はmatchedだが、移動先UIとmenu全体は既知差であり、Graph parity全体やpixel equivalenceは主張しない。"
+}

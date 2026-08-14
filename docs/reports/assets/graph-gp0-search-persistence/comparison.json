@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "reportDate": "2026-08-03",
+  "title": "GP0 Global Graph search persistence comparison",
+  "status": "behavioral-match-with-explicit-limitations",
+  "query": "path:\"10_projects\"",
+  "scope": {
+    "matchedBehavior": [
+      "The exact query is visible and applied at Global Graph entry.",
+      "The exact query remains visible and applied after Graph is closed and reopened.",
+      "The exact query remains visible and applied after a full application restart followed by Graph view."
+    ],
+    "notEstablished": [
+      "Pixel parity between Obsidian and TSUZUNE.",
+      "Automatic restoration of the Graph workspace or Graph view at application startup.",
+      "Parity for other queries, filters, camera state, layout, animation, or Graph behaviors."
+    ]
+  },
+  "sources": {
+    "obsidian": {
+      "product": "Obsidian Desktop",
+      "version": "1.13.4",
+      "manifest": "manifest.json",
+      "observation": "obsidian-1.13.4/observation.json"
+    },
+    "tsuzune": {
+      "product": "TSUZUNE",
+      "evidenceKind": "working-tree",
+      "manifest": "../graph-gp0-3b-search-restart-working-tree/manifest.json",
+      "observation": "../graph-gp0-3b-search-restart-working-tree/observation.json"
+    }
+  },
+  "normalizedTopology": {
+    "nodeIds": [
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md"
+    ],
+    "nodeCount": 2,
+    "uniqueVisibleEdgeCount": 1,
+    "edge": [
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md"
+    ],
+    "normalizationNote": "The Obsidian probe reports renderedLinkCount 2 at each checkpoint while the screenshots show one visible connection between the only two rendered nodes. This comparison therefore uses one unique visible edge; TSUZUNE reports edgeCount 1 directly."
+  },
+  "checkpoints": [
+    {
+      "id": "entry",
+      "label": "Query entry",
+      "condition": "Global Graph after entering the exact query",
+      "obsidian": {
+        "query": "path:\"10_projects\"",
+        "nodeCount": 2,
+        "rawRenderedLinkCount": 2,
+        "uniqueVisibleEdgeCount": 1,
+        "screenshot": "obsidian-1.13.4/01-after-entry.png"
+      },
+      "tsuzune": {
+        "query": "path:\"10_projects\"",
+        "nodeCount": 2,
+        "edgeCount": 1,
+        "screenshot": "../graph-gp0-3b-search-restart-working-tree/01-query-entered.png"
+      },
+      "result": "matched-within-scope"
+    },
+    {
+      "id": "graph-close-reopen",
+      "label": "Graph close and reopen",
+      "condition": "Graph view after leaving it and opening it again in the same application process",
+      "obsidian": {
+        "query": "path:\"10_projects\"",
+        "nodeCount": 2,
+        "rawRenderedLinkCount": 2,
+        "uniqueVisibleEdgeCount": 1,
+        "screenshot": "obsidian-1.13.4/02-after-graph-reopen.png"
+      },
+      "tsuzune": {
+        "query": "path:\"10_projects\"",
+        "nodeCount": 2,
+        "edgeCount": 1,
+        "screenshot": "../graph-gp0-3b-search-restart-working-tree/02-graph-reopened.png"
+      },
+      "result": "matched-within-scope"
+    },
+    {
+      "id": "full-app-restart-then-graph-view",
+      "label": "Full application restart, then Graph view",
+      "condition": "A second application process with Graph available for observation",
+      "obsidian": {
+        "query": "path:\"10_projects\"",
+        "nodeCount": 2,
+        "rawRenderedLinkCount": 2,
+        "uniqueVisibleEdgeCount": 1,
+        "screenshot": "obsidian-1.13.4/03-after-app-restart.png"
+      },
+      "tsuzune": {
+        "query": "path:\"10_projects\"",
+        "nodeCount": 2,
+        "edgeCount": 1,
+        "screenshot": "../graph-gp0-3b-search-restart-working-tree/03-app-restarted.png"
+      },
+      "result": "matched-within-scope",
+      "limitation": "This checkpoint does not establish automatic Graph workspace or view restoration at startup."
+    }
+  ],
+  "safeguards": {
+    "isolatedProfiles": {
+      "verified": true,
+      "obsidian": {
+        "userData": "work/gp0-search/obsidian-1.13.4/userdata",
+        "vault": "work/gp0-search/obsidian-1.13.4/vault"
+      },
+      "tsuzune": {
+        "userData": "work/graph-gp0-3b-search-restart-working-tree/userdata",
+        "vault": "work/graph-gp0-3b-search-restart-working-tree/vault"
+      }
+    },
+    "sourceUnchanged": {
+      "verified": true,
+      "obsidianAssertions": [
+        "sourceUnchanged",
+        "isolatedVaultProtectedFilesUnchanged"
+      ],
+      "tsuzuneAssertions": [
+        "sourceFixtureUnchanged",
+        "productSourceUnchanged",
+        "builtApplicationUnchanged",
+        "isolatedMarkdownUnchanged"
+      ]
+    },
+    "offscreenCapture": true
+  },
+  "conclusion": "For path:\"10_projects\" only, TSUZUNE matches the observed Obsidian 1.13.4 query-persistence behavior at entry, after Graph close/reopen, and after a full application restart followed by Graph view. The filtered topology remains two nodes and one unique visible edge at all three checkpoints."
+}

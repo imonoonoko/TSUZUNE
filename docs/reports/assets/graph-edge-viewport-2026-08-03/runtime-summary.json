@@ -1,0 +1,57 @@
+{
+  "status": "verified",
+  "capturedAt": "2026-08-02T18:49:14.255Z",
+  "scenario": "Vault graph at the production saved zoom",
+  "viewport": {
+    "width": 749,
+    "height": 613,
+    "devicePixelRatio": 1
+  },
+  "camera": {
+    "zoom": 0.13168724279835373,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  "worldStageClientRect": {
+    "width": 98.6337890625,
+    "height": 80.72427368164062
+  },
+  "viewportCanvasClientRect": {
+    "width": 749,
+    "height": 613
+  },
+  "oldCanvasVisibleAreaRatio": 0.01734,
+  "graph": {
+    "nodes": 78,
+    "edges": 267,
+    "activePath": null
+  },
+  "pixels": {
+    "painted": 12587,
+    "gray": 12587
+  },
+  "result": "The edge canvas keeps the full viewport and no longer clips at the scaled world-stage bitmap boundary.",
+  "verification": {
+    "testFilesPassed": 44,
+    "testsPassed": 360,
+    "sourceFingerprint": "7f7dcf934b2b2a6e44b3135a640939d483e977c5e654f3769fb5f4a493ff565d",
+    "installedAppAsarSha256": "22cb73979cfd43e07221ee2ca365e7e73ba5131980c34a329608f33a35c64af1",
+    "productionProfileUnchanged": true
+  },
+  "screenshots": {
+    "before": {
+      "path": "00-before-user-report.png",
+      "sha256": "7dfec82faca52f3eb281676a5ee5a5bd986ce36132b8bdaed4095bbdb32d7236"
+    },
+    "after": {
+      "path": "01-unhovered.png",
+      "sha256": "acdb2ea20d27744af187371c63195a9db72b45ae41fbb1738469365f0c15a6f1"
+    }
+  },
+  "limitations": [
+    "This closes the low-zoom edge clipping defect, not the entire Obsidian parity program.",
+    "The legacy per-edge alignment probe is intentionally excluded because edges are now batched into shared Canvas paths."
+  ]
+}

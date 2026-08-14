@@ -7,6 +7,7 @@ import {
   resolveWikiLink,
   transformWikiLinksForPreview
 } from '../src/core/links'
+import { compilePathAliases } from '../src/core/path-aliases'
 import type { NoteDocument } from '../src/shared/types'
 
 function note(path: string, content = ''): NoteDocument {
@@ -47,6 +48,12 @@ describe('Wiki link parsing', () => {
       '[表示名](#/wiki/%E6%96%B9%E9%87%9D) と `[[コード]]`'
     )
   })
+
+  it('marks embedded Wiki links as Vault assets for preview', () => {
+    expect(transformWikiLinksForPreview('![[attachments/diagram.svg|構成図]]')).toBe(
+      '![構成図](#/vault-asset/attachments%2Fdiagram.svg)'
+    )
+  })
 })
 
 describe('Wiki link resolution', () => {
@@ -79,6 +86,66 @@ describe('Wiki link resolution', () => {
     })
   })
 
+  it('resolves old full paths, basenames, and fragments through live aliases', () => {
+    const renamedNotes = [note('30_知識/新しい名前.md')]
+    const aliases = compilePathAliases({
+      '旧分類/古い名前.md': '30_知識/新しい名前.md'
+    })
+
+    for (const target of [
+      '旧分類/古い名前',
+      '古い名前',
+      '旧分類/古い名前#見出し',
+      '古い名前#^block-id'
+    ]) {
+      expect(resolveWikiLink(target, renamedNotes, aliases)).toMatchObject({
+        status: 'resolved',
+        resolvedPath: '30_知識/新しい名前.md'
+      })
+    }
+    expect(
+      getOutgoingLinks('[[古い名前#見出し]]', renamedNotes, aliases)
+    ).toMatchObject([{ resolvedPath: '30_知識/新しい名前.md' }])
+    expect(
+      getBacklinks(
+        '30_知識/新しい名前.md',
+        [...renamedNotes, note('入口.md', '[[旧分類/古い名前]]')],
+        aliases
+      ).map((item) => item.path)
+    ).toEqual(['入口.md'])
+  })
+
+  it('prefers live notes and rejects missing or ambiguous alias terminals', () => {
+    const aliases = compilePathAliases({
+      '旧分類/同名.md': '新分類/一.md',
+      '別の旧分類/同名.md': '新分類/二.md',
+      '消えた旧名.md': '新分類/欠損.md'
+    })
+    const renamedNotes = [
+      note('旧分類/同名.md'),
+      note('新分類/一.md'),
+      note('新分類/二.md')
+    ]
+
+    expect(resolveWikiLink('旧分類/同名', renamedNotes, aliases)).toMatchObject({
+      status: 'resolved',
+      resolvedPath: '旧分類/同名.md'
+    })
+    expect(resolveWikiLink('同名', renamedNotes, aliases)).toMatchObject({
+      status: 'resolved',
+      resolvedPath: '旧分類/同名.md'
+    })
+    expect(resolveWikiLink('消えた旧名', renamedNotes, aliases)).toMatchObject({
+      status: 'missing'
+    })
+
+    const withoutLiveOldPath = renamedNotes.slice(1)
+    expect(resolveWikiLink('同名', withoutLiveOldPath, aliases)).toMatchObject({
+      status: 'ambiguous',
+      candidates: ['新分類/一.md', '新分類/二.md']
+    })
+  })
+
   it.each(['../秘密', 'C:\\秘密', '/絶対パス', 'CON'])(
     'marks an unsafe target as invalid: %s',
     (target) => {
@@ -101,5 +168,11 @@ describe('Wiki link resolution', () => {
     expect(getBacklinks('方針.md', linkedNotes).map((item) => item.path)).toEqual([
       '概要.md'
     ])
+  })
+
+  it('does not report embedded attachments as missing note links', () => {
+    expect(
+      getOutgoingLinks('![[attachments/diagram.svg]]', [note('Home.md')])
+    ).toEqual([])
   })
 })

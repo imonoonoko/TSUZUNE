@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-03T00:00:00+09:00",
+  "title": "Design System: TSUZUNE",
+  "extensions": {
+    "colorMeta": {
+      "thread-teal": {
+        "role": "primary",
+        "displayName": "Thread Teal",
+        "canonical": "#2F655F",
+        "tonalRamp": ["#102320", "#193430", "#234A45", "#2F655F", "#53847D", "#7FA79F", "#B1CCC6", "#E7F1EE"]
+      },
+      "workshop-night": {
+        "role": "neutral",
+        "displayName": "Workshop Night",
+        "canonical": "#283B38",
+        "tonalRamp": ["#101817", "#1A2725", "#283B38", "#3D5551", "#5B746F", "#829894", "#B5C3C0", "#E8EEEC"]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Warm Canvas",
+        "canonical": "#F4F0E7",
+        "tonalRamp": ["#242119", "#423D31", "#625B4C", "#847B6B", "#A79E8F", "#C9C1B5", "#E3DDD3", "#F8F5EF"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Note Paper",
+        "canonical": "#FFFDF8",
+        "tonalRamp": ["#28251E", "#49443A", "#6C6559", "#91897D", "#B6AEA3", "#D6D0C7", "#EEEAE3", "#FFFDF8"]
+      }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Workspace Title", "purpose": "Note and dialog titles." },
+      "body": { "displayName": "Japanese Body", "purpose": "Reading and working text." },
+      "label": { "displayName": "Compact Label", "purpose": "Toolbars, metadata, and status." }
+    },
+    "shadows": [
+      {
+        "name": "ambient-overlay",
+        "value": "0 12px 32px rgb(67 58 41 / 9%)",
+        "purpose": "Dialogs and temporary elevated layers only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-feedback",
+        "value": "120ms ease-out",
+        "purpose": "Hover, selection, and visibility feedback; disabled when reduced motion is requested."
+      }
+    ],
+    "breakpoints": [
+      { "name": "compact-workspace", "value": "1040px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single emphasized action in a task group.",
+      "html": "<button class=\"ds-btn-primary\">保存して続ける</button>",
+      "css": ".ds-btn-primary { min-height: 30px; padding: 6px 12px; color: #fffdf8; background: #2f655f; border: 1px solid #2f655f; border-radius: 6px; font: 600 12px/1.4 'Yu Gothic UI', Meiryo, sans-serif; transition: background 120ms ease-out; } .ds-btn-primary:hover { background: #254f4a; } .ds-btn-primary:focus-visible { outline: 2px solid #3e7e76; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A frequent but non-primary workspace action.",
+      "html": "<button class=\"ds-btn-secondary\">Vaultを開く</button>",
+      "css": ".ds-btn-secondary { min-height: 30px; padding: 6px 12px; color: #292822; background: #fffdf8; border: 1px solid #ddd7ca; border-radius: 6px; font: 600 12px/1.4 'Yu Gothic UI', Meiryo, sans-serif; transition: background 120ms ease-out, border-color 120ms ease-out; } .ds-btn-secondary:hover { background: #f8f5ed; border-color: #bcb4a5; } .ds-btn-secondary:focus-visible { outline: 2px solid #3e7e76; outline-offset: 2px; }"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A quiet full-width field for Vault search.",
+      "html": "<input class=\"ds-input-search\" value=\"ONOKO\" aria-label=\"Vaultを検索\" />",
+      "css": ".ds-input-search { width: 260px; padding: 8px 10px; color: #292822; background: #fffdf8; border: 1px solid #ddd7ca; border-radius: 8px; font: 400 14px/1.4 'Yu Gothic UI', Meiryo, sans-serif; } .ds-input-search:focus-visible { outline: 2px solid #3e7e76; outline-offset: 2px; border-color: #2f655f; }"
+    },
+    {
+      "name": "Selected Tree Row",
+      "kind": "nav",
+      "refersTo": "selected-row",
+      "description": "The current note in the Vault tree.",
+      "html": "<button class=\"ds-tree-row\"><svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><circle cx=\"8\" cy=\"8\" r=\"3\" /></svg><span>プロジェクト地図</span></button>",
+      "css": ".ds-tree-row { display: flex; align-items: center; gap: 8px; width: 240px; padding: 7px 10px; color: #292822; background: #dcebe6; border: 0; border-radius: 6px; font: 600 14px/1.4 'Yu Gothic UI', Meiryo, sans-serif; text-align: left; } .ds-tree-row svg { width: 16px; height: 16px; fill: none; stroke: #2f655f; stroke-width: 1.5; } .ds-tree-row:hover { background: #cfe3dd; } .ds-tree-row:focus-visible { outline: 2px solid #3e7e76; outline-offset: 2px; }"
+    },
+    {
+      "name": "Workspace Surface",
+      "kind": "card",
+      "description": "A calm onboarding or empty-state surface, not a repeated dashboard card.",
+      "html": "<section class=\"ds-surface\"><strong>最初のノートを作る</strong><p>MarkdownはVaultへそのまま保存されます。</p></section>",
+      "css": ".ds-surface { width: 320px; padding: 24px; color: #292822; background: #fffdf8; border: 1px solid #ddd7ca; border-radius: 12px; font: 400 14px/1.7 'Yu Gothic UI', Meiryo, sans-serif; } .ds-surface strong { display: block; margin-bottom: 8px; font-size: 16px; } .ds-surface p { margin: 0; color: #777267; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "静かな知識工房",
+    "overview": "TSUZUNE should feel like returning to a familiar workbench: warm paper, dark green tools, and just enough structure to see where knowledge is connected. The interface is information-dense because the work is real, but its hierarchy must remain calm. Writing is the dominant surface; navigation and related context support it from the edges. The system rejects generic AI dashboards, decorative gradients, flashy glassmorphism, enterprise SaaS chrome, and unfamiliar controls invented for novelty. Motion is restrained to state feedback. At rest, the application is still.",
+    "keyCharacteristics": [
+      "Warm paper surfaces with one restrained deep-teal voice.",
+      "Compact controls and clear information hierarchy.",
+      "Flat tonal layering; elevation is reserved for temporary layers.",
+      "Familiar Windows behavior with strong keyboard focus.",
+      "Brand character comes from material, proportion, and a small thread mark—not decoration."
+    ],
+    "rules": [
+      { "name": "The One Thread Rule", "body": "Thread Teal is the only general accent and must remain visually scarce.", "section": "colors" },
+      { "name": "The Writing Wins Rule", "body": "Interface labels stay compact; the note is the content.", "section": "typography" },
+      { "name": "The Flat Workbench Rule", "body": "Permanent panels never float.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do preserve warm paper surfaces with WCAG AA text contrast.",
+      "Do keep Thread Teal scarce and meaningful.",
+      "Do use familiar line icons beside short Japanese labels.",
+      "Do respect reduced-motion preferences."
+    ],
+    "donts": [
+      "Don't turn TSUZUNE into a generic AI dashboard.",
+      "Don't use flashy glassmorphism, neon accents, or decorative motion.",
+      "Don't invent unfamiliar controls where Windows already has one.",
+      "Don't lock knowledge into an app-owned database."
+    ]
+  }
+}

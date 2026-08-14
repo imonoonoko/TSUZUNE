@@ -1,0 +1,997 @@
+{
+  "capturedAt": "2026-08-02T13:48:12.880Z",
+  "title": "グラフビュー - vault - Obsidian 1.13.4",
+  "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\graph-gp6\\obsidian-1.13.4\\vault",
+  "selectedBeforeGraph": "00_Home.md",
+  "renderedTheme": "light",
+  "bodyClass": "mod-windows is-frameless is-hidden-frameless is-focused obsidian-app styled-scrollbars show-inline-title is-floating-nav auto-full-screen show-ribbon show-view-header theme-light",
+  "dimensions": {
+    "inner": {
+      "width": 1265,
+      "height": 768
+    },
+    "outer": {
+      "width": 1281,
+      "height": 776
+    },
+    "devicePixelRatio": 1,
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "canvas": {
+      "x": 344,
+      "y": 77.96875,
+      "width": 921,
+      "height": 690.03125
+    },
+    "controlPanel": {
+      "x": 1013,
+      "y": 89.96875,
+      "width": 240,
+      "height": 160.5625
+    }
+  },
+  "graphOptions": {
+    "collapse-filter": true,
+    "search": "",
+    "showTags": false,
+    "showAttachments": false,
+    "hideUnresolved": false,
+    "showOrphans": true,
+    "collapse-color-groups": true,
+    "colorGroups": [],
+    "collapse-display": true,
+    "showArrow": false,
+    "textFadeMultiplier": 0,
+    "nodeSizeMultiplier": 1,
+    "lineSizeMultiplier": 1,
+    "collapse-forces": true,
+    "centerStrength": 0.518713248970312,
+    "repelStrength": 10,
+    "linkStrength": 1,
+    "linkDistance": 250,
+    "scale": 1,
+    "close": false
+  },
+  "sections": [
+    {
+      "className": "tree-item graph-control-section mod-filter is-collapsed",
+      "label": "フィルタ",
+      "collapsed": true,
+      "rect": {
+        "x": 1014,
+        "y": 90.96875,
+        "width": 238,
+        "height": 39.890625
+      }
+    },
+    {
+      "className": "tree-item graph-control-section mod-color-groups is-collapsed",
+      "label": "グループ",
+      "collapsed": true,
+      "rect": {
+        "x": 1014,
+        "y": 130.859375,
+        "width": 238,
+        "height": 39.890625
+      }
+    },
+    {
+      "className": "tree-item graph-control-section mod-display is-collapsed",
+      "label": "表示",
+      "collapsed": true,
+      "rect": {
+        "x": 1014,
+        "y": 170.75,
+        "width": 238,
+        "height": 39.890625
+      }
+    },
+    {
+      "className": "tree-item graph-control-section mod-forces is-collapsed",
+      "label": "力の強さ",
+      "collapsed": true,
+      "rect": {
+        "x": 1014,
+        "y": 210.640625,
+        "width": 238,
+        "height": 38.890625
+      }
+    }
+  ],
+  "buttons": [
+    {
+      "className": "clickable-icon graph-controls-button mod-close",
+      "ariaLabel": "閉じる",
+      "title": null,
+      "rect": {
+        "x": 1218,
+        "y": 96.96875,
+        "width": 26,
+        "height": 26
+      }
+    },
+    {
+      "className": "clickable-icon graph-controls-button mod-open",
+      "ariaLabel": "グラフ設定を開く",
+      "title": null,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      }
+    },
+    {
+      "className": "clickable-icon graph-controls-button mod-animate",
+      "ariaLabel": "タイムラプスアニメーションの開始",
+      "title": null,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      }
+    },
+    {
+      "className": "clickable-icon graph-controls-button mod-reset",
+      "ariaLabel": "デフォルト設定に戻す",
+      "title": null,
+      "rect": {
+        "x": 1190,
+        "y": 96.96875,
+        "width": 26,
+        "height": 26
+      }
+    }
+  ],
+  "markdownFiles": [
+    "00_Home.md",
+    "10_projects/Project Alpha.md",
+    "10_projects/Project Beta.md",
+    "20_knowledge/Distillation.md",
+    "20_knowledge/Reference.md",
+    "80_excluded/Hidden.md",
+    "90_orphan/Orphan.md"
+  ],
+  "resolvedEdges": [
+    {
+      "source": "00_Home.md",
+      "target": "10_projects/Project Alpha.md",
+      "count": 1,
+      "resolved": true
+    },
+    {
+      "source": "00_Home.md",
+      "target": "20_knowledge/Reference.md",
+      "count": 1,
+      "resolved": true
+    },
+    {
+      "source": "10_projects/Project Alpha.md",
+      "target": "00_Home.md",
+      "count": 1,
+      "resolved": true
+    },
+    {
+      "source": "10_projects/Project Alpha.md",
+      "target": "10_projects/Project Beta.md",
+      "count": 1,
+      "resolved": true
+    },
+    {
+      "source": "10_projects/Project Alpha.md",
+      "target": "20_knowledge/Reference.md",
+      "count": 1,
+      "resolved": true
+    },
+    {
+      "source": "10_projects/Project Beta.md",
+      "target": "10_projects/Project Alpha.md",
+      "count": 1,
+      "resolved": true
+    },
+    {
+      "source": "10_projects/Project Beta.md",
+      "target": "20_knowledge/Distillation.md",
+      "count": 1,
+      "resolved": true
+    },
+    {
+      "source": "20_knowledge/Distillation.md",
+      "target": "10_projects/Project Beta.md",
+      "count": 1,
+      "resolved": true
+    },
+    {
+      "source": "20_knowledge/Reference.md",
+      "target": "00_Home.md",
+      "count": 1,
+      "resolved": true
+    },
+    {
+      "source": "20_knowledge/Reference.md",
+      "target": "20_knowledge/Distillation.md",
+      "count": 1,
+      "resolved": true
+    },
+    {
+      "source": "80_excluded/Hidden.md",
+      "target": "00_Home.md",
+      "count": 1,
+      "resolved": true
+    }
+  ],
+  "unresolvedEdges": [
+    {
+      "source": "00_Home.md",
+      "target": "Missing Note",
+      "count": 1,
+      "resolved": false
+    }
+  ],
+  "renderer": {
+    "nodeCount": 8,
+    "linkCount": 12,
+    "scale": 1,
+    "panX": 460.5,
+    "panY": 345,
+    "width": 921,
+    "height": 690,
+    "idleFrames": 0,
+    "nodes": [
+      {
+        "id": "00_Home.md",
+        "keys": [
+          "x",
+          "y",
+          "fx",
+          "fy",
+          "forward",
+          "reverse",
+          "weight",
+          "color",
+          "rendered",
+          "fadeAlpha",
+          "moveText",
+          "fontDirty",
+          "onClick",
+          "renderer",
+          "id",
+          "type"
+        ],
+        "values": {
+          "x": -62.23966369948046,
+          "y": 64.85430755818832,
+          "fx": null,
+          "fy": null,
+          "weight": 6,
+          "color": null,
+          "rendered": false,
+          "fadeAlpha": 0,
+          "moveText": 0,
+          "fontDirty": false,
+          "id": "00_Home.md",
+          "type": ""
+        }
+      },
+      {
+        "id": "Missing Note",
+        "keys": [
+          "x",
+          "y",
+          "fx",
+          "fy",
+          "forward",
+          "reverse",
+          "weight",
+          "color",
+          "rendered",
+          "fadeAlpha",
+          "moveText",
+          "fontDirty",
+          "onClick",
+          "renderer",
+          "id",
+          "type"
+        ],
+        "values": {
+          "x": -15.556291800481397,
+          "y": 127.84603959077192,
+          "fx": null,
+          "fy": null,
+          "weight": 1,
+          "color": null,
+          "rendered": false,
+          "fadeAlpha": 0,
+          "moveText": 0,
+          "fontDirty": false,
+          "id": "Missing Note",
+          "type": "unresolved"
+        }
+      },
+      {
+        "id": "10_projects/Project Alpha.md",
+        "keys": [
+          "x",
+          "y",
+          "fx",
+          "fy",
+          "forward",
+          "reverse",
+          "weight",
+          "color",
+          "rendered",
+          "fadeAlpha",
+          "moveText",
+          "fontDirty",
+          "onClick",
+          "renderer",
+          "id",
+          "type"
+        ],
+        "values": {
+          "x": -89.6349819307597,
+          "y": 85.16266272788232,
+          "fx": null,
+          "fy": null,
+          "weight": 5,
+          "color": null,
+          "rendered": false,
+          "fadeAlpha": 0,
+          "moveText": 0,
+          "fontDirty": false,
+          "id": "10_projects/Project Alpha.md",
+          "type": ""
+        }
+      },
+      {
+        "id": "10_projects/Project Beta.md",
+        "keys": [
+          "x",
+          "y",
+          "fx",
+          "fy",
+          "forward",
+          "reverse",
+          "weight",
+          "color",
+          "rendered",
+          "fadeAlpha",
+          "moveText",
+          "fontDirty",
+          "onClick",
+          "renderer",
+          "id",
+          "type"
+        ],
+        "values": {
+          "x": -70.84270678162008,
+          "y": 162.10466978957623,
+          "fx": null,
+          "fy": null,
+          "weight": 4,
+          "color": null,
+          "rendered": false,
+          "fadeAlpha": 0,
+          "moveText": 0,
+          "fontDirty": false,
+          "id": "10_projects/Project Beta.md",
+          "type": ""
+        }
+      },
+      {
+        "id": "20_knowledge/Distillation.md",
+        "keys": [
+          "x",
+          "y",
+          "fx",
+          "fy",
+          "forward",
+          "reverse",
+          "weight",
+          "color",
+          "rendered",
+          "fadeAlpha",
+          "moveText",
+          "fontDirty",
+          "onClick",
+          "renderer",
+          "id",
+          "type"
+        ],
+        "values": {
+          "x": -47.8692521968667,
+          "y": 207.19138050700045,
+          "fx": null,
+          "fy": null,
+          "weight": 3,
+          "color": null,
+          "rendered": false,
+          "fadeAlpha": 0,
+          "moveText": 0,
+          "fontDirty": false,
+          "id": "20_knowledge/Distillation.md",
+          "type": ""
+        }
+      },
+      {
+        "id": "20_knowledge/Reference.md",
+        "keys": [
+          "x",
+          "y",
+          "fx",
+          "fy",
+          "forward",
+          "reverse",
+          "weight",
+          "color",
+          "rendered",
+          "fadeAlpha",
+          "moveText",
+          "fontDirty",
+          "onClick",
+          "renderer",
+          "id",
+          "type"
+        ],
+        "values": {
+          "x": -29.538079469618864,
+          "y": 137.29082515596588,
+          "fx": null,
+          "fy": null,
+          "weight": 4,
+          "color": null,
+          "rendered": false,
+          "fadeAlpha": 0,
+          "moveText": 0,
+          "fontDirty": false,
+          "id": "20_knowledge/Reference.md",
+          "type": ""
+        }
+      },
+      {
+        "id": "90_orphan/Orphan.md",
+        "keys": [
+          "x",
+          "y",
+          "fx",
+          "fy",
+          "forward",
+          "reverse",
+          "weight",
+          "color",
+          "rendered",
+          "fadeAlpha",
+          "moveText",
+          "fontDirty",
+          "onClick",
+          "renderer",
+          "id",
+          "type"
+        ],
+        "values": {
+          "x": 22.00639421310616,
+          "y": 5.819627887019433,
+          "fx": null,
+          "fy": null,
+          "weight": 0,
+          "color": null,
+          "rendered": false,
+          "fadeAlpha": 0,
+          "moveText": 0,
+          "fontDirty": false,
+          "id": "90_orphan/Orphan.md",
+          "type": ""
+        }
+      },
+      {
+        "id": "80_excluded/Hidden.md",
+        "keys": [
+          "x",
+          "y",
+          "fx",
+          "fy",
+          "forward",
+          "reverse",
+          "weight",
+          "color",
+          "rendered",
+          "fadeAlpha",
+          "moveText",
+          "fontDirty",
+          "onClick",
+          "renderer",
+          "id",
+          "type"
+        ],
+        "values": {
+          "x": -118.37483938951212,
+          "y": 68.28677909519826,
+          "fx": null,
+          "fy": null,
+          "weight": 1,
+          "color": null,
+          "rendered": false,
+          "fadeAlpha": 0,
+          "moveText": 0,
+          "fontDirty": false,
+          "id": "80_excluded/Hidden.md",
+          "type": ""
+        }
+      }
+    ],
+    "links": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md",
+        "keys": [
+          "rendered",
+          "renderer",
+          "source",
+          "target"
+        ],
+        "values": {
+          "rendered": false
+        }
+      },
+      {
+        "source": "00_Home.md",
+        "target": "20_knowledge/Reference.md",
+        "keys": [
+          "rendered",
+          "renderer",
+          "source",
+          "target"
+        ],
+        "values": {
+          "rendered": false
+        }
+      },
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note",
+        "keys": [
+          "rendered",
+          "renderer",
+          "source",
+          "target"
+        ],
+        "values": {
+          "rendered": false
+        }
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md",
+        "keys": [
+          "rendered",
+          "renderer",
+          "source",
+          "target"
+        ],
+        "values": {
+          "rendered": false
+        }
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md",
+        "keys": [
+          "rendered",
+          "renderer",
+          "source",
+          "target"
+        ],
+        "values": {
+          "rendered": false
+        }
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "20_knowledge/Reference.md",
+        "keys": [
+          "rendered",
+          "renderer",
+          "source",
+          "target"
+        ],
+        "values": {
+          "rendered": false
+        }
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md",
+        "keys": [
+          "rendered",
+          "renderer",
+          "source",
+          "target"
+        ],
+        "values": {
+          "rendered": false
+        }
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md",
+        "keys": [
+          "rendered",
+          "renderer",
+          "source",
+          "target"
+        ],
+        "values": {
+          "rendered": false
+        }
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md",
+        "keys": [
+          "rendered",
+          "renderer",
+          "source",
+          "target"
+        ],
+        "values": {
+          "rendered": false
+        }
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "00_Home.md",
+        "keys": [
+          "rendered",
+          "renderer",
+          "source",
+          "target"
+        ],
+        "values": {
+          "rendered": false
+        }
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "20_knowledge/Distillation.md",
+        "keys": [
+          "rendered",
+          "renderer",
+          "source",
+          "target"
+        ],
+        "values": {
+          "rendered": false
+        }
+      },
+      {
+        "source": "80_excluded/Hidden.md",
+        "target": "00_Home.md",
+        "keys": [
+          "rendered",
+          "renderer",
+          "source",
+          "target"
+        ],
+        "values": {
+          "rendered": false
+        }
+      }
+    ]
+  },
+  "controlsBySection": [
+    {
+      "className": "tree-item graph-control-section mod-filter",
+      "label": "フィルタ",
+      "rect": {
+        "x": 1014,
+        "y": 90.96875,
+        "width": 238,
+        "height": 47.890625
+      },
+      "controls": [
+        {
+          "name": "",
+          "description": "",
+          "type": "search",
+          "value": "",
+          "checked": null,
+          "min": null,
+          "max": null,
+          "step": null,
+          "rect": {
+            "x": 1026,
+            "y": 127.859375,
+            "width": 214,
+            "height": 42
+          }
+        },
+        {
+          "name": "タグ",
+          "description": "",
+          "type": "checkbox",
+          "value": "on",
+          "checked": false,
+          "min": null,
+          "max": null,
+          "step": null,
+          "rect": {
+            "x": 1026,
+            "y": 173.859375,
+            "width": 214,
+            "height": 31
+          }
+        },
+        {
+          "name": "添付書類",
+          "description": "",
+          "type": "checkbox",
+          "value": "on",
+          "checked": false,
+          "min": null,
+          "max": null,
+          "step": null,
+          "rect": {
+            "x": 1026,
+            "y": 208.859375,
+            "width": 214,
+            "height": 31
+          }
+        },
+        {
+          "name": "存在するファイルのみ表示",
+          "description": "",
+          "type": "checkbox",
+          "value": "on",
+          "checked": false,
+          "min": null,
+          "max": null,
+          "step": null,
+          "rect": {
+            "x": 1026,
+            "y": 243.859375,
+            "width": 214,
+            "height": 31
+          }
+        },
+        {
+          "name": "オーファン",
+          "description": "",
+          "type": "checkbox",
+          "value": "on",
+          "checked": true,
+          "min": null,
+          "max": null,
+          "step": null,
+          "rect": {
+            "x": 1026,
+            "y": 278.859375,
+            "width": 214,
+            "height": 31
+          }
+        }
+      ]
+    },
+    {
+      "className": "tree-item graph-control-section mod-color-groups",
+      "label": "グループ",
+      "rect": {
+        "x": 1014,
+        "y": 130.859375,
+        "width": 238,
+        "height": 47.890625
+      },
+      "controls": []
+    },
+    {
+      "className": "tree-item graph-control-section mod-display",
+      "label": "表示",
+      "rect": {
+        "x": 1014,
+        "y": 170.75,
+        "width": 238,
+        "height": 47.890625
+      },
+      "controls": [
+        {
+          "name": "矢印",
+          "description": "",
+          "type": "checkbox",
+          "value": "on",
+          "checked": false,
+          "min": null,
+          "max": null,
+          "step": null,
+          "rect": {
+            "x": 1026,
+            "y": 207.640625,
+            "width": 214,
+            "height": 31
+          }
+        },
+        {
+          "name": "テキストフェードの閾値",
+          "description": "",
+          "type": "range",
+          "value": "0",
+          "checked": null,
+          "min": "-3",
+          "max": "3",
+          "step": "0.1",
+          "rect": {
+            "x": 1026,
+            "y": 242.640625,
+            "width": 214,
+            "height": 69.78125
+          }
+        },
+        {
+          "name": "ノードの大きさ",
+          "description": "",
+          "type": "range",
+          "value": "1",
+          "checked": null,
+          "min": "0.1",
+          "max": "5",
+          "step": "any",
+          "rect": {
+            "x": 1026,
+            "y": 316.421875,
+            "width": 214,
+            "height": 69.78125
+          }
+        },
+        {
+          "name": "リンクの太さ",
+          "description": "",
+          "type": "range",
+          "value": "1",
+          "checked": null,
+          "min": "0.1",
+          "max": "5",
+          "step": "any",
+          "rect": {
+            "x": 1026,
+            "y": 390.203125,
+            "width": 214,
+            "height": 69.78125
+          }
+        },
+        {
+          "name": "",
+          "description": "",
+          "type": "button",
+          "value": "アニメーション開始",
+          "checked": null,
+          "min": null,
+          "max": null,
+          "step": null,
+          "rect": {
+            "x": 1026,
+            "y": 463.984375,
+            "width": 214,
+            "height": 42
+          }
+        }
+      ]
+    },
+    {
+      "className": "tree-item graph-control-section mod-forces",
+      "label": "力の強さ",
+      "rect": {
+        "x": 1014,
+        "y": 210.640625,
+        "width": 238,
+        "height": 58.890625
+      },
+      "controls": [
+        {
+          "name": "中心力",
+          "description": "",
+          "type": "range",
+          "value": "0.518713248970312",
+          "checked": null,
+          "min": "0",
+          "max": "1",
+          "step": "any",
+          "rect": {
+            "x": 1026,
+            "y": 247.53125,
+            "width": 214,
+            "height": 69.78125
+          }
+        },
+        {
+          "name": "反発力",
+          "description": "",
+          "type": "range",
+          "value": "10",
+          "checked": null,
+          "min": "0",
+          "max": "20",
+          "step": "any",
+          "rect": {
+            "x": 1026,
+            "y": 321.3125,
+            "width": 214,
+            "height": 69.78125
+          }
+        },
+        {
+          "name": "リンクする力",
+          "description": "",
+          "type": "range",
+          "value": "1",
+          "checked": null,
+          "min": "0",
+          "max": "1",
+          "step": "any",
+          "rect": {
+            "x": 1026,
+            "y": 395.09375,
+            "width": 214,
+            "height": 69.78125
+          }
+        },
+        {
+          "name": "リンクの距離",
+          "description": "",
+          "type": "range",
+          "value": "250",
+          "checked": null,
+          "min": "30",
+          "max": "500",
+          "step": "1",
+          "rect": {
+            "x": 1026,
+            "y": 468.875,
+            "width": 214,
+            "height": 69.78125
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "markdownCount": 7,
+    "renderedNodeCount": 8,
+    "renderedLinkCount": 12,
+    "directedWikiEdgeCount": 12,
+    "renderedUndirectedPairCount": 8,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp6/obsidian-1.13.4/01-global-baseline.png",
+      "bytes": 46408,
+      "sha256": "85A27E9F571DD7D484638225113E40F3149827DD9D3015817A167685505ED844",
+      "width": 1265,
+      "height": 768
+    }
+  },
+  "expected": {
+    "version": "1.13.4",
+    "installerSha256": "8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0",
+    "asarSha256": "51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917",
+    "markdownCount": 7,
+    "renderedNodeCount": 8,
+    "renderedLinkCount": 12,
+    "directedWikiEdgeCount": 12,
+    "renderedUndirectedPairCount": 8,
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1
+  },
+  "assertions": {
+    "viewportMatched": true,
+    "markdownCountMatched": true,
+    "renderedNodeCountMatched": true,
+    "renderedLinkCountMatched": true,
+    "directedWikiEdgeCountMatched": true,
+    "renderedUndirectedPairCountMatched": true,
+    "defaultFiltersMatched": true
+  }
+}

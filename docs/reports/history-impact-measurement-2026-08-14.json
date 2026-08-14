@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-08-14T12:01:20.110Z",
+  "status": "measured-read-only",
+  "decision": "exclude-history-from-default-graph-backlinks-renderer-search",
+  "vaultIntegrity": {
+    "beforeSha256": "24bccebecf90511399ddf8c1de06dd6b97411bc515e494a1bd204c8cd6404c29",
+    "afterSha256": "24bccebecf90511399ddf8c1de06dd6b97411bc515e494a1bd204c8cd6404c29",
+    "unchanged": true
+  },
+  "full": {
+    "noteCount": 593,
+    "bytes": 7351555,
+    "wikiLinkOccurrences": 8668,
+    "graphNodes": 593,
+    "graphEdges": 6757,
+    "graphBuildP50Ms": 157.7507,
+    "graphSimulation180P50Ms": 614.0018,
+    "tsuzuneBacklinkCount": 210,
+    "backlinkScanP50Ms": 225.1573,
+    "searchSuiteP50Ms": 89.7372
+  },
+  "withoutHistory": {
+    "noteCount": 180,
+    "bytes": 943272,
+    "wikiLinkOccurrences": 1042,
+    "graphNodes": 180,
+    "graphEdges": 967,
+    "graphBuildP50Ms": 22.4657,
+    "graphSimulation180P50Ms": 116.3181,
+    "tsuzuneBacklinkCount": 70,
+    "backlinkScanP50Ms": 19.593,
+    "searchSuiteP50Ms": 13.5424
+  },
+  "history": {
+    "noteCount": 413,
+    "bytes": 6408283,
+    "wikiLinkOccurrences": 7626,
+    "observedFromUtc": "2026-08-02",
+    "observedThroughUtc": "2026-08-14",
+    "observedDays": 13,
+    "upperBoundBytesPerDay": 492944.8462,
+    "upperBoundDaysTo10MiB": 9
+  },
+  "drive": {
+    "livePreview": "not-run-app-closed",
+    "apply": "not-run",
+    "lastSyncAt": "2026-08-14T11:22:23.775Z",
+    "staticNewMarkdownCount": 31,
+    "staticNewMarkdownBytes": 462907,
+    "staticNewHistoryCount": 27,
+    "staticNewHistoryBytes": 437022,
+    "staticEstimateIsAuthoritativePreview": false
+  }
+}

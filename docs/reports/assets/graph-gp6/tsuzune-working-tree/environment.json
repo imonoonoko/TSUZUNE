@@ -1,0 +1,32 @@
+{
+  "capturedAt": "2026-08-03T02:01:16.092Z",
+  "kind": "TSUZUNE current dirty working-tree build",
+  "git": {
+    "head": "93a8502f103b86a92a1bf1f3af96f0192173b1f8",
+    "dirty": true,
+    "changedEntryCount": 115,
+    "porcelainSha256": "86FC57455A1ADE29E951D853701E02CAB21F313F68516E51CF3A6B4BBE156E34"
+  },
+  "runtime": {
+    "electron": "43.2.0",
+    "chrome": "150.0.7871.129",
+    "node": "24.18.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "fingerprints": {
+    "productSource": {
+      "fileCount": 63,
+      "combinedSha256": "B0E956C6C24D716078DCA6B01C4C94E4648322B01AA21BAE1D74D986CBEA1874"
+    },
+    "builtApp": {
+      "fileCount": 8,
+      "combinedSha256": "CFC2832E8E994DE61D1EEE022CBF1472E352E3E86E5908D3E6BE03C309701D0B"
+    }
+  },
+  "viewport": {
+    "width": 1265,
+    "height": 768,
+    "deviceScaleFactor": 1
+  }
+}

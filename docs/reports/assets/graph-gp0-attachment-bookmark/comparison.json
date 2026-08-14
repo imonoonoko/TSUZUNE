@@ -1,0 +1,318 @@
+{
+  "schemaVersion": 1,
+  "stage": "GP0-3b-k",
+  "capturedAt": "2026-08-09T04:31:35.513Z",
+  "status": "matched-core-behavior",
+  "fixedConditions": {
+    "reference": "Obsidian Desktop 1.13.4",
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "scope": "Global Graph attachment node bookmark",
+    "targetNode": "attachments/diagram.svg",
+    "scenarios": [
+      "cancel",
+      "create",
+      "duplicate"
+    ],
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "theme": "light"
+  },
+  "required": {
+    "evidenceCaptured": true,
+    "evidenceAssertions": true,
+    "addDialogsRecorded": true,
+    "cancelLeavesNoBookmark": true,
+    "createPersistsExactlyOne": true,
+    "duplicateEditsWithoutDuplication": true,
+    "editUiRecorded": true,
+    "graphLifecyclePreserved": true,
+    "vaultContentUnchanged": true,
+    "separateApplicationProcesses": true
+  },
+  "comparisons": [
+    {
+      "id": "bookmark-add-dialog",
+      "label": "「ブックマーク…」から対象path・タイトル初期値・取消／保存を持つ追加dialogを開く",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "cancel",
+      "label": "取消ではブックマークを作成しない",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "create",
+      "label": "保存で対象pathのfile bookmarkを1件だけ作成する",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "duplicate-upsert",
+      "label": "同じpathを再操作すると「ブックマークを編集」になり、重複せず1件へupsertする",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "ctime-preserved",
+      "label": "既存ブックマークの編集保存でctimeを保持する",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "reopen-restart",
+      "label": "Graph再表示・別プロセス再起動後も結果を保持する",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "vault-content-unchanged",
+      "label": "Markdown・添付を含むVault内容を変更しない",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "bookmark-group-control",
+      "label": "ブックマークグループ入力UI",
+      "obsidian": "selector button",
+      "tsuzune": "plain text input",
+      "status": "known-ui-gap"
+    },
+    {
+      "id": "attachment-context-menu-size",
+      "label": "添付nodeの右クリックmenu行数",
+      "obsidian": 11,
+      "tsuzune": 5,
+      "status": "known-ui-gap"
+    }
+  ],
+  "established": [
+    "取消は永続ブックマークを作成しない",
+    "作成と同一path再編集はpathあたり常に1件で、編集時も最初のctimeを保持する",
+    "Graph再表示と別Electronプロセス再起動後も作成／取消／編集結果を保持する",
+    "ブックマーク保存はMarkdown・添付原本を変更しない"
+  ],
+  "remainingGap": {
+    "summary": "ブックマークの中核動作は一致した。Obsidianのグループselectorに対してTSUZUNEはplain text inputであり、添付context menu全体も11対5のままである。Bookmarks side panel全体は本sliceで比較していない。",
+    "obsidianItems": [
+      "diagram.svg",
+      "新規タブに開く",
+      "新規ウィンドウで開く",
+      "ファイルを移動…",
+      "ブックマーク…",
+      "パスをコピー",
+      "リンクされたビューを開く",
+      "デフォルトアプリで開く",
+      "フォルダで表示",
+      "ファイルエクスプローラでファイルを表示",
+      "ファイルを削除"
+    ],
+    "tsuzuneItems": [
+      "新規タブに開く",
+      "新規ウィンドウで開く",
+      "ファイルを移動…",
+      "ブックマーク…",
+      "ファイルを削除"
+    ],
+    "remainingMenuActions": [
+      "パスをコピー",
+      "リンクされたビューを開く",
+      "デフォルトアプリで開く",
+      "フォルダで表示",
+      "ファイルエクスプローラでファイルを表示"
+    ],
+    "nextSlice": "GP0-3b-l パスをコピー"
+  },
+  "safeguards": {
+    "cancel": {
+      "obsidian": {
+        "queryAccepted": true,
+        "queryVisibleAfterEntry": true,
+        "filteredNodesAfterEntry": true,
+        "queryPersistedAfterGraphReopen": true,
+        "filteredNodesAfterGraphReopen": true,
+        "firstProcessExitedBeforeRestart": true,
+        "secondProcessStarted": true,
+        "queryPersistedAfterAppRestart": true,
+        "filteredNodesAfterAppRestart": true,
+        "nodeContextMenuOpened": true,
+        "nodeContextMenuItemsHaveText": true,
+        "attachmentBookmarkDialogOpened": true,
+        "attachmentBookmarkDialogClosed": true,
+        "nodeContextMenuClosedAfterAction": true,
+        "attachmentBookmarkOutcome": true,
+        "attachmentBookmarkPersistsAfterGraphReopen": true,
+        "attachmentBookmarkPersistsAfterAppRestart": true,
+        "duplicateBookmarkIsNotDuplicated": true,
+        "workspaceStateCaptured": true,
+        "lightThemeEveryObservation": true,
+        "isolatedUserDataEverySession": true,
+        "isolatedVaultEverySession": true,
+        "offscreenEverySession": true,
+        "sourceUnchanged": true,
+        "isolatedVaultProtectedFilesExpected": true,
+        "protocolRestored": true
+      },
+      "tsuzune": {
+        "exactNodeSetAtEveryCheckpoint": true,
+        "attachmentContextMenuOpened": true,
+        "bookmarkMenuItemRecorded": true,
+        "bookmarkDialogRecorded": true,
+        "dialogAndContextMenuClosed": true,
+        "globalGraphRemainedVisible": true,
+        "bookmarkCountsMatchScenario": true,
+        "bookmarksJsonMatchesScenario": true,
+        "bookmarkPersistsAfterGraphReopen": true,
+        "bookmarkPersistsAfterFirstProcessExit": true,
+        "bookmarkPersistsAfterAppRestart": true,
+        "bookmarkPersistsAfterSecondProcessExit": true,
+        "duplicateBookmarkRemainsSingle": true,
+        "bookmarkFileStableAfterAction": true,
+        "vaultContentDigestStableAtEveryCheckpoint": true,
+        "contentViewportStable": true,
+        "filteredNodeSetStable": true,
+        "separateApplicationProcesses": true,
+        "sourceFixtureUnchanged": true,
+        "productSourceUnchanged": true,
+        "builtApplicationUnchanged": true,
+        "isolatedMarkdownUnchanged": true,
+        "isolatedVaultContentUnchanged": true,
+        "isolatedVaultChangedOnlyWhenMoving": true,
+        "noIsolatedProcessesRemaining": true
+      }
+    },
+    "create": {
+      "obsidian": {
+        "queryAccepted": true,
+        "queryVisibleAfterEntry": true,
+        "filteredNodesAfterEntry": true,
+        "queryPersistedAfterGraphReopen": true,
+        "filteredNodesAfterGraphReopen": true,
+        "firstProcessExitedBeforeRestart": true,
+        "secondProcessStarted": true,
+        "queryPersistedAfterAppRestart": true,
+        "filteredNodesAfterAppRestart": true,
+        "nodeContextMenuOpened": true,
+        "nodeContextMenuItemsHaveText": true,
+        "attachmentBookmarkDialogOpened": true,
+        "attachmentBookmarkDialogClosed": true,
+        "nodeContextMenuClosedAfterAction": true,
+        "attachmentBookmarkOutcome": true,
+        "attachmentBookmarkPersistsAfterGraphReopen": true,
+        "attachmentBookmarkPersistsAfterAppRestart": true,
+        "duplicateBookmarkIsNotDuplicated": true,
+        "workspaceStateCaptured": true,
+        "lightThemeEveryObservation": true,
+        "isolatedUserDataEverySession": true,
+        "isolatedVaultEverySession": true,
+        "offscreenEverySession": true,
+        "sourceUnchanged": true,
+        "isolatedVaultProtectedFilesExpected": true,
+        "protocolRestored": true
+      },
+      "tsuzune": {
+        "exactNodeSetAtEveryCheckpoint": true,
+        "attachmentContextMenuOpened": true,
+        "bookmarkMenuItemRecorded": true,
+        "bookmarkDialogRecorded": true,
+        "dialogAndContextMenuClosed": true,
+        "globalGraphRemainedVisible": true,
+        "bookmarkCountsMatchScenario": true,
+        "bookmarksJsonMatchesScenario": true,
+        "bookmarkPersistsAfterGraphReopen": true,
+        "bookmarkPersistsAfterFirstProcessExit": true,
+        "bookmarkPersistsAfterAppRestart": true,
+        "bookmarkPersistsAfterSecondProcessExit": true,
+        "duplicateBookmarkRemainsSingle": true,
+        "bookmarkFileStableAfterAction": true,
+        "vaultContentDigestStableAtEveryCheckpoint": true,
+        "contentViewportStable": true,
+        "filteredNodeSetStable": true,
+        "separateApplicationProcesses": true,
+        "sourceFixtureUnchanged": true,
+        "productSourceUnchanged": true,
+        "builtApplicationUnchanged": true,
+        "isolatedMarkdownUnchanged": true,
+        "isolatedVaultContentUnchanged": true,
+        "isolatedVaultChangedOnlyWhenMoving": true,
+        "noIsolatedProcessesRemaining": true
+      }
+    },
+    "duplicate": {
+      "obsidian": {
+        "queryAccepted": true,
+        "queryVisibleAfterEntry": true,
+        "filteredNodesAfterEntry": true,
+        "queryPersistedAfterGraphReopen": true,
+        "filteredNodesAfterGraphReopen": true,
+        "firstProcessExitedBeforeRestart": true,
+        "secondProcessStarted": true,
+        "queryPersistedAfterAppRestart": true,
+        "filteredNodesAfterAppRestart": true,
+        "nodeContextMenuOpened": true,
+        "nodeContextMenuItemsHaveText": true,
+        "attachmentBookmarkDialogOpened": true,
+        "attachmentBookmarkDialogClosed": true,
+        "nodeContextMenuClosedAfterAction": true,
+        "attachmentBookmarkOutcome": true,
+        "attachmentBookmarkPersistsAfterGraphReopen": true,
+        "attachmentBookmarkPersistsAfterAppRestart": true,
+        "duplicateBookmarkIsNotDuplicated": true,
+        "workspaceStateCaptured": true,
+        "lightThemeEveryObservation": true,
+        "isolatedUserDataEverySession": true,
+        "isolatedVaultEverySession": true,
+        "offscreenEverySession": true,
+        "sourceUnchanged": true,
+        "isolatedVaultProtectedFilesExpected": true,
+        "protocolRestored": true
+      },
+      "tsuzune": {
+        "exactNodeSetAtEveryCheckpoint": true,
+        "attachmentContextMenuOpened": true,
+        "bookmarkMenuItemRecorded": true,
+        "bookmarkDialogRecorded": true,
+        "dialogAndContextMenuClosed": true,
+        "globalGraphRemainedVisible": true,
+        "bookmarkCountsMatchScenario": true,
+        "bookmarksJsonMatchesScenario": true,
+        "bookmarkPersistsAfterGraphReopen": true,
+        "bookmarkPersistsAfterFirstProcessExit": true,
+        "bookmarkPersistsAfterAppRestart": true,
+        "bookmarkPersistsAfterSecondProcessExit": true,
+        "duplicateBookmarkRemainsSingle": true,
+        "bookmarkFileStableAfterAction": true,
+        "vaultContentDigestStableAtEveryCheckpoint": true,
+        "contentViewportStable": true,
+        "filteredNodeSetStable": true,
+        "separateApplicationProcesses": true,
+        "sourceFixtureUnchanged": true,
+        "productSourceUnchanged": true,
+        "builtApplicationUnchanged": true,
+        "isolatedMarkdownUnchanged": true,
+        "isolatedVaultContentUnchanged": true,
+        "isolatedVaultChangedOnlyWhenMoving": true,
+        "noIsolatedProcessesRemaining": true
+      }
+    }
+  },
+  "notEstablished": [
+    "ObsidianのブックマークグループselectorとTSUZUNE plain text inputの視覚・操作一致",
+    "Bookmarks side panel、一覧、並べ替え、グループ階層の一致",
+    "添付context menuの残り5操作と対象ラベル行",
+    "pixel-identicalなGraph配置・dialog・menu",
+    "物理マウス、実OS keyboard、screen reader、High Contrast、複数DPI"
+  ],
+  "conclusion": "GP0-3b-kでは添付ブックマークの作成、取消、同一path編集upsert、ctime保持、Graph再表示／別プロセス再起動保持、Vault内容不変を一致確認した。中核挙動はmatchedだが、グループ入力UI、menu全体、Bookmarks side panelは未一致または未証明であり、Graph parity全体やpixel equivalenceは主張しない。"
+}

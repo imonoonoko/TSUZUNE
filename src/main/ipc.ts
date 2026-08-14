@@ -1,22 +1,67 @@
-import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
+import {
+  BrowserWindow,
+  clipboard,
+  dialog,
+  ipcMain,
+  shell,
+  type IpcMainInvokeEvent
+} from 'electron'
+import { readFile } from 'node:fs/promises'
+import { dirnameRelative } from '../core/paths'
 import type {
   AppError,
+  AiWriteReviewProposal,
+  AppUpdateStatus,
   CreateDirectoryInput,
   CreateNoteInput,
+  DriveRemoteVault,
+  DriveSyncApplyResult,
+  DriveSyncPreview,
+  GoogleDriveStatus,
+  GraphDisplaySettings,
+  GraphFilterSettings,
+  GraphGroup,
+  GraphForceSettings,
+  GraphViewScope,
+  GraphViewState,
   MoveNoteInput,
+  PairDriveVaultInput,
   RenameEntryInput,
   Result,
+  SaveBookmarkInput,
   SaveNoteInput
 } from '../shared/types'
-import { updateSettings, readSettings } from './settings'
+import { parseGraphForceSettings } from '../shared/graph-settings'
+import { parseGraphDisplaySettings } from '../shared/graph-display'
+import { parseGraphFilterSettings } from '../shared/graph-filters'
+import { parseGraphGroups } from '../shared/graph-groups'
+import { parseGraphViewState } from '../shared/graph-view-state'
+import { parseUserIgnoreFilters } from '../shared/excluded-files'
+import {
+  parseAiImmutablePaths,
+  parseAiReviewPaths
+} from '../shared/ai-write-policy'
+import { updateSettings, readSettings, settingsPath } from './settings'
+import { VaultMcpService } from '../mcp/service'
 import { VaultError, VaultService } from './vault'
 import { VaultWatcher } from './watcher'
+import type { GoogleConnectionService } from './google-connection'
 
 let ipcTail: Promise<void> = Promise.resolve()
+let googleIpcTail: Promise<void> = Promise.resolve()
 
 function runInOrder<T>(operation: () => Promise<T>): Promise<T> {
   const result = ipcTail.then(operation, operation)
   ipcTail = result.then(
+    () => undefined,
+    () => undefined
+  )
+  return result
+}
+
+export function runGoogleInOrder<T>(operation: () => Promise<T>): Promise<T> {
+  const result = googleIpcTail.then(operation, operation)
+  googleIpcTail = result.then(
     () => undefined,
     () => undefined
   )
@@ -41,22 +86,25 @@ function failure(error: unknown): Result<never> {
   }
 }
 
-function trustedSender(event: IpcMainInvokeEvent): boolean {
-  const url = event.senderFrame?.url
+function trustedSender(
+  event: Pick<IpcMainInvokeEvent, 'sender' | 'senderFrame'>,
+  getWindow: () => BrowserWindow | null
+): boolean {
+  const window = getWindow()
   return Boolean(
-    url &&
-      (url.startsWith('file://') ||
-        url.startsWith('http://localhost:') ||
-        url.startsWith('http://127.0.0.1:'))
+    window &&
+      event.sender === window.webContents &&
+      event.senderFrame === window.webContents.mainFrame
   )
 }
 
 function register<TArgs extends unknown[], TOutput>(
   channel: string,
+  isTrusted: (event: IpcMainInvokeEvent) => boolean,
   handler: (...args: TArgs) => Promise<TOutput>
 ): void {
   ipcMain.handle(channel, async (event, ...args: TArgs): Promise<Result<TOutput>> => {
-    if (!trustedSender(event)) {
+    if (!isTrusted(event)) {
       const error: AppError = {
         code: 'ACCESS_DENIED',
         message: 'この操作元は信頼できません。'
@@ -72,13 +120,127 @@ function register<TArgs extends unknown[], TOutput>(
   })
 }
 
+function registerConcurrent<TArgs extends unknown[], TOutput>(
+  channel: string,
+  isTrusted: (event: IpcMainInvokeEvent) => boolean,
+  handler: (...args: TArgs) => Promise<TOutput>
+): void {
+  ipcMain.handle(channel, async (event, ...args: TArgs): Promise<Result<TOutput>> => {
+    if (!isTrusted(event)) {
+      return {
+        ok: false,
+        error: {
+          code: 'ACCESS_DENIED',
+          message: 'この操作元は信頼できません。'
+        }
+      }
+    }
+
+    try {
+      return success(await handler(...args))
+    } catch (error) {
+      return failure(error)
+    }
+  })
+}
+
+function registerGoogle<TArgs extends unknown[], TOutput>(
+  channel: string,
+  isTrusted: (event: IpcMainInvokeEvent) => boolean,
+  handler: (...args: TArgs) => Promise<TOutput>
+): void {
+  ipcMain.handle(channel, async (event, ...args: TArgs): Promise<Result<TOutput>> => {
+    if (!isTrusted(event)) {
+      return {
+        ok: false,
+        error: {
+          code: 'ACCESS_DENIED',
+          message: 'この操作元は信頼できません。'
+        }
+      }
+    }
+
+    try {
+      return success(await runGoogleInOrder(() => handler(...args)))
+    } catch (error) {
+      return failure(error)
+    }
+  })
+}
+
+export interface DriveSyncIpcService {
+  getStatusMetadata(
+    rootPath: string | null
+  ): Promise<{ lastSyncAt: string | null; rootFolderId: string | null }>
+  listRemoteVaults(): Promise<DriveRemoteVault[]>
+  pairRemoteVault(rootFolderId: string, vaultId: string): Promise<void>
+  recordLocalMove(oldPath: string, path: string): Promise<void>
+  preview(): Promise<DriveSyncPreview>
+  apply(planId: string): Promise<DriveSyncApplyResult>
+}
+
+export interface GoogleIpcServices {
+  connection: GoogleConnectionService
+  driveSync: DriveSyncIpcService
+}
+
+export interface AppUpdateIpcService {
+  getStatus(): AppUpdateStatus
+  checkForUpdates(): Promise<AppUpdateStatus>
+  downloadUpdate(): Promise<AppUpdateStatus>
+  installUpdate(): void
+}
+
 export function registerIpc(
   vault: VaultService,
   watcher: VaultWatcher,
+  google: GoogleIpcServices,
+  updates: AppUpdateIpcService,
   getWindow: () => BrowserWindow | null,
-  approveClose: () => void
+  confirmClose: (allow: boolean) => void,
+  openVaultFileWindow?: (path: string) => Promise<void>
 ): void {
-  register('vault:choose', async () => {
+  const isTrusted = (event: IpcMainInvokeEvent): boolean =>
+    trustedSender(event, getWindow)
+
+  const registerTrusted = <TArgs extends unknown[], TOutput>(
+    channel: string,
+    handler: (...args: TArgs) => Promise<TOutput>
+  ): void => register(channel, isTrusted, handler)
+
+  const registerConcurrentTrusted = <TArgs extends unknown[], TOutput>(
+    channel: string,
+    handler: (...args: TArgs) => Promise<TOutput>
+  ): void => registerConcurrent(channel, isTrusted, handler)
+
+  const registerGoogleTrusted = <TArgs extends unknown[], TOutput>(
+    channel: string,
+    handler: (...args: TArgs) => Promise<TOutput>
+  ): void => registerGoogle(channel, isTrusted, handler)
+
+  const recordMovedMarkdown = async (
+    moved: { oldPath?: string; path: string }
+  ): Promise<void> => {
+    if (!moved.oldPath?.toLowerCase().endsWith('.md')) return
+    try {
+      await google.driveSync.recordLocalMove(moved.oldPath, moved.path)
+    } catch (error) {
+      try {
+        await vault.moveNote({
+          path: moved.path,
+          destinationDirectory: dirnameRelative(moved.oldPath),
+          destinationPath: moved.oldPath
+        })
+      } catch {
+        throw new Error(
+          `Drive同期履歴を保存できず、ノートを元の場所へ戻せませんでした: ${moved.path}`
+        )
+      }
+      throw error
+    }
+  }
+
+  registerTrusted('vault:choose', async () => {
     const options: Electron.OpenDialogOptions = {
       title: 'Vaultフォルダを選択',
       properties: ['openDirectory', 'createDirectory']
@@ -102,7 +264,7 @@ export function registerIpc(
       watcherSwitchAttempted = true
       await watcher.stop()
       await vault.setRootPath(rootPath)
-      const snapshot = await vault.scan()
+      const snapshot = await vault.scan(previousSettings.userIgnoreFilters)
       await watcher.start(rootPath)
       settingsAttempted = true
       await updateSettings({
@@ -138,7 +300,7 @@ export function registerIpc(
     }
   })
 
-  register('vault:openLast', async () => {
+  registerTrusted('vault:openLast', async () => {
     const settings = await readSettings()
     if (!settings.lastVaultPath) {
       return null
@@ -147,7 +309,7 @@ export function registerIpc(
     try {
       await vault.setRootPath(settings.lastVaultPath)
       await watcher.start(settings.lastVaultPath)
-      return await vault.scan()
+      return await vault.scan(settings.userIgnoreFilters)
     } catch {
       vault.clearRootPath()
       await watcher.stop()
@@ -159,11 +321,15 @@ export function registerIpc(
     }
   })
 
-  register('vault:snapshot', () => vault.scan())
-  register('vault:readNote', (path: string) => vault.readNote(path))
-  register('settings:get', () => readSettings())
+  registerTrusted('vault:snapshot', async () => {
+    const settings = await readSettings()
+    return vault.scan(settings.userIgnoreFilters)
+  })
+  registerTrusted('vault:readNote', (path: string) => vault.readNote(path))
+  registerTrusted('vault:readImage', (path: string) => vault.readImageDataUrl(path))
+  registerTrusted('settings:get', () => readSettings())
 
-  register('note:save', async (input: SaveNoteInput) => {
+  registerTrusted('note:save', async (input: SaveNoteInput) => {
     const saved = await vault.saveNote(input)
     watcher.expectOwnWrite(
       input.path,
@@ -174,32 +340,187 @@ export function registerIpc(
     return saved
   })
 
-  register('entry:createNote', async (input: CreateNoteInput) => {
+  registerTrusted('entry:createNote', async (input: CreateNoteInput) => {
     return vault.createNote(input)
   })
 
-  register('entry:createDirectory', async (input: CreateDirectoryInput) => {
+  registerTrusted('entry:createDirectory', async (input: CreateDirectoryInput) => {
     return vault.createDirectory(input)
   })
 
-  register('entry:rename', async (input: RenameEntryInput) => {
-    return vault.renameEntry(input)
+  registerTrusted('entry:rename', async (input: RenameEntryInput) => {
+    const moved = await vault.renameEntry(input)
+    await recordMovedMarkdown(moved)
+    return moved
   })
 
-  register('entry:moveNote', async (input: MoveNoteInput) => {
-    return vault.moveNote(input)
+  registerTrusted('entry:moveNote', async (input: MoveNoteInput) => {
+    const moved = await vault.moveNote(input)
+    await recordMovedMarkdown(moved)
+    return moved
   })
 
-  register('entry:trash', async (path: string) => {
+  registerTrusted('entry:trash', async (path: string) => {
     return vault.trashEntry(path)
   })
 
-  register('settings:setLastNote', async (path: string | null) => {
+  registerTrusted('bookmark:save', async (input: SaveBookmarkInput) => {
+    return vault.saveBookmark(input)
+  })
+
+  registerTrusted('bookmark:remove', async (path: string) => {
+    await vault.removeBookmark(path)
+    return null
+  })
+
+  registerTrusted('settings:setLastNote', async (path: string | null) => {
     await updateSettings({ lastNotePath: path })
     return null
   })
 
-  register('system:openExternal', async (url: string) => {
+  registerTrusted('settings:setUserIgnoreFilters', async (filters: string[]) => {
+    await updateSettings({ userIgnoreFilters: parseUserIgnoreFilters(filters) })
+    return null
+  })
+
+  registerTrusted('settings:setAiImmutablePaths', async (paths: string[]) => {
+    await updateSettings({ aiImmutablePaths: parseAiImmutablePaths(paths) })
+    return null
+  })
+
+  registerTrusted('settings:setAiReviewPaths', async (paths: string[]) => {
+    await updateSettings({ aiReviewPaths: parseAiReviewPaths(paths) })
+    return null
+  })
+
+  registerTrusted('aiReview:list', async (): Promise<AiWriteReviewProposal[]> => {
+    return new VaultMcpService({ settingsPath: settingsPath() }).listReviewProposals()
+  })
+
+  registerTrusted('aiReview:approve', async (id: string) => {
+    const result = await new VaultMcpService({
+      settingsPath: settingsPath()
+    }).approveReviewProposal(id)
+    return { path: result.id }
+  })
+
+  registerTrusted('aiReview:cancel', async (id: string) => {
+    await new VaultMcpService({ settingsPath: settingsPath() }).cancelReviewProposal(id)
+    return null
+  })
+
+  registerTrusted('settings:setGraphForces', async (settings: GraphForceSettings) => {
+    await updateSettings({ graphForces: parseGraphForceSettings(settings) })
+    return null
+  })
+
+  registerTrusted(
+    'settings:setGraphDisplay',
+    async (settings: GraphDisplaySettings) => {
+      await updateSettings({
+        graphDisplay: parseGraphDisplaySettings(settings)
+      })
+      return null
+    }
+  )
+
+  registerTrusted(
+    'settings:setGraphFilters',
+    async (settings: GraphFilterSettings) => {
+      await updateSettings({
+        graphFilters: parseGraphFilterSettings(settings)
+      })
+      return null
+    }
+  )
+
+  registerTrusted('settings:setGraphGroups', async (groups: GraphGroup[]) => {
+    await updateSettings({ graphGroups: parseGraphGroups(groups) })
+    return null
+  })
+
+  registerTrusted(
+    'settings:setGraphViewState',
+    async (scope: GraphViewScope, state: GraphViewState) => {
+      if (scope !== 'local' && scope !== 'vault') {
+        throw new Error('不明なグラフ表示範囲です。')
+      }
+      const current = await readSettings()
+      await updateSettings({
+        graphViewStates: {
+          ...current.graphViewStates,
+          [scope]: parseGraphViewState(state)
+        }
+      })
+      return null
+    }
+  )
+
+  const getGoogleStatus = async (): Promise<GoogleDriveStatus> => {
+    const connection = await google.connection.getStatus()
+    const metadata = await google.driveSync.getStatusMetadata(vault.getRootPath())
+    return {
+      ...connection,
+      lastSyncAt: metadata.lastSyncAt,
+      vaultFolderUrl: metadata.rootFolderId
+        ? `https://drive.google.com/drive/folders/${encodeURIComponent(metadata.rootFolderId)}`
+        : null
+    }
+  }
+
+  registerGoogleTrusted('google:chooseConfig', async () => {
+    const options: Electron.OpenDialogOptions = {
+      title: 'Google Desktop OAuth設定JSONを選択',
+      properties: ['openFile'],
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    }
+    const owner = getWindow()
+    const result = owner
+      ? await dialog.showOpenDialog(owner, options)
+      : await dialog.showOpenDialog(options)
+    if (result.canceled || result.filePaths.length === 0) {
+      return null
+    }
+    await google.connection.configure(await readFile(result.filePaths[0], 'utf8'))
+    return getGoogleStatus()
+  })
+
+  registerConcurrentTrusted('google:status', getGoogleStatus)
+  registerGoogleTrusted('google:connect', async () => {
+    await google.connection.connect()
+    return getGoogleStatus()
+  })
+  registerGoogleTrusted('google:authorizeCalendar', async () => {
+    await google.connection.authorizeCalendarRead()
+    return getGoogleStatus()
+  })
+  registerGoogleTrusted('google:disconnect', async () => {
+    await google.connection.disconnect()
+    return getGoogleStatus()
+  })
+  registerGoogleTrusted('drive:listVaults', () =>
+    google.driveSync.listRemoteVaults()
+  )
+  registerTrusted('drive:pairVault', async (input: PairDriveVaultInput) => {
+    return runGoogleInOrder(async () => {
+      await google.driveSync.pairRemoteVault(input.rootFolderId, input.vaultId)
+      return getGoogleStatus()
+    })
+  })
+  registerGoogleTrusted('drive:preview', () => google.driveSync.preview())
+  registerGoogleTrusted('drive:apply', (planId: string) =>
+    google.driveSync.apply(planId)
+  )
+
+  registerConcurrentTrusted('app:updateStatus', async () => updates.getStatus())
+  registerConcurrentTrusted('app:updateCheck', () => updates.checkForUpdates())
+  registerConcurrentTrusted('app:updateDownload', () => updates.downloadUpdate())
+  registerConcurrentTrusted('app:updateInstall', async () => {
+    updates.installUpdate()
+    return null
+  })
+
+  registerTrusted('system:openExternal', async (url: string) => {
     const parsed = new URL(url)
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       throw new VaultError({
@@ -211,18 +532,44 @@ export function registerIpc(
     return null
   })
 
+  registerTrusted('system:openVaultFile', async (path: string) => {
+    const absolutePath = await vault.resolveFileForOpen(path)
+    const error = await shell.openPath(absolutePath)
+    if (error) {
+      throw new VaultError({
+        code: 'UNKNOWN',
+        message: error
+      })
+    }
+    return null
+  })
+
+  registerTrusted('system:revealVaultFile', async (path: string) => {
+    const absolutePath = await vault.resolveEntryForReveal(path)
+    shell.showItemInFolder(absolutePath)
+    return null
+  })
+
+  registerTrusted('system:openVaultFileWindow', async (path: string) => {
+    if (!openVaultFileWindow) {
+      throw new VaultError({
+        code: 'UNKNOWN',
+        message: '新規ウィンドウを開けません。'
+      })
+    }
+    await openVaultFileWindow(path)
+    return null
+  })
+
+  registerTrusted('system:copyText', async (text: string) => {
+    clipboard.writeText(text)
+    return null
+  })
+
   ipcMain.on('app:confirmClose', (event, allow: boolean) => {
-    const url = event.senderFrame?.url
-    if (
-      !url ||
-      (!url.startsWith('file://') &&
-        !url.startsWith('http://localhost:') &&
-        !url.startsWith('http://127.0.0.1:'))
-    ) {
+    if (!trustedSender(event, getWindow)) {
       return
     }
-    if (allow) {
-      approveClose()
-    }
+    confirmClose(allow)
   })
 }

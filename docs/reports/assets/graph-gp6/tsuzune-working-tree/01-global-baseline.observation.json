@@ -1,0 +1,290 @@
+{
+  "capturedAt": "2026-08-03T02:01:16.092Z",
+  "title": "TSUZUNE",
+  "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\graph-gp6\\tsuzune-working-tree\\vault",
+  "selectedBeforeGraph": "00_Home.md",
+  "renderedTheme": "light",
+  "dimensions": {
+    "inner": {
+      "width": 1265,
+      "height": 768
+    },
+    "devicePixelRatio": 1,
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1281,
+      "height": 807
+    },
+    "canvas": {
+      "x": 260,
+      "y": 111,
+      "width": 765,
+      "height": 627,
+      "pixelWidth": 765,
+      "pixelHeight": 627
+    }
+  },
+  "structure": {
+    "markdownCount": 7,
+    "nodes": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note.md"
+    ],
+    "links": [
+      {
+        "source": "00_Home.md",
+        "target": "10_projects/Project Alpha.md",
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "20_knowledge/Reference.md",
+        "resolved": true
+      },
+      {
+        "source": "00_Home.md",
+        "target": "Missing Note.md",
+        "resolved": false
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "00_Home.md",
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "10_projects/Project Beta.md",
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Alpha.md",
+        "target": "20_knowledge/Reference.md",
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "10_projects/Project Alpha.md",
+        "resolved": true
+      },
+      {
+        "source": "10_projects/Project Beta.md",
+        "target": "20_knowledge/Distillation.md",
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Distillation.md",
+        "target": "10_projects/Project Beta.md",
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "00_Home.md",
+        "resolved": true
+      },
+      {
+        "source": "20_knowledge/Reference.md",
+        "target": "20_knowledge/Distillation.md",
+        "resolved": true
+      },
+      {
+        "source": "80_excluded/Hidden.md",
+        "target": "00_Home.md",
+        "resolved": true
+      }
+    ],
+    "directedLinkCount": 12,
+    "undirectedPairCount": 8
+  },
+  "rendering": {
+    "nodeGeometry": [
+      {
+        "path": "00_Home.md",
+        "x": 694.296875,
+        "y": 410.265625,
+        "width": 53.03125,
+        "height": 37,
+        "finite": true
+      },
+      {
+        "path": "10_projects/Project Alpha.md",
+        "x": 496.7265625,
+        "y": 521.1875,
+        "width": 72.828125,
+        "height": 37,
+        "finite": true
+      },
+      {
+        "path": "10_projects/Project Beta.md",
+        "x": 645.828125,
+        "y": 296.875,
+        "width": 66,
+        "height": 37,
+        "finite": true
+      },
+      {
+        "path": "20_knowledge/Distillation.md",
+        "x": 717.296875,
+        "y": 531.171875,
+        "width": 59.6875,
+        "height": 37,
+        "finite": true
+      },
+      {
+        "path": "20_knowledge/Reference.md",
+        "x": 430.0703125,
+        "y": 385.484375,
+        "width": 55.578125,
+        "height": 37,
+        "finite": true
+      },
+      {
+        "path": "80_excluded/Hidden.md",
+        "x": 887.2265625,
+        "y": 266.484375,
+        "width": 42.484375,
+        "height": 37,
+        "finite": true
+      },
+      {
+        "path": "90_orphan/Orphan.md",
+        "x": 557.6171875,
+        "y": 701.125,
+        "width": 43.578125,
+        "height": 37,
+        "finite": true
+      },
+      {
+        "path": "Missing Note.md",
+        "x": 526.5859375,
+        "y": 237.640625,
+        "width": 72.296875,
+        "height": 37,
+        "finite": true
+      }
+    ],
+    "finiteNodeGeometryCount": 8,
+    "canvasFirstDrawAfterClick": true,
+    "canvasDrawCountAfterClick": 6,
+    "canvasGeometryEdgeCount": 8,
+    "settingsPanelVisible": true,
+    "canvas": {
+      "x": 260,
+      "y": 111,
+      "width": 765,
+      "height": 627,
+      "pixelWidth": 765,
+      "pixelHeight": 627
+    },
+    "layout": {
+      "settled": true,
+      "stableSamples": 3,
+      "finalMaxMovement": 0.046875
+    },
+    "renderer": {
+      "title": "TSUZUNE",
+      "innerWidth": 1265,
+      "innerHeight": 768,
+      "devicePixelRatio": 1,
+      "lightMedia": true,
+      "documentFocused": false,
+      "graphLabel": "Vault全体グラフ",
+      "bodyBackground": "rgba(0, 0, 0, 0)"
+    }
+  },
+  "isolation": {
+    "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\graph-gp6\\tsuzune-working-tree\\userdata",
+    "productionProfileTouched": false,
+    "visibleOffscreen": true,
+    "focusable": false,
+    "foregroundActivated": false,
+    "offscreen": true
+  },
+  "protectedData": {
+    "sourceFixture": {
+      "before": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3"
+      },
+      "after": {
+        "fileCount": 9,
+        "combinedSha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3"
+      }
+    },
+    "isolatedMarkdown": {
+      "before": {
+        "fileCount": 7,
+        "combinedSha256": "54B472FF4C646CF8858BBAF700F562CD001927123A18B72FE98398BCDBDBC59B"
+      },
+      "after": {
+        "fileCount": 7,
+        "combinedSha256": "54B472FF4C646CF8858BBAF700F562CD001927123A18B72FE98398BCDBDBC59B"
+      }
+    },
+    "isolatedProtectedFiles": {
+      "before": {
+        "fileCount": 8,
+        "combinedSha256": "16F04E2CF0A9416C71D5C3DCFC07FEEFD1642F867B7019282B97EC7EFBBF9BC7"
+      },
+      "after": {
+        "fileCount": 8,
+        "combinedSha256": "16F04E2CF0A9416C71D5C3DCFC07FEEFD1642F867B7019282B97EC7EFBBF9BC7"
+      }
+    }
+  },
+  "fingerprints": {
+    "productSource": {
+      "fileCount": 63,
+      "combinedSha256": "B0E956C6C24D716078DCA6B01C4C94E4648322B01AA21BAE1D74D986CBEA1874"
+    },
+    "builtApp": {
+      "fileCount": 8,
+      "combinedSha256": "CFC2832E8E994DE61D1EEE022CBF1472E352E3E86E5908D3E6BE03C309701D0B"
+    }
+  },
+  "git": {
+    "head": "93a8502f103b86a92a1bf1f3af96f0192173b1f8",
+    "dirty": true,
+    "changedEntryCount": 115,
+    "porcelainSha256": "86FC57455A1ADE29E951D853701E02CAB21F313F68516E51CF3A6B4BBE156E34"
+  },
+  "screenshot": {
+    "path": "docs/reports/assets/graph-gp6/tsuzune-working-tree/01-global-baseline.png",
+    "bytes": 103451,
+    "sha256": "D7E77EBEDB364E0BD37FBBC59097E40EFAC35BBA03746F48F3F060935B7BADE6",
+    "width": 1265,
+    "height": 768
+  },
+  "expected": {
+    "markdownCount": 7,
+    "nodeCount": 8,
+    "directedLinkCount": 12,
+    "undirectedPairCount": 8
+  },
+  "assertions": {
+    "viewportMatched": true,
+    "lightThemeMatched": true,
+    "backgroundSafe": true,
+    "structureMatched": true,
+    "renderedNodeSetMatched": true,
+    "canvasFirstDrawObserved": true,
+    "canvasGeometryPairsMatched": true,
+    "settingsPanelVisibleByDefault": true,
+    "sourceFixtureUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "isolatedProtectedFilesUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtAppUnchangedDuringCapture": true
+  },
+  "limitations": [
+    "Directed and undirected link counts come from a deterministic scan of the isolated canonical fixture; the Canvas renderer intentionally exposes only deduplicated geometry pairs.",
+    "Canvas evidence proves a first clearRect after graph entry and finite geometry for all eight expected nodes; it does not prove pixel identity with Obsidian.",
+    "The force layout screenshot is a settled off-screen compositor sample, not an interaction or animation-performance benchmark."
+  ]
+}

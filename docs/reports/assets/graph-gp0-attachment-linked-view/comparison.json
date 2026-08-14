@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "stage": "GP0-3b-m",
+  "capturedAt": "2026-08-09T18:51:20.381Z",
+  "status": "matched-core-behavior",
+  "fixedConditions": {
+    "reference": "Obsidian Desktop 1.13.4",
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "scope": "Global Graph attachment node linked-view action",
+    "targetNode": "attachments/diagram.svg",
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "theme": "light"
+  },
+  "required": {
+    "evidenceCaptured": true,
+    "evidenceAssertions": true,
+    "linkedViewMenuPresent": true,
+    "submenuExact": true,
+    "firstActionBacklinks": true,
+    "referenceLinkedView": true,
+    "productLinkedView": true,
+    "graphPreserved": true,
+    "persistencePreserved": true,
+    "linkedViewRestartBoundaryRecorded": true
+  },
+  "comparisons": [
+    {
+      "id": "linked-view-menu",
+      "label": "「リンクされたビューを開く」を親menuから開ける",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "linked-view-submenu",
+      "label": "submenuの先頭かつ唯一の有効操作が「バックリンクを開く」",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "backlink-view",
+      "label": "対象添付のバックリンクビューを開き、対象pathと参照元を表示する",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "graph-preserved",
+      "label": "操作後もGlobal Graphのnode・edgeとGraph tabを保持する",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "reopen-restart",
+      "label": "Graph再表示・別プロセス再起動後もGraphの構造を保持する",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "linked-view-restart-boundary",
+      "label": "linked-viewの別プロセス再起動後の扱い",
+      "obsidian": "バックリンクtab shellを保持。対象添付へのbindingは未証明",
+      "tsuzune": "linked-view tabを復元しない",
+      "status": "known-gap-outside-slice"
+    },
+    {
+      "id": "context-menu-scope",
+      "label": "添付nodeのcontext menu全体",
+      "obsidian": 11,
+      "tsuzune": 7,
+      "status": "known-gap-outside-slice"
+    }
+  ],
+  "established": [
+    "親menuからlinked-view submenuを開き、親menuを残したまま表示できる",
+    "両製品で唯一の有効操作「バックリンクを開く」を実行できる",
+    "起動中の同一workspaceで対象添付のバックリンクビューを追加し、Graphを保持できる",
+    "Graph再表示・別プロセス再起動後もGraphのnode集合とedge数を保持する"
+  ],
+  "knownGaps": [
+    "Obsidianの分割pane・workspace装飾・バックリンク本文の視覚一致は未証明",
+    "TSUZUNEはlinked-view tabを別プロセス再起動後に復元しない。Obsidianはバックリンクtab shellを保持するが対象添付へのbindingは未証明",
+    "添付context menu全体はObsidian 11項目、TSUZUNE 7項目で残差がある",
+    "物理マウス／キーボード、screen reader、High Contrast、multi-DPI、pixel identityは未証明"
+  ],
+  "evidenceBoundary": {
+    "input": "隔離fixtureと固定viewportを使ったCDP／Electronの合成入力",
+    "notEstablished": [
+      "物理OS入力とtrusted event parity",
+      "実OS clipboardや外部アプリとのpaste roundtrip",
+      "実運用Vaultの全node種別に対する同等性"
+    ]
+  },
+  "safeguards": {
+    "obsidian": {
+      "sourceUnchanged": true,
+      "protocolRestored": true,
+      "graphLeafCountAfter": 1
+    },
+    "tsuzune": {
+      "exactNodeSetAtEveryCheckpoint": true,
+      "attachmentContextMenuOpened": true,
+      "linkedViewMenuItemRecorded": true,
+      "parentHoverKeptMenusOpen": true,
+      "submenuItemsExact": true,
+      "submenuItemsEnabled": true,
+      "firstActionIsBacklinks": true,
+      "linkedViewOpened": true,
+      "linkedViewShowsBacklinks": true,
+      "actionClosedMenus": true,
+      "graphTabRetained": true,
+      "graphSurfacePreservedImmediately": true,
+      "queryCameraNodesLinksTabsPreservedAcrossReopenAndRestart": true,
+      "contentViewportStable": true,
+      "filteredNodeSetStable": true,
+      "separateApplicationProcesses": true,
+      "sourceFixtureUnchanged": true,
+      "productSourceUnchanged": true,
+      "builtApplicationUnchanged": true,
+      "isolatedMarkdownUnchanged": true,
+      "isolatedVaultContentUnchanged": true,
+      "isolatedVaultChangedOnlyWhenMoving": true,
+      "noIsolatedProcessesRemaining": true
+    }
+  },
+  "menuItems": {
+    "obsidian": [
+      "diagram.svg",
+      "新規タブに開く",
+      "新規ウィンドウで開く",
+      "ファイルを移動…",
+      "ブックマーク…",
+      "パスをコピー",
+      "リンクされたビューを開く",
+      "デフォルトアプリで開く",
+      "フォルダで表示",
+      "ファイルエクスプローラでファイルを表示",
+      "ファイルを削除"
+    ],
+    "tsuzune": [
+      "新規タブに開く",
+      "新規ウィンドウで開く",
+      "ファイルを移動…",
+      "ブックマーク…",
+      "パスをコピー ›",
+      "リンクされたビューを開く ›",
+      "ファイルを削除"
+    ],
+    "linkedSubmenu": [
+      "バックリンクを開く"
+    ]
+  },
+  "conclusion": "GP0-3b-mでは、添付nodeの「リンクされたビューを開く」から「バックリンクを開く」を実行し、起動中のバックリンクビュー追加とGlobal Graph保持を中核挙動として一致確認した。linked-viewの再起動復元、context menu全体、workspace視覚一致は対象外または未証明である。"
+}

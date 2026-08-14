@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "stage": "GP0-3b-g",
+  "capturedAt": "2026-08-08T19:57:39.285Z",
+  "status": "matched",
+  "fixedConditions": {
+    "reference": "Obsidian Desktop 1.13.4",
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "scope": "Global Graph",
+    "query": "",
+    "targetNode": "00_Home.md",
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "theme": "light"
+  },
+  "comparisons": [
+    {
+      "id": "note-tab-created",
+      "label": "対象noteの新規タブを生成して選択",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "graph-tab-retained",
+      "label": "noteを開いた後も元Global Graphを別タブとして保持",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "tsuzune-graph-return",
+      "label": "TSUZUNEの保持タブからGlobal Graphへ復帰",
+      "obsidian": "retained leaf established; return click not separately captured",
+      "tsuzune": true,
+      "status": "tsuzune-verified"
+    }
+  ],
+  "safeguards": {
+    "obsidian": {
+      "graphLeafBefore": 1,
+      "graphLeafAfter": 1,
+      "markdownLeafAfter": 1
+    },
+    "tsuzune": {
+      "exactNodeSetAtEveryCheckpoint": true,
+      "nodeContextMenuOpened": true,
+      "nodeContextMenuItemsHaveText": true,
+      "newTabCreated": true,
+      "newTabActivated": true,
+      "newTabEditorVisible": true,
+      "graphClosedAfterNewTabAction": true,
+      "nodeContextMenuClosedAfterAction": true,
+      "globalGraphTabRetained": true,
+      "returnedToGlobalGraphTab": true,
+      "globalGraphVisibleAfterReturn": true,
+      "contentViewportStable": true,
+      "filteredNodeSetStable": true,
+      "separateApplicationProcesses": true,
+      "sourceFixtureUnchanged": true,
+      "productSourceUnchanged": true,
+      "builtApplicationUnchanged": true,
+      "isolatedMarkdownUnchanged": true,
+      "noIsolatedProcessesRemaining": true
+    }
+  },
+  "established": [
+    "両製品で対象noteの新規タブを生成して選択する",
+    "両製品で元Global Graphのworkspace leaf/tabを保持する",
+    "TSUZUNEは保持したGraphタブを選び直してGlobal Graphへ戻れる"
+  ],
+  "notEstablished": [
+    "Obsidian側で保持Graph tabを選び直す追加capture",
+    "タブの並べ替え、復元、分割、ウィンドウ間移動",
+    "物理マウスと実OSアクセシビリティ",
+    "pixel-identical tab geometry and styling"
+  ],
+  "conclusion": "GP0-3b-fで残った元Global Graph保持の公開差を閉じた。固定fixtureでは両製品がGraph workspaceを保持し、TSUZUNEはnote新規tabから元Graph tabへ復帰できた。"
+}

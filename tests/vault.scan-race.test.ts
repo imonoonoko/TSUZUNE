@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { access, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -60,6 +60,9 @@ describe('VaultService scan generation', () => {
     await expect(oldScan).rejects.toMatchObject({
       appError: { code: 'NO_VAULT' }
     })
+    await expect(
+      access(join(firstRoot, '.tsuzune', 'graph-file-times.json'))
+    ).rejects.toBeDefined()
     const current = await vault.scan()
     expect(current.rootPath).toBe(secondRoot)
     expect(current.notes.map((note) => note.path)).toEqual(['B.md'])

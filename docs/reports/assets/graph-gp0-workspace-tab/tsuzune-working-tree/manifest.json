@@ -1,0 +1,146 @@
+{
+  "capturedAt": "2026-08-08T19:57:39.285Z",
+  "stage": "GP0-3b-g Global Graph workspace tab working-tree evidence",
+  "status": "captured",
+  "comparisonStatus": "Compare with docs/reports/assets/graph-gp0-workspace-tab/comparison.json",
+  "command": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs --workspace-tab",
+  "isolation": {
+    "sourceFixture": "fixtures/obsidian-graph-parity-vault",
+    "copiedVault": "work/graph-gp0-workspace-tab-working-tree/vault",
+    "userData": "work/graph-gp0-workspace-tab-working-tree/userdata",
+    "requestedContentViewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "offscreenOrigin": {
+      "x": -32000,
+      "y": -32000
+    },
+    "observedWindowGeometry": {
+      "initial": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      },
+      "restarted": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "rendererViewport": {
+          "width": 1265,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      }
+    },
+    "network": "host resolver blocked except localhost"
+  },
+  "processIds": [
+    11144,
+    14976
+  ],
+  "assertions": {
+    "exactNodeSetAtEveryCheckpoint": true,
+    "nodeContextMenuOpened": true,
+    "nodeContextMenuItemsHaveText": true,
+    "newTabCreated": true,
+    "newTabActivated": true,
+    "newTabEditorVisible": true,
+    "graphClosedAfterNewTabAction": true,
+    "nodeContextMenuClosedAfterAction": true,
+    "globalGraphTabRetained": true,
+    "returnedToGlobalGraphTab": true,
+    "globalGraphVisibleAfterReturn": true,
+    "contentViewportStable": true,
+    "filteredNodeSetStable": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "noIsolatedProcessesRemaining": true
+  },
+  "artifacts": [
+    {
+      "path": "docs/reports/assets/graph-gp0-workspace-tab/tsuzune-working-tree/00-baseline.png",
+      "bytes": 124304,
+      "sha256": "901CF40A0DE797D0DD61FA2306050328A46A1A8B644A37991B5579DC55505AED",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-workspace-tab/tsuzune-working-tree/01-node-context-menu.png",
+      "bytes": 130179,
+      "sha256": "8A6DAB0AF16FC2C69BC31581E61D5268A001BAF5BEE4908D792D323D7BEF62B9",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-workspace-tab/tsuzune-working-tree/02-note-new-tab.png",
+      "bytes": 114159,
+      "sha256": "81F1A89692B8B199602EA975BF81F8EC07A9E7019649E9D51710B28E7BEC61AF",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-workspace-tab/tsuzune-working-tree/03-returned-global-graph.png",
+      "bytes": 126571,
+      "sha256": "537860BC1CBF6BE4FD2B884B72115602BC18D4134BE22C69639897F1807BB736",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-workspace-tab/tsuzune-working-tree/02-after-graph-reopen.png",
+      "bytes": 126382,
+      "sha256": "033FB089ECB978FF82B98C7F1D0ACC2CAB1CF7E6E26625218454462451B141AA",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-workspace-tab/tsuzune-working-tree/03-after-app-restart.png",
+      "bytes": 124304,
+      "sha256": "901CF40A0DE797D0DD61FA2306050328A46A1A8B644A37991B5579DC55505AED",
+      "width": 1265,
+      "height": 768
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-workspace-tab/tsuzune-working-tree/phase-initial.json",
+      "bytes": 5799,
+      "sha256": "2473A04C038F6C8ADE232C3E9A42F501DE6F12848FB1CBFA62B10BE857A73EC3"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-workspace-tab/tsuzune-working-tree/phase-restarted.json",
+      "bytes": 1827,
+      "sha256": "C4DE052D821093B1945D39E642242718F90625C8AC08258F52D9E8D4964711CE"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-workspace-tab/tsuzune-working-tree/observation.json",
+      "bytes": 11840,
+      "sha256": "5080EBF5EBAE6B0280986306F4B36A4678E574DF840382F294C600BF423DE193"
+    }
+  ],
+  "next": "Document the observed Obsidian/TSUZUNE Global Graph workspace tab behavior."
+}

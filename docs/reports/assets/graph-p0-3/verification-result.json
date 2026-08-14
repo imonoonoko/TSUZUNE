@@ -1,0 +1,18 @@
+{
+  "recordedAt": "2026-08-01T03:33:57+09:00",
+  "automated": {
+    "typecheck": "PASS",
+    "tests": "24 files / 194 tests",
+    "mcp": "4 read tools / 2 write tools",
+    "build": "PASS",
+    "diffCheck": "PASS"
+  },
+  "vaultMarkdownInvariant": {
+    "fileCountBefore": 42,
+    "fileCountAfter": 42,
+    "combinedSha256Before": "6DB2BE6B199567D6F4B82799AA439EEDC68A87B18673DBD32770202A33F1D9B3",
+    "combinedSha256After": "6DB2BE6B199567D6F4B82799AA439EEDC68A87B18673DBD32770202A33F1D9B3",
+    "identical": true
+  },
+  "electronEvidence": "capture-result.json"
+}

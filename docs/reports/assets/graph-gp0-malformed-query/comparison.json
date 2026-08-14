@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "taskId": "CP0-T02",
+  "reference": "Obsidian Desktop 1.13.4",
+  "candidate": "TSUZUNE working-tree build",
+  "matrix": "docs/reports/assets/graph-gp0-malformed-query/query-matrix.json",
+  "fixture": "fixtures/obsidian-graph-parity-vault",
+  "status": "different",
+  "summary": {
+    "caseCount": 7,
+    "queryAndLifecycleMatched": 7,
+    "errorDisplayMatched": 7,
+    "existingNoteNodeSetsMatched": 7,
+    "rawGraphNodeSetsMatched": 2,
+    "rawGraphNodeSetsDifferent": 5,
+    "compileInvalidRegexFixed": true
+  },
+  "cases": [
+    {
+      "id": "unclosed-quote",
+      "query": "\"Project",
+      "class": "input-progress",
+      "result": "different",
+      "obsidianNodeIds": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "Missing Note"
+      ],
+      "tsuzuneNodeIds": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md"
+      ],
+      "existingNoteNodeSetEqual": true,
+      "errorDisplayEqual": true,
+      "queryLifecycleEqual": true,
+      "difference": "Obsidian retains the unresolved Missing Note node; TSUZUNE filters it out."
+    },
+    {
+      "id": "trailing-or",
+      "query": "Project OR",
+      "class": "input-progress",
+      "result": "different",
+      "obsidianNodeIds": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "Missing Note"
+      ],
+      "tsuzuneNodeIds": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md"
+      ],
+      "existingNoteNodeSetEqual": true,
+      "errorDisplayEqual": true,
+      "queryLifecycleEqual": true,
+      "difference": "Obsidian retains the unresolved Missing Note node; TSUZUNE filters it out."
+    },
+    {
+      "id": "unclosed-paren",
+      "query": "(Project",
+      "class": "input-progress",
+      "result": "different",
+      "obsidianNodeIds": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "Missing Note"
+      ],
+      "tsuzuneNodeIds": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md"
+      ],
+      "existingNoteNodeSetEqual": true,
+      "errorDisplayEqual": true,
+      "queryLifecycleEqual": true,
+      "difference": "Obsidian retains the unresolved Missing Note node; TSUZUNE filters it out."
+    },
+    {
+      "id": "unclosed-regex",
+      "query": "/Project",
+      "class": "input-progress",
+      "result": "different",
+      "obsidianNodeIds": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "Missing Note"
+      ],
+      "tsuzuneNodeIds": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md"
+      ],
+      "existingNoteNodeSetEqual": true,
+      "errorDisplayEqual": true,
+      "queryLifecycleEqual": true,
+      "difference": "Obsidian retains the unresolved Missing Note node; TSUZUNE filters it out."
+    },
+    {
+      "id": "unclosed-property",
+      "query": "[status:Act",
+      "class": "input-progress",
+      "result": "matched",
+      "obsidianNodeIds": [],
+      "tsuzuneNodeIds": [],
+      "existingNoteNodeSetEqual": true,
+      "errorDisplayEqual": true,
+      "queryLifecycleEqual": true,
+      "difference": null
+    },
+    {
+      "id": "invalid-regex",
+      "query": "/(?/",
+      "class": "compile-invalid",
+      "result": "different",
+      "obsidianNodeIds": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note"
+      ],
+      "tsuzuneNodeIds": [
+        "00_Home.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "Missing Note.md"
+      ],
+      "existingNoteNodeSetEqual": true,
+      "nodeSetEqualAfterUnresolvedIdNormalization": true,
+      "errorDisplayEqual": true,
+      "queryLifecycleEqual": true,
+      "difference": "Search semantics match after the fix; the unresolved node ID differs as Missing Note versus Missing Note.md."
+    },
+    {
+      "id": "expressionless-paren",
+      "query": "(",
+      "class": "expressionless",
+      "result": "matched",
+      "obsidianNodeIds": [],
+      "tsuzuneNodeIds": [],
+      "existingNoteNodeSetEqual": true,
+      "errorDisplayEqual": true,
+      "queryLifecycleEqual": true,
+      "difference": null
+    }
+  ],
+  "productChange": {
+    "file": "src/core/graph-query.ts",
+    "behavior": "A regular expression compilation SyntaxError is treated as no search constraint; non-regex parser errors remain closed.",
+    "regression": "tests/graph-query.test.ts",
+    "productionReceipt": "docs/reports/production-update-latest.json",
+    "productionStatus": "installed-and-verified"
+  },
+  "deferredDifference": {
+    "owner": "Global Graph unresolved-node filtering and identity",
+    "reason": "The remaining difference is in filterWikiGraph and unresolved node identity, not the one graph-query parser boundary authorized by CP0-T02.",
+    "nextAction": "Create a separate bounded task for unresolved-node retention and ID parity."
+  }
+}

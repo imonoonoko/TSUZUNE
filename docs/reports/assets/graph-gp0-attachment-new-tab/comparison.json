@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "stage": "GP0-3b-h",
+  "capturedAt": "2026-08-08T20:19:56.991Z",
+  "status": "matched",
+  "fixedConditions": {
+    "reference": "Obsidian Desktop 1.13.4",
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "scope": "Global Graph attachment node new-tab action",
+    "targetNode": "attachments/diagram.svg",
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "theme": "light"
+  },
+  "comparisons": [
+    {
+      "id": "attachment-node-visible",
+      "label": "公開フィルタで添付ノードを表示",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "new-tab-action",
+      "label": "右クリック「新規タブに開く」で添付タブを生成・選択",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "internal-preview",
+      "label": "SVGをOS外部アプリへ渡さず内部プレビュー",
+      "obsidian": "image",
+      "tsuzune": "attachment preview",
+      "status": "matched"
+    },
+    {
+      "id": "graph-tab-retained",
+      "label": "添付を開いた後もGlobal Graphタブを保持して復帰可能",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "attachment-context-menu-size",
+      "label": "添付ノードの右クリックメニュー項目数",
+      "obsidian": 11,
+      "tsuzune": 2,
+      "status": "known-gap-outside-slice"
+    }
+  ],
+  "established": [
+    "両製品で添付ノードを公開フィルタから表示できる",
+    "両製品で添付ノードを新しい内部プレビュータブへ開ける",
+    "両製品で元Global Graphタブを保持し、TSUZUNEでは実際に復帰できる"
+  ],
+  "remainingGap": {
+    "summary": "添付ノードの新規タブ動作は一致したが、TSUZUNEの添付context menuは2項目、Obsidianは11項目。",
+    "obsidianItems": [
+      "diagram.svg",
+      "新規タブに開く",
+      "新規ウィンドウで開く",
+      "ファイルを移動…",
+      "ブックマーク…",
+      "パスをコピー",
+      "リンクされたビューを開く",
+      "デフォルトアプリで開く",
+      "フォルダで表示",
+      "ファイルエクスプローラでファイルを表示",
+      "ファイルを削除"
+    ],
+    "tsuzuneItems": [
+      "新規タブに開く",
+      "ファイルを削除"
+    ]
+  },
+  "safeguards": {
+    "obsidian": {
+      "sourceUnchanged": true,
+      "isolatedVaultProtectedFilesUnchanged": true,
+      "protocolRestored": true,
+      "activeViewType": "image",
+      "graphTabRetained": true
+    },
+    "tsuzune": {
+      "exactNodeSetAtEveryCheckpoint": true,
+      "nodeContextMenuOpened": true,
+      "nodeContextMenuItemsHaveText": true,
+      "attachmentContextMenuOpened": true,
+      "attachmentNewTabCreated": true,
+      "attachmentNewTabActivated": true,
+      "attachmentGraphClosedAfterAction": true,
+      "attachmentContextMenuClosedAfterAction": true,
+      "globalGraphTabRetained": true,
+      "returnedToGlobalGraphTab": true,
+      "globalGraphVisibleAfterReturn": true,
+      "contentViewportStable": true,
+      "filteredNodeSetStable": true,
+      "separateApplicationProcesses": true,
+      "sourceFixtureUnchanged": true,
+      "productSourceUnchanged": true,
+      "builtApplicationUnchanged": true,
+      "isolatedMarkdownUnchanged": true,
+      "noIsolatedProcessesRemaining": true
+    }
+  },
+  "notEstablished": [
+    "添付context menuの残り9項目の同等実装",
+    "新規ウィンドウ、移動、ブックマーク、パスコピー、linked view、既定アプリ、フォルダ表示の操作結果",
+    "物理マウスと実OSアクセシビリティ",
+    "pixel-identical tab geometry and styling"
+  ],
+  "conclusion": "GP0-3b-hでは添付ノードの「新規タブに開く」を一致確認した。TSUZUNEはSVGを内部プレビューし、Global Graphタブを保持して復帰できる。残る差は同アクションではなく、添付context menuの項目網羅性である。"
+}

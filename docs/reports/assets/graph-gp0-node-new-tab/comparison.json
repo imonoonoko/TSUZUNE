@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "stage": "GP0-3b-f",
+  "capturedAt": "2026-08-08T19:44:38.058Z",
+  "status": "partial",
+  "fixedConditions": {
+    "reference": "Obsidian Desktop 1.13.4",
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "scope": "Global Graph",
+    "query": "",
+    "targetNode": "00_Home.md",
+    "attachmentNode": "attachments/diagram.svg",
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "theme": "light"
+  },
+  "comparisons": [
+    {
+      "id": "action-label",
+      "label": "操作文言",
+      "obsidian": "新規タブに開く",
+      "tsuzune": "新規タブに開く",
+      "status": "matched"
+    },
+    {
+      "id": "action-enabled",
+      "label": "操作が有効",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "note-tab-created",
+      "label": "note用の新規タブを生成",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "target-active",
+      "label": "対象noteを新規タブで選択",
+      "obsidian": "00_Home.md",
+      "tsuzune": "00_Home",
+      "status": "matched"
+    },
+    {
+      "id": "graph-retained",
+      "label": "元のグラフを別タブとして保持",
+      "obsidian": true,
+      "tsuzune": false,
+      "status": "different"
+    },
+    {
+      "id": "attachment-tab",
+      "label": "attachmentを内部タブで開く",
+      "obsidian": "not-established",
+      "tsuzune": true,
+      "status": "not-established"
+    }
+  ],
+  "safeguards": {
+    "obsidian": {
+      "queryAccepted": true,
+      "queryVisibleAfterEntry": true,
+      "filteredNodesAfterEntry": true,
+      "queryPersistedAfterGraphReopen": true,
+      "filteredNodesAfterGraphReopen": true,
+      "firstProcessExitedBeforeRestart": true,
+      "secondProcessStarted": true,
+      "queryPersistedAfterAppRestart": true,
+      "filteredNodesAfterAppRestart": true,
+      "nodeContextMenuOpened": true,
+      "nodeContextMenuItemsHaveText": true,
+      "newTabCreated": true,
+      "newTabActivated": true,
+      "graphKeptOpenInBackground": true,
+      "nodeContextMenuClosedAfterAction": true,
+      "lightThemeEveryObservation": true,
+      "isolatedUserDataEverySession": true,
+      "isolatedVaultEverySession": true,
+      "offscreenEverySession": true,
+      "sourceUnchanged": true,
+      "isolatedVaultProtectedFilesUnchanged": true,
+      "protocolRestored": true
+    },
+    "tsuzune": {
+      "exactNodeSetAtEveryCheckpoint": true,
+      "nodeContextMenuOpened": true,
+      "nodeContextMenuItemsHaveText": true,
+      "newTabCreated": true,
+      "newTabActivated": true,
+      "newTabEditorVisible": true,
+      "graphClosedAfterNewTabAction": true,
+      "nodeContextMenuClosedAfterAction": true,
+      "attachmentContextMenuOpened": true,
+      "attachmentNewTabCreated": true,
+      "attachmentNewTabActivated": true,
+      "attachmentGraphClosedAfterAction": true,
+      "contentViewportStable": true,
+      "filteredNodeSetStable": true,
+      "separateApplicationProcesses": true,
+      "sourceFixtureUnchanged": true,
+      "productSourceUnchanged": true,
+      "builtApplicationUnchanged": true,
+      "isolatedMarkdownUnchanged": true,
+      "noIsolatedProcessesRemaining": true
+    }
+  },
+  "established": [
+    "両製品で「新規タブに開く」が有効",
+    "両製品で対象noteの新規タブが生成され選択される",
+    "TSUZUNEでattachmentがOSへ即送出されず内部preview tabとして開く",
+    "TSUZUNEでは内部previewから明示操作した時だけ既定アプリへ送る"
+  ],
+  "notEstablished": [
+    "Obsidian attachment nodeの同操作結果",
+    "TSUZUNEで元Global Graphをworkspace tabとして保持する挙動",
+    "タブの並び替え、復元、分割、ウィンドウ間移動",
+    "物理マウスと実OSアクセシビリティ",
+    "pixel-identical tab geometry and styling"
+  ],
+  "conclusion": "noteの新規タブ生成は一致した。TSUZUNEのattachment内部tabも成立したが、Obsidianは元Graph leafを保持し、TSUZUNEはGraph viewを閉じる。attachmentのObsidian側実動作も未採取のためGP0-3b-fはpartial。"
+}

@@ -1,0 +1,779 @@
+{
+  "expected": {
+    "version": "1.13.4",
+    "installerSha256": "8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0",
+    "asarSha256": "51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917",
+    "markdownCount": 7,
+    "search": "",
+    "filteredNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note",
+      "attachments/diagram.svg"
+    ],
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "drag": {
+      "targetNodeId": "attachments/diagram.svg",
+      "deltaX": 96,
+      "deltaY": 64
+    }
+  },
+  "beforeEntry": {
+    "label": "before-node-context-menu",
+    "capturedAt": "2026-08-08T20:27:04.209Z",
+    "processId": 13824,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-new-tab\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "",
+    "graphOptionsSearch": "",
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note",
+      "attachments/diagram.svg"
+    ],
+    "renderedNodeCount": 9,
+    "renderedLinkCount": 13,
+    "targetNode": {
+      "id": "attachments/diagram.svg",
+      "x": -250.13365173339844,
+      "y": -146.08082580566406,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 554.3663482666016,
+      "clientY": 276.88792419433594
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-attachment-new-tab/obsidian-1.13.4/00-baseline.png",
+      "bytes": 74021,
+      "sha256": "7374CAA97F90AA979745D9737988CA1C7101A9A2595AC2E056E041F228D30101"
+    }
+  },
+  "afterEntry": {
+    "label": "after-entry",
+    "capturedAt": "2026-08-08T20:27:04.278Z",
+    "processId": 13824,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-new-tab\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "",
+    "graphOptionsSearch": "",
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note",
+      "attachments/diagram.svg"
+    ],
+    "renderedNodeCount": 9,
+    "renderedLinkCount": 13,
+    "targetNode": {
+      "id": "attachments/diagram.svg",
+      "x": -250.06878662109375,
+      "y": -146.10252380371094,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 554.4312133789062,
+      "clientY": 276.86622619628906
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true
+  },
+  "menuInput": {
+    "x": 554.4903411865234,
+    "y": 276.84657287597656
+  },
+  "nodeContextMenu": {
+    "targetNodeId": "attachments/diagram.svg",
+    "bounds": {
+      "left": 556.484375,
+      "top": 278.84375,
+      "width": 239.375,
+      "height": 364.5
+    },
+    "items": [
+      {
+        "index": 0,
+        "text": "diagram.svg",
+        "disabled": false,
+        "classes": [
+          "is-label",
+          "menu-item"
+        ]
+      },
+      {
+        "index": 1,
+        "text": "新規タブに開く",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 2,
+        "text": "新規ウィンドウで開く",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 3,
+        "text": "ファイルを移動…",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 4,
+        "text": "ブックマーク…",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 5,
+        "text": "パスをコピー",
+        "disabled": false,
+        "classes": [
+          "has-submenu",
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 6,
+        "text": "リンクされたビューを開く",
+        "disabled": false,
+        "classes": [
+          "has-submenu",
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 7,
+        "text": "デフォルトアプリで開く",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 8,
+        "text": "フォルダで表示",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 9,
+        "text": "ファイルエクスプローラでファイルを表示",
+        "disabled": false,
+        "classes": [
+          "menu-item",
+          "tappable"
+        ]
+      },
+      {
+        "index": 10,
+        "text": "ファイルを削除",
+        "disabled": false,
+        "classes": [
+          "is-warning",
+          "menu-item",
+          "tappable"
+        ]
+      }
+    ],
+    "separators": [],
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-attachment-new-tab/obsidian-1.13.4/01-node-context-menu.png",
+      "bytes": 88290,
+      "sha256": "922E7F89CD06563743C1C75CAF2197027C3B2D8732ECD355D067A6C92611F47C"
+    }
+  },
+  "attachmentNewTab": {
+    "before": {
+      "graphLeafCount": 1,
+      "activeFile": null,
+      "activeLeaf": {
+        "id": "cc838f3f0069d4d5",
+        "viewType": "graph",
+        "filePath": null
+      },
+      "tabHeaders": [
+        {
+          "ariaLabel": "ファイルエクスプローラ",
+          "title": null,
+          "text": "ファイルエクスプローラ",
+          "classes": [
+            "is-active",
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "検索",
+          "title": null,
+          "text": "検索",
+          "classes": [
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "ブックマーク",
+          "title": null,
+          "text": "ブックマーク",
+          "classes": [
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "グラフビュー",
+          "title": null,
+          "text": "グラフビュー",
+          "classes": [
+            "is-active",
+            "mod-active",
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "バックリンク",
+          "title": null,
+          "text": "バックリンク",
+          "classes": [
+            "is-active",
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "アウトゴーイングリンク",
+          "title": null,
+          "text": "アウトゴーイングリンク",
+          "classes": [
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "タグ",
+          "title": null,
+          "text": "タグ",
+          "classes": [
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "すべてのプロパティ",
+          "title": null,
+          "text": "すべてのプロパティ",
+          "classes": [
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "アウトライン",
+          "title": null,
+          "text": "アウトライン",
+          "classes": [
+            "tappable",
+            "workspace-tab-header"
+          ]
+        }
+      ]
+    },
+    "after": {
+      "graphLeafCount": 1,
+      "activeFile": "attachments/diagram.svg",
+      "activeLeaf": {
+        "id": "4a9e93ab3dfd353c",
+        "viewType": "image",
+        "filePath": "attachments/diagram.svg"
+      },
+      "tabHeaders": [
+        {
+          "ariaLabel": "ファイルエクスプローラ",
+          "title": null,
+          "text": "ファイルエクスプローラ",
+          "classes": [
+            "is-active",
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "検索",
+          "title": null,
+          "text": "検索",
+          "classes": [
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "ブックマーク",
+          "title": null,
+          "text": "ブックマーク",
+          "classes": [
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "グラフビュー",
+          "title": null,
+          "text": "グラフビュー",
+          "classes": [
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "diagram",
+          "title": null,
+          "text": "diagram",
+          "classes": [
+            "is-active",
+            "mod-active",
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "バックリンク",
+          "title": null,
+          "text": "バックリンク",
+          "classes": [
+            "is-active",
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "アウトゴーイングリンク",
+          "title": null,
+          "text": "アウトゴーイングリンク",
+          "classes": [
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "タグ",
+          "title": null,
+          "text": "タグ",
+          "classes": [
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "すべてのプロパティ",
+          "title": null,
+          "text": "すべてのプロパティ",
+          "classes": [
+            "tappable",
+            "workspace-tab-header"
+          ]
+        },
+        {
+          "ariaLabel": "アウトライン",
+          "title": null,
+          "text": "アウトライン",
+          "classes": [
+            "tappable",
+            "workspace-tab-header"
+          ]
+        }
+      ],
+      "addedTabHeaders": [
+        {
+          "ariaLabel": "diagram",
+          "title": null,
+          "text": "diagram",
+          "classes": [
+            "is-active",
+            "mod-active",
+            "tappable",
+            "workspace-tab-header"
+          ]
+        }
+      ],
+      "menuClosed": true
+    },
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-attachment-new-tab/obsidian-1.13.4/02-attachment-new-tab.png",
+      "bytes": 31430,
+      "sha256": "84F75B6379B3BD7E42771A3283CC9928C64CBB89728F992C245D97D2EACE3FBF"
+    }
+  },
+  "afterGraphReopen": {
+    "label": "after-graph-reopen",
+    "capturedAt": "2026-08-08T20:27:07.130Z",
+    "processId": 13824,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-new-tab\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "",
+    "graphOptionsSearch": "",
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note",
+      "attachments/diagram.svg"
+    ],
+    "renderedNodeCount": 9,
+    "renderedLinkCount": 13,
+    "targetNode": {
+      "id": "attachments/diagram.svg",
+      "x": 206.7588348388672,
+      "y": -123.60709381103516,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 1011.2588348388672,
+      "clientY": 299.36165618896484
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-attachment-new-tab/obsidian-1.13.4/02-after-graph-reopen.png",
+      "bytes": 66474,
+      "sha256": "4B54A344C5115394AD0983E7AE9C4E798FBADCE934A8845017D657EF74DFAD10"
+    }
+  },
+  "afterAppRestart": {
+    "label": "after-app-restart",
+    "capturedAt": "2026-08-08T20:27:09.964Z",
+    "processId": 29552,
+    "vaultPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-new-tab\\obsidian-1.13.4\\vault",
+    "renderedTheme": "light",
+    "graphLeafCount": 1,
+    "searchInputValue": "",
+    "graphOptionsSearch": "",
+    "camera": {
+      "targetScale": 1,
+      "scale": 1,
+      "panX": 460.5,
+      "panY": 345,
+      "width": 921,
+      "height": 690,
+      "devicePixelRatio": 1,
+      "panOffsetX": 0,
+      "panOffsetY": 0,
+      "graphOptionsScale": 1
+    },
+    "renderedNodeIds": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md",
+      "Missing Note",
+      "attachments/diagram.svg"
+    ],
+    "renderedNodeCount": 9,
+    "renderedLinkCount": 13,
+    "targetNode": {
+      "id": "attachments/diagram.svg",
+      "x": 242.83131408691406,
+      "y": 238.9029083251953,
+      "fx": null,
+      "fy": null,
+      "fixed": false,
+      "clientX": 1047.331314086914,
+      "clientY": 661.8716583251953
+    },
+    "dragNodeId": null,
+    "highlightedNodeId": null,
+    "interactiveBounds": {
+      "left": 344,
+      "top": 77.96875,
+      "right": 1265,
+      "bottom": 768,
+      "width": 921,
+      "height": 690.03125
+    },
+    "graphOptionKeys": [
+      "centerStrength",
+      "close",
+      "collapse-color-groups",
+      "collapse-display",
+      "collapse-filter",
+      "collapse-forces",
+      "colorGroups",
+      "hideUnresolved",
+      "lineSizeMultiplier",
+      "linkDistance",
+      "linkStrength",
+      "nodeSizeMultiplier",
+      "repelStrength",
+      "scale",
+      "search",
+      "showArrow",
+      "showAttachments",
+      "showOrphans",
+      "showTags",
+      "textFadeMultiplier"
+    ],
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1265,
+      "height": 768
+    },
+    "windowVisible": false,
+    "windowSkipTaskbarRequested": true,
+    "graphLeafCountAtRestart": 1,
+    "screenshot": {
+      "path": "docs/reports/assets/graph-gp0-attachment-new-tab/obsidian-1.13.4/03-after-app-restart.png",
+      "bytes": 67380,
+      "sha256": "C4C6F92D252146C33814D0B5A3C0EE5D139984673785FE6004C04D41E791E688"
+    }
+  },
+  "sessions": [
+    {
+      "sessionNumber": 1,
+      "pid": 13844,
+      "cdpPort": 55509,
+      "startedAt": "2026-08-08T20:26:59.201Z",
+      "exited": {
+        "code": 0,
+        "signal": null,
+        "at": "2026-08-08T20:27:07.361Z"
+      },
+      "starterUsed": false,
+      "isolation": {
+        "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-new-tab\\obsidian-1.13.4\\userdata",
+        "vault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-new-tab\\obsidian-1.13.4\\vault",
+        "bounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "skipTaskbarRequested": true
+      }
+    },
+    {
+      "sessionNumber": 2,
+      "pid": 27300,
+      "cdpPort": 56448,
+      "startedAt": "2026-08-08T20:27:08.729Z",
+      "exited": {
+        "code": 0,
+        "signal": null,
+        "at": "2026-08-08T20:27:10.156Z"
+      },
+      "starterUsed": false,
+      "isolation": {
+        "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-new-tab\\obsidian-1.13.4\\userdata",
+        "vault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\gp0-attachment-new-tab\\obsidian-1.13.4\\vault",
+        "bounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1265,
+          "height": 768
+        },
+        "skipTaskbarRequested": true
+      }
+    }
+  ]
+}

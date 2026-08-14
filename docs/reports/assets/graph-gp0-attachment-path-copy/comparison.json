@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "stage": "GP0-3b-l",
+  "capturedAt": "2026-08-09T15:11:34.024Z",
+  "status": "matched-core-behavior",
+  "fixedConditions": {
+    "reference": "Obsidian Desktop 1.13.4",
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "scope": "Global Graph existing attachment node path copy",
+    "targetNode": "attachments/diagram.svg",
+    "scenarios": [
+      "url",
+      "vault",
+      "system"
+    ],
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "theme": "light"
+  },
+  "required": {
+    "allRawAssertionsPass": true,
+    "parentLabelOrderAndEnabled": true,
+    "submenuLabelsOrderAndEnabled": true,
+    "parentKeepsMenuAndOpensSubmenu": true,
+    "childClosesBothMenus": true,
+    "urlExact": true,
+    "vaultRelativeExact": true,
+    "systemAbsoluteWithSameRelativeSuffix": true,
+    "onePlainTextWritePerSelection": true,
+    "clipboardIsolatedAndRestored": true,
+    "graphQueryNodesVaultReopenAndRestartPreserved": true,
+    "productSubmenuFullyInsideViewport": true
+  },
+  "copiedValues": {
+    "url": {
+      "obsidian": "obsidian://open?vault=vault&file=attachments%2Fdiagram.svg",
+      "tsuzune": "obsidian://open?vault=vault&file=attachments%2Fdiagram.svg"
+    },
+    "vault": {
+      "obsidian": "attachments/diagram.svg",
+      "tsuzune": "attachments/diagram.svg"
+    },
+    "system": {
+      "obsidian": "<OBSIDIAN_VAULT_ROOT>\\attachments\\diagram.svg",
+      "tsuzune": "<TSUZUNE_VAULT_ROOT>\\attachments\\diagram.svg"
+    }
+  },
+  "comparisons": [
+    {
+      "id": "parent-menu-contract",
+      "label": "「パスをコピー」は「ブックマーク…」の直後にあり、有効である",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "submenu-contract",
+      "label": "3形式の文言・順序・有効状態",
+      "obsidian": [
+        "Obsidian URL として",
+        "保管庫フォルダから",
+        "システムルートから"
+      ],
+      "tsuzune": [
+        "Obsidian URL として",
+        "保管庫フォルダから",
+        "システムルートから"
+      ],
+      "status": "matched"
+    },
+    {
+      "id": "url-copy",
+      "label": "Obsidian URL として",
+      "obsidian": "obsidian://open?vault=vault&file=attachments%2Fdiagram.svg",
+      "tsuzune": "obsidian://open?vault=vault&file=attachments%2Fdiagram.svg",
+      "status": "matched"
+    },
+    {
+      "id": "vault-relative-copy",
+      "label": "保管庫フォルダから",
+      "obsidian": "attachments/diagram.svg",
+      "tsuzune": "attachments/diagram.svg",
+      "status": "matched"
+    },
+    {
+      "id": "system-absolute-copy",
+      "label": "システムルートから",
+      "obsidian": "<OBSIDIAN_VAULT_ROOT>\\attachments\\diagram.svg",
+      "tsuzune": "<TSUZUNE_VAULT_ROOT>\\attachments\\diagram.svg",
+      "status": "matched-semantic"
+    },
+    {
+      "id": "clipboard-and-menu-lifecycle",
+      "label": "1回のplain-text write、選択後menu close、利用者clipboard隔離・hook復元",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "graph-vault-lifecycle",
+      "label": "Graph検索条件・node集合・Vault内容をGraph再表示・別プロセス再起動まで保持",
+      "obsidian": true,
+      "tsuzune": true,
+      "status": "matched"
+    },
+    {
+      "id": "adaptive-submenu-placement",
+      "label": "観測した配置でsubmenuがviewport内に収まる",
+      "obsidian": "right-edge reference: opens left (visual evidence)",
+      "tsuzune": "center capture: opens right and stays inside viewport (measured bounds)",
+      "status": "partial-evidence"
+    },
+    {
+      "id": "attachment-context-menu-size",
+      "label": "添付nodeの右クリックmenu行数",
+      "obsidian": 11,
+      "tsuzune": 6,
+      "status": "known-ui-gap"
+    }
+  ],
+  "established": [
+    "3つのcopy形式は文言、順序、有効状態が一致する",
+    "Obsidian URLとVault相対pathは文字列が完全一致し、system pathは各隔離Vaultの絶対pathとして同じ相対suffixを持つ",
+    "選択ごとにplain textを1回だけ書き、menuを閉じる",
+    "共通検証範囲としてGraph query、node集合、Vault内容をGraph再表示と別プロセス再起動まで保つ",
+    "固定参照は右端から左へ、TSUZUNEの中央captureは右へ展開し、各観測位置では表示領域内に収まった"
+  ],
+  "remainingGap": {
+    "summary": "対象のpath-copy中核挙動は一致した。添付context menu全体はObsidian 11行に対してTSUZUNE 6行であり、OS clipboardへの実writeは安全のため両captureともinterceptした。",
+    "obsidianItems": [
+      "diagram.svg",
+      "新規タブに開く",
+      "新規ウィンドウで開く",
+      "ファイルを移動…",
+      "ブックマーク…",
+      "パスをコピー",
+      "リンクされたビューを開く",
+      "デフォルトアプリで開く",
+      "フォルダで表示",
+      "ファイルエクスプローラでファイルを表示",
+      "ファイルを削除"
+    ],
+    "tsuzuneItems": [
+      "新規タブに開く",
+      "新規ウィンドウで開く",
+      "ファイルを移動…",
+      "ブックマーク…",
+      "パスをコピー ›",
+      "ファイルを削除"
+    ],
+    "nextSlice": "GP0-3b-m リンクされたビューを開く"
+  },
+  "notEstablished": [
+    "physical OS clipboardへのwriteと別applicationへのpaste roundtrip",
+    "物理mouse／keyboard、touch／pen、screen reader、Windows High Contrast、複数DPI",
+    "TSUZUNE実画面を右端へ置いたときの左開き。renderer回帰testはあるが、この固定captureでは未観測",
+    "pixel-identicalなmenu／submenu描画とForce配置",
+    "non-empty Graph queryでのpath-copy command固有capture",
+    "unresolved node、tag node、folder-only target、.mdと.svg以外の実file extension",
+    "添付context menuの残る5操作とmenu全体の一致"
+  ],
+  "conclusion": "GP0-3b-lでは3形式のpath copy、menu lifecycle、共通検証範囲であるGraph query・node集合・Vault内容の再表示／別プロセス再起動までの保持、各観測位置でviewport内に収まるsubmenu配置をmatched-core-behaviorと判定した。固定参照は右端から左、TSUZUNE captureは中央から右へ開いており、同じgeometryは証明していない。OS clipboard roundtrip、全node種別、menu全体、pixel equivalenceも未証明であり、Graph parity全体の完了は主張しない。"
+}

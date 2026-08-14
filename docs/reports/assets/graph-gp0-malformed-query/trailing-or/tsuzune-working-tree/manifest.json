@@ -1,0 +1,123 @@
+{
+  "capturedAt": "2026-08-11T19:38:45.961Z",
+  "stage": "CP0-T02 Global Graph malformed query working-tree evidence (trailing-or)",
+  "status": "captured",
+  "attachmentDefaultApp": null,
+  "attachmentFolderReveal": null,
+  "comparisonStatus": "Compare with docs/reports/assets/graph-gp0-malformed-query/trailing-or/obsidian-1.13.4/observation.json",
+  "command": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs",
+  "isolation": {
+    "sourceFixture": "fixtures/obsidian-graph-parity-vault",
+    "copiedVault": "work/graph-gp0-malformed-query-trailing-or-working-tree/vault",
+    "userData": "work/graph-gp0-malformed-query-trailing-or-working-tree/userdata",
+    "requestedContentViewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "offscreenOrigin": {
+      "x": -32000,
+      "y": -32000
+    },
+    "observedWindowGeometry": {
+      "initial": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1280,
+          "height": 800
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1280,
+          "height": 800
+        },
+        "rendererViewport": {
+          "width": 1280,
+          "height": 800,
+          "devicePixelRatio": 1
+        }
+      },
+      "restarted": {
+        "frame": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1280,
+          "height": 800
+        },
+        "electronContentBounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1280,
+          "height": 800
+        },
+        "rendererViewport": {
+          "width": 1280,
+          "height": 800,
+          "devicePixelRatio": 1
+        }
+      }
+    },
+    "network": "host resolver blocked except localhost"
+  },
+  "evidenceBoundary": null,
+  "processIds": [
+    19136,
+    20788
+  ],
+  "assertions": {
+    "queryEntered": true,
+    "queryRestoredAfterGraphReopen": true,
+    "queryRestoredAfterAppRestart": true,
+    "settingsPersisted": true,
+    "contentViewportStable": true,
+    "filteredNodeSetStable": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "isolatedVaultContentUnchanged": true,
+    "isolatedVaultChangedOnlyWhenMoving": true,
+    "noIsolatedProcessesRemaining": true
+  },
+  "artifacts": [
+    {
+      "path": "docs/reports/assets/graph-gp0-malformed-query/trailing-or/tsuzune-working-tree/01-query-entered.png",
+      "bytes": 114146,
+      "sha256": "8A6645ECFEF36242F3382ED4DD9DFFB5237A82E5B3CA96AE69F338B962E61816",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-malformed-query/trailing-or/tsuzune-working-tree/02-graph-reopened.png",
+      "bytes": 114827,
+      "sha256": "9994279868A2E2ABD1471AF2151525E7CFF25C624CBAA08DA4DD5B038CFDB97B",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-malformed-query/trailing-or/tsuzune-working-tree/03-app-restarted.png",
+      "bytes": 114821,
+      "sha256": "0815A1BBFFE2AB8A0B80485E3B7122AD7FA9DCCA1B8DE3479793066F7228DF13",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-malformed-query/trailing-or/tsuzune-working-tree/phase-initial.json",
+      "bytes": 7682,
+      "sha256": "DB63D964E9661411C3CEDB72D348384926195A7D82DE18C393F52C119266A815"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-malformed-query/trailing-or/tsuzune-working-tree/phase-restarted.json",
+      "bytes": 3018,
+      "sha256": "BFEE5AA15D102B464862A49D6BC48EF96CEFC8C841290033C01A895336992231"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-malformed-query/trailing-or/tsuzune-working-tree/observation.json",
+      "bytes": 15644,
+      "sha256": "2DBCF4C4141BD1304D1E2209281D111EAFC87652BD8132FA332F1D239C7E9789"
+    }
+  ],
+  "next": "Continue GP0-3b with the remaining camera, drag, menu, animation, and reset behaviors."
+}

@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 1,
+  "stage": "GP0-3b-c",
+  "capturedAt": "2026-08-03T11:57:37.389Z",
+  "status": "matched",
+  "fixedConditions": {
+    "reference": "Obsidian Desktop 1.13.4",
+    "fixture": "fixtures/obsidian-graph-parity-vault",
+    "scope": "Global Graph",
+    "query": "",
+    "topology": {
+      "nodes": 8
+    },
+    "viewport": {
+      "width": 1265,
+      "height": 768
+    },
+    "deviceScaleFactor": 1,
+    "theme": "light",
+    "profile": "isolated"
+  },
+  "inputProtocol": {
+    "mechanism": {
+      "obsidian": "CDP Input.dispatchMouseEvent",
+      "tsuzune": "offscreen DOM WheelEvent and PointerEvent"
+    },
+    "zoom": {
+      "type": "wheel",
+      "deltaY": -120,
+      "anchor": "graph background center"
+    },
+    "pan": {
+      "type": "background drag",
+      "deltaX": 96,
+      "deltaY": 64,
+      "unit": "CSS px"
+    },
+    "checkpoints": [
+      "baseline",
+      "after-input",
+      "graph-close-reopen",
+      "full-app-restart"
+    ]
+  },
+  "normalization": {
+    "obsidianZoom": "renderer.targetScale and persisted graph option",
+    "obsidianPan": "renderer pan minus canvas device-pixel center",
+    "tsuzuneZoom": "CSS stage transform scale",
+    "tsuzunePan": "CSS stage transform translate",
+    "tolerance": {
+      "zoom": 0.000001,
+      "panCssPx": 1
+    }
+  },
+  "camera": {
+    "obsidian": {
+      "baseline": {
+        "targetScale": 1,
+        "scale": 1,
+        "panX": 460.5,
+        "panY": 345,
+        "width": 921,
+        "height": 690,
+        "devicePixelRatio": 1,
+        "panOffsetX": 0,
+        "panOffsetY": 0,
+        "graphOptionsScale": 1
+      },
+      "afterInput": {
+        "targetScale": 1.5,
+        "scale": 1.4859981193957197,
+        "panX": 556.2570009403021,
+        "panY": 408.9971015805444,
+        "width": 921,
+        "height": 690,
+        "devicePixelRatio": 1,
+        "panOffsetX": 95.75700094030208,
+        "panOffsetY": 63.99710158054438,
+        "graphOptionsScale": 1.5
+      },
+      "afterGraphReopen": {
+        "targetScale": 1.5,
+        "scale": 1.4859981193957197,
+        "panX": 460.5,
+        "panY": 345,
+        "width": 921,
+        "height": 690,
+        "devicePixelRatio": 1,
+        "panOffsetX": 0,
+        "panOffsetY": 0,
+        "graphOptionsScale": 1.5
+      },
+      "afterAppRestart": {
+        "targetScale": 1.5,
+        "scale": 1.4859981193957197,
+        "panX": 460.5,
+        "panY": 345,
+        "width": 921,
+        "height": 690,
+        "devicePixelRatio": 1,
+        "panOffsetX": 0,
+        "panOffsetY": 0,
+        "graphOptionsScale": 1.5
+      },
+      "zoomPersistedAfterGraphReopen": true,
+      "panResetAfterGraphReopen": true,
+      "zoomPersistedAfterAppRestart": true,
+      "panResetAfterAppRestart": true
+    },
+    "tsuzune": {
+      "baseline": {
+        "panX": 0,
+        "panY": 0,
+        "scale": 1
+      },
+      "afterInput": {
+        "panX": 96,
+        "panY": 64,
+        "scale": 1.5
+      },
+      "afterGraphReopen": {
+        "panX": 0,
+        "panY": 0,
+        "scale": 1.5
+      },
+      "afterAppRestart": {
+        "panX": 0,
+        "panY": 0,
+        "scale": 1.5
+      }
+    }
+  },
+  "comparisons": [
+    {
+      "id": "zoom-application",
+      "label": "ホイールで1.5倍ズーム",
+      "obsidian": 1.5,
+      "tsuzune": 1.5,
+      "status": "matched"
+    },
+    {
+      "id": "pan-application",
+      "label": "背景を+96,+64 CSS pxパン",
+      "obsidian": [
+        95.75700094030208,
+        63.99710158054438
+      ],
+      "tsuzune": [
+        96,
+        64
+      ],
+      "status": "matched"
+    },
+    {
+      "id": "zoom-graph-reopen-persistence",
+      "label": "Graph再表示後のズーム",
+      "obsidian": "保持",
+      "tsuzune": "保持",
+      "status": "matched"
+    },
+    {
+      "id": "pan-graph-reopen-persistence",
+      "label": "Graph再表示後のパン",
+      "obsidian": "中央へリセット",
+      "tsuzune": "中央へリセット",
+      "status": "matched"
+    },
+    {
+      "id": "zoom-app-restart-persistence",
+      "label": "アプリ再起動後のズーム",
+      "obsidian": "保持",
+      "tsuzune": "保持",
+      "status": "matched"
+    },
+    {
+      "id": "pan-app-restart-persistence",
+      "label": "アプリ再起動後のパン",
+      "obsidian": "中央へリセット",
+      "tsuzune": "中央へリセット",
+      "status": "matched"
+    }
+  ],
+  "safeguards": {
+    "obsidian": {
+      "queryAccepted": true,
+      "queryVisibleAfterEntry": true,
+      "filteredNodesAfterEntry": true,
+      "queryPersistedAfterGraphReopen": true,
+      "filteredNodesAfterGraphReopen": true,
+      "firstProcessExitedBeforeRestart": true,
+      "secondProcessStarted": true,
+      "queryPersistedAfterAppRestart": true,
+      "filteredNodesAfterAppRestart": true,
+      "cameraInputChanged": true,
+      "zoomPersistedAfterGraphReopen": true,
+      "panResetAfterGraphReopen": true,
+      "zoomPersistedAfterAppRestart": true,
+      "panResetAfterAppRestart": true,
+      "lightThemeEveryObservation": true,
+      "isolatedUserDataEverySession": true,
+      "isolatedVaultEverySession": true,
+      "offscreenEverySession": true,
+      "sourceUnchanged": true,
+      "isolatedVaultProtectedFilesUnchanged": true,
+      "protocolRestored": true
+    },
+    "tsuzune": {
+      "exactNodeSetAtEveryCheckpoint": true,
+      "cameraInputApplied": true,
+      "zoomRestoredAfterGraphReopen": true,
+      "panResetAfterGraphReopen": true,
+      "zoomRestoredAfterAppRestart": true,
+      "panResetAfterAppRestart": true,
+      "settingsPersisted": true,
+      "contentViewportStable": true,
+      "filteredNodeSetStable": true,
+      "separateApplicationProcesses": true,
+      "sourceFixtureUnchanged": true,
+      "productSourceUnchanged": true,
+      "builtApplicationUnchanged": true,
+      "isolatedMarkdownUnchanged": true,
+      "noIsolatedProcessesRemaining": true
+    }
+  },
+  "notEstablished": [
+    "pixel-level visual parity",
+    "Obsidian zoom easing curve parity",
+    "Local Graph camera lifecycle",
+    "fit/reset and zoom-limit behavior in this lifecycle slice",
+    "workspace leaf auto-restoration parity",
+    "physical mouse and trusted-event parity"
+  ],
+  "conclusion": "Both products persist Global Graph zoom across Graph reopen and full app restart, while pan returns to the centered origin. No TSUZUNE product-code change is required for this slice."
+}

@@ -1,0 +1,35 @@
+{
+  "task": "CP1-B-01-reference-completion",
+  "result": "blocked",
+  "captured_at": "2026-08-12T12:05:00.000Z",
+  "fixed_artifact": {
+    "installer_sha256": "8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0",
+    "asar_sha256": "51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917",
+    "asar_package_version": "1.13.4",
+    "window_title_reported_version": "1.13.6"
+  },
+  "isolation": {
+    "vault": "%TEMP%/cp1b-reference-completion-d6e3f4013641415f9cdc94888cd864e5/vault",
+    "user_data": "%TEMP%/cp1b-reference-completion-d6e3f4013641415f9cdc94888cd864e5/userdata",
+    "initial_processes_verified": 4,
+    "cleanup_exit_confirmed": true
+  },
+  "fixture": {
+    "git_clean_before": true,
+    "git_clean_after": true,
+    "current_full_tree_sha256": "3AC87B1F134207B122E690A7E55D02B67935F23B726FF5F2CB70F12A1336D7D3"
+  },
+  "retries": [
+    "Launch with --vault: Obsidian showed the vault picker, so no setting UI was changed.",
+    "Fresh userData with an isolated obsidian.json: opened the fixture successfully.",
+    "app.setting and app:open-settings probes: did not expose the settings page in this fixed runtime.",
+    "Visible isolated window plus Computer Use: accessibility exposed the workspace but not usable geometry for the Settings command. No guessed-coordinate click was sent."
+  ],
+  "missing_evidence": [
+    "plus-triggered add flow",
+    "populated exclusion row",
+    "remove flow",
+    "persistence after a new process start"
+  ],
+  "reason": "The add flow could not be driven safely with the available fixed capture path. A real restart would not establish the required persistence until a populated row existed, so it was not claimed."
+}

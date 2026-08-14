@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>GP0-3b-c Camera Persistence — Obsidian 1.13.4 × TSUZUNE</title>
+  <style>
+    :root { color-scheme: light; --ink:#1f2924; --muted:#66716a; --paper:#f5f3ec; --card:#fffdf8; --line:#d8ddd7; --accent:#0f766e; --soft:#ddf3ef; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:radial-gradient(circle at 10% 0%,rgb(15 118 110 / 10%),transparent 32rem),var(--paper); color:var(--ink); font-family:Inter,"Segoe UI","Noto Sans JP",sans-serif; line-height:1.65; }
+    main { width:min(1180px,calc(100% - 32px)); margin:auto; padding:60px 0 72px; }
+    h1 { margin:0; max-width:980px; font-size:clamp(2.2rem,5vw,4.4rem); line-height:1.04; letter-spacing:-.045em; }
+    h2 { margin:56px 0 10px; font-size:clamp(1.4rem,3vw,2.1rem); }
+    h3 { margin:0 0 12px; }
+    .eyebrow { margin:0 0 10px; color:var(--accent); font-size:.78rem; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
+    .lede { max-width:880px; color:#445149; font-size:1.12rem; }
+    .verdict { display:inline-block; margin-top:18px; padding:8px 14px; border:1px solid #9bcfc5; border-radius:999px; background:var(--soft); color:#0b625c; font-weight:750; }
+    .cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:30px; }
+    .card,.table-wrap,.checkpoint { border:1px solid var(--line); border-radius:18px; background:rgb(255 253 248 / 94%); box-shadow:0 12px 32px rgb(35 48 41 / 8%); }
+    .card { padding:20px; }
+    .card strong { display:block; font-size:1.35rem; }
+    .card span,.note { color:var(--muted); }
+    .table-wrap { overflow:auto; }
+    table { width:100%; min-width:760px; border-collapse:collapse; }
+    th,td { padding:14px 16px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { background:#edf1ec; color:#3b4840; font-size:.78rem; letter-spacing:.05em; text-transform:uppercase; }
+    tr:last-child td { border-bottom:0; }
+    .match { color:var(--accent); font-weight:800; }
+    .different { color:#b42318; font-weight:800; }
+    .checkpoint { margin-top:18px; padding:18px; }
+    .shots { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    figure { margin:0; }
+    figcaption { margin-bottom:8px; color:var(--muted); font-size:.9rem; font-weight:700; }
+    img { display:block; width:100%; border:1px solid var(--line); border-radius:12px; background:#fff; }
+    code { padding:.1rem .35rem; border:1px solid var(--line); border-radius:.35rem; background:#fff; }
+    .scope { padding:18px 20px; border-left:4px solid #d39b37; border-radius:12px; background:#fff1cf; color:#71480d; }
+    @media (max-width:780px) { .cards,.shots { grid-template-columns:1fr; } main { padding-top:36px; } }
+  </style>
+</head>
+<body><main>
+  <p class="eyebrow">GP0-3b-c · Camera lifecycle</p>
+  <h1>ズームは残り、パンは中央へ戻る。</h1>
+  <p class="lede">固定Obsidian Desktop 1.13.4とTSUZUNEを、同じfixture・1265×768・DPR 1・ライトテーマで比較しました。制御された論理入力後、Graph再表示後、完全再起動後のカメラ契約は一致しています。</p>
+  <div class="verdict">6 / 6 camera checks matched</div>
+  <div class="cards"><div class="card"><strong>1.5×</strong><span>両製品で保存されるズーム</span></div><div class="card"><strong>+96, +64</strong><span>背景ドラッグで適用したパン</span></div><div class="card"><strong>0, 0</strong><span>再表示・再起動後の中央オフセット</span></div></div>
+  <h2>契約比較</h2>
+  <p class="note">Obsidianの生panはdevice pixel中心座標なので、canvas中央からのオフセットへ正規化しています。ズームは補間中の描画値ではなく、保存対象の<code>targetScale</code>を正本にしました。</p>
+  <div class="table-wrap"><table><thead><tr><th>Check</th><th>Obsidian</th><th>TSUZUNE</th><th>Status</th></tr></thead><tbody><tr><td>ホイールで1.5倍ズーム</td><td>1.5</td><td>1.5</td><td class="match">一致</td></tr>
+<tr><td>背景を+96,+64 CSS pxパン</td><td>[95.76, 64.00]</td><td>[96.00, 64.00]</td><td class="match">一致</td></tr>
+<tr><td>Graph再表示後のズーム</td><td>保持</td><td>保持</td><td class="match">一致</td></tr>
+<tr><td>Graph再表示後のパン</td><td>中央へリセット</td><td>中央へリセット</td><td class="match">一致</td></tr>
+<tr><td>アプリ再起動後のズーム</td><td>保持</td><td>保持</td><td class="match">一致</td></tr>
+<tr><td>アプリ再起動後のパン</td><td>中央へリセット</td><td>中央へリセット</td><td class="match">一致</td></tr></tbody></table></div>
+  <h2>画面証拠</h2>
+  <section class="checkpoint"><h3>Baseline</h3><div class="shots"><figure><figcaption>Obsidian 1.13.4</figcaption><img src="assets/graph-gp0-camera-persistence/obsidian-1.13.4/00-baseline.png" alt="Baseline in Obsidian"></figure><figure><figcaption>TSUZUNE</figcaption><img src="assets/graph-gp0-camera-persistence/tsuzune-working-tree/00-baseline.png" alt="Baseline in TSUZUNE"></figure></div></section>
+<section class="checkpoint"><h3>After camera input</h3><div class="shots"><figure><figcaption>Obsidian 1.13.4</figcaption><img src="assets/graph-gp0-camera-persistence/obsidian-1.13.4/01-after-camera-input.png" alt="After camera input in Obsidian"></figure><figure><figcaption>TSUZUNE</figcaption><img src="assets/graph-gp0-camera-persistence/tsuzune-working-tree/01-after-camera-input.png" alt="After camera input in TSUZUNE"></figure></div></section>
+<section class="checkpoint"><h3>After Graph reopen</h3><div class="shots"><figure><figcaption>Obsidian 1.13.4</figcaption><img src="assets/graph-gp0-camera-persistence/obsidian-1.13.4/02-after-graph-reopen.png" alt="After Graph reopen in Obsidian"></figure><figure><figcaption>TSUZUNE</figcaption><img src="assets/graph-gp0-camera-persistence/tsuzune-working-tree/02-after-graph-reopen.png" alt="After Graph reopen in TSUZUNE"></figure></div></section>
+<section class="checkpoint"><h3>After app restart</h3><div class="shots"><figure><figcaption>Obsidian 1.13.4</figcaption><img src="assets/graph-gp0-camera-persistence/obsidian-1.13.4/03-after-app-restart.png" alt="After app restart in Obsidian"></figure><figure><figcaption>TSUZUNE</figcaption><img src="assets/graph-gp0-camera-persistence/tsuzune-working-tree/03-after-app-restart.png" alt="After app restart in TSUZUNE"></figure></div></section>
+  <h2>判断</h2>
+  <p><strong>TSUZUNE本体の修正は不要です。</strong> パンを永続化すると、今回固定したObsidian 1.13.4の公開挙動から逆に離れます。比較・再現スクリプトと証拠のみ追加しました。</p>
+  <div class="scope">入力機構はObsidian側がCDPマウス入力、TSUZUNE側が隔離オフスクリーンのDOM合成入力です。この結果はGlobal Graphのカメラ生命周期だけを確定します。物理マウス／trusted event、pixel単位の描画一致、Obsidianのズーム補間曲線、Local Graph、fit/reset、workspace leaf自動復元は未確定です。</div>
+</main></body></html>

@@ -1,0 +1,537 @@
+{
+  "vault": "fixtures/obsidian-graph-parity-vault",
+  "before": {
+    "fileCount": 7,
+    "relativePaths": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md"
+    ],
+    "combinedSha256": "54B472FF4C646CF8858BBAF700F562CD001927123A18B72FE98398BCDBDBC59B"
+  },
+  "after": {
+    "fileCount": 7,
+    "relativePaths": [
+      "00_Home.md",
+      "10_projects/Project Alpha.md",
+      "10_projects/Project Beta.md",
+      "20_knowledge/Distillation.md",
+      "20_knowledge/Reference.md",
+      "80_excluded/Hidden.md",
+      "90_orphan/Orphan.md"
+    ],
+    "combinedSha256": "54B472FF4C646CF8858BBAF700F562CD001927123A18B72FE98398BCDBDBC59B"
+  },
+  "markdownUnchanged": true,
+  "forceSettingsSaved": {
+    "centerForce": 1,
+    "repelForce": 10,
+    "linkForce": 1,
+    "linkDistance": 250
+  },
+  "defaultState": {
+    "viewport": {
+      "left": 260,
+      "top": 116,
+      "right": 1024,
+      "bottom": 731
+    },
+    "sliders": {
+      "中心力": "0.518713248970312",
+      "反発力": "10",
+      "リンクする力": "1",
+      "リンク距離": "250"
+    },
+    "nodes": [
+      {
+        "path": "00_Home.md",
+        "left": 526,
+        "top": 278,
+        "screen": {
+          "centerX": 785.53125,
+          "centerY": 385.21856689453125
+        },
+        "marker": {
+          "width": 33.4062,
+          "height": 33.4062,
+          "borderRadius": "50%"
+        }
+      },
+      {
+        "path": "10_projects/Project Alpha.md",
+        "left": 306,
+        "top": 396,
+        "screen": {
+          "centerX": 565.859375,
+          "centerY": 511.78125
+        },
+        "marker": {
+          "width": 16,
+          "height": 16,
+          "borderRadius": "50%"
+        }
+      },
+      {
+        "path": "20_knowledge/Reference.md",
+        "left": 332,
+        "top": 130,
+        "screen": {
+          "centerX": 591.75,
+          "centerY": 245.59375
+        },
+        "marker": {
+          "width": 16,
+          "height": 16,
+          "borderRadius": "50%"
+        }
+      },
+      {
+        "path": "80_excluded/Hidden.md",
+        "left": 417,
+        "top": 496,
+        "screen": {
+          "centerX": 676.953125,
+          "centerY": 612.109375
+        },
+        "marker": {
+          "width": 16,
+          "height": 16,
+          "borderRadius": "50%"
+        }
+      },
+      {
+        "path": "Missing Note.md",
+        "left": 276,
+        "top": 265,
+        "screen": {
+          "centerX": 536.234375,
+          "centerY": 381.234375
+        },
+        "marker": {
+          "width": 16,
+          "height": 16,
+          "borderRadius": "50%"
+        }
+      }
+    ],
+    "edgeCount": 4
+  },
+  "centerMaximum": {
+    "viewport": {
+      "left": 260,
+      "top": 116,
+      "right": 1024,
+      "bottom": 731
+    },
+    "sliders": {
+      "中心力": "1",
+      "反発力": "10",
+      "リンクする力": "1",
+      "リンク距離": "250"
+    },
+    "nodes": [
+      {
+        "path": "00_Home.md",
+        "left": 475,
+        "top": 380,
+        "screen": {
+          "centerX": 734.578125,
+          "centerY": 486.98419189453125
+        },
+        "marker": {
+          "width": 33.4062,
+          "height": 33.4062,
+          "borderRadius": "50%"
+        }
+      },
+      {
+        "path": "10_projects/Project Alpha.md",
+        "left": 378,
+        "top": 309,
+        "screen": {
+          "centerX": 637.96875,
+          "centerY": 424.953125
+        },
+        "marker": {
+          "width": 16,
+          "height": 16,
+          "borderRadius": "50%"
+        }
+      },
+      {
+        "path": "20_knowledge/Reference.md",
+        "left": 398,
+        "top": 191,
+        "screen": {
+          "centerX": 658.34375,
+          "centerY": 306.8125
+        },
+        "marker": {
+          "width": 16,
+          "height": 16,
+          "borderRadius": "50%"
+        }
+      },
+      {
+        "path": "80_excluded/Hidden.md",
+        "left": 266,
+        "top": 351,
+        "screen": {
+          "centerX": 525.546875,
+          "centerY": 466.546875
+        },
+        "marker": {
+          "width": 16,
+          "height": 16,
+          "borderRadius": "50%"
+        }
+      },
+      {
+        "path": "Missing Note.md",
+        "left": 286,
+        "top": 232,
+        "screen": {
+          "centerX": 545.765625,
+          "centerY": 348.28125
+        },
+        "marker": {
+          "width": 16,
+          "height": 16,
+          "borderRadius": "50%"
+        }
+      }
+    ],
+    "edgeCount": 4
+  },
+  "vaultFit": {
+    "viewport": {
+      "left": 260,
+      "top": 116,
+      "right": 1024,
+      "bottom": 731
+    },
+    "sliders": {
+      "中心力": null,
+      "反発力": null,
+      "リンクする力": null,
+      "リンク距離": null
+    },
+    "nodes": [
+      {
+        "path": "00_Home.md",
+        "left": 474,
+        "top": 340,
+        "screen": {
+          "centerX": 808.3045043945312,
+          "centerY": 436.3556213378906
+        },
+        "marker": {
+          "width": 11.3281,
+          "height": 11.3281,
+          "borderRadius": "50%"
+        }
+      },
+      {
+        "path": "10_projects/Project Alpha.md",
+        "left": 360,
+        "top": 304,
+        "screen": {
+          "centerX": 580.7707366943359,
+          "centerY": 364.3457336425781
+        },
+        "marker": {
+          "width": 11.3281,
+          "height": 11.3281,
+          "borderRadius": "50%"
+        }
+      },
+      {
+        "path": "10_projects/Project Beta.md",
+        "left": 529,
+        "top": 234,
+        "screen": {
+          "centerX": 918.0294189453125,
+          "centerY": 224.865478515625
+        },
+        "marker": {
+          "width": 11.3281,
+          "height": 11.3281,
+          "borderRadius": "50%"
+        }
+      },
+      {
+        "path": "20_knowledge/Distillation.md",
+        "left": 417,
+        "top": 446,
+        "screen": {
+          "centerX": 695.2216796875,
+          "centerY": 645.980224609375
+        },
+        "marker": {
+          "width": 11.3281,
+          "height": 11.3281,
+          "borderRadius": "50%"
+        }
+      },
+      {
+        "path": "20_knowledge/Reference.md",
+        "left": 415,
+        "top": 198,
+        "screen": {
+          "centerX": 690.930908203125,
+          "centerY": 152.60684204101562
+        },
+        "marker": {
+          "width": 11.3281,
+          "height": 11.3281,
+          "borderRadius": "50%"
+        }
+      },
+      {
+        "path": "80_excluded/Hidden.md",
+        "left": 240,
+        "top": 308,
+        "screen": {
+          "centerX": 342.0436553955078,
+          "centerY": 372.0877380371094
+        },
+        "marker": {
+          "width": 11.3281,
+          "height": 11.3281,
+          "borderRadius": "50%"
+        }
+      },
+      {
+        "path": "90_orphan/Orphan.md",
+        "left": 303,
+        "top": 410,
+        "screen": {
+          "centerX": 467.8122253417969,
+          "centerY": 574.6544189453125
+        },
+        "marker": {
+          "width": 11.3281,
+          "height": 11.3281,
+          "borderRadius": "50%"
+        }
+      },
+      {
+        "path": "Missing Note.md",
+        "left": 295,
+        "top": 202,
+        "screen": {
+          "centerX": 452.7013702392578,
+          "centerY": 160.93960571289062
+        },
+        "marker": {
+          "width": 11.3281,
+          "height": 11.3281,
+          "borderRadius": "50%"
+        }
+      }
+    ],
+    "edgeCount": 8
+  },
+  "timeline": {
+    "counts": {
+      "start": 0,
+      "middle": 1,
+      "end": 7
+    },
+    "start": {
+      "viewport": {
+        "left": 260,
+        "top": 116,
+        "right": 1024,
+        "bottom": 731
+      },
+      "sliders": {
+        "中心力": null,
+        "反発力": null,
+        "リンクする力": null,
+        "リンク距離": null
+      },
+      "nodes": [],
+      "edgeCount": 0
+    },
+    "middle": {
+      "viewport": {
+        "left": 260,
+        "top": 116,
+        "right": 1024,
+        "bottom": 731
+      },
+      "sliders": {
+        "中心力": null,
+        "反発力": null,
+        "リンクする力": null,
+        "リンク距離": null
+      },
+      "nodes": [
+        {
+          "path": "00_Home.md",
+          "left": 444,
+          "top": 276,
+          "screen": {
+            "centerX": 748.0475463867188,
+            "centerY": 307.9442443847656
+          },
+          "marker": {
+            "width": 11.3281,
+            "height": 11.3281,
+            "borderRadius": "50%"
+          }
+        },
+        {
+          "path": "Missing Note.md",
+          "left": 320,
+          "top": 339,
+          "screen": {
+            "centerX": 501.88941955566406,
+            "centerY": 434.3968200683594
+          },
+          "marker": {
+            "width": 11.3281,
+            "height": 11.3281,
+            "borderRadius": "50%"
+          }
+        }
+      ],
+      "edgeCount": 1
+    },
+    "end": {
+      "viewport": {
+        "left": 260,
+        "top": 116,
+        "right": 1024,
+        "bottom": 731
+      },
+      "sliders": {
+        "中心力": null,
+        "反発力": null,
+        "リンクする力": null,
+        "リンク距離": null
+      },
+      "nodes": [
+        {
+          "path": "00_Home.md",
+          "left": 394,
+          "top": 176,
+          "screen": {
+            "centerX": 649.0184326171875,
+            "centerY": 109.45068359375
+          },
+          "marker": {
+            "width": 11.3281,
+            "height": 11.3281,
+            "borderRadius": "50%"
+          }
+        },
+        {
+          "path": "10_projects/Project Alpha.md",
+          "left": 496,
+          "top": 354,
+          "screen": {
+            "centerX": 851.802734375,
+            "centerY": 463.9345397949219
+          },
+          "marker": {
+            "width": 11.3281,
+            "height": 11.3281,
+            "borderRadius": "50%"
+          }
+        },
+        {
+          "path": "10_projects/Project Beta.md",
+          "left": 291,
+          "top": 232,
+          "screen": {
+            "centerX": 443.6534729003906,
+            "centerY": 220.1705322265625
+          },
+          "marker": {
+            "width": 11.3281,
+            "height": 11.3281,
+            "borderRadius": "50%"
+          }
+        },
+        {
+          "path": "20_knowledge/Reference.md",
+          "left": 228,
+          "top": 332,
+          "screen": {
+            "centerX": 319.37733459472656,
+            "centerY": 419.7523498535156
+          },
+          "marker": {
+            "width": 11.3281,
+            "height": 11.3281,
+            "borderRadius": "50%"
+          }
+        },
+        {
+          "path": "20_knowledge/Distillation.md",
+          "left": 495,
+          "top": 237,
+          "screen": {
+            "centerX": 849.1598510742188,
+            "centerY": 230.49319458007812
+          },
+          "marker": {
+            "width": 11.3281,
+            "height": 11.3281,
+            "borderRadius": "50%"
+          }
+        },
+        {
+          "path": "80_excluded/Hidden.md",
+          "left": 430,
+          "top": 451,
+          "screen": {
+            "centerX": 720.5308227539062,
+            "centerY": 655.9609375
+          },
+          "marker": {
+            "width": 11.3281,
+            "height": 11.3281,
+            "borderRadius": "50%"
+          }
+        },
+        {
+          "path": "90_orphan/Orphan.md",
+          "left": 391,
+          "top": 296,
+          "screen": {
+            "centerX": 643.3284912109375,
+            "centerY": 348.6441345214844
+          },
+          "marker": {
+            "width": 11.3281,
+            "height": 11.3281,
+            "borderRadius": "50%"
+          }
+        },
+        {
+          "path": "Missing Note.md",
+          "left": 326,
+          "top": 396,
+          "screen": {
+            "centerX": 513.4868927001953,
+            "centerY": 546.7645263671875
+          },
+          "marker": {
+            "width": 11.3281,
+            "height": 11.3281,
+            "borderRadius": "50%"
+          }
+        }
+      ],
+      "edgeCount": 8
+    }
+  },
+  "positionsChanged": true
+}

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TSUZUNE Graph Runtime Closure Report</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Segoe UI", "Yu Gothic UI", sans-serif;
+      color: #2f3d3a;
+      background: #ece8df;
+    }
+    body { margin: 0; }
+    main { width: min(1180px, calc(100% - 32px)); margin: 32px auto 64px; }
+    header, section {
+      background: #fffdf8;
+      border: 1px solid #d8d0c3;
+      border-radius: 14px;
+      box-shadow: 0 8px 28px #3a4a4614;
+    }
+    header { padding: 28px; background: #294b46; color: #fff; }
+    header p { margin: 8px 0 0; color: #dcebe8; }
+    section { margin-top: 18px; padding: 24px; }
+    h1, h2, h3 { margin-top: 0; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .badge {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #dcebe8;
+      color: #244e48;
+      font-weight: 700;
+    }
+    .verdict {
+      padding: 16px 18px;
+      border-left: 5px solid #2d786b;
+      background: #edf6f3;
+      line-height: 1.7;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+      gap: 18px;
+    }
+    figure {
+      margin: 0;
+      border: 1px solid #ded8cb;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #f6f2e9;
+    }
+    img { display: block; width: 100%; height: auto; }
+    figcaption { padding: 12px 14px; line-height: 1.55; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid #e4ddd1; text-align: left; vertical-align: top; }
+    th { width: 28%; }
+    .pass { color: #246b4b; font-weight: 800; }
+    .pending { color: #8a5a12; font-weight: 800; }
+    code { background: #f0ece3; padding: 2px 5px; border-radius: 4px; }
+    a { color: #176b60; }
+    li { margin: 8px 0; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Graph Explorer — GP5-2 Runtime Closure</h1>
+    <p>継続Force、全Markdown表示、円形ノード、Force設定、fit、time-lapse増分graphを隔離Electronで検証した。</p>
+    <div class="badges">
+      <span class="badge">47 focused tests PASS</span>
+      <span class="badge">Production build PASS</span>
+      <span class="badge">6 Electron captures PASS</span>
+      <span class="badge">Markdown unchanged</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>現在の判定</h2>
+    <p class="verdict">
+      <strong>GP5-2のTSUZUNE側実装は検証済み。</strong>
+      Animate中は表示済みprefixだけがForce simulationへ入り、追加ごとに再加熱する。
+      通常のlive topology更新では生存ノードの座標を保持する。
+      ただし、Obsidian Desktop 1.13.4との同条件比較は未実施のため、Graph parity全体を
+      <code>matched</code>とは判定しない。
+    </p>
+  </section>
+
+  <section>
+    <h2>ForceとVault全体</h2>
+    <div class="grid">
+      <figure>
+        <img src="assets/graph-gp1/01-force-defaults.png" alt="Force既定値を表示するローカルグラフ">
+        <figcaption>公開4設定の既定状態。中心力 <code>0.518713248970312</code>、反発力 <code>10</code>、リンクする力 <code>1</code>、リンク距離 <code>250</code>。</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/graph-gp1/02-center-force-maximum.png" alt="中心力を最大値へ変更したローカルグラフ">
+        <figcaption>中心力を最大値 <code>1</code>へ変更。ノード配置が変化し、値が隔離settingsへ保存された。</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/graph-gp1/03-vault-force-fit.png" alt="全Markdownと未解決リンクを表示するVault全体グラフ">
+        <figcaption>Vault全体。7件すべてのMarkdown、未解決ノード1件、8辺を表示し、<code>0</code>キーのfit後は全ノードが画面内にある。</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Time-lapseの開始・途中・終了</h2>
+    <div class="grid">
+      <figure>
+        <img src="assets/graph-gp1/04-timeline-start.png" alt="Time-lapse開始時の空のグラフ">
+        <figcaption><strong>開始:</strong> Markdown 0件、辺0件。未来ノードはsimulationへ先行投入されない。</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/graph-gp1/05-timeline-middle.png" alt="Time-lapse途中で最初のノートが現れたグラフ">
+        <figcaption><strong>途中:</strong> Markdown 1件。最初の接続と同時に未解決ノードも現れ、辺は1件。</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/graph-gp1/06-timeline-end.png" alt="Time-lapse終了時に全ノートが現れたグラフ">
+        <figcaption><strong>終了:</strong> Markdown 7件と未解決ノード1件、辺8件。通常のVault全体graphへ戻る。</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>機械検証</h2>
+    <table>
+      <tr><th>項目</th><th>結果</th></tr>
+      <tr><td>Graph runtime tests</td><td class="pass">2 files / 47 tests PASS</td></tr>
+      <tr><td>TypeScript・production build</td><td class="pass">PASS</td></tr>
+      <tr><td>Time-lapse Markdown件数</td><td class="pass"><code>0 → 1 → 7</code></td></tr>
+      <tr><td>終了時の辺</td><td class="pass">通常表示と同じ8件</td></tr>
+      <tr><td>全Markdown表示</td><td class="pass">7 / 7件</td></tr>
+      <tr><td>円形ノード</td><td class="pass">幅＝高さ、<code>border-radius: 50%</code></td></tr>
+      <tr><td>Markdown invariant</td><td class="pass">7 files、SHA-256 <code>54B472FF…BC59B</code> 前後一致</td></tr>
+      <tr><td>詳細JSON</td><td><a href="assets/graph-gp1/capture-result.json">capture-result.json</a></td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>未完了の一致判定</h2>
+    <ul>
+      <li><span class="pending">GP6:</span> Obsidian Desktop 1.13.4と同一viewport、DPI、theme、fixtureで画像・動画・JSONを比較する。</li>
+      <li>node drag解放後、camera、context menu、Groups drag、Restore defaults、再起動後の保存単位を固定する。</li>
+      <li>Search files、Excluded files、色、fade、矢印、slider端値を同じ入力で比較し、差分だけを修正する。</li>
+      <li>大規模Vault最適化は、GP6で計測して必要性が確認された場合だけ行う。</li>
+    </ul>
+    <p>比較契約は <a href="../obsidian-graph-parity-reference.md">obsidian-graph-parity-reference.md</a>、実行順は <a href="../../PLAN.md">PLAN.md</a> を正本とする。</p>
+    <p>公開挙動の基準: <a href="https://obsidian.md/help/plugins/graph">Obsidian Help — Graph view</a></p>
+  </section>
+</main>
+</body>
+</html>

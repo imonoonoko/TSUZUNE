@@ -1,0 +1,75 @@
+{
+  "capturedAt": "2026-08-03T11:00:45.786Z",
+  "stage": "GP0-3b Global Graph search persistence working-tree evidence",
+  "status": "captured",
+  "comparisonStatus": "Compare with docs/reports/assets/graph-gp0-search-persistence/comparison.json",
+  "command": "npm run build && node scripts/capture-graph-gp0-3b-search-restart.mjs",
+  "isolation": {
+    "sourceFixture": "fixtures/obsidian-graph-parity-vault",
+    "copiedVault": "work/graph-gp0-3b-search-restart-working-tree/vault",
+    "userData": "work/graph-gp0-3b-search-restart-working-tree/userdata",
+    "windowBounds": {
+      "x": -32000,
+      "y": -32000,
+      "width": 1280,
+      "height": 800
+    },
+    "network": "host resolver blocked except localhost"
+  },
+  "processIds": [
+    7788,
+    7696
+  ],
+  "assertions": {
+    "queryEntered": true,
+    "queryRestoredAfterGraphReopen": true,
+    "queryRestoredAfterAppRestart": true,
+    "filteredNodeSetStable": true,
+    "settingsPersisted": true,
+    "separateApplicationProcesses": true,
+    "sourceFixtureUnchanged": true,
+    "productSourceUnchanged": true,
+    "builtApplicationUnchanged": true,
+    "isolatedMarkdownUnchanged": true,
+    "noIsolatedProcessesRemaining": true
+  },
+  "artifacts": [
+    {
+      "path": "docs/reports/assets/graph-gp0-3b-search-restart-working-tree/01-query-entered.png",
+      "bytes": 95543,
+      "sha256": "3B330655E889F1BEE55C2FCF61105CAD9B8A3EC291C0E3B937EE957AB6C3D094",
+      "width": 1264,
+      "height": 761
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-3b-search-restart-working-tree/02-graph-reopened.png",
+      "bytes": 94825,
+      "sha256": "5FEE0CABF3C7571A15398D71870A18C93518F606901E6C0756F11F18EB88E7A2",
+      "width": 1264,
+      "height": 761
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-3b-search-restart-working-tree/03-app-restarted.png",
+      "bytes": 94847,
+      "sha256": "08F4858C9074F1A9B64CCB4445BCD83902A1FD43D411B4D5742CB7ECF727F82E",
+      "width": 1264,
+      "height": 761
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-3b-search-restart-working-tree/phase-initial.json",
+      "bytes": 1622,
+      "sha256": "ADD83BB815CC5E534CB01135FD317E7AC84A3A88AD0E481E37E37F1E8D70336C"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-3b-search-restart-working-tree/phase-restarted.json",
+      "bytes": 956,
+      "sha256": "B7C41F023AC9288AE50B6E977C19A5FA9D0F3F1802B2426F66B1D453D7BD7B5C"
+    },
+    {
+      "path": "docs/reports/assets/graph-gp0-3b-search-restart-working-tree/observation.json",
+      "bytes": 5076,
+      "sha256": "5D8172F14FCCB7B8C7ED5EE2BDBDA46A404180A9D564074ECF6EF9D12E2042A4"
+    }
+  ],
+  "next": "Continue GP0-3b with the remaining camera, drag, menu, animation, and reset behaviors."
+}
