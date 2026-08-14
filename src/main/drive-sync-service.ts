@@ -13,6 +13,7 @@ import type {
   DriveSyncApplyResult,
   DriveSyncPreview,
   EntryOperationOutput,
+  MoveNoteInput,
   SaveNoteInput,
   SaveNoteOutput,
   VaultSnapshot
@@ -20,13 +21,19 @@ import type {
 import {
   createMarkdown,
   downloadMarkdown,
+  DriveChangeTokenInvalidError,
   ensureVaultRoot,
+  getDriveStartPageToken,
+  listDriveChanges,
   listVaultFiles,
   listVaultRoots,
+  moveMarkdown,
   updateMarkdown,
   type CreateMarkdownInput,
+  type DriveChangePage,
   type DriveMarkdownFile,
   type DriveVaultRoot,
+  type MoveMarkdownInput,
   type UpdateMarkdownInput
 } from './google-drive'
 
@@ -40,10 +47,17 @@ interface SyncVault {
   saveNote(input: SaveNoteInput): Promise<SaveNoteOutput>
   createNote(input: CreateNoteInput): Promise<EntryOperationOutput>
   createDirectory(input: CreateDirectoryInput): Promise<EntryOperationOutput>
+  moveNote(input: MoveNoteInput): Promise<EntryOperationOutput>
 }
 
 export interface DriveSyncRemote {
   list(accessToken: string, vaultId: string): Promise<DriveMarkdownFile[]>
+  getStartPageToken(accessToken: string): Promise<string>
+  listChanges(
+    accessToken: string,
+    pageToken: string,
+    vaultId: string
+  ): Promise<DriveChangePage>
   listRoots(accessToken: string): Promise<DriveVaultRoot[]>
   download(accessToken: string, fileId: string): Promise<string>
   ensureRoot(
@@ -59,12 +73,23 @@ export interface DriveSyncRemote {
     accessToken: string,
     input: UpdateMarkdownInput
   ): Promise<DriveMarkdownFile>
+  move(
+    accessToken: string,
+    input: MoveMarkdownInput
+  ): Promise<DriveMarkdownFile>
 }
 
 interface LedgerFile {
   fileId: string
   localHash: string
   remoteHash: string
+  remoteVersion?: string
+}
+
+interface RemoteLedgerFile {
+  fileId: string
+  remoteHash: string
+  remoteVersion: string
 }
 
 interface VaultLedger {
@@ -73,6 +98,9 @@ interface VaultLedger {
   rootFolderId: string | null
   lastSyncAt: string | null
   files: Record<string, LedgerFile>
+  remoteFiles?: Record<string, RemoteLedgerFile>
+  changeToken?: string
+  pendingMoves?: Record<string, string>
 }
 
 interface SyncLedger {
@@ -89,7 +117,7 @@ interface LocalFile {
 
 interface RemoteFile {
   path: string
-  content: string
+  content: string | null
   hash: string
   fileId: string
   version: string
@@ -104,6 +132,7 @@ interface Inspection {
   remote: Map<string, RemoteFile>
   decisions: DriveSyncDecision[]
   fingerprint: string
+  nextChangeToken: string
 }
 
 interface PendingPlan {
@@ -137,6 +166,10 @@ function defaultRemote(fetchImpl: typeof fetch = globalThis.fetch): DriveSyncRem
   return {
     list: (accessToken, vaultId) =>
       listVaultFiles(accessToken, vaultId, fetchImpl),
+    getStartPageToken: (accessToken) =>
+      getDriveStartPageToken(accessToken, fetchImpl),
+    listChanges: (accessToken, pageToken, vaultId) =>
+      listDriveChanges(accessToken, pageToken, vaultId, fetchImpl),
     listRoots: (accessToken) => listVaultRoots(accessToken, fetchImpl),
     download: (accessToken, fileId) =>
       downloadMarkdown(accessToken, fileId, fetchImpl),
@@ -145,7 +178,9 @@ function defaultRemote(fetchImpl: typeof fetch = globalThis.fetch): DriveSyncRem
     create: (accessToken, input) =>
       createMarkdown(accessToken, input, fetchImpl),
     update: (accessToken, input) =>
-      updateMarkdown(accessToken, input, fetchImpl)
+      updateMarkdown(accessToken, input, fetchImpl),
+    move: (accessToken, input) =>
+      moveMarkdown(accessToken, input, fetchImpl)
   }
 }
 
@@ -153,6 +188,7 @@ function countActions(items: DriveSyncDecision[]): DriveSyncPreview['counts'] {
   return {
     upload: items.filter((item) => item.action === 'upload').length,
     download: items.filter((item) => item.action === 'download').length,
+    move: items.filter((item) => item.action === 'move').length,
     conflict: items.filter((item) => item.action === 'conflict').length,
     preserve: items.filter((item) => item.action === 'preserve').length
   }
@@ -226,6 +262,10 @@ export class DriveSyncService {
     if (current) {
       current.vaultId = vaultId
       current.rootFolderId = rootFolderId
+      if (!sameBinding) {
+        current.changeToken = undefined
+        current.remoteFiles = undefined
+      }
     } else {
       ledger.vaults.push({
         rootPath,
@@ -253,6 +293,26 @@ export class DriveSyncService {
     }
   }
 
+  async recordLocalMove(oldPath: string, path: string): Promise<void> {
+    if (oldPath === path) return
+    const rootPath = this.requireRootPath()
+    const ledger = await this.readLedger()
+    const vault = ledger.vaults.find((entry) => entry.rootPath === rootPath)
+    if (!vault) return
+
+    const pendingMoves = { ...(vault.pendingMoves ?? {}) }
+    const originalPath =
+      Object.entries(pendingMoves).find(([, target]) => target === oldPath)?.[0] ??
+      oldPath
+    if (!vault.files[originalPath]) return
+
+    delete pendingMoves[originalPath]
+    if (originalPath !== path) pendingMoves[originalPath] = path
+    vault.pendingMoves = pendingMoves
+    await this.writeLedger(ledger)
+    this.pendingPlan = null
+  }
+
   async preview(): Promise<DriveSyncPreview> {
     const rootPath = this.requireRootPath()
     const ledger = await this.readLedger()
@@ -270,14 +330,20 @@ export class DriveSyncService {
     }
 
     const inspection = await this.inspect(vault)
+    if (inspection.decisions.length === 0) {
+      vault.remoteFiles = this.remoteLedger(inspection.remote)
+      vault.changeToken = inspection.nextChangeToken
+      await this.writeLedger(ledger)
+    }
     const createdAt = this.now().toISOString()
     const preview: DriveSyncPreview = {
       planId: randomUUID(),
       createdAt,
-      items: inspection.decisions.map(({ path, action, reason }) => ({
-        path,
-        action,
-        reason
+      items: inspection.decisions.map((decision) => ({
+        path: decision.path,
+        action: decision.action,
+        reason: decision.reason,
+        ...(decision.action === 'move' ? { oldPath: decision.oldPath } : {})
       })),
       counts: countActions(inspection.decisions)
     }
@@ -302,7 +368,7 @@ export class DriveSyncService {
       throw new Error('同期状態が変わりました。同期内容を確認し直してください。')
     }
 
-    const fresh = await this.inspect(vault)
+    const fresh = await this.inspect(vault, pending.inspection.remote)
     if (fresh.fingerprint !== pending.inspection.fingerprint) {
       this.pendingPlan = null
       throw new Error(
@@ -314,6 +380,7 @@ export class DriveSyncService {
     const result: DriveSyncApplyResult = {
       uploaded: 0,
       downloaded: 0,
+      moved: 0,
       conflicts: 0,
       preserved: 0,
       conflictPaths: [],
@@ -321,6 +388,7 @@ export class DriveSyncService {
     }
     let rootFolderId = vault.rootFolderId
     const nextFiles = { ...vault.files }
+    const nextRemote = new Map(fresh.remote)
     const createdPaths = new Set<string>()
     const existingLocalPaths = new Set(
       [
@@ -354,6 +422,61 @@ export class DriveSyncService {
       const local = fresh.local.get(decision.path)
       const remote = fresh.remote.get(decision.path)
 
+      if (decision.action === 'move') {
+        const previous = vault.files[decision.oldPath]
+        if (!previous) {
+          throw new Error('同期済みノートの移動履歴が変わりました。確認し直してください。')
+        }
+        if (decision.reason === 'local_moved') {
+          const oldRemote = fresh.remote.get(decision.oldPath)
+          if (!local || !oldRemote) {
+            throw new Error('移動対象が変わりました。同期内容を確認し直してください。')
+          }
+          const moved = await this.remote.move(accessToken, {
+            fileId: previous.fileId,
+            vaultId: vault.vaultId,
+            oldPath: decision.oldPath,
+            path: decision.path,
+            expectedVersion: oldRemote.version
+          })
+          fresh.remote.delete(decision.oldPath)
+          fresh.remote.set(decision.path, {
+            path: decision.path,
+            fileId: moved.id,
+            version: this.requireRemoteVersion(moved),
+            content: oldRemote.content,
+            hash: oldRemote.hash
+          })
+          nextRemote.delete(decision.oldPath)
+          nextRemote.set(decision.path, fresh.remote.get(decision.path) as RemoteFile)
+          delete vault.pendingMoves?.[decision.oldPath]
+        } else {
+          const oldLocal = fresh.local.get(decision.oldPath)
+          if (!oldLocal || !remote) {
+            throw new Error('移動対象が変わりました。同期内容を確認し直してください。')
+          }
+          await this.ensureLocalDirectory(dirnameRelative(decision.path), existingLocalPaths)
+          await this.dependencies.vault.moveNote({
+            path: decision.oldPath,
+            destinationDirectory: dirnameRelative(decision.path),
+            destinationPath: decision.path
+          })
+          fresh.local.delete(decision.oldPath)
+          fresh.local.set(decision.path, { ...oldLocal, path: decision.path })
+          existingLocalPaths.delete(decision.oldPath.toLocaleLowerCase())
+          existingLocalPaths.add(decision.path.toLocaleLowerCase())
+        }
+        delete nextFiles[decision.oldPath]
+        nextFiles[decision.path] = {
+          ...previous,
+          remoteVersion:
+            fresh.remote.get(decision.path)?.version ?? previous.remoteVersion
+        }
+        await checkpoint()
+        result.moved += 1
+        continue
+      }
+
       if (decision.action === 'upload' && local) {
         let uploaded: DriveMarkdownFile
         if (remote) {
@@ -375,14 +498,25 @@ export class DriveSyncService {
         nextFiles[decision.path] = {
           fileId: uploaded.id,
           localHash: local.hash,
-          remoteHash: local.hash
+          remoteHash: local.hash,
+          remoteVersion: this.requireRemoteVersion(uploaded)
         }
+        nextRemote.set(decision.path, {
+          path: decision.path,
+          fileId: uploaded.id,
+          version: this.requireRemoteVersion(uploaded),
+          content: local.content,
+          hash: local.hash
+        })
         await checkpoint()
         result.uploaded += 1
         continue
       }
 
       if (decision.action === 'download' && remote) {
+        if (remote.content === null) {
+          throw new Error(`Google Driveのノート本文を取得できません: ${remote.path}`)
+        }
         if (local) {
           await this.dependencies.vault.saveNote({
             path: local.path,
@@ -404,7 +538,8 @@ export class DriveSyncService {
         nextFiles[decision.path] = {
           fileId: remote.fileId,
           localHash: remote.hash,
-          remoteHash: remote.hash
+          remoteHash: remote.hash,
+          remoteVersion: remote.version
         }
         await checkpoint()
         result.downloaded += 1
@@ -412,6 +547,9 @@ export class DriveSyncService {
       }
 
       if (decision.action === 'conflict' && local && remote) {
+        if (remote.content === null) {
+          throw new Error(`Google Driveのノート本文を取得できません: ${remote.path}`)
+        }
         const conflictPath = await this.createConflictCopy(
           remote.path,
           remote.content,
@@ -427,8 +565,16 @@ export class DriveSyncService {
         nextFiles[decision.path] = {
           fileId: uploaded.id,
           localHash: local.hash,
-          remoteHash: local.hash
+          remoteHash: local.hash,
+          remoteVersion: this.requireRemoteVersion(uploaded)
         }
+        nextRemote.set(decision.path, {
+          path: decision.path,
+          fileId: uploaded.id,
+          version: this.requireRemoteVersion(uploaded),
+          content: local.content,
+          hash: local.hash
+        })
         await checkpoint()
 
         const preserved = await this.remote.create(accessToken, {
@@ -440,8 +586,16 @@ export class DriveSyncService {
         nextFiles[conflictPath] = {
           fileId: preserved.id,
           localHash: remote.hash,
-          remoteHash: remote.hash
+          remoteHash: remote.hash,
+          remoteVersion: this.requireRemoteVersion(preserved)
         }
+        nextRemote.set(conflictPath, {
+          path: conflictPath,
+          fileId: preserved.id,
+          version: this.requireRemoteVersion(preserved),
+          content: remote.content,
+          hash: remote.hash
+        })
         createdPaths.add(conflictPath)
         await checkpoint()
         result.uploaded += 2
@@ -476,7 +630,8 @@ export class DriveSyncService {
         nextFiles[path] = {
           fileId: remote.fileId,
           localHash: local.hash,
-          remoteHash: remote.hash
+          remoteHash: remote.hash,
+          remoteVersion: remote.version
         }
         continue
       }
@@ -484,7 +639,8 @@ export class DriveSyncService {
         nextFiles[path] = {
           fileId: remote.fileId,
           localHash: local.hash,
-          remoteHash: remote.hash
+          remoteHash: remote.hash,
+          remoteVersion: remote.version
         }
       }
     }
@@ -493,6 +649,8 @@ export class DriveSyncService {
     vault.rootFolderId = rootFolderId
     vault.lastSyncAt = result.completedAt
     vault.files = nextFiles
+    vault.remoteFiles = this.remoteLedger(nextRemote)
+    vault.changeToken = fresh.nextChangeToken
     await this.writeLedger(ledger)
     this.pendingPlan = null
     return result
@@ -506,12 +664,16 @@ export class DriveSyncService {
     return rootPath
   }
 
-  private async inspect(vault: VaultLedger): Promise<Inspection> {
+  private async inspect(
+    vault: VaultLedger,
+    cachedRemote: Map<string, RemoteFile> | null = null
+  ): Promise<Inspection> {
     const [snapshot, accessToken] = await Promise.all([
       this.dependencies.vault.scan(),
       this.dependencies.connection.getAccessToken()
     ])
-    const remoteMetadata = await this.remote.list(accessToken, vault.vaultId)
+    const { files: remoteMetadata, nextChangeToken } =
+      await this.listRemoteMetadata(accessToken, vault)
     const localPathsByKey = new Map<string, string>()
     for (const note of snapshot.notes) {
       const key = note.path.toLowerCase()
@@ -545,15 +707,6 @@ export class DriveSyncService {
       }
       remotePathsByKey.set(key, file.path)
     }
-    const remoteContents = await Promise.all(
-      remoteMetadata.map(async (file) => ({
-        path: file.path,
-        fileId: file.id,
-        version: file.version as string,
-        content: await this.remote.download(accessToken, file.id)
-      }))
-    )
-
     const local = new Map(
       snapshot.notes.map((note) => [
         note.path,
@@ -566,27 +719,65 @@ export class DriveSyncService {
       ])
     )
     const remote = new Map<string, RemoteFile>()
-    for (const file of remoteContents) {
+    await Promise.all(remoteMetadata.map(async (file) => {
       if (remote.has(file.path)) {
         throw new Error(
           `Google Driveに同じTSUZUNEパスが複数あります: ${file.path}`
         )
       }
+      const version = file.version as string
+      const cached = cachedRemote?.get(file.path)
+      const previous = vault.files[file.path]
+      if (
+        cached?.fileId === file.id &&
+        cached.version === version
+      ) {
+        remote.set(file.path, cached)
+        return
+      }
+      if (
+        previous?.fileId === file.id &&
+        previous.remoteVersion === version
+      ) {
+        remote.set(file.path, {
+          path: file.path,
+          fileId: file.id,
+          version,
+          content: null,
+          hash: previous.remoteHash
+        })
+        return
+      }
+      const content = await this.remote.download(accessToken, file.id)
       remote.set(file.path, {
-        ...file,
-        hash: sha256(file.content)
+        path: file.path,
+        fileId: file.id,
+        version,
+        content,
+        hash: sha256(content)
       })
-    }
+    }))
     const previous = Object.entries(vault.files).map(([path, state]) => ({
       path,
       localHash: state.localHash,
       remoteHash: state.remoteHash
     }))
-    const decisions = planDriveSync({
-      local: [...local.values()].map(({ path, hash }) => ({ path, hash })),
-      remote: [...remote.values()].map(({ path, hash }) => ({ path, hash })),
-      previous
-    })
+    const moveDecisions = this.planMoves(vault, local, remote)
+    const movedPaths = new Set(
+      moveDecisions.flatMap((decision) => [decision.oldPath, decision.path])
+    )
+    const decisions = [
+      ...moveDecisions,
+      ...planDriveSync({
+        local: [...local.values()]
+          .filter(({ path }) => !movedPaths.has(path))
+          .map(({ path, hash }) => ({ path, hash })),
+        remote: [...remote.values()]
+          .filter(({ path }) => !movedPaths.has(path))
+          .map(({ path, hash }) => ({ path, hash })),
+        previous: previous.filter(({ path }) => !movedPaths.has(path))
+      })
+    ]
     const fingerprint = sha256(
       JSON.stringify({
         rootPath: snapshot.rootPath,
@@ -602,6 +793,7 @@ export class DriveSyncService {
           }))
           .sort((left, right) => left.path.localeCompare(right.path)),
         previous: previous.sort((left, right) => left.path.localeCompare(right.path)),
+        pendingMoves: vault.pendingMoves ?? {},
         decisions
       })
     )
@@ -613,8 +805,150 @@ export class DriveSyncService {
       local,
       remote,
       decisions,
-      fingerprint
+      fingerprint,
+      nextChangeToken
     }
+  }
+
+  private planMoves(
+    vault: VaultLedger,
+    local: Map<string, LocalFile>,
+    remote: Map<string, RemoteFile>
+  ): Extract<DriveSyncDecision, { action: 'move' }>[] {
+    const decisions: Extract<DriveSyncDecision, { action: 'move' }>[] = []
+    const claimed = new Set<string>()
+
+    for (const [oldPath, path] of Object.entries(vault.pendingMoves ?? {})) {
+      const previous = vault.files[oldPath]
+      const localFile = local.get(path)
+      const remoteFile = remote.get(oldPath)
+      if (
+        !previous ||
+        !localFile ||
+        local.has(oldPath) ||
+        !remoteFile ||
+        remote.has(path) ||
+        remoteFile.fileId !== previous.fileId ||
+        localFile.hash !== previous.localHash ||
+        remoteFile.hash !== previous.remoteHash
+      ) {
+        throw new Error(
+          `移動と同時に内容または配置が変わりました: ${oldPath} → ${path}`
+        )
+      }
+      decisions.push({ path, oldPath, action: 'move', reason: 'local_moved' })
+      claimed.add(oldPath)
+      claimed.add(path)
+    }
+
+    const remoteById = new Map([...remote.values()].map((file) => [file.fileId, file]))
+    for (const [oldPath, previous] of Object.entries(vault.files)) {
+      if (claimed.has(oldPath) || remote.has(oldPath)) continue
+      const moved = remoteById.get(previous.fileId)
+      const localFile = local.get(oldPath)
+      if (!moved || moved.path === oldPath || !localFile) continue
+      if (
+        claimed.has(moved.path) ||
+        local.has(moved.path) ||
+        localFile.hash !== previous.localHash ||
+        moved.hash !== previous.remoteHash
+      ) {
+        throw new Error(
+          `Driveの移動と同時に内容または配置が変わりました: ${oldPath} → ${moved.path}`
+        )
+      }
+      decisions.push({
+        path: moved.path,
+        oldPath,
+        action: 'move',
+        reason: 'remote_moved'
+      })
+      claimed.add(oldPath)
+      claimed.add(moved.path)
+    }
+    return decisions
+  }
+
+  private async listRemoteMetadata(
+    accessToken: string,
+    vault: VaultLedger
+  ): Promise<{ files: DriveMarkdownFile[]; nextChangeToken: string }> {
+    if (vault.changeToken && vault.remoteFiles) {
+      try {
+        const page = await this.remote.listChanges(
+          accessToken,
+          vault.changeToken,
+          vault.vaultId
+        )
+        const files = new Map(
+          Object.entries(vault.remoteFiles).map(([path, file]) => [
+            path,
+            this.ledgerMetadata(path, vault.vaultId, file)
+          ])
+        )
+        for (const change of page.changes) {
+          for (const [path, file] of files) {
+            if (file.id === change.fileId) files.delete(path)
+          }
+          if (
+            !change.removed &&
+            change.file?.appProperties.tsuzuneVaultId === vault.vaultId
+          ) {
+            files.set(change.file.path, change.file)
+          }
+        }
+        return {
+          files: [...files.values()],
+          nextChangeToken: page.newStartPageToken
+        }
+      } catch (error) {
+        if (!(error instanceof DriveChangeTokenInvalidError)) throw error
+      }
+    }
+
+    const nextChangeToken = await this.remote.getStartPageToken(accessToken)
+    return {
+      files: await this.remote.list(accessToken, vault.vaultId),
+      nextChangeToken
+    }
+  }
+
+  private ledgerMetadata(
+    path: string,
+    vaultId: string,
+    file: RemoteLedgerFile
+  ): DriveMarkdownFile {
+    return {
+      id: file.fileId,
+      name: path.split('/').at(-1) ?? path,
+      path,
+      parentIds: [],
+      version: file.remoteVersion,
+      md5Checksum: null,
+      appProperties: { tsuzuneVaultId: vaultId, tsuzunePath: path }
+    }
+  }
+
+  private remoteLedger(
+    remote: Map<string, RemoteFile>
+  ): Record<string, RemoteLedgerFile> {
+    return Object.fromEntries(
+      [...remote].map(([path, file]) => [
+        path,
+        {
+          fileId: file.fileId,
+          remoteHash: file.hash,
+          remoteVersion: file.version
+        }
+      ])
+    )
+  }
+
+  private requireRemoteVersion(file: DriveMarkdownFile): string {
+    if (!file.version) {
+      throw new Error(`Google Driveのノート版を確認できません: ${file.path}`)
+    }
+    return file.version
   }
 
   private async ensureLocalDirectory(

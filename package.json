@@ -147,7 +147,7 @@
       "package.json"
     ],
     "win": {
-      "icon": "src/renderer/assets/tsuzune-woven-loop.png",
+      "icon": "src/renderer/assets/tsuzune-app-icon.png",
       "target": [
         {
           "target": "nsis",

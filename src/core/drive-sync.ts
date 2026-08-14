@@ -18,6 +18,12 @@ export interface DriveSyncInput {
 export type DriveSyncDecision =
   | {
       path: string
+      oldPath: string
+      action: 'move'
+      reason: 'local_moved' | 'remote_moved'
+    }
+  | {
+      path: string
       action: 'upload'
       reason: 'new_local' | 'local_changed'
     }

@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   createMarkdown,
   downloadMarkdown,
+  DriveChangeTokenInvalidError,
   ensureVaultRoot,
+  getDriveStartPageToken,
+  listDriveChanges,
   listVaultFiles,
   listVaultRoots,
+  moveMarkdown,
   updateMarkdown
 } from '../src/main/google-drive'
 
@@ -136,6 +140,84 @@ describe('listVaultFiles', () => {
     await expect(
       listVaultFiles('access-token', 'vault-alpha', fetchImpl)
     ).rejects.toThrow(/パス/)
+  })
+})
+
+describe('Drive changes', () => {
+  it('gets a start token and pages changed Markdown metadata', async () => {
+    const requests: URL[] = []
+    const responses = [
+      { startPageToken: '10' },
+      {
+        nextPageToken: '11',
+        changes: [
+          {
+            fileId: 'note-1',
+            file: {
+              id: 'note-1',
+              name: 'A.md',
+              mimeType: 'text/markdown',
+              version: '2',
+              appProperties: {
+                tsuzuneVaultId: 'vault-alpha',
+                tsuzunePath: 'A.md'
+              }
+            }
+          },
+          {
+            fileId: 'other-vault-note',
+            file: {
+              id: 'other-vault-note',
+              name: 'Outside.md',
+              mimeType: 'text/markdown',
+              version: '1',
+              appProperties: {
+                tsuzuneVaultId: 'vault-other',
+                tsuzunePath: '../outside.md'
+              }
+            }
+          }
+        ]
+      },
+      {
+        newStartPageToken: '12',
+        changes: [{ fileId: 'note-2', removed: true }]
+      }
+    ]
+    const fetchImpl: typeof fetch = async (input) => {
+      requests.push(new URL(String(input)))
+      return jsonResponse(responses[requests.length - 1])
+    }
+
+    await expect(
+      getDriveStartPageToken('access-token', fetchImpl)
+    ).resolves.toBe('10')
+    await expect(
+      listDriveChanges('access-token', '10', 'vault-alpha', fetchImpl)
+    ).resolves.toEqual({
+      changes: [
+        {
+          fileId: 'note-1',
+          removed: false,
+          file: expect.objectContaining({ path: 'A.md', version: '2' })
+        },
+        { fileId: 'other-vault-note', removed: false, file: null },
+        { fileId: 'note-2', removed: true, file: null }
+      ],
+      newStartPageToken: '12'
+    })
+    expect(requests[0].pathname).toBe('/drive/v3/changes/startPageToken')
+    expect(requests[0].searchParams.has('spaces')).toBe(false)
+    expect(requests[1].searchParams.get('pageToken')).toBe('10')
+    expect(requests[2].searchParams.get('pageToken')).toBe('11')
+  })
+
+  it('reports a rejected change token for safe full-scan fallback', async () => {
+    const fetchImpl: typeof fetch = async () => jsonResponse({}, 410)
+
+    await expect(
+      listDriveChanges('access-token', 'invalid', 'vault-alpha', fetchImpl)
+    ).rejects.toBeInstanceOf(DriveChangeTokenInvalidError)
   })
 })
 
@@ -371,6 +453,39 @@ describe('Markdown transfer', () => {
     expect(body).toContain('# 企画\n本文')
   })
 
+  it('stores a long UTF-8 path outside appProperties', async () => {
+    const path = `30_知識/${'長い日本語フォルダー/'.repeat(5)}ノート.md`
+    let body = ''
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      body = String(init?.body)
+      return jsonResponse({
+        id: 'long-path-note',
+        name: 'ノート.md',
+        mimeType: 'text/markdown',
+        parents: ['folder-id'],
+        version: '1',
+        description: `TSUZUNE path: ${path}`,
+        appProperties: { tsuzuneVaultId: 'vault-alpha' }
+      })
+    }
+
+    await expect(
+      createMarkdown(
+        'access-token',
+        {
+          vaultId: 'vault-alpha',
+          path,
+          parentId: 'folder-id',
+          content: '本文'
+        },
+        fetchImpl
+      )
+    ).resolves.toMatchObject({ path })
+
+    expect(body).toContain(`"description":"TSUZUNE path: ${path}"`)
+    expect(body).not.toContain('"tsuzunePath"')
+  })
+
   it('updates Markdown content and metadata without changing parents', async () => {
     const requests: Array<{ url: URL; init?: RequestInit }> = []
     const fetchImpl: typeof fetch = async (input, init) => {
@@ -429,6 +544,103 @@ describe('Markdown transfer', () => {
     expect(body).not.toContain('"parents"')
     expect(body).toContain('"name":"更新.md"')
     expect(body).toContain('更新後')
+  })
+
+  it('moves Markdown metadata without uploading content or changing parents', async () => {
+    const requests: Array<{ url: URL; init?: RequestInit }> = []
+    const fetchImpl: typeof fetch = async (input, init) => {
+      requests.push({ url: new URL(String(input)), init })
+      if (requests.length === 1) {
+        return jsonResponse({
+          id: 'existing-note',
+          name: '旧.md',
+          mimeType: 'text/markdown',
+          parents: ['unchanged-parent'],
+          version: '8',
+          appProperties: {
+            tsuzuneVaultId: 'vault-alpha',
+            tsuzunePath: 'Inbox/旧.md'
+          }
+        })
+      }
+      return jsonResponse({
+        id: 'existing-note',
+        name: '新.md',
+        mimeType: 'text/markdown',
+        parents: ['unchanged-parent'],
+        version: '9',
+        appProperties: {
+          tsuzuneVaultId: 'vault-alpha',
+          tsuzunePath: 'Archive/新.md'
+        }
+      })
+    }
+
+    const note = await moveMarkdown(
+      'access-token',
+      {
+        fileId: 'existing-note',
+        vaultId: 'vault-alpha',
+        oldPath: 'Inbox/旧.md',
+        path: 'Archive/新.md',
+        expectedVersion: '8'
+      },
+      fetchImpl
+    )
+
+    expect(note).toMatchObject({ id: 'existing-note', path: 'Archive/新.md' })
+    expect(requests).toHaveLength(2)
+    expect(requests[1].url.pathname).toBe('/drive/v3/files/existing-note')
+    expect(requests[1].url.searchParams.get('uploadType')).toBeNull()
+    expect(requests[1].init?.method).toBe('PATCH')
+    const body = String(requests[1].init?.body)
+    expect(body).toContain('"name":"新.md"')
+    expect(body).toContain('"tsuzunePath":"Archive/新.md"')
+    expect(body).toContain('"description":null')
+    expect(body).not.toContain('parents')
+  })
+
+  it('clears the short path property when moving to a long UTF-8 path', async () => {
+    const longPath = `Archive/${'長い/'.repeat(30)}新.md`
+    const requests: Array<{ url: URL; init?: RequestInit }> = []
+    const fetchImpl: typeof fetch = async (input, init) => {
+      requests.push({ url: new URL(String(input)), init })
+      return requests.length === 1
+        ? jsonResponse({
+            id: 'existing-note',
+            name: '旧.md',
+            mimeType: 'text/markdown',
+            version: '8',
+            appProperties: {
+              tsuzuneVaultId: 'vault-alpha',
+              tsuzunePath: 'Inbox/旧.md'
+            }
+          })
+        : jsonResponse({
+            id: 'existing-note',
+            name: '新.md',
+            mimeType: 'text/markdown',
+            version: '9',
+            description: `TSUZUNE path: ${longPath}`,
+            appProperties: { tsuzuneVaultId: 'vault-alpha' }
+          })
+    }
+
+    await moveMarkdown(
+      'access-token',
+      {
+        fileId: 'existing-note',
+        vaultId: 'vault-alpha',
+        oldPath: 'Inbox/旧.md',
+        path: longPath,
+        expectedVersion: '8'
+      },
+      fetchImpl
+    )
+
+    const body = String(requests[1].init?.body)
+    expect(body).toContain('"tsuzunePath":null')
+    expect(body).toContain(`"description":"TSUZUNE path: ${longPath}"`)
   })
 
   it('refuses an update when the Drive version changed before upload', async () => {

@@ -6,6 +6,7 @@ import type {
   CreateDirectoryInput,
   CreateNoteInput,
   EntryOperationOutput,
+  MoveNoteInput,
   NoteDocument,
   SaveNoteInput,
   SaveNoteOutput,
@@ -17,10 +18,13 @@ import {
 } from '../src/main/drive-sync-service'
 import type {
   CreateMarkdownInput,
+  DriveChange,
+  DriveChangePage,
   DriveMarkdownFile,
   DriveVaultRoot,
   UpdateMarkdownInput
 } from '../src/main/google-drive'
+import { DriveChangeTokenInvalidError } from '../src/main/google-drive'
 
 const temporaryDirectories: string[] = []
 
@@ -96,6 +100,16 @@ class MemoryVault {
     return { path }
   }
 
+  async moveNote(input: MoveNoteInput): Promise<EntryOperationOutput> {
+    const note = this.notes.get(input.path)
+    if (!note || !input.destinationPath || this.notes.has(input.destinationPath)) {
+      throw new Error('MOVE_FAILED')
+    }
+    this.notes.delete(input.path)
+    this.set(input.destinationPath, note.content)
+    return { oldPath: input.path, path: input.destinationPath }
+  }
+
   set(path: string, content: string): void {
     const directory = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
     if (directory) {
@@ -126,7 +140,13 @@ class MemoryRemote implements DriveSyncRemote {
   beforeUpdate: (() => void) | null = null
   failUpdatePath: string | null = null
   lastListedVaultId: string | null = null
+  downloadCount = 0
+  fullListCount = 0
+  changeListCount = 0
+  rejectChangeToken = false
+  private readonly changes: DriveChange[] = []
   private nextId = 1
+  private vaultId = 'vault-id'
 
   private metadata(
     path: string,
@@ -140,7 +160,7 @@ class MemoryRemote implements DriveSyncRemote {
       version: String(file.version),
       md5Checksum: null,
       appProperties: {
-        tsuzuneVaultId: 'vault-id',
+        tsuzuneVaultId: this.vaultId,
         tsuzunePath: path
       }
     }
@@ -151,9 +171,32 @@ class MemoryRemote implements DriveSyncRemote {
     vaultId: string
   ): Promise<DriveMarkdownFile[]> {
     this.lastListedVaultId = vaultId
+    this.vaultId = vaultId
+    this.fullListCount += 1
     return [...this.files.entries()].map(([path, file]) =>
       this.metadata(path, file)
     )
+  }
+
+  async getStartPageToken(): Promise<string> {
+    return String(this.changes.length)
+  }
+
+  async listChanges(
+    _accessToken: string,
+    pageToken: string,
+    vaultId: string
+  ): Promise<DriveChangePage> {
+    this.changeListCount += 1
+    this.vaultId = vaultId
+    if (this.rejectChangeToken) {
+      this.rejectChangeToken = false
+      throw new DriveChangeTokenInvalidError('invalid')
+    }
+    return {
+      changes: this.changes.slice(Number(pageToken)),
+      newStartPageToken: String(this.changes.length)
+    }
   }
 
   async listRoots(): Promise<DriveVaultRoot[]> {
@@ -161,6 +204,7 @@ class MemoryRemote implements DriveSyncRemote {
   }
 
   async download(_accessToken: string, fileId: string): Promise<string> {
+    this.downloadCount += 1
     const entry = [...this.files.values()].find((file) => file.id === fileId)
     if (!entry) throw new Error('NOT_FOUND')
     return entry.content
@@ -187,7 +231,9 @@ class MemoryRemote implements DriveSyncRemote {
     const id = `file-${this.nextId++}`
     const file = { id, content: input.content, version: 1 }
     this.files.set(input.path, file)
-    return this.metadata(input.path, file)
+    const metadata = this.metadata(input.path, file)
+    this.changes.push({ fileId: id, removed: false, file: metadata })
+    return metadata
   }
 
   async update(
@@ -208,7 +254,30 @@ class MemoryRemote implements DriveSyncRemote {
       version: current.version + 1
     }
     this.files.set(input.path, file)
-    return this.metadata(input.path, file)
+    const metadata = this.metadata(input.path, file)
+    this.changes.push({ fileId: file.id, removed: false, file: metadata })
+    return metadata
+  }
+
+  async move(
+    _accessToken: string,
+    input: import('../src/main/google-drive').MoveMarkdownInput
+  ): Promise<DriveMarkdownFile> {
+    const current = this.files.get(input.oldPath)
+    if (
+      !current ||
+      current.id !== input.fileId ||
+      String(current.version) !== input.expectedVersion ||
+      this.files.has(input.path)
+    ) {
+      throw new Error('Drive版または場所が変わりました。同期内容を確認し直してください。')
+    }
+    this.files.delete(input.oldPath)
+    const moved = { ...current, version: current.version + 1 }
+    this.files.set(input.path, moved)
+    const metadata = this.metadata(input.path, moved)
+    this.changes.push({ fileId: moved.id, removed: false, file: metadata })
+    return metadata
   }
 
   set(path: string, content: string): void {
@@ -218,6 +287,23 @@ class MemoryRemote implements DriveSyncRemote {
       content,
       version: (current?.version ?? 0) + 1
     })
+    const file = this.files.get(path) as {
+      id: string
+      content: string
+      version: number
+    }
+    this.changes.push({
+      fileId: file.id,
+      removed: false,
+      file: this.metadata(path, file)
+    })
+  }
+
+  remove(path: string): void {
+    const file = this.files.get(path)
+    if (!file) return
+    this.files.delete(path)
+    this.changes.push({ fileId: file.id, removed: true, file: null })
   }
 
   setRoot(id: string, vaultId: string, name: string): void {
@@ -371,11 +457,100 @@ describe('DriveSyncService', () => {
     const sync = await service(vault, remote)
 
     const preview = await sync.preview()
+    expect(remote.downloadCount).toBe(1)
     await sync.apply(preview.planId)
+    expect(remote.downloadCount).toBe(1)
 
     expect(vault.notes.get('Folder/Remote.md')?.content).toBe('remote')
     expect(vault.notes.get('Keep.md')?.content).toBe('keep')
     expect(vault.directories.has('Folder')).toBe(true)
+  })
+
+  it('does not download unchanged Drive bodies after the ledger records their versions', async () => {
+    const vault = new MemoryVault({ 'A.md': 'one', 'B.md': 'two' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    const first = await sync.preview()
+    await sync.apply(first.planId)
+
+    remote.downloadCount = 0
+    const settled = await sync.preview()
+
+    expect(settled.items).toEqual([])
+    expect(remote.downloadCount).toBe(0)
+  })
+
+  it('uses Drive changes after the first full remote snapshot', async () => {
+    const vault = new MemoryVault({ 'A.md': 'one' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    const first = await sync.preview()
+    await sync.apply(first.planId)
+    const fullListCount = remote.fullListCount
+
+    await expect(sync.preview()).resolves.toMatchObject({ items: [] })
+    await expect(sync.preview()).resolves.toMatchObject({ items: [] })
+
+    expect(remote.fullListCount).toBe(fullListCount)
+    expect(remote.changeListCount).toBeGreaterThanOrEqual(2)
+  })
+
+  it('falls back to a full remote snapshot when Drive rejects the change token', async () => {
+    const vault = new MemoryVault({ 'A.md': 'one' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    const first = await sync.preview()
+    await sync.apply(first.planId)
+    await sync.preview()
+    const fullListCount = remote.fullListCount
+    remote.rejectChangeToken = true
+
+    await expect(sync.preview()).resolves.toMatchObject({ items: [] })
+
+    expect(remote.fullListCount).toBe(fullListCount + 1)
+  })
+
+  it('does not resurrect a removed Drive note from the sync baseline', async () => {
+    const vault = new MemoryVault({ 'A.md': 'one' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    const first = await sync.preview()
+    await sync.apply(first.planId)
+    await sync.preview()
+    remote.remove('A.md')
+
+    const removed = await sync.preview()
+    expect(removed.items).toEqual([
+      { path: 'A.md', action: 'preserve', reason: 'remote_deleted' }
+    ])
+    await sync.apply(removed.planId)
+
+    const repeated = await sync.preview()
+    expect(repeated.items).toEqual([
+      { path: 'A.md', action: 'preserve', reason: 'remote_deleted' }
+    ])
+    expect(remote.fullListCount).toBe(2)
+  })
+
+  it('downloads only the Drive body whose version changed', async () => {
+    const vault = new MemoryVault({ 'A.md': 'one', 'B.md': 'two' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    const first = await sync.preview()
+    await sync.apply(first.planId)
+    remote.set('B.md', 'remote two')
+
+    remote.downloadCount = 0
+    const changed = await sync.preview()
+
+    expect(changed.items).toEqual([
+      { path: 'B.md', action: 'download', reason: 'remote_changed' }
+    ])
+    expect(remote.downloadCount).toBe(1)
+
+    await sync.apply(changed.planId)
+    expect(remote.downloadCount).toBe(1)
+    expect(vault.notes.get('B.md')?.content).toBe('remote two')
   })
 
   it('preserves the Drive version as a conflict note and converges on the local original', async () => {
@@ -515,5 +690,89 @@ describe('DriveSyncService', () => {
     expect(result.preserved).toBe(1)
     expect(remote.files.get('A.md')?.content).toBe('baseline')
     expect(vault.notes.has('A.md')).toBe(false)
+  })
+
+  it('relocates an explicitly moved local note with the same Drive file id', async () => {
+    const vault = new MemoryVault({ 'Inbox/A.md': 'baseline' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    const first = await sync.preview()
+    await sync.apply(first.planId)
+    const fileId = remote.files.get('Inbox/A.md')?.id
+
+    await vault.moveNote({
+      path: 'Inbox/A.md',
+      destinationDirectory: 'Archive',
+      destinationPath: 'Archive/A.md'
+    })
+    await sync.recordLocalMove('Inbox/A.md', 'Archive/A.md')
+
+    const preview = await sync.preview()
+    expect(preview.items).toEqual([
+      {
+        path: 'Archive/A.md',
+        oldPath: 'Inbox/A.md',
+        action: 'move',
+        reason: 'local_moved'
+      }
+    ])
+    expect(preview.counts.move).toBe(1)
+    const result = await sync.apply(preview.planId)
+
+    expect(result.moved).toBe(1)
+    expect(remote.files.has('Inbox/A.md')).toBe(false)
+    expect(remote.files.get('Archive/A.md')?.id).toBe(fileId)
+    expect(remote.files.get('Archive/A.md')?.content).toBe('baseline')
+    expect((await sync.preview()).items).toEqual([])
+  })
+
+  it('applies a Drive move locally by stable file id', async () => {
+    const vault = new MemoryVault({ 'Inbox/A.md': 'baseline' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    const first = await sync.preview()
+    await sync.apply(first.planId)
+    const current = remote.files.get('Inbox/A.md')!
+    await remote.move('access-token', {
+      fileId: current.id,
+      vaultId: 'vault-id',
+      oldPath: 'Inbox/A.md',
+      path: 'Archive/A.md',
+      expectedVersion: String(current.version)
+    })
+
+    const preview = await sync.preview()
+    expect(preview.items).toEqual([
+      {
+        path: 'Archive/A.md',
+        oldPath: 'Inbox/A.md',
+        action: 'move',
+        reason: 'remote_moved'
+      }
+    ])
+    await sync.apply(preview.planId)
+
+    expect(vault.notes.has('Inbox/A.md')).toBe(false)
+    expect(vault.notes.get('Archive/A.md')?.content).toBe('baseline')
+    expect((await sync.preview()).items).toEqual([])
+  })
+
+  it('fails closed when a local move and content edit are combined', async () => {
+    const vault = new MemoryVault({ 'Inbox/A.md': 'baseline' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    const first = await sync.preview()
+    await sync.apply(first.planId)
+    await vault.moveNote({
+      path: 'Inbox/A.md',
+      destinationDirectory: 'Archive',
+      destinationPath: 'Archive/A.md'
+    })
+    vault.set('Archive/A.md', 'edited too')
+    await sync.recordLocalMove('Inbox/A.md', 'Archive/A.md')
+
+    await expect(sync.preview()).rejects.toThrow(/移動と同時/)
+    expect(remote.files.has('Inbox/A.md')).toBe(true)
+    expect(remote.files.has('Archive/A.md')).toBe(false)
   })
 })

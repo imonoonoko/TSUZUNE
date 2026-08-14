@@ -21,7 +21,13 @@ const escapedPath = join(
 const serverPath = resolve('out/mcp/server.js')
 const transport = new StdioClientTransport({
   command: process.execPath,
-  args: [serverPath, '--vault', vaultPath],
+  args: [
+    serverPath,
+    '--vault',
+    vaultPath,
+    '--drive-sync-state',
+    join(vaultPath, 'missing-drive-sync-state.json')
+  ],
   stderr: 'pipe'
 })
 const client = new Client({
@@ -82,6 +88,7 @@ try {
   const toolNames = listed.tools.map((tool) => tool.name).sort()
   const expected = [
     'add_link',
+    'apply_drive_sync',
     'autonomous_update_note',
     'build_context',
     'create_note',
@@ -89,6 +96,7 @@ try {
     'get_backlinks',
     'move_note',
     'patch_note',
+    'preview_drive_sync',
     'search',
     'suggest_links',
     'update_note'
@@ -117,6 +125,15 @@ try {
       throw new Error(`${name} has incorrect read-only annotations.`)
     }
   }
+  const drivePreviewAnnotations = toolsByName.get('preview_drive_sync')?.annotations
+  if (
+    drivePreviewAnnotations?.readOnlyHint !== true ||
+    drivePreviewAnnotations.destructiveHint !== false ||
+    drivePreviewAnnotations.idempotentHint !== true ||
+    drivePreviewAnnotations.openWorldHint !== true
+  ) {
+    throw new Error('preview_drive_sync has incorrect annotations.')
+  }
   for (const name of ['create_note', 'update_note', 'autonomous_update_note', 'patch_note', 'move_note', 'add_link']) {
     const annotations = toolsByName.get(name)?.annotations
     if (
@@ -126,6 +143,15 @@ try {
     ) {
       throw new Error(`${name} has incorrect write annotations.`)
     }
+  }
+  const driveApplyAnnotations = toolsByName.get('apply_drive_sync')?.annotations
+  if (
+    driveApplyAnnotations?.readOnlyHint !== false ||
+    driveApplyAnnotations.destructiveHint !== true ||
+    driveApplyAnnotations.idempotentHint !== false ||
+    driveApplyAnnotations.openWorldHint !== true
+  ) {
+    throw new Error('apply_drive_sync has incorrect annotations.')
   }
   if (toolsByName.get('create_note')?.annotations?.destructiveHint !== false) {
     throw new Error('create_note must be marked non-destructive.')
@@ -150,6 +176,19 @@ try {
   }
   if (toolsByName.get('add_link')?.annotations?.destructiveHint !== true) {
     throw new Error('add_link must disclose that it modifies a note.')
+  }
+
+  const unavailableDrivePreview = await client.callTool({
+    name: 'preview_drive_sync',
+    arguments: {}
+  })
+  if (
+    !unavailableDrivePreview.isError ||
+    !String(unavailableDrivePreview.content?.[0]?.text).includes(
+      'TSUZUNE本体を起動'
+    )
+  ) {
+    throw new Error('preview_drive_sync did not fail closed without the app.')
   }
 
   const search = await client.callTool({
@@ -585,7 +624,7 @@ try {
   }
 
 
-  console.log('TSUZUNE MCP smoke check passed: 5 read tools and 6 write tools.')
+  console.log('TSUZUNE MCP smoke check passed: 6 read tools and 7 write tools.')
 } catch (error) {
   if (stderr.trim()) {
     console.error(stderr.trim())

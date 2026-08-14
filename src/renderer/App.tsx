@@ -77,7 +77,7 @@ import RenameDialog from './components/RenameDialog'
 import RelatedNotes from './components/RelatedNotes'
 import TemporalDetails from './components/TemporalDetails'
 import WikiGraphView from './components/WikiGraphView'
-import tsuzuneMark from './assets/tsuzune-woven-loop.png'
+import tsuzuneMark from './assets/tsuzune-app-icon.png'
 
 type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict'
 
@@ -2174,7 +2174,7 @@ export default function App(): React.JSX.Element {
         setGoogleStatus(status.value)
       }
       setMessage(
-        `Drive同期完了: 送信${result.value.uploaded} / 受信${result.value.downloaded} / 競合${result.value.conflicts} / 保持${result.value.preserved}`
+        `Drive同期完了: 送信${result.value.uploaded} / 受信${result.value.downloaded} / 移動${result.value.moved} / 競合${result.value.conflicts} / 保持${result.value.preserved}`
       )
     } finally {
       finishOperation()
@@ -3340,6 +3340,7 @@ export default function App(): React.JSX.Element {
                     <div className="sync-counts" aria-label="同期件数">
                       <span>送信 {drivePreview.counts.upload}</span>
                       <span>受信 {drivePreview.counts.download}</span>
+                      <span>移動 {drivePreview.counts.move}</span>
                       <span>競合 {drivePreview.counts.conflict}</span>
                       <span>保持 {drivePreview.counts.preserve}</span>
                     </div>
@@ -3352,11 +3353,15 @@ export default function App(): React.JSX.Element {
                                 ? '送信'
                                 : item.action === 'download'
                                   ? '受信'
+                                  : item.action === 'move'
+                                    ? '移動'
                                   : item.action === 'conflict'
                                     ? '競合'
                                     : '保持'}
                             </span>
-                            <span>{item.path}</span>
+                            <span>
+                              {item.oldPath ? `${item.oldPath} → ${item.path}` : item.path}
+                            </span>
                           </li>
                         ))}
                       </ul>

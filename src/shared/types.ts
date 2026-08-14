@@ -257,17 +257,21 @@ export interface PairDriveVaultInput {
 export type DriveSyncAction =
   | 'upload'
   | 'download'
+  | 'move'
   | 'conflict'
   | 'preserve'
 
 export interface DriveSyncPreviewItem {
   path: string
+  oldPath?: string
   action: DriveSyncAction
   reason:
     | 'new_local'
     | 'new_remote'
     | 'local_changed'
     | 'remote_changed'
+    | 'local_moved'
+    | 'remote_moved'
     | 'both_changed'
     | 'both_new_different'
     | 'local_deleted'
@@ -281,6 +285,7 @@ export interface DriveSyncPreview {
   counts: {
     upload: number
     download: number
+    move: number
     conflict: number
     preserve: number
   }
@@ -289,6 +294,7 @@ export interface DriveSyncPreview {
 export interface DriveSyncApplyResult {
   uploaded: number
   downloaded: number
+  moved: number
   conflicts: number
   preserved: number
   conflictPaths: string[]

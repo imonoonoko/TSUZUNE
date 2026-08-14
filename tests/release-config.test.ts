@@ -38,7 +38,7 @@ describe('Windows production release contract', () => {
 
     expect(manifest.build?.appId).toBe('jp.tsuzune.app')
     expect(manifest.build?.win?.icon).toBe(
-      'src/renderer/assets/tsuzune-woven-loop.png'
+      'src/renderer/assets/tsuzune-app-icon.png'
     )
     expect(windowsTarget).toEqual({ target: 'nsis', arch: ['x64'] })
     expect(manifest.build?.win?.artifactName).toBe(

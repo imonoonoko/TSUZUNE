@@ -2,13 +2,17 @@ import { randomUUID } from 'node:crypto'
 import { validateRelativePath } from '../core/paths'
 
 const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files'
+const DRIVE_CHANGES_URL = 'https://www.googleapis.com/drive/v3/changes'
 const DRIVE_UPLOAD_URL =
   'https://www.googleapis.com/upload/drive/v3/files'
 const MARKDOWN_MIME_TYPE = 'text/markdown'
 const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
+const DRIVE_PROPERTY_LIMIT_BYTES = 124
+const PATH_PROPERTY = 'tsuzunePath'
+const PATH_DESCRIPTION_PREFIX = 'TSUZUNE path: '
 
 const MARKDOWN_FIELDS =
-  'id,name,mimeType,parents,version,md5Checksum,appProperties'
+  'id,name,mimeType,parents,version,md5Checksum,description,appProperties,trashed'
 const ROOT_FIELDS = 'id,name,mimeType,parents,version,appProperties'
 
 export interface DriveMarkdownFile {
@@ -35,6 +39,19 @@ export interface DriveVaultRoot {
   }
 }
 
+export interface DriveChange {
+  fileId: string
+  removed: boolean
+  file: DriveMarkdownFile | null
+}
+
+export interface DriveChangePage {
+  changes: DriveChange[]
+  newStartPageToken: string
+}
+
+export class DriveChangeTokenInvalidError extends Error {}
+
 export interface CreateMarkdownInput {
   vaultId: string
   path: string
@@ -48,6 +65,14 @@ export interface UpdateMarkdownInput {
   path: string
   expectedVersion: string
   content: string
+}
+
+export interface MoveMarkdownInput {
+  fileId: string
+  vaultId: string
+  oldPath: string
+  path: string
+  expectedVersion: string
 }
 
 type UnknownRecord = Record<string, unknown>
@@ -81,13 +106,22 @@ function asProperties(value: unknown): Record<string, string> {
 
 function parseMarkdownFile(value: unknown): DriveMarkdownFile | null {
   const record = asRecord(value)
-  if (!record || record.mimeType !== MARKDOWN_MIME_TYPE) return null
+  if (
+    !record ||
+    record.mimeType !== MARKDOWN_MIME_TYPE ||
+    record.trashed === true
+  ) return null
 
   const id = asString(record.id)
   const name = asString(record.name)
   const properties = asProperties(record.appProperties)
   const vaultId = properties.tsuzuneVaultId
-  const rawPath = properties.tsuzunePath
+  const description = asString(record.description)
+  const rawPath =
+    properties.tsuzunePath ??
+    (description?.startsWith(PATH_DESCRIPTION_PREFIX)
+      ? description.slice(PATH_DESCRIPTION_PREFIX.length)
+      : null)
   if (!id || !name || !vaultId || !rawPath) return null
   const path = normalizedMarkdownPath(rawPath)
 
@@ -207,15 +241,26 @@ function multipartBody(
 function markdownMetadata(
   vaultId: string,
   path: string,
-  parentId?: string
+  parentId?: string,
+  clearStalePathFields = false
 ): UnknownRecord {
+  const appProperties: Record<string, string | null> = {
+    tsuzuneVaultId: vaultId
+  }
   const metadata: UnknownRecord = {
     name: path.split('/').at(-1),
     mimeType: MARKDOWN_MIME_TYPE,
-    appProperties: {
-      tsuzuneVaultId: vaultId,
-      tsuzunePath: path
-    }
+    appProperties
+  }
+  if (
+    new TextEncoder().encode(PATH_PROPERTY + path).byteLength <=
+    DRIVE_PROPERTY_LIMIT_BYTES
+  ) {
+    appProperties.tsuzunePath = path
+    if (clearStalePathFields) metadata.description = null
+  } else {
+    if (clearStalePathFields) appProperties.tsuzunePath = null
+    metadata.description = `${PATH_DESCRIPTION_PREFIX}${path}`
   }
   if (parentId) metadata.parents = [parentId]
   return metadata
@@ -283,6 +328,75 @@ export async function listVaultFiles(
   } while (pageToken)
 
   return files
+}
+
+export async function getDriveStartPageToken(
+  accessToken: string,
+  fetchImpl: typeof fetch = globalThis.fetch
+): Promise<string> {
+  const url = new URL(`${DRIVE_CHANGES_URL}/startPageToken`)
+  const payload = asRecord(
+    await requestJson(fetchImpl, url, {
+      headers: authorizationHeaders(accessToken)
+    })
+  )
+  const token = asString(payload?.startPageToken)
+  if (!token) throw new Error('Google Driveの変更トークンを取得できませんでした。')
+  return token
+}
+
+export async function listDriveChanges(
+  accessToken: string,
+  startPageToken: string,
+  vaultId: string,
+  fetchImpl: typeof fetch = globalThis.fetch
+): Promise<DriveChangePage> {
+  const changes: DriveChange[] = []
+  let pageToken = startPageToken
+  let newStartPageToken: string | null = null
+
+  do {
+    const url = new URL(DRIVE_CHANGES_URL)
+    url.searchParams.set('pageToken', pageToken)
+    url.searchParams.set('spaces', 'drive')
+    url.searchParams.set('includeRemoved', 'true')
+    url.searchParams.set('pageSize', '1000')
+    url.searchParams.set(
+      'fields',
+      `nextPageToken,newStartPageToken,changes(fileId,removed,file(${MARKDOWN_FIELDS}))`
+    )
+    const response = await fetchImpl(url, {
+      headers: authorizationHeaders(accessToken)
+    })
+    if (response.status === 410) {
+      throw new DriveChangeTokenInvalidError(
+        'Google Driveの変更トークンを利用できません。'
+      )
+    }
+    await assertDriveResponse(response)
+    const payload = asRecord(await response.json())
+    const values = Array.isArray(payload?.changes) ? payload.changes : []
+    for (const value of values) {
+      const record = asRecord(value)
+      const fileId = asString(record?.fileId)
+      if (!fileId) continue
+      const rawFile = asRecord(record?.file)
+      const belongsToVault =
+        asProperties(rawFile?.appProperties).tsuzuneVaultId === vaultId
+      changes.push({
+        fileId,
+        removed: record?.removed === true,
+        file: belongsToVault ? parseMarkdownFile(rawFile) : null
+      })
+    }
+    pageToken = asString(payload?.nextPageToken) ?? ''
+    newStartPageToken = asString(payload?.newStartPageToken)
+  } while (pageToken)
+
+  if (!newStartPageToken) {
+    throw new Error('Google Driveの次の変更トークンを取得できませんでした。')
+  }
+  return { changes, newStartPageToken }
 }
 
 export async function listVaultRoots(
@@ -438,7 +552,7 @@ export async function updateMarkdown(
     )
   }
   const multipart = multipartBody(
-    markdownMetadata(input.vaultId, path),
+    markdownMetadata(input.vaultId, path, undefined, true),
     input.content
   )
   const url = new URL(
@@ -454,6 +568,38 @@ export async function updateMarkdown(
         'content-type': multipart.contentType
       }),
       body: multipart.body
+    })
+  )
+}
+
+export async function moveMarkdown(
+  accessToken: string,
+  input: MoveMarkdownInput,
+  fetchImpl: typeof fetch = globalThis.fetch
+): Promise<DriveMarkdownFile> {
+  const oldPath = normalizedMarkdownPath(input.oldPath)
+  const path = normalizedMarkdownPath(input.path)
+  const current = await getMarkdownMetadata(accessToken, input.fileId, fetchImpl)
+  if (
+    current.id !== input.fileId ||
+    current.appProperties.tsuzuneVaultId !== input.vaultId ||
+    current.path !== oldPath ||
+    current.version !== input.expectedVersion
+  ) {
+    throw new Error(
+      'Google Drive側の版または場所が変わりました。同期内容を確認し直してください。'
+    )
+  }
+
+  const url = new URL(`${DRIVE_FILES_URL}/${encodeURIComponent(input.fileId)}`)
+  url.searchParams.set('fields', MARKDOWN_FIELDS)
+  return requireMarkdownFile(
+    await requestJson(fetchImpl, url, {
+      method: 'PATCH',
+      headers: authorizationHeaders(accessToken, {
+        'content-type': 'application/json; charset=UTF-8'
+      }),
+      body: JSON.stringify(markdownMetadata(input.vaultId, path, undefined, true))
     })
   )
 }

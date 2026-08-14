@@ -141,6 +141,7 @@ async function snapshotSourceTree() {
     .filter(Boolean)
     .filter((path) => path.replaceAll('\\', '/') !== receiptRelativePath)
     .map((path) => resolve(root, path))
+    .filter((path) => existsSync(path))
   return {
     ...(await fingerprintFiles(root, paths)),
     excludedPaths: [receiptRelativePath]

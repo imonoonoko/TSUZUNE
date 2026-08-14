@@ -463,4 +463,79 @@ describe('graph settings IPC', () => {
     ).resolves.toEqual({ ok: true, value: null })
     expect((await vault.scan()).bookmarks).toEqual([])
   })
+
+  it('records a successful Markdown move for the next Drive sync', async () => {
+    const mainFrame = {}
+    const webContents = { mainFrame }
+    const window = { webContents }
+    const recordLocalMove = vi.fn().mockResolvedValue(undefined)
+    const moveNote = vi.fn().mockResolvedValue({
+      oldPath: 'Inbox/A.md',
+      path: 'Archive/A.md'
+    })
+    registerIpc(
+      { moveNote } as never,
+      {} as never,
+      {
+        connection: {} as never,
+        driveSync: { recordLocalMove } as never
+      },
+      {} as never,
+      () => window as never,
+      () => undefined
+    )
+    const handler = electron.handlers.get('entry:moveNote')!
+
+    await expect(
+      handler(
+        { sender: webContents, senderFrame: mainFrame },
+        { path: 'Inbox/A.md', destinationDirectory: 'Archive' }
+      )
+    ).resolves.toEqual({
+      ok: true,
+      value: { oldPath: 'Inbox/A.md', path: 'Archive/A.md' }
+    })
+    expect(recordLocalMove).toHaveBeenCalledWith(
+      'Inbox/A.md',
+      'Archive/A.md'
+    )
+  })
+
+  it('rolls a Markdown move back when the Drive ledger cannot be recorded', async () => {
+    const mainFrame = {}
+    const webContents = { mainFrame }
+    const window = { webContents }
+    const recordLocalMove = vi.fn().mockRejectedValue(new Error('LEDGER_WRITE_FAILED'))
+    const moveNote = vi
+      .fn()
+      .mockResolvedValueOnce({ oldPath: 'Inbox/A.md', path: 'Archive/A.md' })
+      .mockResolvedValueOnce({ oldPath: 'Archive/A.md', path: 'Inbox/A.md' })
+    registerIpc(
+      { moveNote } as never,
+      {} as never,
+      {
+        connection: {} as never,
+        driveSync: { recordLocalMove } as never
+      },
+      {} as never,
+      () => window as never,
+      () => undefined
+    )
+    const handler = electron.handlers.get('entry:moveNote')!
+
+    await expect(
+      handler(
+        { sender: webContents, senderFrame: mainFrame },
+        { path: 'Inbox/A.md', destinationDirectory: 'Archive' }
+      )
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { message: 'LEDGER_WRITE_FAILED' }
+    })
+    expect(moveNote).toHaveBeenLastCalledWith({
+      path: 'Archive/A.md',
+      destinationDirectory: 'Inbox',
+      destinationPath: 'Inbox/A.md'
+    })
+  })
 })

@@ -1,15 +1,20 @@
-import { app, BrowserWindow, Menu, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, Menu, safeStorage, shell, Tray } from 'electron'
 import electronUpdater from 'electron-updater'
 import { writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { DriveSyncService } from './drive-sync-service'
 import { GoogleConnectionService } from './google-connection'
 import { runGoogleOAuthLoopback } from './google-oauth-flow'
-import { registerIpc } from './ipc'
+import { registerIpc, runGoogleInOrder } from './ipc'
+import {
+  startDriveSyncBridge,
+  type DriveSyncBridge
+} from './mcp-drive-sync-bridge'
 import { SecureTokenStore } from './secure-token-store'
 import { resolveGitHubUpdateToken, UpdateService } from './update-service'
 import { VaultService } from './vault'
 import { VaultWatcher } from './watcher'
+import trayIconPath from '../renderer/assets/tsuzune-tray-icon.png?asset'
 
 const { autoUpdater } = electronUpdater
 
@@ -17,6 +22,9 @@ app.setAppUserModelId('jp.tsuzune.app')
 
 let mainWindow: BrowserWindow | null = null
 let closeApproved = false
+let quitRequested = false
+let driveSyncBridge: DriveSyncBridge | null = null
+let tray: Tray | null = null
 
 const vault = new VaultService()
 const attachmentWindows = new Set<BrowserWindow>()
@@ -135,7 +143,36 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+function showMainWindow(): void {
+  if (!mainWindow) {
+    createWindow()
+    return
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.show()
+  mainWindow.focus()
+}
+
+async function createTray(): Promise<void> {
+  tray = new Tray(trayIconPath)
+  tray.setToolTip('TSUZUNE')
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: 'TSUZUNEを開く', click: showMainWindow },
+      {
+        label: '終了',
+        click: () => {
+          quitRequested = true
+          showMainWindow()
+          mainWindow?.webContents.send('app:requestClose')
+        }
+      }
+    ])
+  )
+  tray.on('click', showMainWindow)
+}
+
+app.whenReady().then(async () => {
   Menu.setApplicationMenu(null)
   const googleStateDirectory = join(app.getPath('userData'), 'google')
   const tokenStore = new SecureTokenStore(
@@ -190,12 +227,32 @@ app.whenReady().then(() => {
     },
     updates,
     () => mainWindow,
-    () => {
-      closeApproved = true
-      mainWindow?.close()
+    (allow) => {
+      if (!allow) {
+        quitRequested = false
+        return
+      }
+      if (quitRequested) {
+        closeApproved = true
+        mainWindow?.close()
+        return
+      }
+      mainWindow?.hide()
     },
     openAttachmentWindow
   )
+  try {
+    driveSyncBridge = await startDriveSyncBridge({
+      statePath: join(app.getPath('userData'), 'mcp-drive-sync.json'),
+      preview: () => runGoogleInOrder(() => driveSync.preview()),
+      apply: (planId) => runGoogleInOrder(() => driveSync.apply(planId))
+    })
+  } catch (error) {
+    console.error(
+      `Drive sync MCP bridge failed: ${error instanceof Error ? error.message : String(error)}`
+    )
+  }
+  await createTray()
   createWindow()
   if (app.isPackaged) {
     const updateCheckTimer = setTimeout(() => {
@@ -205,15 +262,15 @@ app.whenReady().then(() => {
   }
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
-    }
+    showMainWindow()
   })
 })
 
 app.on('window-all-closed', () => {
-  void watcher.stop()
   if (process.platform !== 'darwin') {
-    app.quit()
+    void Promise.all([watcher.stop(), driveSyncBridge?.close()]).finally(() => {
+      driveSyncBridge = null
+      app.quit()
+    })
   }
 })

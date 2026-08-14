@@ -206,6 +206,7 @@ beforeEach(() => {
         counts: {
           upload: 1,
           download: 0,
+          move: 0,
           conflict: 0,
           preserve: 0
         }

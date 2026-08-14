@@ -7,6 +7,7 @@ import {
   type IpcMainInvokeEvent
 } from 'electron'
 import { readFile } from 'node:fs/promises'
+import { dirnameRelative } from '../core/paths'
 import type {
   AppError,
   AiWriteReviewProposal,
@@ -58,7 +59,7 @@ function runInOrder<T>(operation: () => Promise<T>): Promise<T> {
   return result
 }
 
-function runGoogleInOrder<T>(operation: () => Promise<T>): Promise<T> {
+export function runGoogleInOrder<T>(operation: () => Promise<T>): Promise<T> {
   const result = googleIpcTail.then(operation, operation)
   googleIpcTail = result.then(
     () => undefined,
@@ -173,6 +174,7 @@ export interface DriveSyncIpcService {
   ): Promise<{ lastSyncAt: string | null; rootFolderId: string | null }>
   listRemoteVaults(): Promise<DriveRemoteVault[]>
   pairRemoteVault(rootFolderId: string, vaultId: string): Promise<void>
+  recordLocalMove(oldPath: string, path: string): Promise<void>
   preview(): Promise<DriveSyncPreview>
   apply(planId: string): Promise<DriveSyncApplyResult>
 }
@@ -195,7 +197,7 @@ export function registerIpc(
   google: GoogleIpcServices,
   updates: AppUpdateIpcService,
   getWindow: () => BrowserWindow | null,
-  approveClose: () => void,
+  confirmClose: (allow: boolean) => void,
   openVaultFileWindow?: (path: string) => Promise<void>
 ): void {
   const isTrusted = (event: IpcMainInvokeEvent): boolean =>
@@ -215,6 +217,28 @@ export function registerIpc(
     channel: string,
     handler: (...args: TArgs) => Promise<TOutput>
   ): void => registerGoogle(channel, isTrusted, handler)
+
+  const recordMovedMarkdown = async (
+    moved: { oldPath?: string; path: string }
+  ): Promise<void> => {
+    if (!moved.oldPath?.toLowerCase().endsWith('.md')) return
+    try {
+      await google.driveSync.recordLocalMove(moved.oldPath, moved.path)
+    } catch (error) {
+      try {
+        await vault.moveNote({
+          path: moved.path,
+          destinationDirectory: dirnameRelative(moved.oldPath),
+          destinationPath: moved.oldPath
+        })
+      } catch {
+        throw new Error(
+          `Drive同期履歴を保存できず、ノートを元の場所へ戻せませんでした: ${moved.path}`
+        )
+      }
+      throw error
+    }
+  }
 
   registerTrusted('vault:choose', async () => {
     const options: Electron.OpenDialogOptions = {
@@ -325,11 +349,15 @@ export function registerIpc(
   })
 
   registerTrusted('entry:rename', async (input: RenameEntryInput) => {
-    return vault.renameEntry(input)
+    const moved = await vault.renameEntry(input)
+    await recordMovedMarkdown(moved)
+    return moved
   })
 
   registerTrusted('entry:moveNote', async (input: MoveNoteInput) => {
-    return vault.moveNote(input)
+    const moved = await vault.moveNote(input)
+    await recordMovedMarkdown(moved)
+    return moved
   })
 
   registerTrusted('entry:trash', async (path: string) => {
@@ -479,8 +507,10 @@ export function registerIpc(
       return getGoogleStatus()
     })
   })
-  registerTrusted('drive:preview', () => google.driveSync.preview())
-  registerTrusted('drive:apply', (planId: string) => google.driveSync.apply(planId))
+  registerGoogleTrusted('drive:preview', () => google.driveSync.preview())
+  registerGoogleTrusted('drive:apply', (planId: string) =>
+    google.driveSync.apply(planId)
+  )
 
   registerConcurrentTrusted('app:updateStatus', async () => updates.getStatus())
   registerConcurrentTrusted('app:updateCheck', () => updates.checkForUpdates())
@@ -540,8 +570,6 @@ export function registerIpc(
     if (!trustedSender(event, getWindow)) {
       return
     }
-    if (allow) {
-      approveClose()
-    }
+    confirmClose(allow)
   })
 }

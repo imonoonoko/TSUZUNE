@@ -2,6 +2,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import * as z from 'zod/v4'
+import { DriveSyncMcpClient, defaultDriveSyncStatePath } from './drive-sync'
 import {
   MAX_EDITABLE_CHARACTERS,
   VaultMcpService
@@ -10,6 +11,7 @@ import {
 interface ServerArguments {
   vaultPath?: string
   settingsPath?: string
+  driveSyncStatePath?: string
 }
 
 const readOnlyAnnotations = {
@@ -38,6 +40,20 @@ const autonomousUpdateAnnotations = {
   destructiveHint: true,
   idempotentHint: false,
   openWorldHint: false
+} as const
+
+const drivePreviewAnnotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true
+} as const
+
+const driveApplyAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: true,
+  idempotentHint: false,
+  openWorldHint: true
 } as const
 
 const writeOutputSchema = {
@@ -129,6 +145,11 @@ function parseArguments(args: string[]): ServerArguments {
       index += 1
       continue
     }
+    if (argument === '--drive-sync-state' && value) {
+      parsed.driveSyncStatePath = value
+      index += 1
+      continue
+    }
     throw new Error(`不明な引数です: ${argument}`)
   }
 
@@ -160,6 +181,9 @@ async function main(): Promise<void> {
     explicitVaultPath: args.vaultPath,
     settingsPath: args.settingsPath
   })
+  const driveSync = new DriveSyncMcpClient(
+    args.driveSyncStatePath ?? defaultDriveSyncStatePath(args.settingsPath)
+  )
   const server = new McpServer(
     {
       name: 'tsuzune',
@@ -167,7 +191,7 @@ async function main(): Promise<void> {
     },
     {
       instructions:
-        'TSUZUNEのローカルMarkdown Vaultを扱います。検索はsearch、取得はfetch、関連文脈はbuild_context、リンク候補はsuggest_linksを使ってください。searchは50_履歴(監査履歴)を既定で除外します。履歴を検索に含めたい場合はinclude_history: trueを指定してください。1行の修正はpatch_note、全文置換はupdate_noteを使ってください。AIによる自動更新はautonomous_update_noteを使えます。自動更新はユーザー承認を待たずに実行されますが、旧本文を50_履歴/AI更新へ保存し、出典と理由を記録します。原文・会話ログは自動更新対象にせず、削除・強制上書きはできません。ノートの移動はmove_noteで行い、監査記録を50_履歴/AI更新へ残し、同名上書き・Vault外・内部管理フォルダ・AI変更不可ノートを拒否します。move_noteはpreflight_onlyで移動せずに安全性を確認できます。Wikiリンクの追加はadd_linkで行い、重複・保護ノート・revision競合を拒否し、note_link_addの監査記録を50_履歴/AI更新へ残します。suggest_linksとadd_linkは、フォルダ移動と知識リンクを別判断として扱えます。'
+        'TSUZUNEのローカルMarkdown Vaultを扱います。検索はsearch、取得はfetch、関連文脈はbuild_context、リンク候補はsuggest_linksを使ってください。Drive同期は起動中のTSUZUNE本体に対してpreview_drive_syncで確認し、返されたplanIdをapply_drive_syncのplan_idへ渡した時だけ適用します。searchは50_履歴(監査履歴)を既定で除外します。履歴を検索に含めたい場合はinclude_history: trueを指定してください。1行の修正はpatch_note、全文置換はupdate_noteを使ってください。AIによる自動更新はautonomous_update_noteを使えます。自動更新はユーザー承認を待たずに実行されますが、旧本文を50_履歴/AI更新へ保存し、出典と理由を記録します。原文・会話ログは自動更新対象にせず、削除・強制上書きはできません。ノートの移動はmove_noteで行い、監査記録を50_履歴/AI更新へ残し、同名上書き・Vault外・内部管理フォルダ・AI変更不可ノートを拒否します。move_noteはpreflight_onlyで移動せずに安全性を確認できます。Wikiリンクの追加はadd_linkで行い、重複・保護ノート・revision競合を拒否し、note_link_addの監査記録を50_履歴/AI更新へ残します。suggest_linksとadd_linkは、フォルダ移動と知識リンクを別判断として扱えます。'
     }
   )
 
@@ -404,6 +428,71 @@ async function main(): Promise<void> {
           }
         )
       )
+  )
+
+  server.registerTool(
+    'preview_drive_sync',
+    {
+      title: 'TSUZUNE Drive同期内容の確認',
+      description:
+        'Preview the active Vault Drive sync through the running TSUZUNE app. This does not apply uploads, downloads, moves, or conflicts. Return planId to the user before applying.',
+      inputSchema: {},
+      outputSchema: {
+        planId: z.string(),
+        createdAt: z.string(),
+        items: z.array(
+          z.object({
+            path: z.string(),
+            oldPath: z.string().optional(),
+            action: z.enum(['upload', 'download', 'move', 'conflict', 'preserve']),
+            reason: z.enum([
+              'new_local',
+              'new_remote',
+              'local_changed',
+              'remote_changed',
+              'local_moved',
+              'remote_moved',
+              'both_changed',
+              'both_new_different',
+              'local_deleted',
+              'remote_deleted'
+            ])
+          })
+        ),
+        counts: z.object({
+          upload: z.number(),
+          download: z.number(),
+          move: z.number(),
+          conflict: z.number(),
+          preserve: z.number()
+        })
+      },
+      annotations: drivePreviewAnnotations
+    },
+    async () => textResult(await driveSync.preview())
+  )
+
+  server.registerTool(
+    'apply_drive_sync',
+    {
+      title: 'TSUZUNE Drive同期の適用',
+      description:
+        'Apply exactly one Drive sync plan returned by preview_drive_sync through the running TSUZUNE app. The app rechecks local and remote state and rejects stale plans.',
+      inputSchema: {
+        plan_id: z.string().min(1).describe('plan_id returned by preview_drive_sync')
+      },
+      outputSchema: {
+        uploaded: z.number(),
+        downloaded: z.number(),
+        moved: z.number(),
+        conflicts: z.number(),
+        preserved: z.number(),
+        conflictPaths: z.array(z.string()),
+        completedAt: z.string()
+      },
+      annotations: driveApplyAnnotations
+    },
+    async ({ plan_id }) => textResult(await driveSync.apply(plan_id))
   )
 
   server.registerTool(
@@ -722,7 +811,7 @@ async function main(): Promise<void> {
   )
 
   await server.connect(new StdioServerTransport())
-  console.error('TSUZUNE MCP server is ready (5 read tools, 5 write tools).')
+  console.error('TSUZUNE MCP server is ready (6 read tools, 7 write tools).')
 }
 
 main().catch((error: unknown) => {
