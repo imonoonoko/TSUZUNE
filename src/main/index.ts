@@ -19,6 +19,8 @@ import trayIconPath from '../renderer/assets/tsuzune-tray-icon.png?asset'
 const { autoUpdater } = electronUpdater
 
 app.setAppUserModelId('jp.tsuzune.app')
+const singleInstanceLock = app.requestSingleInstanceLock()
+if (!singleInstanceLock) app.quit()
 
 let mainWindow: BrowserWindow | null = null
 let closeApproved = false
@@ -172,7 +174,10 @@ async function createTray(): Promise<void> {
   tray.on('click', showMainWindow)
 }
 
-app.whenReady().then(async () => {
+if (singleInstanceLock) {
+  app.on('second-instance', showMainWindow)
+
+  app.whenReady().then(async () => {
   Menu.setApplicationMenu(null)
   const googleStateDirectory = join(app.getPath('userData'), 'google')
   const tokenStore = new SecureTokenStore(
@@ -264,13 +269,14 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     showMainWindow()
   })
-})
+  })
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    void Promise.all([watcher.stop(), driveSyncBridge?.close()]).finally(() => {
-      driveSyncBridge = null
-      app.quit()
-    })
-  }
-})
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      void Promise.all([watcher.stop(), driveSyncBridge?.close()]).finally(() => {
+        driveSyncBridge = null
+        app.quit()
+      })
+    }
+  })
+}

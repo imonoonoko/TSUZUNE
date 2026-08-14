@@ -107,6 +107,19 @@ describe('Windows production release contract', () => {
     expect(source).toContain('--user-data-dir=')
   })
 
+  it('keeps one app instance and focuses it on repeated launch', async () => {
+    const source = await readFile(
+      join(process.cwd(), 'src', 'main', 'index.ts'),
+      'utf8'
+    )
+    const lockIndex = source.indexOf('app.requestSingleInstanceLock()')
+
+    expect(lockIndex).toBeGreaterThan(-1)
+    expect(lockIndex).toBeLessThan(source.indexOf('app.whenReady()'))
+    expect(source).toContain('if (!singleInstanceLock) app.quit()')
+    expect(source).toContain("app.on('second-instance', showMainWindow)")
+  })
+
   it('invalidates the installed asar cache after replacing the production app', async () => {
     const source = await readFile(
       join(process.cwd(), 'scripts', 'update-production.mjs'),
