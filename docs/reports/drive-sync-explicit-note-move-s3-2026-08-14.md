@@ -37,7 +37,13 @@ TSUZUNE内で明示的に移動・名前変更した同期済みMarkdownノー�
 
 Google Drive API v3は`files.update`のpatch semanticsを提供し、`appProperties`の個別entryは`null`で削除できる。これを利用してmetadataだけを移動し、長いUTF-8 pathの124-byte制限回避と旧path除去を両立した。
 
-## 残る受入
+## Installed live acceptance（2026-08-15）
 
-- installed appで1件を移動し、previewが移動1件、apply後が0件になる実機確認
-- commit・pushは未実施
+本番installed app内で受入専用ノートを`01_受信箱`から`30_知識`へ移動した。直接MCPの`move_note`はS3対象外であり同期台帳へ記録されないため、受入操作には使用しないことも確認した。
+
+- move preview `cf72e083-1b8b-49ca-a3d5-0b4c8c9ae96f`: 移動1、送信0、受信0、競合0
+- 明示承認後のapply: 移動1、送信0、受信0、競合0（2026-08-15 01:42:15 JST）
+- final preview `046794d3-6572-47a6-8127-abda08d226ca`: 移動0、送信0、受信0、競合0
+- 保持16件は既存の履歴的な競合copyであり、今回のmove受入とは無関係
+
+これにより、installed appでの単一ノート移動1件から同期後0件までのS3実機受入はPASSした。削除伝播、添付、フォルダ一括移動、MCP moveは引き続き対象外である。

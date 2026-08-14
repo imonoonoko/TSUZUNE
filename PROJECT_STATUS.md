@@ -14,7 +14,7 @@
 | Graph直近slice | CP1-B-02で実在Markdownノートにも`フォルダで表示`を接続。公式production updateの全529 tests／10 checksを通して本番反映済み | [CP1-B-02](docs/reports/cp1-b-02-note-folder-reveal-2026-08-13.md) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
 | 最優先Track | P0の履歴ノイズ除外は完了。現在はO1 7-day dogfoodの観測期間で、ニューロン系拡張を加えず通常利用の摩擦とP0の体感差を記録する | [PLAN.md](PLAN.md#current-transition-queue) |
-| 次の縦切り | P0の履歴ノイズ除外は本番反映済み。O1 7-day dogfoodで体感差と副作用を観測し、S3 move実機受入またはfreshness行動キュー／削除伝播を別sliceで再選択する | [history exclusion](docs/reports/history-normal-discovery-exclusion-2026-08-14.md) |
+| 次の縦切り | P0の履歴ノイズ除外とS3 move実機受入は完了。O1 7-day dogfoodで体感差と副作用を観測し、再確認漏れが反復した場合だけfreshness行動キュー、反復しなければ削除伝播を次sliceとして検討する | [S3 acceptance](docs/reports/drive-sync-explicit-note-move-s3-2026-08-14.md) |
 | Graph／Excluded files checkpoint | CP0-T04で未解決Wiki nodeのidentityと検索保持を閉じ、CP0-T05でapp-wide Excluded filesを本番MCP search／Contextへ接続した。Manage UI、FileTree directory、全surfaceのObsidian固定比較は未完。GP0-3b-pはGraph再表示camera gate不成立で`blocked` | [CP0-T05 report](docs/reports/cp0-t05-excluded-files-mcp-retrieval-2026-08-12.md) |
 | Context checkpoint | X1-M1は`type: moc`を全タイトル一覧へ投影し、X1-D1はbaseline candidate集合を変えず通常本文だけを質問で優先する。X1-S1aはstable scanで同一canonical creation-time sidecarを再書込みせず、X1-S1bはmatching revisionと同一本文のAI自律更新を履歴なしno-opにして本番反映した。X1-T1は`build_context`だけをstructured-onlyにし、Codex Desktop local stdioで意味指標不変・wire 54.7%減・p95非悪化、fixture 12/12、回答品質4/4、source trace 3/3、future leakage 0、write 0を確認して本番反映した | [X1-T1 report](docs/reports/x1-t1-structured-only-transport-2026-08-12.md) |
 | MCP runtime | `build_context`のstructured-onlyを維持し、direct serverは13ツール、Codex登録は10ツール。Drive previewはread-only、applyは確認対象。Google tokenを渡さず、ウィンドウを隠したTray常駐中もpreview可能。本番反映・runtime受入済み | [Drive bridge](docs/reports/drive-sync-mcp-bridge-2026-08-14.md) |
@@ -150,7 +150,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 1. **P0 completed delivery:** frozen 245-file inventoryをC0〜C4、C5 exact-pin復旧、4 mixed-path解消、C6/C9 documentation、H1不採用削除へ分離してpushし、clean source `b2fd6bf`を公式`production:update`で本番受入した。
 2. **P1 completed acceptance:** Drive Sync S1を本番反映し、旧ledger warm-up後の差分なし再確認が実機で約1〜2秒となりPASS。
 3. **P1 completed live acceptance:** S2 Drive Changes APIを全617 tests／10 checksで本番反映し、installed app連続previewは初回bootstrap約7秒、2回目Changes差分経路約1秒で受入PASS。
-4. **P1 installed／acceptance pending:** S3 Explicit Note Moveを全624 tests／10 checksで本番反映。installed appで単一ノート移動1件→同期後0件を受入する。
+4. **P1 completed live acceptance:** S3 Explicit Note Moveを全624 tests／10 checksで本番反映。2026-08-15にinstalled app内の単一ノート移動をpreview移動1件→apply移動1件→再preview 0件で受入PASS。
 5. **P1 background runtime completed and live-accepted:** 通知領域常駐を本番反映し、×で隠した後もprocess／MCPが生存。背景状態のDrive previewは送信12／受信0／移動0／競合0／保持16でPASSし、applyは未実施。
 6. **P1 product observation:** O1 7-day dogfood。機能を追加せず、通常ノートの作成、検索、link、Graph、MCP handoffの摩擦を記録する。
 7. **P1 supporting acceptance:** MCP-R1は3/3完了し、履歴近似重複が2/3。新規BM25ではなく、sourceに実装済みの`50_履歴/**`既定除外をactive MCP runtimeで一度受入する。

@@ -1,6 +1,6 @@
 # TSUZUNE Product Plan
 
-更新日: 2026-08-14（JST）
+更新日: 2026-08-15（JST）
 
 この文書は、TSUZUNEの「今から何を、どの順序で、どこまで作るか」を決める実行計画です。現在の本番状態と最新検証は[PROJECT_STATUS.md](PROJECT_STATUS.md)、変わりにくい製品原則は[PRODUCT.md](PRODUCT.md)、画面規約は[DESIGN.md](DESIGN.md)、日付付き証拠は[docs/INDEX.md](docs/INDEX.md)を正本とします。
 
@@ -52,7 +52,7 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 | Context checkpoint | X1-M1 MOC Title Router、X1-D1 Recall-safe Query Bridge、X1-S1a creation-time sidecar no-op、X1-S1b revision-aware autonomous no-op、X1-T1 structured-only transportを本番反映済み。質問はbaseline候補を削除せず、通常本文の展開順だけを変える。X1-T1はCodex Desktop local stdioで受入済み。ChatGPT remote MCPは別Track。詳細は[report](docs/reports/x1-t1-structured-only-transport-2026-08-12.md) |
 | MCP correction checkpoint | `build_context`のstructured-only搬送を維持したまま、direct serverを13ツール、Codex Desktop登録を10ツールへ拡張。追加したDrive previewはread-only、applyは確認対象で、起動中の本体がない場合はfail-closed。[Drive bridge](docs/reports/drive-sync-mcp-bridge-2026-08-14.md) |
 | MCP retrieval observation | MCP-R1は3/3完了。sample 2・3で`50_履歴/AI更新`の近似重複を再観測し、search/rankingシグナルが2/3。新規BM25より先に、sourceに既存のhistory既定除外をruntimeで受入する。[observation](docs/reports/mcp-retrieval-route-observation-2026-08-13.md) |
-| 現役Primary Track数 | 0。履歴ノイズ除外はinstalled-and-verified。O1は観測のみ。S3実機受入、freshness行動キュー、削除伝播は別slice。CP1-C-07はremote preview未更新のためapply禁止を継続 |
+| 現役Primary Track数 | 0。履歴ノイズ除外とS3実機受入は完了。O1は観測のみ。再確認漏れが反復した場合だけfreshness行動キューを候補化し、反復しなければ削除伝播を次sliceとして検討する。CP1-C-07はremote preview未更新のためapply禁止を継続 |
 
 ### Current Transition Queue
 
@@ -76,7 +76,7 @@ Context／token調査は、単純なContext削減を最優先にせず、Cost pe
 15. **Completed and installed — Drive Sync S1 metadata-first preview:** ledgerへremote versionを保存し、同じfile ID／versionの本文downloadとhash再計算を省略する。previewで取得済みの本文はapplyで再利用する。旧ledgerの初回warm-up境界を維持し、全62 files／612 tests、10/10 production checks、profile 57 files不変をPASSした。[report](docs/reports/drive-sync-metadata-first-s1-2026-08-14.md)
 16. **Completed live acceptance — S1:** installed appの旧ledger warm-up後、直後の差分なし「同期内容を確認」はユーザー実測で約1〜2秒。精密benchmarkではないが、日常操作の受入条件を満たした。
 17. **Completed and live-accepted — S2 Drive Changes API:** change tokenとremote metadata cacheを保存し、初回full snapshot後は差分metadataだけを列挙する。別Vaultを隔離し、削除cacheを復活させず、HTTP 410で拒否されたtokenだけfull scanへfallbackする。全62 files／617 tests、10/10 production checks、profile 57 files不変をPASS。installed app連続previewはbootstrap約7秒、Changes差分経路約1秒で受入PASS。[report](docs/reports/drive-sync-changes-s2-2026-08-14.md)
-18. **Completed and installed／acceptance pending — S3 Explicit Note Move:** アプリ内の単一Markdown移動／名前変更を同期台帳へ保留し、次回applyで同じDrive file IDのmetadataだけを新pathへ移す。別端末側もfile IDで純粋なremote moveを認識する。移動＋編集や衝突はfail-closed。全62 files／624 tests、production update 10/10 checks、build／installed hash一致、profile 57 files不変をPASS。本番appでの移動1件→0件の実機受入だけが残る。[report](docs/reports/drive-sync-explicit-note-move-s3-2026-08-14.md)
+18. **Completed, installed and live-accepted — S3 Explicit Note Move:** アプリ内の単一Markdown移動／名前変更を同期台帳へ保留し、次回applyで同じDrive file IDのmetadataだけを新pathへ移す。別端末側もfile IDで純粋なremote moveを認識する。移動＋編集や衝突はfail-closed。全62 files／624 tests、production update 10/10 checks、build／installed hash一致、profile 57 files不変をPASS。2026-08-15に本番app内の単一ノート移動をpreview移動1件→apply移動1件→再preview 0件で受入PASSした。[report](docs/reports/drive-sync-explicit-note-move-s3-2026-08-14.md)
 19. **Completed, installed and live-accepted — Drive Sync MCP Bridge background runtime:** Windowsの×でウィンドウを隠した後もTSUZUNE processとMCP bridgeが生存し、背景状態の実previewが送信12／受信0／移動0／競合0／保持16でPASS。applyは未実施。自動同期、新規依存、別serviceは追加していない。[report](docs/reports/drive-sync-mcp-bridge-2026-08-14.md)
 20. **Completed, installed and live-accepted — TSUZUNE Icon Refresh:** 旧woven-loopをInterwoven Bellへ更新し、appとtrayを別asset化。16–32pxのlight／dark確認、全63 files／626 tests、公式production update 10/10 checks、build／installed hash一致、profile 57 files不変をPASS。installed実機のタイトルバー、アプリ内ヘッダー、タスクバー、通知領域もユーザー目視でPASS。[report](docs/reports/tsuzune-icon-refresh-2026-08-14.md)
 21. **Completed and installed — `50_履歴` Normal Discovery Exclusion:** 実測で通常操作負荷が確認された監査履歴を、既存除外matcherの再利用だけで通常Graph・backlink・Renderer検索・linked-view backlinkから既定除外した。File tree、直接open、MCP明示履歴、Temporal Memory、Drive同期は維持。全63 files／627 tests、MCP 6 read＋7 write、production update 10/10 checks、hash一致、profile 57 files不変をPASS。[report](docs/reports/history-normal-discovery-exclusion-2026-08-14.md)
