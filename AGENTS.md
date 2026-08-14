@@ -19,3 +19,8 @@
 - Production acceptance requires isolated packaged and installed smoke tests, exact built/installed executable and `app.asar` hashes, an unchanged `%APPDATA%\TSUZUNE` profile, and refreshed Codex MCP registration. The active Vault must not be opened by automated smoke tests.
 - Treat fixture Vaults and isolated test profiles as test data, never as the production knowledge source. Installed-runtime acceptance must exercise the installed production TSUZUNE binary with isolated test data.
 - Never write secrets, OAuth credentials, tokens, large raw artifacts, or unverified parity claims into the production Vault. Record `not compared` or `not matched` until the corresponding evidence exists.
+
+## GitHub Delivery
+
+- When the user explicitly authorizes integration or publication and the required checks pass, Codex completes the routine PR flow through ready-for-review, merge, and default-branch verification. Do not hand a manual merge step back to the user.
+- Stop before merge only when checks or review are unresolved, the merge would expand the authorized scope, or it would also publish a release, rewrite history, or perform another separately gated action.
