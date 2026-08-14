@@ -161,4 +161,3 @@ Read that document first, then inspect the current repo state. Do not assume the
 - `50_履歴`、原典、監査ログを通常ノートとして上書きしない
 - TSUZUNE／MCP processを所有確認なしに停止しない
 - Installed production、Git HEAD、dirty sourceを同じ意味として扱わない
-
