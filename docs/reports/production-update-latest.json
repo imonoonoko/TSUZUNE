@@ -1,14 +1,14 @@
 {
   "status": "installed-and-verified",
-  "verifiedAt": "2026-08-14T18:48:55.786Z",
+  "verifiedAt": "2026-08-14T19:08:56.337Z",
   "packageVersion": "0.5.0",
   "git": {
-    "commit": "8b2e8fcca316d4785c7c69de2a20388a8278bba7",
+    "commit": "5c0d15c9fabbbba03cd7ead0660ed23e8676cc7d",
     "dirty": false
   },
   "sourceFingerprint": {
     "fileCount": 934,
-    "digest": "1aed65c25f061cdb544127087070cc3620aaf2f264e1fc12168c5c3492bea235",
+    "digest": "41b02115f784c12884bfbbe83b5ee3f6217d456baf7451219c2f073528d9c0e2",
     "excludedPaths": [
       "docs/reports/production-update-latest.json"
     ]
@@ -16,30 +16,30 @@
   "oauthBuildSource": "installed-bundle",
   "installer": {
     "path": "dist/TSUZUNE-Setup-0.5.0.exe",
-    "sha256": "587d43cf016b57a648b03debcddbd36ed216b3febda84f1afa94fc6ff4eaf083"
+    "sha256": "59249e6f1fd1e9c872eb8e2d40c3ebaf49ce0cfa67b106e0d0f21f46be58b649"
   },
   "built": {
-    "executableSha256": "13efbc68cbf1e2bd95069a8ac52aa0eb5a18ebdab3faa168dd14ff3572025e16",
-    "appAsarSha256": "32c9bcc1709f189e889df51cddd0a19b7790d4423ed232c8a7ddddaf731a03c9"
+    "executableSha256": "f1e340ae38e8055c32801f3905a13834b1f79d093e71aaff4a2e3691bbeed713",
+    "appAsarSha256": "aaad2b68f4402a32a31a9620719e3e30a83f2e2acccb50ecc7291b2675ee1e7e"
   },
   "installed": {
     "executable": "C:\\Users\\Humin\\AppData\\Local\\Programs\\tsuzune\\TSUZUNE.exe",
     "version": "0.5.0",
-    "executableSha256": "13efbc68cbf1e2bd95069a8ac52aa0eb5a18ebdab3faa168dd14ff3572025e16",
-    "appAsarSha256": "32c9bcc1709f189e889df51cddd0a19b7790d4423ed232c8a7ddddaf731a03c9",
+    "executableSha256": "f1e340ae38e8055c32801f3905a13834b1f79d093e71aaff4a2e3691bbeed713",
+    "appAsarSha256": "aaad2b68f4402a32a31a9620719e3e30a83f2e2acccb50ecc7291b2675ee1e7e",
     "rendererReady": true
   },
   "productionProfile": {
     "path": "C:\\Users\\Humin\\AppData\\Roaming\\TSUZUNE",
     "before": {
       "exists": true,
-      "fileCount": 57,
-      "digest": "c4b79476a1c607e118b5c71380dffdb3785c21cf86b9659c88ebb7aedcdeadec"
+      "fileCount": 60,
+      "digest": "5bd43810aa7d94e77d0c6b6a12df0aa8eddaf1c2a95e423de38d3bfa02192817"
     },
     "after": {
       "exists": true,
-      "fileCount": 57,
-      "digest": "c4b79476a1c607e118b5c71380dffdb3785c21cf86b9659c88ebb7aedcdeadec"
+      "fileCount": 60,
+      "digest": "5bd43810aa7d94e77d0c6b6a12df0aa8eddaf1c2a95e423de38d3bfa02192817"
     },
     "unchanged": true
   },
