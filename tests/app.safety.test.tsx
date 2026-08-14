@@ -1146,6 +1146,60 @@ describe('App data-loss guards', () => {
     expect(api.setLastNote).toHaveBeenCalledWith('B.md')
   })
 
+  it('keeps audit history in the file tree but excludes it from normal discovery', async () => {
+    const historyNote: NoteDocument = {
+      path: '50_履歴/AI更新/A-history.md',
+      name: 'A-history',
+      content: 'audit-only-token [[A]]',
+      modifiedAt: 400,
+      size: 22
+    }
+    const historySnapshot: VaultSnapshot = {
+      ...snapshot,
+      directories: ['', '50_履歴', '50_履歴/AI更新'],
+      notes: [noteA, noteB, noteC, historyNote]
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok(historySnapshot))
+    vi.mocked(api.readNote).mockImplementation((path) => {
+      const note = historySnapshot.notes.find((candidate) => candidate.path === path)
+      return note
+        ? ok(note)
+        : Promise.resolve({
+            ok: false,
+            error: { code: 'NOT_FOUND', message: '見つかりません。' }
+          })
+    })
+
+    render(<App />)
+    await screen.findByLabelText('Markdown編集欄')
+
+    const tree = within(screen.getByRole('tree', { name: 'Vaultファイル' }))
+    const historyFile = tree.getByRole('button', { name: /A-history/ })
+    fireEvent.click(historyFile)
+    expect(
+      (await screen.findByLabelText('Markdown編集欄') as HTMLTextAreaElement).value
+    ).toBe(historyNote.content)
+    fireEvent.click(tree.getByRole('button', { name: /Aの最終更新:/ }))
+    const backlinks = screen
+      .getByRole('heading', { name: 'バックリンク' })
+      .closest('section')
+    expect(backlinks).not.toBeNull()
+    expect(within(backlinks!).queryByRole('button', { name: /A-history/ })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'ローカルグラフ' }))
+    const graph = await screen.findByRole('region', { name: 'ローカルグラフ' })
+    expect(within(graph).queryByRole('button', { name: /A-history/ })).toBeNull()
+
+    fireEvent.change(screen.getByPlaceholderText('Vaultを検索'), {
+      target: { value: 'audit-only-token' }
+    })
+    expect(
+      within(screen.getByLabelText('検索結果')).getByText(
+        '「audit-only-token」は見つかりませんでした。'
+      )
+    ).toBeTruthy()
+  })
+
   it('restores graph forces and persists them when slider editing is committed', async () => {
     const graphForces = {
       centerForce: 0.25,

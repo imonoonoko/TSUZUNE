@@ -63,6 +63,7 @@ import { DEFAULT_GRAPH_DISPLAY_SETTINGS } from '../shared/graph-display'
 import { DEFAULT_GRAPH_FILTER_SETTINGS } from '../shared/graph-filters'
 import { DEFAULT_GRAPH_GROUPS } from '../shared/graph-groups'
 import { DEFAULT_GRAPH_VIEW_STATES } from '../shared/graph-view-state'
+import { createExcludedFileMatcher } from '../shared/excluded-files'
 import FileTree, { type TreeSelection } from './components/FileTree'
 import AttachmentPreview from './components/AttachmentPreview'
 import HumanNoteCaptureDialog, {
@@ -80,6 +81,8 @@ import WikiGraphView from './components/WikiGraphView'
 import tsuzuneMark from './assets/tsuzune-app-icon.png'
 
 type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict'
+
+const isNormalDiscoveryExcluded = createExcludedFileMatcher(['50_履歴'])
 
 type WorkspaceTab =
   | {
@@ -860,6 +863,10 @@ export default function App(): React.JSX.Element {
   }, [])
 
   const savedNotes = snapshot?.notes ?? []
+  const normalDiscoveryNotes = useMemo(
+    () => savedNotes.filter((note) => !isNormalDiscoveryExcluded(note.path)),
+    [savedNotes]
+  )
   const pathAliases = useMemo(
     () => compilePathAliases(snapshot?.pathAliases ?? {}),
     [snapshot?.pathAliases]
@@ -877,12 +884,12 @@ export default function App(): React.JSX.Element {
   }, [selectedTemplatePath, templates])
   const graphNotes = useMemo(() => {
     if (viewMode !== 'graph' || !selectedPath) {
-      return savedNotes
+      return normalDiscoveryNotes
     }
-    return savedNotes.map((note) =>
+    return normalDiscoveryNotes.map((note) =>
       note.path === selectedPath ? { ...note, content } : note
     )
-  }, [savedNotes, selectedPath, content, viewMode])
+  }, [normalDiscoveryNotes, selectedPath, content, viewMode])
 
   const outgoing = useMemo(
     () =>
@@ -891,12 +898,14 @@ export default function App(): React.JSX.Element {
   )
   const backlinks = useMemo(
     () =>
-      selectedPath ? getBacklinks(selectedPath, savedNotes, pathAliases) : [],
-    [selectedPath, savedNotes, pathAliases]
+      selectedPath
+        ? getBacklinks(selectedPath, normalDiscoveryNotes, pathAliases)
+        : [],
+    [selectedPath, normalDiscoveryNotes, pathAliases]
   )
   const searchResults = useMemo(
-    () => searchNotes(savedNotes, query),
-    [savedNotes, query]
+    () => searchNotes(normalDiscoveryNotes, query),
+    [normalDiscoveryNotes, query]
   )
   const selectedNote = useMemo(
     () =>
@@ -961,7 +970,7 @@ export default function App(): React.JSX.Element {
     if (!activeLinkedViewPath) {
       return []
     }
-    const linkedViewGraph = buildWikiGraph(savedNotes, {
+    const linkedViewGraph = buildWikiGraph(normalDiscoveryNotes, {
       includeAttachments: true,
       attachments: snapshot?.attachments ?? [],
       pathAliases
@@ -971,8 +980,8 @@ export default function App(): React.JSX.Element {
         .filter((edge) => edge.targetPath === activeLinkedViewPath)
         .map((edge) => edge.sourcePath)
     )
-    return savedNotes.filter((note) => sourcePaths.has(note.path))
-  }, [activeLinkedViewPath, pathAliases, savedNotes, snapshot?.attachments])
+    return normalDiscoveryNotes.filter((note) => sourcePaths.has(note.path))
+  }, [activeLinkedViewPath, normalDiscoveryNotes, pathAliases, snapshot?.attachments])
   const temporalAsOf = useMemo(() => localCalendarDate(new Date()), [])
 
   const targetDirectory = (): string => {
