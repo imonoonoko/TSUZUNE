@@ -182,6 +182,7 @@ npm run check:packaged
 - [Documentation Index](docs/INDEX.md) — 機能別guideとEvidence
 - [Obsidian Graph Parity Reference](docs/obsidian-graph-parity-reference.md) — 固定比較契約と未証明境界
 - [Windows Production Guide](docs/windows-production.md) — installer、update、release
+- [Security Policy](SECURITY.md) — 脆弱性を公開Issueにせず報告する方法
 
 ## License
 

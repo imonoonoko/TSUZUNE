@@ -6,7 +6,7 @@ Freeze every dirty leaf file into exactly one disposition before staging or comm
 
 ## Frozen boundary
 
-- repository: `C:\Users\Humin\Documents\Codex\TSUZUNE`
+- repository: `<repository>`
 - branch: `agent/tsuzune-mcp-integration`
 - HEAD: `ae7d97d`
 - command: `git status --porcelain=v1 -uall`

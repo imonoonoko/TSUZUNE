@@ -4,14 +4,14 @@
 
 ```text
 We are continuing from this handoff:
-C:\Users\Humin\Documents\Codex\TSUZUNE\docs\codex-handoffs\2026-08-14-drive-sync-background-icon.md
+<repository>\docs\codex-handoffs\2026-08-14-drive-sync-background-icon.md
 
 Read that document first, then inspect the current repo state. Do not assume the old chat context is available. Continue from the Next Steps section, verifying what still applies before changing files or global config.
 ```
 
 ## Context
 
-- Repo/path: `C:\Users\Humin\Documents\Codex\TSUZUNE`
+- Repo/path: `<repository>`
 - Branch: `agent/tsuzune-mcp-integration`
 - Handoff作成時HEAD: `6b8c55e`。`origin/agent/tsuzune-mcp-integration`とahead 0／behind 0
 - Current goal: Drive同期を日常利用可能な速度と安全境界へ改善し、TSUZUNEを通知領域で常駐させ、MCPからも同期preview／明示applyを扱えるようにする。直近のIcon Refreshは完了し、次のPrimary Trackは未選定

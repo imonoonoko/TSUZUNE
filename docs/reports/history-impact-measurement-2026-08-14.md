@@ -8,7 +8,7 @@ Drive同期から履歴を除外する判断はしない。監査・復元・バ
 
 ## 実測境界
 
-- 対象: 本番Vault `C:\Users\Humin\OneDrive\ドキュメント\TSUZUNE\TSUZUNE-Starter-Vault`
+- 対象: 本番Vault `<production-vault>`
 - 計測時刻: 2026-08-14 21:01 JST
 - 方法: 製品の`buildWikiGraph`、Graph simulation、`getBacklinks`、`searchNotes`を実Markdownへ適用
 - 比較: 全593ノート 対 `50_履歴`を除いた180ノート
@@ -19,7 +19,7 @@ Drive同期から履歴を除外する判断はしない。監査・復元・バ
 再現コマンド:
 
 ```powershell
-node scripts/run-measure-history-impact.mjs --vault "C:\Users\Humin\OneDrive\ドキュメント\TSUZUNE\TSUZUNE-Starter-Vault" --output "work\history-impact-2026-08-14\measurement.json"
+node scripts/run-measure-history-impact.mjs --vault "<production-vault>" --output "work\history-impact-2026-08-14\measurement.json"
 ```
 
 ## 結果

@@ -4,14 +4,14 @@
 
 ```text
 We are continuing from this handoff:
-C:\Users\Humin\Documents\Codex\TSUZUNE\docs\codex-handoffs\2026-08-12-context-token-fresh-task.md
+<repository>\docs\codex-handoffs\2026-08-12-context-token-fresh-task.md
 
 Read that document first, then inspect the current repo state. Do not assume the old chat context is available. Continue from the Next Steps section, verifying what still applies before changing files or global config.
 ```
 
 ## Context
 
-- Repo/path: `C:\Users\Humin\Documents\Codex\TSUZUNE`
+- Repo/path: `<repository>`
 - Branch/HEAD at handoff: `agent/tsuzune-mcp-integration` / `5266131f6e2c38afc39b46fe9083c9e1fef39577`
 - Current goal: monitor the conditionally adopted fresh-task boundary on the next three natural long tasks without lowering task success, provenance, safety, or source traceability.
 - Active track: CP1-B Fresh Boundary Monitored Adoption. Sample 1/3 completed as FAIL with reusable partial evidence.
@@ -43,7 +43,7 @@ Read that document first, then inspect the current repo state. Do not assume the
 - `PLAN.md`, `PROJECT_STATUS.md`, `docs/INDEX.md`
 - Production TSUZUNE note `10_プロジェクト/TSUZUNE.md`, current revision at handoff: `sha256:370a5431f9185fe7fc86b19421913a723864a9d5bc69e0d44310d8afdf6ffbb4`
 - Existing Excluded files evidence: `docs/obsidian-graph-parity-reference.md`, `docs/reports/assets/graph-gp6/obsidian-1.13.4/01-global-baseline.observation.json`, `tests/app.safety.test.tsx`, `tests/ipc.graph-settings.test.ts`, `tests/excluded-files.test.ts`.
-- Codex Brain note `C:\Users\Humin\Obsidian\Codex Cortex\Codex Brain\wiki\tsuzune-project-status.md`
+- Codex Brain note `<codex-brain>\wiki\tsuzune-project-status.md`
 
 ## Commands And Checks Already Run
 

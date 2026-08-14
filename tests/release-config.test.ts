@@ -55,6 +55,14 @@ describe('Windows production release contract', () => {
     expect(manifest.scripts?.['check:installer']).toBe(
       'node scripts/check-installer.mjs'
     )
+    expect(manifest.build?.publish?.[0]).toEqual(
+      expect.objectContaining({
+        provider: 'github',
+        owner: 'imonoonoko',
+        repo: 'TSUZUNE',
+        private: false
+      })
+    )
   })
 
   it('provides one ordered command that updates the installed production app', async () => {

@@ -4,14 +4,14 @@
 
 ```text
 We are continuing from this handoff:
-C:\Users\Humin\Documents\Codex\TSUZUNE\docs\codex-handoffs\2026-08-13-context-token-next-track.md
+<repository>\docs\codex-handoffs\2026-08-13-context-token-next-track.md
 
 Read that document first, then inspect the current repo state and production TSUZUNE. Do not assume the old chat context is available. Continue from the Next Steps section, verifying source/config identity before changing files or global config.
 ```
 
 ## Context
 
-- Repo/path: `C:\Users\Humin\Documents\Codex\TSUZUNE`
+- Repo/path: `<repository>`
 - Branch/HEAD at handoff: `agent/tsuzune-mcp-integration` / `5266131f6e2c38afc39b46fe9083c9e1fef39577`
 - Current goal: 品質、出典、安全性を落とさず、Codexの実taskにおけるContext／token消費を減らす。
 - User priority: Context／token問題を最優先にする。ただしTSUZUNEへAI runtime、独自agent loop、巨大middlewareを組み込まない。

@@ -81,7 +81,7 @@ assert.match(
 assert.match(appUpdate, /provider:\s*github\b/)
 assert.match(appUpdate, /owner:\s*imonoonoko\b/)
 assert.match(appUpdate, /repo:\s*TSUZUNE\b/)
-assert.match(appUpdate, /private:\s*true\b/)
+assert.match(appUpdate, /private:\s*false\b/)
 
 let customApplicationIcon = null
 if (process.platform === 'win32') {
@@ -113,7 +113,7 @@ console.log(
       installer: installerName,
       installerBytes: installerInfo.size,
       blockMapBytes: blockMapInfo.size,
-      updateFeed: 'private GitHub release',
+      updateFeed: 'public GitHub release',
       customApplicationIcon
     },
     null,

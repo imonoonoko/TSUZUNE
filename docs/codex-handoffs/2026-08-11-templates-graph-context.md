@@ -4,14 +4,14 @@
 
 ```text
 We are continuing from this handoff:
-C:\Users\Humin\Documents\Codex\TSUZUNE\docs\codex-handoffs\2026-08-11-templates-graph-context.md
+<repository>\docs\codex-handoffs\2026-08-11-templates-graph-context.md
 
 Read that document first, then inspect the current repo state. Do not assume the old chat context is available. Continue from the Next Steps section, verifying what still applies before changing files or global config.
 ```
 
 ## Context
 
-- Repo/path: `C:\Users\Humin\Documents\Codex\TSUZUNE`
+- Repo/path: `<repository>`
 - Branch: `agent/tsuzune-mcp-integration`
 - Current goal: keep the human-facing TSUZUNE workflow simple while preserving Markdown/MCP/Graph compatibility and reducing unnecessary context transport.
 - User preferences or constraints: Windows-first, local/private scope; Markdown knowledge should not be required for ordinary input; preserve raw sources and history; use the smallest safe change; do not claim model-token savings without model-visible measurement.

@@ -12,6 +12,7 @@
 
 ## 現在の開発
 
+- [Public repository readiness](reports/public-repository-readiness-2026-08-15.md) — 公開後のsecret／privacy監査、GitHub Security設定、public update feed、依存監査、未merge／未release境界。
 - [A2-1 Renderer Search Operators](reports/a2-1-search-operators-2026-08-15.md) — Obsidian Desktop 1.13.4の隔離19-query実測に基づくimplicit AND、否定、tag/path/file filter、phrase検索と本番反映証拠。
 - [Single-instance Startup](reports/single-instance-startup-2026-08-15.md) — 後続起動を終了し、既存windowを表示・復元・focusする最小実装、本番更新、installed連続起動の同一PID受入証拠。
 - [50_履歴 Normal Discovery Exclusion](reports/history-normal-discovery-exclusion-2026-08-14.md) — 監査履歴をFile tree／直接openに残し、通常Graph・backlink・Renderer検索だけから既定除外した最小sliceと本番更新証拠。

@@ -4,14 +4,14 @@
 
 ```text
 We are continuing from this handoff:
-C:\Users\Humin\Documents\Codex\TSUZUNE\docs\codex-handoffs\2026-08-11-x1-s1b-hooks-context.md
+<repository>\docs\codex-handoffs\2026-08-11-x1-s1b-hooks-context.md
 
 Read that document first, then inspect the current repo state. Do not assume the old chat context is available. Continue from the Next Steps section, verifying what still applies before changing files or global config.
 ```
 
 ## Context
 
-- Repo/path: `C:\Users\Humin\Documents\Codex\TSUZUNE`
+- Repo/path: `<repository>`
 - Branch: `agent/tsuzune-mcp-integration`
 - Related handoff: `docs/codex-handoffs/2026-08-11-templates-graph-context.md` preserves the preceding templates / Graph parity context. This handoff adds the later maintenance slices and Hooks design input; it does not replace the Graph evidence boundary.
 - Current goal: keep the local Markdown / MCP knowledge base simple, provenance-preserving, and compatible with the installed production app. Choose only independently justified next slices.
@@ -24,7 +24,7 @@ Read that document first, then inspect the current repo state. Do not assume the
 - X1-S1b is installed: `autonomous_update_note` is a no-op only when a supplied `expected_revision` matches and the supplied body is exactly identical. It returns `unchanged: true`, omits `history_path`, and does not write the target Markdown, AI history, or an already-stable canonical sidecar. Stale revisions still reject before equality, while calls without `expected_revision` retain the legacy history-writing behavior.
 - The latest receipt records the dirty working tree based at `5266131f6e2c38afc39b46fe9083c9e1fef39577` as `installed-and-verified` at 2026-08-11 20:41 JST: 57-file production profile unchanged and 10/10 gate checks passed. Treat `docs/reports/production-update-latest.json` as the machine-readable authority; documentation finalized afterwards is not inside that receipt fingerprint.
 - Production TSUZUNE was updated through revision-guarded writes: the dated X1-S1b source note plus project, search/Graph, evidence-map, and entry notes reference the maintenance result.
-- Read `C:\Users\Humin\Downloads\TSUZUNE Hooks 設計案.md`. It is a design input, not an implementation authorization. Its durable direction is: TSUZUNE Hooks are a lightweight event-observation layer, separate static WikiLink topology from a future Retrieval Graph, separate freshness / recency / usage / association signals, record before using, compare shadow rankings before applying any weak ranking correction, and never use weights to silently remove recall candidates.
+- Read the local `TSUZUNE Hooks 設計案.md`. It is a design input, not an implementation authorization. Its durable direction is: TSUZUNE Hooks are a lightweight event-observation layer, separate static WikiLink topology from a future Retrieval Graph, separate freshness / recency / usage / association signals, record before using, compare shadow rankings before applying any weak ranking correction, and never use weights to silently remove recall candidates.
 
 ## Files Touched Or Investigated
 

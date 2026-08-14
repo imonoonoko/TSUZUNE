@@ -138,7 +138,7 @@
         "provider": "github",
         "owner": "imonoonoko",
         "repo": "TSUZUNE",
-        "private": true,
+        "private": false,
         "releaseType": "release"
       }
     ],
