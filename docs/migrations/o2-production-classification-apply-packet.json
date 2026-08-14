@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "packetId": "O2-production-classification-apply-packet-2026-08-14",
+  "status": "blocked-before-approval",
+  "applyAllowed": false,
+  "approvalState": "not-requestable",
+  "sourceCommit": "6b8c55e2bac8a015e9cfa92334ce25100718e971",
+  "plan": {
+    "path": "docs/migrations/o2-production-classification-apply-plan.json",
+    "sha256": "E86811315A0EF37B8B336D942F6AFEA5474D37734A1771460D126443FAF60E25",
+    "moveCount": 5,
+    "movedBytes": 15601
+  },
+  "localPreview": {
+    "status": "pass",
+    "manifestSha256": "E2ABF572F653B438855D11AB2D17DF8E7C52C676C3799CC7384D8A1911E8D248",
+    "vault": {
+      "fileCount": 547,
+      "totalBytes": 14844742,
+      "combinedSha256": "71045B062E9B3F407317F50AB0C2DB1C80ADE8165D4D300F9A23BA1FF5D2F74A",
+      "unchanged": true
+    },
+    "references": {
+      "occurrences": 140,
+      "files": 118,
+      "active": 35,
+      "immutableSource": 4,
+      "history": 101,
+      "projectedMcpBacklinks": 137
+    },
+    "requiredDirectory": "30_知識/ソフトウェア開発",
+    "pathAliasSidecarState": "absent",
+    "requiredPreimages": [
+      { "path": "30_知識/Graftの評価とTSUZUNEへの示唆.md", "sizeBytes": 4935, "sha256": "1B81AF74C957C5D54003763B8EB27D14C231A945A09A6B022493C73F8257B4A4" },
+      { "path": "30_知識/TSUZUNE-AI設計レビューの教訓-2026-08-13.md", "sizeBytes": 4037, "sha256": "E1F96B8F9DA441D7D3853EFB717E7CA00D24CB7561BCF5408627A297850A4318" },
+      { "path": "30_知識/TSUZUNE-Claudianから得る設計示唆.md", "sizeBytes": 4649, "sha256": "9F86BF7FE1679246DBCD2CD6A47F4666AA2E9BE272F7453EE6A820D1C8F3E2C6" },
+      { "path": "30_知識/TSUZUNE-Context CompilerとTemporal Memory.md", "sizeBytes": 24522, "sha256": "CFFE3E25868A4F5E1A3F4338BA5FD6B162F06472A61A724487C89EF3680B9704" },
+      { "path": "30_知識/TSUZUNE-Freebuff-MCP連携とボールト境界.md", "sizeBytes": 2303, "sha256": "88BA79D266D019AF80E811F23FB3AB199DD4925C8801964A659D06ED4E64ADBA" },
+      { "path": "30_知識/TSUZUNE-Google・ChatGPT・配布ロードマップ.md", "sizeBytes": 2134, "sha256": "353A664A8E887CEF41692A3B7673DEB32D790885F9BF7AF5C744387309CDB99C" },
+      { "path": "30_知識/TSUZUNE-Google連携・同期・障害対応.md", "sizeBytes": 2699, "sha256": "E2399DB925526D631E79AA4491B9374AC59A6FF0C75E785CD1D0B1112D65BD2C" },
+      { "path": "30_知識/TSUZUNE-LLM Wikiから得る運用原則.md", "sizeBytes": 6184, "sha256": "7EB987FFB165A9BFB2285F9BA8CE3B805D69CE5A8B3CC484FDB5E5B811F20DE8" },
+      { "path": "30_知識/TSUZUNE-MCP-検索履歴除外-設計-2026-08-13.md", "sizeBytes": 8731, "sha256": "8B944E9F415E291F8FF31D35700862634FEEEA455F2EE3D022DDD750BDA0D63B" },
+      { "path": "30_知識/TSUZUNE-MCP-部分更新ツール-設計-2026-08-13.md", "sizeBytes": 7589, "sha256": "00E6F50643560673C6AD47256F0171059F043EDE7371D790F109DE6F06AFC817" },
+      { "path": "30_知識/TSUZUNE-MCPとAI書き込み運用.md", "sizeBytes": 6272, "sha256": "ECB756A5B845703FB06D096590F5A63B0B87E06D58161E7FAA0D46375E262CC2" },
+      { "path": "30_知識/TSUZUNE-MCP・Google・Updater統合境界.md", "sizeBytes": 2114, "sha256": "FEBDF10540CE7F68205081DA71135DBB42A169085425324BF57F68CC4544C86C" },
+      { "path": "30_知識/TSUZUNE-MCP改善案-2026-08-13.md", "sizeBytes": 10406, "sha256": "76DB15BF63D05285EFB7A9BA43479D270F12E7242DC1E3F4896ED623FC830538" },
+      { "path": "30_知識/TSUZUNE-O1-O4-知識操作互換.md", "sizeBytes": 2722, "sha256": "45D6A307A7E0931A81416E56BBFC8ECF023BB06E6DA693836A5BB6D895F048F1" },
+      { "path": "30_知識/TSUZUNE-O5-O7-復旧・拡張・互換閉鎖.md", "sizeBytes": 1677, "sha256": "2DD900324A81BF2B9769484CEC3792F87487F69C44E9EBDD1BECFC8DBE24DF3E" },
+      { "path": "30_知識/TSUZUNE-Vault・データ配置・安全な保存.md", "sizeBytes": 2112, "sha256": "00E346668F329C6851025DB3F88887669E6D84FEFDCA7320D65AC01F6A81E773" },
+      { "path": "30_知識/TSUZUNE-データ保護・バックアップ・復旧.md", "sizeBytes": 2300, "sha256": "6A2D7C71B63D5B6CFE7173B67207E2B397D334EB2083BCE6F73627C66D543370" },
+      { "path": "30_知識/TSUZUNE-原子ノートと関係型契約.md", "sizeBytes": 2633, "sha256": "21F5311C6E804C45723B478F7E20DC090664235C0419BD656A8A7493B42D780A" },
+      { "path": "30_知識/TSUZUNE-本番更新・インストール・Release運用.md", "sizeBytes": 2252, "sha256": "742007232BAA0167240EA7EFA7EAC708655B0B37045A7769A882B9BB61DF84A2" },
+      { "path": "30_知識/TSUZUNE-開発開始と区切りの標準ループ.md", "sizeBytes": 2078, "sha256": "3521F320F243653222A6E0802423D1DBBB5A1343E94C81813DC44C99375AAED8" },
+      { "path": "30_知識/TSUZUNE現在地・証拠地図.md", "sizeBytes": 14961, "sha256": "D4810DCAF1CB1E7EC0A95A5B5A23799B5F7FBE5CEA958E3276490FC0FA741E98" },
+      { "path": "30_知識/TSUZUNE知識シナジー地図.md", "sizeBytes": 3582, "sha256": "5A4A7A173AC9C31A291BC7EA63B04A753FD4FA6E2B2FA3ED92DCDD139CE62C64" },
+      { "path": "30_知識/TSUZUNE運用標準.md", "sizeBytes": 1934, "sha256": "074BA27028E3F9624CD36F32005CDBDD2F7FD07E84B2A1F6F90F64159EC27037" }
+    ]
+  },
+  "drivePreview": {
+    "status": "blocked",
+    "accountConnected": true,
+    "localVaultLedgerEntry": true,
+    "remoteRootPaired": false,
+    "lastSyncAt": null,
+    "reason": "The active production Vault has no paired rootFolderId and no completed sync baseline, so the five remote Markdown objects, their file IDs, versions, parents, and the Path Alias object cannot be frozen safely.",
+    "requiredBeforeApproval": [
+      "Pair the active production Vault with the intended existing Drive Vault or create its Drive Vault through the normal preview/apply flow.",
+      "Complete one normal sync and freeze a clean local/remote ledger baseline.",
+      "Read-only preview exactly one owned remote Markdown object for each planned source path and capture file ID hashes, versions, parent consistency, content hashes, and Path Alias ownership without storing raw IDs in Git or TSUZUNE."
+    ]
+  },
+  "rollback": {
+    "preimageLocation": "outside-production-vault",
+    "sequence": [
+      "Restore remote Markdown path metadata in reverse completion order using the frozen file IDs and post-apply versions.",
+      "Restore the remote Path Alias object exact bytes and version.",
+      "Restore Drive and Path Alias ledger exact bytes.",
+      "Run the local O2-P3 rollback packet: restore Path Alias bytes or absence, inverse moves, active-note bytes, and newly created empty directories.",
+      "Verify the complete Vault fingerprint and all remote identities; retain the recovery packet if any item is unresolved."
+    ]
+  },
+  "stopConditions": [
+    "The repository source commit, plan SHA-256, or approval packet SHA-256 differs from the approved values.",
+    "The production TSUZUNE app is running or the Vault changes after final preflight begins.",
+    "Any of the 23 local preimage size or SHA-256 values differs, any destination exists, or the Path Alias sidecar state differs.",
+    "A prior rollback or recovery packet exists.",
+    "The Drive root is unpaired, the sync baseline is not clean, or any planned path has zero or multiple owned remote candidates.",
+    "Any remote file ID binding, version, parent, content hash, or Path Alias ownership differs between preview and apply.",
+    "Any immutable 40_情報源 or 50_履歴 file would be written.",
+    "Rollback cannot prove the exact local fingerprint and remote identity restoration."
+  ],
+  "nextGate": "Establish and verify the normal production Drive sync baseline, then refresh only the Drive preview section and request explicit apply approval."
+}
