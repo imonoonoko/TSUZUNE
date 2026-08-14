@@ -17,6 +17,7 @@ The repository is public and the integration branch is ready for public review. 
 
 - Repository visibility: `PUBLIC`; default branch: `main`.
 - Draft PR #1: mergeable and clean at inspection time; no GitHub status checks were configured.
+- Dependabot reports 2 open high-severity alerts on the default `main` branch (`fast-uri` and `js-yaml`). Both are resolved by the integration branch lockfile, so the alerts remain open until that change reaches `main`.
 - Secret filename scan: only the intentionally empty `.env.example` matched; no credential JSON, key, certificate, or password database was tracked or found in filename history.
 - Content matches for OAuth token names were implementation fields and explicit test placeholders, not live values.
 - Full dependency audit: 0 known vulnerabilities after the lockfile refresh.
