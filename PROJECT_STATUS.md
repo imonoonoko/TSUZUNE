@@ -8,9 +8,9 @@
 
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
-| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-15 02:52 JSTにsingle-instance対策をcommit `9b2e028`から更新し、全628 tests、10/10 checks、MCP 6 read＋7 write、packaged／installed smoke、build／installed hash一致、profile 59 files不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
+| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-15 04:45 JSTにA2-1 Renderer検索演算子をworking-tree snapshotから更新し、全655 tests、10/10 checks、MCP 6 read＋7 write、packaged／installed smoke、build／installed hash一致、profile 58 files不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
 | Icon refresh | Interwoven Bellのapp／tray専用assetを本番反映済み。全626 tests、10/10 checks、build／installed hash一致、profile 57 files不変。タイトルバー、アプリ内ヘッダー、タスクバー、通知領域のinstalled実機目視もPASSし、slice完了 | [icon refresh](docs/reports/tsuzune-icon-refresh-2026-08-14.md) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`。製品HEAD `9b2e028`をoriginへpushし、同じclean commitから本番反映済み。installed appの連続2回起動でも主プロセス1件・同一PIDを確認 | [single-instance acceptance](docs/reports/single-instance-startup-2026-08-15.md) |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。A2-1検索演算子は固定Obsidian 1.13.4実測・本番反映まで完了したが、working treeは未commit。commit／push／releaseは未実施 | [A2-1 report](docs/reports/a2-1-search-operators-2026-08-15.md) |
 | Graph直近slice | CP1-B-02で実在Markdownノートにも`フォルダで表示`を接続。公式production updateの全529 tests／10 checksを通して本番反映済み | [CP1-B-02](docs/reports/cp1-b-02-note-folder-reveal-2026-08-13.md) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
 | 最優先Track | P0の履歴ノイズ除外は完了。現在はO1 7-day dogfoodの観測期間で、ニューロン系拡張を加えず通常利用の摩擦とP0の体感差を記録する | [PLAN.md](PLAN.md#current-transition-queue) |

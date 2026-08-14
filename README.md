@@ -12,7 +12,9 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 
 - **自然に書く** — 通常ノートをすぐ編集画面で開き、Daily／Ideaを含む自由に増やせるテンプレートと簡易書式ツールバーを使えます。
 - **Markdownのまま残す** — ノートは`.md`、添付は通常ファイル。TSUZUNEがなくても一般的なeditorで読めます。
-- **知識をつなぐ** — `[[Wiki link]]`、backlink、未解決link、全文検索、Local/Global Graph。
+- **知識をつなぐ** — `[[Wiki link]]`、backlink、未解決link、ブックマーク、Local/Global Graph。
+- **必要なノートを探す** — 全文検索に加え、AND、除外、`tag:`／`path:`／`file:`、完全phraseで絞り込めます。
+- **安全に整理する** — 一覧の右クリックから名前変更、移動、`.trash`への退避。衝突時は上書きしません。
 - **古さに気づく** — 最終更新日時と任意の`review_after`から、再確認の目安を非破壊で表示。
 - **時間を区別する** — 現在・過去・未来、情報が有効だった時点とAIが知った時点を分離。
 - **AIと共有する** — MCP経由で検索、取得、Context構築、競合検知付き更新、履歴付きAI更新。
@@ -25,13 +27,17 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 |---|---|
 | インストール済み本番 | [Project Status](PROJECT_STATUS.md)と最新production receiptを参照 |
 | 現在の開発slice | [Product Plan](PLAN.md)のActive Trackを参照 |
-| Repository | Private personal project |
+| Repository | [Public repository](https://github.com/imonoonoko/TSUZUNE) |
 
 本番commit、検証済み範囲、未証明境界、次の一手は[PROJECT_STATUS.md](PROJECT_STATUS.md)を正本とします。実行順は[PLAN.md](PLAN.md)、資料とEvidenceは[docs/INDEX.md](docs/INDEX.md)から辿れます。
 
 ## 使い始める
 
-1. [Private Releases](https://github.com/imonoonoko/TSUZUNE/releases)または手元で配布された`TSUZUNE-Setup-0.5.0.exe`を起動します。
+現在のrepository／package versionは`0.5.0`です。ただし、[公開Releases](https://github.com/imonoonoko/TSUZUNE/releases)で取得できるbinaryは旧`v0.1.0` portable版だけです。`0.5.0` installerはまだ公開していないため、最新状態を試す場合は下記の開発手順からbuildしてください。
+
+インストール済みbinaryを使う場合:
+
+1. 入手元を確認したTSUZUNEのinstallerまたはportable版を起動します。
 2. Start menuまたはdesktopの「TSUZUNE」を開きます。
 3. 「Vaultを開く」から、Markdownを保存するfolderを選びます。
 4. 「ノート」で空のノートを開くか、選択欄からテンプレートを選んで書き始めます。
@@ -61,6 +67,21 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 ```
 
 link先、backlink、未作成・曖昧・無効linkを右panelで確認できます。Local Graphは現在ノートの直接linkだけ、Global Graphは孤立ノートを含むVault全体を表示します。
+
+### 検索演算子を使う場合
+
+通常検索では、Obsidian Desktop 1.13.4との固定比較に基づく次の演算子を利用できます。
+
+| 入力例 | 意味 |
+|---|---|
+| `Project active` | 両方を含むノート（AND） |
+| `Project -paused` | `Project`を含み、`paused`を含まないノート |
+| `tag:project` | `#project`またはその子tagを持つノート |
+| `path:10_projects` | Vault相対pathで絞り込み |
+| `file:alpha` | ファイル名で絞り込み |
+| `"Project Alpha"` | 連続したphraseの完全一致 |
+
+演算子名、tag、path、file、通常語の大文字小文字は区別しません。空白で区切った条件はANDになります。対象はデスクトップ画面の通常検索で、MCP検索とGraph検索はそれぞれの既存契約を維持します。
 
 ## Codex Desktopと連携する
 
@@ -136,21 +157,21 @@ npm run dev
 
 ```powershell
 npm run typecheck
-npm test
+$env:NODE_OPTIONS='--max-old-space-size=6144'
+npx vitest run --maxWorkers=1
 npm run check:mcp
 npm run build
 ```
 
-installerとこのPCの本番更新:
+installerの作成と確認:
 
 ```powershell
 npm run pack:win
 npm run check:installer
 npm run check:packaged
-npm run production:update
 ```
 
-`production:update`は製品codeを変更した検証済み区切りでだけ使います。文書・調査だけの変更では同じbinaryを再installしません。
+`npm run production:update`は、対象PCの既存installationとproduction profileを検査・更新するmaintainer向けコマンドです。通常の開発や文書変更では実行しません。
 
 ## Documentation
 
@@ -160,8 +181,10 @@ npm run production:update
 - [Design System](DESIGN.md) — GUI、brand、accessibility
 - [Documentation Index](docs/INDEX.md) — 機能別guideとEvidence
 - [Obsidian Graph Parity Reference](docs/obsidian-graph-parity-reference.md) — 固定比較契約と未証明境界
-- [Windows Production Guide](docs/windows-production.md) — installer、update、private release
+- [Windows Production Guide](docs/windows-production.md) — installer、update、release
 
 ## License
 
-Private personal project. All rights reserved.
+Copyright (c) Im_onoko. All rights reserved.
+
+このrepositoryは公開されていますが、現時点でオープンソースライセンスは付与されていません。

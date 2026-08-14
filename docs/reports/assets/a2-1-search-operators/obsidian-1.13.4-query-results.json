@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "reference": {
+    "product": "Obsidian Desktop",
+    "requiredVersion": "1.13.4",
+    "status": "measured",
+    "measuredOn": "2026-08-15",
+    "source": "https://github.com/obsidianmd/obsidian-releases/releases/tag/v1.13.4",
+    "runtimeVersion": "1.13.4",
+    "note": "Measured once to completion in the isolated copied fixture. Non-Markdown attachment results were recorded by the harness but excluded from this Renderer note-search result set.",
+    "expectedInstallerSha256": "8C761AAA40310D339B6936092E91E99A9886DAF1FD655F4C8D59E9F7FA46E7A0",
+    "expectedAsarSha256": "51218495AD940A8515B202D380BDE638BE6570A198E121F7CA6D484A8A158917"
+  },
+  "fixture": {
+    "root": "fixtures/obsidian-graph-parity-vault",
+    "markdownCount": 7
+  },
+  "queries": [
+    { "query": "Project", "paths": ["00_Home.md", "10_projects/Project Alpha.md", "10_projects/Project Beta.md", "20_knowledge/Distillation.md"] },
+    { "query": "Project active", "paths": ["10_projects/Project Alpha.md"] },
+    { "query": "Project missing", "paths": ["00_Home.md"] },
+    { "query": "Project -paused", "paths": ["00_Home.md", "10_projects/Project Alpha.md", "20_knowledge/Distillation.md"] },
+    { "query": "-excluded", "paths": ["00_Home.md", "10_projects/Project Alpha.md", "10_projects/Project Beta.md", "20_knowledge/Distillation.md", "20_knowledge/Reference.md", "90_orphan/Orphan.md"] },
+    { "query": "tag:project", "paths": ["10_projects/Project Alpha.md", "10_projects/Project Beta.md"] },
+    { "query": "tag:#project/active", "paths": ["10_projects/Project Alpha.md"] },
+    { "query": "TAG:PROJECT", "paths": ["10_projects/Project Alpha.md", "10_projects/Project Beta.md"] },
+    { "query": "path:10_pro", "paths": ["10_projects/Project Alpha.md", "10_projects/Project Beta.md"] },
+    { "query": "path:knowledge Distillation", "paths": ["20_knowledge/Distillation.md", "20_knowledge/Reference.md"] },
+    { "query": "file:project", "paths": ["10_projects/Project Alpha.md", "10_projects/Project Beta.md"] },
+    { "query": "file:alpha", "paths": ["10_projects/Project Alpha.md"] },
+    { "query": "\"Project Alpha\"", "paths": ["00_Home.md", "10_projects/Project Alpha.md", "10_projects/Project Beta.md"] },
+    { "query": "\"project alpha\"", "paths": ["00_Home.md", "10_projects/Project Alpha.md", "10_projects/Project Beta.md"] },
+    { "query": "\"知識を残す\"", "paths": ["20_knowledge/Distillation.md"] },
+    { "query": "tag:", "paths": [] },
+    { "query": "tag: project", "paths": ["10_projects/Project Alpha.md", "10_projects/Project Beta.md"] },
+    { "query": "owner:Home", "paths": [] },
+    { "query": "-", "paths": [] }
+  ]
+}

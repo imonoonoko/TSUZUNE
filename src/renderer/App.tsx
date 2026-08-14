@@ -24,7 +24,7 @@ import {
 } from '../core/paths'
 import type { CopyPathFormat } from '../core/paths'
 import { compilePathAliases, resolvePathAlias } from '../core/path-aliases'
-import { searchNotes } from '../core/search'
+import { searchRendererNotes } from '../core/search'
 import { getNoteFreshness } from '../core/freshness'
 import {
   DAILY_TEMPLATE_PATH,
@@ -915,7 +915,7 @@ export default function App(): React.JSX.Element {
     [selectedPath, normalDiscoveryNotes, pathAliases]
   )
   const searchResults = useMemo(
-    () => searchNotes(normalDiscoveryNotes, query),
+    () => searchRendererNotes(normalDiscoveryNotes, query),
     [normalDiscoveryNotes, query]
   )
   const selectedNote = useMemo(
