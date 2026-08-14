@@ -378,6 +378,13 @@ describe('VaultService path and scan boundaries', () => {
     await expect(vault.resolveFileForOpen('assets')).rejects.toMatchObject({
       appError: { code: 'INVALID_PATH' }
     })
+    await expect(vault.resolveEntryForReveal('assets')).resolves.toBe(absolute('assets'))
+    await expect(vault.resolveEntryForReveal('ノート.md')).resolves.toBe(
+      absolute('ノート.md')
+    )
+    await expect(vault.resolveEntryForReveal('assets/対象外.txt')).rejects.toMatchObject({
+      appError: { code: 'INVALID_PATH' }
+    })
   })
 
   it('reads a Vault image as a browser-safe data URL', async () => {

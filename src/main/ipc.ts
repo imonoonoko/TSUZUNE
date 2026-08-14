@@ -545,7 +545,7 @@ export function registerIpc(
   })
 
   registerTrusted('system:revealVaultFile', async (path: string) => {
-    const absolutePath = await vault.resolveFileForOpen(path)
+    const absolutePath = await vault.resolveEntryForReveal(path)
     shell.showItemInFolder(absolutePath)
     return null
   })

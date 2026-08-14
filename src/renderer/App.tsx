@@ -1104,8 +1104,12 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  const createNoteInDirectory = async (directory: string): Promise<void> => {
+    await createAndOpenNote(directory, '無題のノート')
+  }
+
   const createNote = async (): Promise<void> => {
-    await createAndOpenNote(targetDirectory(), '無題のノート')
+    await createNoteInDirectory(targetDirectory())
   }
 
   const createFromTemplate = async (template: NoteDocument): Promise<void> => {
@@ -1267,7 +1271,7 @@ export default function App(): React.JSX.Element {
     }
   }
 
-  const createDirectory = async (): Promise<void> => {
+  const createDirectoryIn = async (parent: string): Promise<void> => {
     if (!snapshot) {
       return
     }
@@ -1284,7 +1288,7 @@ export default function App(): React.JSX.Element {
         return
       }
       const result = await window.tsuzune.createDirectory({
-        parent: targetDirectory(),
+        parent,
         name
       })
       if (!result.ok) {
@@ -1296,6 +1300,10 @@ export default function App(): React.JSX.Element {
     } finally {
       finishOperation()
     }
+  }
+
+  const createDirectory = async (): Promise<void> => {
+    await createDirectoryIn(targetDirectory())
   }
 
   const pathChangesForRename = (
@@ -1629,6 +1637,14 @@ export default function App(): React.JSX.Element {
     void openNote(path)
   }
 
+  const revealVaultEntry = (path: string): void => {
+    void window.tsuzune.revealVaultFile(path).then((result) => {
+      if (!result.ok) {
+        setMessage(errorMessage(result.error))
+      }
+    })
+  }
+
   const revealGraphNodeInFolder = (path: string): void => {
     const node = visibleGraph.nodes.find((candidate) => candidate.path === path)
     if (
@@ -1638,11 +1654,7 @@ export default function App(): React.JSX.Element {
     ) {
       return
     }
-    void window.tsuzune.revealVaultFile(path).then((result) => {
-      if (!result.ok) {
-        setMessage(errorMessage(result.error))
-      }
-    })
+    revealVaultEntry(path)
   }
 
   const openGraphNodeLinkedView = async (path: string): Promise<void> => {
@@ -1759,11 +1771,10 @@ export default function App(): React.JSX.Element {
     setViewMode('graph')
   }
 
-  const openGraphNodeInNewTab = async (path: string): Promise<void> => {
-    const node = visibleGraph.nodes.find((candidate) => candidate.path === path)
-    if (!node || node.kind === 'tag' || node.exists === false) {
-      return
-    }
+  const openVaultEntryInNewTab = async (
+    path: string,
+    kind: 'note' | 'attachment'
+  ): Promise<void> => {
     if (!beginOperation()) {
       return
     }
@@ -1781,7 +1792,7 @@ export default function App(): React.JSX.Element {
             : []
       const nextTab: WorkspaceTab = {
         id: nextTabIdRef.current++,
-        kind: node.kind === 'attachment' ? 'attachment' : 'note',
+        kind,
         path
       }
       setWorkspaceTabs([...currentTabs, nextTab])
@@ -1804,6 +1815,18 @@ export default function App(): React.JSX.Element {
     } finally {
       finishOperation()
     }
+  }
+
+  const openGraphNodeInNewTab = async (path: string): Promise<void> => {
+    const node = visibleGraph.nodes.find((candidate) => candidate.path === path)
+    if (
+      !node ||
+      (node.kind !== 'note' && node.kind !== 'attachment') ||
+      node.exists === false
+    ) {
+      return
+    }
+    await openVaultEntryInNewTab(path, node.kind)
   }
 
   const openGraphNodeInNewWindow = async (path: string): Promise<void> => {
@@ -2588,6 +2611,13 @@ export default function App(): React.JSX.Element {
               onRename={openRename}
               onMove={setMovePath}
               onTrash={(path) => void trashPath(path)}
+              bookmarkedPaths={bookmarkedPaths}
+              onOpenInNewTab={(path) => void openVaultEntryInNewTab(path, 'note')}
+              onReveal={revealVaultEntry}
+              onCopyPath={(path) => void copyGraphNodePath(path, 'vault-relative')}
+              onBookmark={setBookmarkPath}
+              onCreateNote={(directory) => void createNoteInDirectory(directory)}
+              onCreateDirectory={(directory) => void createDirectoryIn(directory)}
             />
 
             <div className="entry-toolbar" aria-label="選択項目の操作">

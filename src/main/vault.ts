@@ -865,6 +865,27 @@ export class VaultService {
     }
   }
 
+  async resolveEntryForReveal(relativePath: string): Promise<string> {
+    const absolute = this.absolutePath(relativePath)
+    try {
+      await this.assertNoSymlinkTraversal(absolute)
+      const info = await stat(absolute)
+      if (
+        !info.isDirectory() &&
+        (!info.isFile() ||
+          (!isMarkdownFile(relativePath) && !isSupportedAttachmentPath(relativePath)))
+      ) {
+        throw new VaultError({
+          code: 'INVALID_PATH',
+          message: 'Vault内のノート、添付書類、フォルダーだけを表示できます。'
+        })
+      }
+      return absolute
+    } catch (error) {
+      throw fromNodeError(error, 'UNKNOWN', '項目を表示できませんでした。')
+    }
+  }
+
   async readImageDataUrl(relativePath: string): Promise<string> {
     const mimeType = IMAGE_MIME_TYPES.get(extname(relativePath).toLocaleLowerCase())
     if (!mimeType) {

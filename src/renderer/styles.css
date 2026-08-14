@@ -392,7 +392,7 @@ button:hover:not(:disabled) {
   position: fixed;
   z-index: 50;
   display: grid;
-  width: 180px;
+  width: 210px;
   padding: 4px;
   background: var(--paper);
   border: 1px solid var(--line);

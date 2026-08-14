@@ -130,18 +130,18 @@ describe('graph settings IPC', () => {
     expect(electron.writeText).toHaveBeenCalledWith('attachments/diagram.svg')
   })
 
-  it('reveals a validated Vault file only for the active renderer', async () => {
+  it('reveals a validated Vault entry only for the active renderer', async () => {
     const mainFrame = {}
     const webContents = { mainFrame }
     const window = { webContents }
-    const resolveFileForOpen = vi.fn(async (path: string) => {
+    const resolveEntryForReveal = vi.fn(async (path: string) => {
       if (path === 'attachments/missing.svg') {
         throw new Error('見つかりません。')
       }
-      return 'C:\\Vault\\attachments\\diagram.svg'
+      return `C:\\Vault\\${path.replaceAll('/', '\\')}`
     })
     registerIpc(
-      { resolveFileForOpen } as never,
+      { resolveEntryForReveal } as never,
       {} as never,
       {
         connection: {} as never,
@@ -168,6 +168,9 @@ describe('graph settings IPC', () => {
     expect(electron.showItemInFolder).toHaveBeenCalledWith(
       'C:\\Vault\\attachments\\diagram.svg'
     )
+
+    await handler({ sender: webContents, senderFrame: mainFrame }, 'Inbox')
+    expect(electron.showItemInFolder).toHaveBeenLastCalledWith('C:\\Vault\\Inbox')
 
     electron.showItemInFolder.mockClear()
     await expect(

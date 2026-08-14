@@ -18,6 +18,13 @@ interface FileTreeProps {
   onRename: (selection: TreeSelection) => void
   onMove: (path: string) => void
   onTrash: (path: string) => void
+  bookmarkedPaths: ReadonlySet<string>
+  onOpenInNewTab: (path: string) => void
+  onReveal: (path: string) => void
+  onCopyPath: (path: string) => void
+  onBookmark: (path: string) => void
+  onCreateNote: (directory: string) => void
+  onCreateDirectory: (directory: string) => void
 }
 
 interface FileTreeContextMenu {
@@ -27,7 +34,7 @@ interface FileTreeContextMenu {
   trigger: HTMLElement
 }
 
-const CONTEXT_MENU_WIDTH = 180
+const CONTEXT_MENU_WIDTH = 210
 const CONTEXT_MENU_ITEM_HEIGHT = 36
 
 export default function FileTree({
@@ -40,7 +47,14 @@ export default function FileTree({
   onSelectEntry,
   onRename,
   onMove,
-  onTrash
+  onTrash,
+  bookmarkedPaths,
+  onOpenInNewTab,
+  onReveal,
+  onCopyPath,
+  onBookmark,
+  onCreateNote,
+  onCreateDirectory
 }: FileTreeProps): React.JSX.Element {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
   const [contextMenu, setContextMenu] = useState<FileTreeContextMenu | null>(null)
@@ -78,7 +92,7 @@ export default function FileTree({
   ): void => {
     event.preventDefault()
     onSelectEntry(selection)
-    const itemCount = selection.kind === 'note' ? 3 : 2
+    const itemCount = selection.kind === 'note' ? 7 : 6
     setContextMenu({
       selection,
       x: Math.max(8, Math.min(event.clientX, window.innerWidth - CONTEXT_MENU_WIDTH - 8)),
@@ -233,6 +247,75 @@ export default function FileTree({
       aria-label={`${contextMenu.selection.path}の操作`}
       style={{ left: contextMenu.x, top: contextMenu.y }}
     >
+      {contextMenu.selection.kind === 'note' ? (
+        <>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setContextMenu(null)
+              onOpenInNewTab(contextMenu.selection.path)
+            }}
+          >
+            新しいタブで開く
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setContextMenu(null)
+              onBookmark(contextMenu.selection.path)
+            }}
+          >
+            {bookmarkedPaths.has(contextMenu.selection.path)
+              ? 'ブックマークを編集'
+              : 'ブックマークへ追加'}
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setContextMenu(null)
+              onCreateNote(contextMenu.selection.path)
+            }}
+          >
+            ここに新規ノート
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setContextMenu(null)
+              onCreateDirectory(contextMenu.selection.path)
+            }}
+          >
+            ここに新規フォルダー
+          </button>
+        </>
+      )}
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => {
+          setContextMenu(null)
+          onReveal(contextMenu.selection.path)
+        }}
+      >
+        フォルダーで表示
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => {
+          setContextMenu(null)
+          onCopyPath(contextMenu.selection.path)
+        }}
+      >
+        Vault相対パスをコピー
+      </button>
       <button
         type="button"
         role="menuitem"

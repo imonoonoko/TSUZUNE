@@ -29,6 +29,12 @@ describe('FileTree context menu', () => {
     const onRename = vi.fn()
     const onMove = vi.fn()
     const onTrash = vi.fn()
+    const onOpenInNewTab = vi.fn()
+    const onReveal = vi.fn()
+    const onCopyPath = vi.fn()
+    const onBookmark = vi.fn()
+    const onCreateNote = vi.fn()
+    const onCreateDirectory = vi.fn()
     const { container } = render(
       <FileTree
         snapshot={snapshot}
@@ -41,6 +47,13 @@ describe('FileTree context menu', () => {
         onRename={onRename}
         onMove={onMove}
         onTrash={onTrash}
+        bookmarkedPaths={new Set()}
+        onOpenInNewTab={onOpenInNewTab}
+        onReveal={onReveal}
+        onCopyPath={onCopyPath}
+        onBookmark={onBookmark}
+        onCreateNote={onCreateNote}
+        onCreateDirectory={onCreateDirectory}
       />
     )
 
@@ -61,11 +74,34 @@ describe('FileTree context menu', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'ごみ箱へ移動' }))
     expect(onTrash).toHaveBeenCalledWith('Inbox/Note.md')
 
+    fireEvent.contextMenu(note)
+    fireEvent.click(screen.getByRole('menuitem', { name: '新しいタブで開く' }))
+    expect(onOpenInNewTab).toHaveBeenCalledWith('Inbox/Note.md')
+
+    fireEvent.contextMenu(note)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ブックマークへ追加' }))
+    expect(onBookmark).toHaveBeenCalledWith('Inbox/Note.md')
+
+    fireEvent.contextMenu(note)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'フォルダーで表示' }))
+    expect(onReveal).toHaveBeenCalledWith('Inbox/Note.md')
+
+    fireEvent.contextMenu(note)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Vault相対パスをコピー' }))
+    expect(onCopyPath).toHaveBeenCalledWith('Inbox/Note.md')
+
     const folder = container.querySelector<HTMLButtonElement>('button.tree-folder')!
     fireEvent.contextMenu(folder)
     expect(screen.queryByRole('menuitem', { name: '移動' })).toBeNull()
     expect(screen.getByRole('menuitem', { name: '名前変更' })).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: 'ごみ箱へ移動' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ここに新規ノート' }))
+    expect(onCreateNote).toHaveBeenCalledWith('Inbox')
+
+    fireEvent.contextMenu(folder)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ここに新規フォルダー' }))
+    expect(onCreateDirectory).toHaveBeenCalledWith('Inbox')
   })
 
   it('closes with Escape and restores focus to the tree item', () => {
@@ -81,6 +117,13 @@ describe('FileTree context menu', () => {
         onRename={vi.fn()}
         onMove={vi.fn()}
         onTrash={vi.fn()}
+        bookmarkedPaths={new Set()}
+        onOpenInNewTab={vi.fn()}
+        onReveal={vi.fn()}
+        onCopyPath={vi.fn()}
+        onBookmark={vi.fn()}
+        onCreateNote={vi.fn()}
+        onCreateDirectory={vi.fn()}
       />
     )
     const note = container.querySelector<HTMLButtonElement>('button.tree-note')!
@@ -116,6 +159,13 @@ describe('FileTree context menu', () => {
         onRename={vi.fn()}
         onMove={onMove}
         onTrash={vi.fn()}
+        bookmarkedPaths={new Set()}
+        onOpenInNewTab={vi.fn()}
+        onReveal={vi.fn()}
+        onCopyPath={vi.fn()}
+        onBookmark={vi.fn()}
+        onCreateNote={vi.fn()}
+        onCreateDirectory={vi.fn()}
       />
     )
 
