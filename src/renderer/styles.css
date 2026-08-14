@@ -301,7 +301,8 @@ button:hover:not(:disabled) {
   grid-template-columns: 1fr 1fr;
 }
 
-.tree-toolbar .graph-view-entry {
+.tree-toolbar .graph-view-entry,
+.tree-toolbar .bookmark-view-entry {
   grid-column: 1 / -1;
 }
 
@@ -356,9 +357,43 @@ button:hover:not(:disabled) {
 }
 
 .file-tree,
-.search-results {
+.search-results,
+.bookmark-panel {
   overflow: auto;
   padding: 2px 0 8px;
+}
+
+.bookmark-group h2 {
+  margin: 10px 10px 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.bookmark-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 7px 10px;
+  text-align: left;
+  border-radius: 5px;
+}
+
+.bookmark-row strong,
+.bookmark-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookmark-row span,
+.bookmark-row small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.bookmark-row small {
+  color: var(--danger);
 }
 
 .tree-row {

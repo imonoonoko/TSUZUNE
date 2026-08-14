@@ -250,6 +250,7 @@ export default function App(): React.JSX.Element {
   } | null>(null)
   const [renameError, setRenameError] = useState<string | null>(null)
   const [bookmarkPath, setBookmarkPath] = useState<string | null>(null)
+  const [bookmarksOpen, setBookmarksOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [updateBusy, setUpdateBusy] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<AppUpdateStatus>({
@@ -875,6 +876,16 @@ export default function App(): React.JSX.Element {
     () => new Set((snapshot?.bookmarks ?? []).map((bookmark) => bookmark.path)),
     [snapshot?.bookmarks]
   )
+  const bookmarkGroups = useMemo(() => {
+    const groups = new Map<string, NonNullable<VaultSnapshot['bookmarks']>>()
+    for (const bookmark of snapshot?.bookmarks ?? []) {
+      const group = bookmark.group?.trim() || '未分類'
+      const items = groups.get(group) ?? []
+      items.push(bookmark)
+      groups.set(group, items)
+    }
+    return [...groups]
+  }, [snapshot?.bookmarks])
   const templates = useMemo(() => listTemplates(savedNotes), [savedNotes])
   useEffect(() => {
     if (templates.some((template) => template.path === selectedTemplatePath)) {
@@ -1635,6 +1646,22 @@ export default function App(): React.JSX.Element {
       return
     }
     void openNote(path)
+  }
+
+  const openBookmark = (path: string): void => {
+    if (snapshot?.notes.some((note) => note.path === path)) {
+      void openNote(path)
+      return
+    }
+    if (snapshot?.attachments?.some((attachment) => attachment.path === path)) {
+      void window.tsuzune.openVaultFile(path).then((result) => {
+        if (!result.ok) {
+          setMessage(errorMessage(result.error))
+        }
+      })
+      return
+    }
+    setMessage(`ブックマーク先「${path}」が見つかりません。`)
   }
 
   const revealVaultEntry = (path: string): void => {
@@ -2535,7 +2562,12 @@ export default function App(): React.JSX.Element {
               <input
                 ref={searchInputRef}
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  setQuery(event.target.value)
+                  if (event.target.value) {
+                    setBookmarksOpen(false)
+                  }
+                }}
                 placeholder="Vaultを検索"
                 title="Vaultを検索（Ctrl+K）"
               />
@@ -2557,6 +2589,18 @@ export default function App(): React.JSX.Element {
               >
                 <Icon name="graph" />
                 グラフビュー
+              </button>
+              <button
+                type="button"
+                className="bookmark-view-entry"
+                aria-pressed={bookmarksOpen}
+                onClick={() => {
+                  setQuery('')
+                  setBookmarksOpen((current) => !current)
+                }}
+              >
+                <Icon name="bookmark" />
+                ブックマーク
               </button>
               <div className="template-create">
                 <label>
@@ -2600,54 +2644,94 @@ export default function App(): React.JSX.Element {
               </div>
             </div>
 
-            <FileTree
-              snapshot={snapshot}
-              selectedNotePath={selectedPath}
-              treeSelection={treeSelection}
-              searchResults={searchResults}
-              query={query}
-              onSelectNote={(path) => void openNote(path)}
-              onSelectEntry={setTreeSelection}
-              onRename={openRename}
-              onMove={setMovePath}
-              onTrash={(path) => void trashPath(path)}
-              bookmarkedPaths={bookmarkedPaths}
-              onOpenInNewTab={(path) => void openVaultEntryInNewTab(path, 'note')}
-              onReveal={revealVaultEntry}
-              onCopyPath={(path) => void copyGraphNodePath(path, 'vault-relative')}
-              onBookmark={setBookmarkPath}
-              onCreateNote={(directory) => void createNoteInDirectory(directory)}
-              onCreateDirectory={(directory) => void createDirectoryIn(directory)}
-            />
+            {bookmarksOpen ? (
+              <section className="bookmark-panel" aria-label="ブックマーク一覧">
+                {bookmarkGroups.length === 0 ? (
+                  <p className="sidebar-empty">ブックマークはありません。</p>
+                ) : (
+                  bookmarkGroups.map(([group, bookmarks]) => (
+                    <section className="bookmark-group" key={group}>
+                      <h2>{group}</h2>
+                      {bookmarks.map((bookmark) => {
+                        const exists =
+                          snapshot.notes.some((note) => note.path === bookmark.path) ||
+                          snapshot.attachments?.some(
+                            (attachment) => attachment.path === bookmark.path
+                          )
+                        return (
+                          <button
+                            type="button"
+                            className="bookmark-row"
+                            key={bookmark.path}
+                            onClick={() => openBookmark(bookmark.path)}
+                            onContextMenu={(event) => {
+                              event.preventDefault()
+                              setBookmarkPath(bookmark.path)
+                            }}
+                            title="右クリックで編集"
+                          >
+                            <strong>{bookmark.title || basenameRelative(bookmark.path)}</strong>
+                            <span>{bookmark.path}</span>
+                            {!exists && <small>見つかりません</small>}
+                          </button>
+                        )
+                      })}
+                    </section>
+                  ))
+                )}
+              </section>
+            ) : (
+              <FileTree
+                snapshot={snapshot}
+                selectedNotePath={selectedPath}
+                treeSelection={treeSelection}
+                searchResults={searchResults}
+                query={query}
+                onSelectNote={(path) => void openNote(path)}
+                onSelectEntry={setTreeSelection}
+                onRename={openRename}
+                onMove={setMovePath}
+                onTrash={(path) => void trashPath(path)}
+                bookmarkedPaths={bookmarkedPaths}
+                onOpenInNewTab={(path) => void openVaultEntryInNewTab(path, 'note')}
+                onReveal={revealVaultEntry}
+                onCopyPath={(path) => void copyGraphNodePath(path, 'vault-relative')}
+                onBookmark={setBookmarkPath}
+                onCreateNote={(directory) => void createNoteInDirectory(directory)}
+                onCreateDirectory={(directory) => void createDirectoryIn(directory)}
+              />
+            )}
 
-            <div className="entry-toolbar" aria-label="選択項目の操作">
-              <button
-                type="button"
-                disabled={!treeSelection || treeSelection.path === ''}
-                onClick={renameSelected}
-              >
-                <Icon name="rename" />
-                名前変更
-              </button>
-              <button
-                type="button"
-                disabled={treeSelection?.kind !== 'note'}
-                onClick={() =>
-                  treeSelection?.kind === 'note' && setMovePath(treeSelection.path)
-                }
-              >
-                <Icon name="move" />
-                移動
-              </button>
-              <button
-                type="button"
-                disabled={!treeSelection || treeSelection.path === ''}
-                onClick={() => void trashSelected()}
-              >
-                <Icon name="trash" />
-                ごみ箱
-              </button>
-            </div>
+            {!bookmarksOpen && (
+              <div className="entry-toolbar" aria-label="選択項目の操作">
+                <button
+                  type="button"
+                  disabled={!treeSelection || treeSelection.path === ''}
+                  onClick={renameSelected}
+                >
+                  <Icon name="rename" />
+                  名前変更
+                </button>
+                <button
+                  type="button"
+                  disabled={treeSelection?.kind !== 'note'}
+                  onClick={() =>
+                    treeSelection?.kind === 'note' && setMovePath(treeSelection.path)
+                  }
+                >
+                  <Icon name="move" />
+                  移動
+                </button>
+                <button
+                  type="button"
+                  disabled={!treeSelection || treeSelection.path === ''}
+                  onClick={() => void trashSelected()}
+                >
+                  <Icon name="trash" />
+                  ごみ箱
+                </button>
+              </div>
+            )}
           </aside>
 
           <section className="note-panel">

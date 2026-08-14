@@ -1996,6 +1996,56 @@ describe('App data-loss guards', () => {
     })
   })
 
+  it('lists grouped bookmarks, opens their targets, and edits from right click', async () => {
+    const attachment = {
+      path: 'assets/diagram.svg',
+      name: 'diagram.svg',
+      modifiedAt: 1,
+      createdAt: null,
+      size: 10
+    }
+    const bookmarkSnapshot: VaultSnapshot = {
+      ...snapshot,
+      attachments: [attachment],
+      bookmarks: [
+        { type: 'file', path: 'B.md', title: '重要ノート', group: '仕事', ctime: 1 },
+        { type: 'file', path: attachment.path, title: '構成図', group: '資料', ctime: 2 },
+        { type: 'file', path: 'Missing.md', ctime: 3 }
+      ]
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok(bookmarkSnapshot))
+
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'ブックマーク' }))
+
+    const list = screen.getByRole('region', { name: 'ブックマーク一覧' })
+    expect(within(list).getByRole('heading', { name: '仕事' })).toBeTruthy()
+    expect(within(list).getByRole('heading', { name: '資料' })).toBeTruthy()
+    expect(within(list).getByRole('heading', { name: '未分類' })).toBeTruthy()
+    expect(within(list).getByText('見つかりません')).toBeTruthy()
+
+    fireEvent.click(within(list).getByRole('button', { name: /Missing.md/ }))
+    expect(screen.getByText(/ブックマーク先「Missing.md」が見つかりません/)).toBeTruthy()
+
+    fireEvent.click(within(list).getByRole('button', { name: /重要ノート/ }))
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('textbox', {
+          name: 'Markdown編集欄'
+        }) as HTMLTextAreaElement).value
+      ).toBe('Bの本文')
+    )
+
+    fireEvent.click(within(list).getByRole('button', { name: /構成図/ }))
+    await waitFor(() =>
+      expect(api.openVaultFile).toHaveBeenCalledWith(attachment.path)
+    )
+
+    fireEvent.contextMenu(within(list).getByRole('button', { name: /重要ノート/ }))
+    expect(screen.getByRole('dialog', { name: 'ブックマークを編集' })).toBeTruthy()
+    expect(screen.getByLabelText('タイトル')).toHaveProperty('value', '重要ノート')
+  })
+
   it('opens a graph note in a real switchable workspace tab', async () => {
     vi.mocked(api.openLastVault).mockResolvedValue({
       ok: true,

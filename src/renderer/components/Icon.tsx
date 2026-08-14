@@ -1,4 +1,5 @@
 type IconName =
+  | 'bookmark'
   | 'check'
   | 'cloud'
   | 'edit'
@@ -21,6 +22,7 @@ interface IconProps {
 }
 
 const paths: Record<IconName, React.ReactNode> = {
+  bookmark: <path d="M6 3h12v18l-6-4-6 4Z" />,
   check: <path d="m5 12 4 4L19 6" />,
   cloud: <path d="M7 18h10a4 4 0 0 0 .7-7.94A6 6 0 0 0 6.2 8.35 4.5 4.5 0 0 0 7 18Z" />,
   edit: (
