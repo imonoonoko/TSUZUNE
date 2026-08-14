@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getNoteFreshness } from '../../core/freshness'
 import { basenameRelative, dirnameRelative } from '../../core/paths'
 import type { SearchResult, VaultSnapshot } from '../../shared/types'
@@ -15,7 +15,20 @@ interface FileTreeProps {
   query: string
   onSelectNote: (path: string) => void
   onSelectEntry: (selection: TreeSelection) => void
+  onRename: (selection: TreeSelection) => void
+  onMove: (path: string) => void
+  onTrash: (path: string) => void
 }
+
+interface FileTreeContextMenu {
+  selection: TreeSelection
+  x: number
+  y: number
+  trigger: HTMLElement
+}
+
+const CONTEXT_MENU_WIDTH = 180
+const CONTEXT_MENU_ITEM_HEIGHT = 36
 
 export default function FileTree({
   snapshot,
@@ -24,9 +37,61 @@ export default function FileTree({
   searchResults,
   query,
   onSelectNote,
-  onSelectEntry
+  onSelectEntry,
+  onRename,
+  onMove,
+  onTrash
 }: FileTreeProps): React.JSX.Element {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
+  const [contextMenu, setContextMenu] = useState<FileTreeContextMenu | null>(null)
+  const contextMenuRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!contextMenu) {
+      return
+    }
+    contextMenuRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
+
+    const handlePointerDown = (event: PointerEvent): void => {
+      if (!contextMenuRef.current?.contains(event.target as Node)) {
+        setContextMenu(null)
+      }
+    }
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setContextMenu(null)
+        contextMenu.trigger.focus()
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [contextMenu])
+
+  const openContextMenu = (
+    event: React.MouseEvent<HTMLElement>,
+    selection: TreeSelection
+  ): void => {
+    event.preventDefault()
+    onSelectEntry(selection)
+    const itemCount = selection.kind === 'note' ? 3 : 2
+    setContextMenu({
+      selection,
+      x: Math.max(8, Math.min(event.clientX, window.innerWidth - CONTEXT_MENU_WIDTH - 8)),
+      y: Math.max(
+        8,
+        Math.min(
+          event.clientY,
+          window.innerHeight - itemCount * CONTEXT_MENU_ITEM_HEIGHT - 18
+        )
+      ),
+      trigger: event.currentTarget
+    })
+  }
   const noteAges = useMemo(() => {
     const now = new Date()
     return new Map(
@@ -105,6 +170,9 @@ export default function FileTree({
                 className={`tree-row tree-folder ${isSelected ? 'is-selected' : ''}`}
                 style={{ paddingInlineStart: `${12 + depth * 16}px` }}
                 onClick={() => toggleDirectory(child)}
+                onContextMenu={(event) =>
+                  openContextMenu(event, { kind: 'directory', path: child })
+                }
                 aria-expanded={!isCollapsed}
               >
                 <span aria-hidden="true">{isCollapsed ? '▸' : '▾'}</span>
@@ -134,6 +202,9 @@ export default function FileTree({
                 onSelectEntry({ kind: 'note', path: note.path })
                 onSelectNote(note.path)
               }}
+              onContextMenu={(event) =>
+                openContextMenu(event, { kind: 'note', path: note.path })
+              }
               title={`${note.path}\n最終更新: ${age.exact}\n${age.freshness.statusLabel}（${age.freshness.relativeLabel}）`}
             >
               <span aria-hidden="true">◇</span>
@@ -154,46 +225,99 @@ export default function FileTree({
     )
   }
 
+  const contextMenuElement = contextMenu ? (
+    <div
+      ref={contextMenuRef}
+      className="file-tree-context-menu"
+      role="menu"
+      aria-label={`${contextMenu.selection.path}の操作`}
+      style={{ left: contextMenu.x, top: contextMenu.y }}
+    >
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => {
+          setContextMenu(null)
+          onRename(contextMenu.selection)
+        }}
+      >
+        名前変更
+      </button>
+      {contextMenu.selection.kind === 'note' && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            setContextMenu(null)
+            onMove(contextMenu.selection.path)
+          }}
+        >
+          移動
+        </button>
+      )}
+      <button
+        type="button"
+        role="menuitem"
+        className="is-danger"
+        onClick={() => {
+          setContextMenu(null)
+          onTrash(contextMenu.selection.path)
+        }}
+      >
+        ごみ箱へ移動
+      </button>
+    </div>
+  ) : null
+
   if (query.trim()) {
     return (
-      <div className="search-results" aria-label="検索結果">
-        {searchResults.length === 0 ? (
-          <div className="sidebar-empty">
-            「{query}」は見つかりませんでした。
-          </div>
-        ) : (
-          searchResults.map((result) => {
-            const age = noteAges.get(result.path)
-            return (
-              <button
-                type="button"
-                className="search-result"
-                key={result.path}
-                onClick={() => onSelectNote(result.path)}
-              >
-                <strong>{result.name}</strong>
-                <span>{result.path}</span>
-                {age ? (
-                  <small className={`freshness-${age.freshness.level}`}>
-                    最終更新: {age.exact} · {age.freshness.statusLabel}
-                  </small>
-                ) : null}
-                <small>{result.excerpt || '本文は空です。'}</small>
-              </button>
-            )
-          })
-        )}
-      </div>
+      <>
+        <div className="search-results" aria-label="検索結果">
+          {searchResults.length === 0 ? (
+            <div className="sidebar-empty">
+              「{query}」は見つかりませんでした。
+            </div>
+          ) : (
+            searchResults.map((result) => {
+              const age = noteAges.get(result.path)
+              return (
+                <button
+                  type="button"
+                  className="search-result"
+                  key={result.path}
+                  onClick={() => onSelectNote(result.path)}
+                  onContextMenu={(event) =>
+                    openContextMenu(event, { kind: 'note', path: result.path })
+                  }
+                >
+                  <strong>{result.name}</strong>
+                  <span>{result.path}</span>
+                  {age ? (
+                    <small className={`freshness-${age.freshness.level}`}>
+                      最終更新: {age.exact} · {age.freshness.statusLabel}
+                    </small>
+                  ) : null}
+                  <small>{result.excerpt || '本文は空です。'}</small>
+                </button>
+              )
+            })
+          )}
+        </div>
+        {contextMenuElement}
+      </>
     )
   }
 
   return (
-    <div className="file-tree" role="tree" aria-label="Vaultファイル">
-      {snapshot.directories.length === 1 && snapshot.notes.length === 0 ? (
-        <div className="sidebar-empty">まだノートがありません。</div>
-      ) : (
-        renderDirectory('', 0)
-      )}
-    </div>
+    <>
+      <div className="file-tree" role="tree" aria-label="Vaultファイル">
+        {snapshot.directories.length === 1 && snapshot.notes.length === 0 ? (
+          <div className="sidebar-empty">まだノートがありません。</div>
+        ) : (
+          renderDirectory('', 0)
+        )}
+      </div>
+      {contextMenuElement}
+    </>
   )
 }

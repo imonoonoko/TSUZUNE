@@ -1327,12 +1327,10 @@ export default function App(): React.JSX.Element {
     )
   }
 
-  const renameSelected = (): void => {
-    if (!snapshot || !treeSelection || treeSelection.path === '') {
+  const openRename = (selection: TreeSelection | null): void => {
+    if (!snapshot || !selection || selection.path === '') {
       return
     }
-    const selection = treeSelection
-
     const currentName =
       selection.kind === 'note'
         ? withoutMarkdownExtension(basenameRelative(selection.path))
@@ -1340,6 +1338,8 @@ export default function App(): React.JSX.Element {
     setRenameError(null)
     setRenameRequest({ selection, currentName })
   }
+
+  const renameSelected = (): void => openRename(treeSelection)
 
   const confirmRename = async (requestedName: string): Promise<void> => {
     const request = renameRequest
@@ -1533,9 +1533,11 @@ export default function App(): React.JSX.Element {
       if (affected) {
         loadNoteState(null)
       }
-      if (treeSelection && isPathInsideOrEqual(treeSelection.path, path)) {
-        setTreeSelection({ kind: 'directory', path: '' })
-      }
+      setTreeSelection((current) =>
+        current && isPathInsideOrEqual(current.path, path)
+          ? { kind: 'directory', path: '' }
+          : current
+      )
     } finally {
       finishOperation()
     }
@@ -2583,6 +2585,9 @@ export default function App(): React.JSX.Element {
               query={query}
               onSelectNote={(path) => void openNote(path)}
               onSelectEntry={setTreeSelection}
+              onRename={openRename}
+              onMove={setMovePath}
+              onTrash={(path) => void trashPath(path)}
             />
 
             <div className="entry-toolbar" aria-label="選択項目の操作">
