@@ -8,13 +8,13 @@
 
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
-| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-14 20:13 JSTにIcon Refreshを含むcurrent sourceから更新し、全626 tests、10/10 checks、MCP 6 read＋7 write、packaged／installed smoke、build／installed hash一致、profile 57 files不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
+| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-14 21:19 JSTに`50_履歴` normal discovery除外をcommit `6f3f84f`から更新し、全627 tests、10/10 checks、MCP 6 read＋7 write、packaged／installed smoke、build／installed hash一致、profile 57 files不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
 | Icon refresh | Interwoven Bellのapp／tray専用assetを本番反映済み。全626 tests、10/10 checks、build／installed hash一致、profile 57 files不変。タイトルバー、アプリ内ヘッダー、タスクバー、通知領域のinstalled実機目視もPASSし、slice完了 | [icon refresh](docs/reports/tsuzune-icon-refresh-2026-08-14.md) |
-| 開発ブランチ | `agent/tsuzune-mcp-integration`。C0〜C4、AI設定保存flow補修、Google OAuth scope修正を`f6e85f4`まで本番反映し、receipt／status追補commitがinstalled source commitの後に続く | [commit manifest](docs/reports/working-tree-commit-manifest-2026-08-14.md) |
+| 開発ブランチ | `agent/tsuzune-mcp-integration`。製品HEAD `6f3f84f`をoriginへpushし、同じclean commitから本番反映済み。receipt／status／reportは後続documentation commitとして保存する | [history exclusion](docs/reports/history-normal-discovery-exclusion-2026-08-14.md) |
 | Graph直近slice | CP1-B-02で実在Markdownノートにも`フォルダで表示`を接続。公式production updateの全529 tests／10 checksを通して本番反映済み | [CP1-B-02](docs/reports/cp1-b-02-note-folder-reveal-2026-08-13.md) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
-| 最優先Track | Drive同期と将来のスマホ利用。Windows通知領域への常駐を本番反映し、×で隠した後もprocessとMCP previewが生存する実機受入をPASS。最新previewは送信12／受信0／移動0／競合0／保持16で、applyは未実施 | [Drive bridge](docs/reports/drive-sync-mcp-bridge-2026-08-14.md) |
-| 次の縦切り | Drive applyとCP1-C-07分類applyは行わず、次の同期sliceを再選択する。Windowsログイン時自動起動は今回の背景常駐契約には含めない | [PLAN.md](PLAN.md#current-transition-queue) |
+| 最優先Track | P0の履歴ノイズ除外は完了。現在はO1 7-day dogfoodの観測期間で、ニューロン系拡張を加えず通常利用の摩擦とP0の体感差を記録する | [PLAN.md](PLAN.md#current-transition-queue) |
+| 次の縦切り | P0の履歴ノイズ除外は本番反映済み。O1 7-day dogfoodで体感差と副作用を観測し、S3 move実機受入またはfreshness行動キュー／削除伝播を別sliceで再選択する | [history exclusion](docs/reports/history-normal-discovery-exclusion-2026-08-14.md) |
 | Graph／Excluded files checkpoint | CP0-T04で未解決Wiki nodeのidentityと検索保持を閉じ、CP0-T05でapp-wide Excluded filesを本番MCP search／Contextへ接続した。Manage UI、FileTree directory、全surfaceのObsidian固定比較は未完。GP0-3b-pはGraph再表示camera gate不成立で`blocked` | [CP0-T05 report](docs/reports/cp0-t05-excluded-files-mcp-retrieval-2026-08-12.md) |
 | Context checkpoint | X1-M1は`type: moc`を全タイトル一覧へ投影し、X1-D1はbaseline candidate集合を変えず通常本文だけを質問で優先する。X1-S1aはstable scanで同一canonical creation-time sidecarを再書込みせず、X1-S1bはmatching revisionと同一本文のAI自律更新を履歴なしno-opにして本番反映した。X1-T1は`build_context`だけをstructured-onlyにし、Codex Desktop local stdioで意味指標不変・wire 54.7%減・p95非悪化、fixture 12/12、回答品質4/4、source trace 3/3、future leakage 0、write 0を確認して本番反映した | [X1-T1 report](docs/reports/x1-t1-structured-only-transport-2026-08-12.md) |
 | MCP runtime | `build_context`のstructured-onlyを維持し、direct serverは13ツール、Codex登録は10ツール。Drive previewはread-only、applyは確認対象。Google tokenを渡さず、ウィンドウを隠したTray常駐中もpreview可能。本番反映・runtime受入済み | [Drive bridge](docs/reports/drive-sync-mcp-bridge-2026-08-14.md) |

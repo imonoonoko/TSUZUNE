@@ -12,6 +12,7 @@
 
 ## 現在の開発
 
+- [50_履歴 Normal Discovery Exclusion](reports/history-normal-discovery-exclusion-2026-08-14.md) — 監査履歴をFile tree／直接openに残し、通常Graph・backlink・Renderer検索だけから既定除外した最小sliceと本番更新証拠。
 - [TSUZUNE Icon Refresh](reports/tsuzune-icon-refresh-2026-08-14.md) — Interwoven Bellのapp／tray専用asset、16–32px確認、runtime接続、検証と本番未反映境界。
 - [Current-state consolidation 2026-08-13](reports/tsuzune-consolidation-2026-08-13.md) — 製品中心、installed／source境界、96-entry working tree、完了／保留、優先順を一枚に固定。
 - [Product Plan](../PLAN.md) — 現在の実行順、受入条件、保留Track、長期roadmap。

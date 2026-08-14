@@ -48,11 +48,11 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 | 配布checkpoint | C0〜C4、AI設定保存flow補修、documentation closeoutを`b2fd6bf`までpush済み。C5はexact pinへ復旧し、未採用H1 Hooks shadow 6 filesは削除した。clean source `b2fd6bf`から公式`production:update`を実行し、本番受入PASS |
 | 開発checkpoint | O2 Classification Migration safety。Graph Parityはcheckpoint化し、現役ではない |
 | Graph trackの直近slice | CP1-B-02 Markdown Note Folder Reveal。固定済み参照と既存安全経路を再利用し、実在Markdownノートにも`フォルダで表示`を接続。2026-08-13の公式production updateで本番反映済み |
-| 現役slice | TSUZUNE Icon Refreshは完了。Interwoven Bellのapp／tray専用assetを本番反映し、タイトルバー、アプリ内ヘッダー、タスクバー、通知領域のinstalled実機目視までPASS。次sliceは未選定 |
+| 現役slice | `50_履歴` Normal Discovery Exclusionを完了。監査履歴をFile tree／直接openへ残し、通常Graph・backlink・Renderer検索から既定除外して本番反映済み。次はO1 dogfood観測 |
 | Context checkpoint | X1-M1 MOC Title Router、X1-D1 Recall-safe Query Bridge、X1-S1a creation-time sidecar no-op、X1-S1b revision-aware autonomous no-op、X1-T1 structured-only transportを本番反映済み。質問はbaseline候補を削除せず、通常本文の展開順だけを変える。X1-T1はCodex Desktop local stdioで受入済み。ChatGPT remote MCPは別Track。詳細は[report](docs/reports/x1-t1-structured-only-transport-2026-08-12.md) |
 | MCP correction checkpoint | `build_context`のstructured-only搬送を維持したまま、direct serverを13ツール、Codex Desktop登録を10ツールへ拡張。追加したDrive previewはread-only、applyは確認対象で、起動中の本体がない場合はfail-closed。[Drive bridge](docs/reports/drive-sync-mcp-bridge-2026-08-14.md) |
 | MCP retrieval observation | MCP-R1は3/3完了。sample 2・3で`50_履歴/AI更新`の近似重複を再観測し、search/rankingシグナルが2/3。新規BM25より先に、sourceに既存のhistory既定除外をruntimeで受入する。[observation](docs/reports/mcp-retrieval-route-observation-2026-08-13.md) |
-| 現役Primary Track数 | 0。Icon Refreshはinstalled visual受入まで完了。Drive Sync MCP Bridgeは本番受入済み。削除、添付、移動＋編集、モバイルclientは別slice。CP1-C-07はremote preview未更新のためapply禁止を継続 |
+| 現役Primary Track数 | 0。履歴ノイズ除外はinstalled-and-verified。O1は観測のみ。S3実機受入、freshness行動キュー、削除伝播は別slice。CP1-C-07はremote preview未更新のためapply禁止を継続 |
 
 ### Current Transition Queue
 
@@ -79,6 +79,7 @@ Context／token調査は、単純なContext削減を最優先にせず、Cost pe
 18. **Completed and installed／acceptance pending — S3 Explicit Note Move:** アプリ内の単一Markdown移動／名前変更を同期台帳へ保留し、次回applyで同じDrive file IDのmetadataだけを新pathへ移す。別端末側もfile IDで純粋なremote moveを認識する。移動＋編集や衝突はfail-closed。全62 files／624 tests、production update 10/10 checks、build／installed hash一致、profile 57 files不変をPASS。本番appでの移動1件→0件の実機受入だけが残る。[report](docs/reports/drive-sync-explicit-note-move-s3-2026-08-14.md)
 19. **Completed, installed and live-accepted — Drive Sync MCP Bridge background runtime:** Windowsの×でウィンドウを隠した後もTSUZUNE processとMCP bridgeが生存し、背景状態の実previewが送信12／受信0／移動0／競合0／保持16でPASS。applyは未実施。自動同期、新規依存、別serviceは追加していない。[report](docs/reports/drive-sync-mcp-bridge-2026-08-14.md)
 20. **Completed, installed and live-accepted — TSUZUNE Icon Refresh:** 旧woven-loopをInterwoven Bellへ更新し、appとtrayを別asset化。16–32pxのlight／dark確認、全63 files／626 tests、公式production update 10/10 checks、build／installed hash一致、profile 57 files不変をPASS。installed実機のタイトルバー、アプリ内ヘッダー、タスクバー、通知領域もユーザー目視でPASS。[report](docs/reports/tsuzune-icon-refresh-2026-08-14.md)
+21. **Completed and installed — `50_履歴` Normal Discovery Exclusion:** 実測で通常操作負荷が確認された監査履歴を、既存除外matcherの再利用だけで通常Graph・backlink・Renderer検索・linked-view backlinkから既定除外した。File tree、直接open、MCP明示履歴、Temporal Memory、Drive同期は維持。全63 files／627 tests、MCP 6 read＋7 write、production update 10/10 checks、hash一致、profile 57 files不変をPASS。[report](docs/reports/history-normal-discovery-exclusion-2026-08-14.md)
 
 新しいSupporting Trackを割り込ませる場合は、目的、停止条件、元Trackへ戻る条件をこの節へ先に記録します。
 
