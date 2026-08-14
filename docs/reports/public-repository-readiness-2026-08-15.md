@@ -2,7 +2,7 @@
 
 ## Conclusion
 
-The repository is public and the integration branch is ready for public review. No tracked credential file or private-key material was found in the current tree or filename history. The public default branch remains `main`; the current v0.5 README and implementation are still in Draft PR #1 and have not been merged or released.
+The repository is public and PR #1 has been merged into the default branch with merge commit `4854bdd7ac92c4546958c98a41fc7c9c312c39fe`. The current v0.5 README, implementation, public updater configuration, and dependency fixes are now on `main`. No tracked credential file or private-key material was found in the current tree or filename history. A v0.5 GitHub Release has not been published.
 
 ## Changes made
 
@@ -16,8 +16,9 @@ The repository is public and the integration branch is ready for public review. 
 ## Evidence
 
 - Repository visibility: `PUBLIC`; default branch: `main`.
-- Draft PR #1: mergeable and clean at inspection time; no GitHub status checks were configured.
-- Dependabot reports 2 open high-severity alerts on the default `main` branch (`fast-uri` and `js-yaml`). Both are resolved by the integration branch lockfile, so the alerts remain open until that change reaches `main`.
+- PR #1: merged at 2026-08-14T20:11:24Z using merge commit `4854bdd7ac92c4546958c98a41fc7c9c312c39fe`.
+- GitHub after merge: 0 open pull requests, 0 open issues, and 0 open Dependabot alerts.
+- Merge-time branch cleanup is enabled, and the merged remote head branch was deleted.
 - Secret filename scan: only the intentionally empty `.env.example` matched; no credential JSON, key, certificate, or password database was tracked or found in filename history.
 - Content matches for OAuth token names were implementation fields and explicit test placeholders, not live values.
 - Full dependency audit: 0 known vulnerabilities after the lockfile refresh.
@@ -38,7 +39,6 @@ An earlier 6 GiB single-worker full-suite attempt exhausted the Node heap. It di
 ## Remaining public-release boundary
 
 - Do not describe the project as open source unless an explicit license is chosen. Public visibility currently grants no open-source license; the README says so.
-- The GitHub landing page continues to show the v0.1 `main` README until Draft PR #1 is reviewed and merged.
 - The only public binary remains v0.1.0. A signed or unsigned v0.5 installer has not been published.
 - Personal paths remain recoverable from existing Git history. They are not credentials; rewriting published history only for those paths is not proportionate and was not performed.
 - Branch protection and CI were not introduced because they would change the solo-maintainer workflow and there are currently no required checks to enforce.
