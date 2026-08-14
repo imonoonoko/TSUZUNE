@@ -1,6 +1,6 @@
 # TSUZUNE Documentation Index
 
-更新日: 2026-08-14
+更新日: 2026-08-15
 
 ## まず読む
 
@@ -12,6 +12,7 @@
 
 ## 現在の開発
 
+- [Single-instance Startup](reports/single-instance-startup-2026-08-15.md) — 後続起動を終了し、既存windowを表示・復元・focusする最小実装、本番更新、installed連続起動の同一PID受入証拠。
 - [50_履歴 Normal Discovery Exclusion](reports/history-normal-discovery-exclusion-2026-08-14.md) — 監査履歴をFile tree／直接openに残し、通常Graph・backlink・Renderer検索だけから既定除外した最小sliceと本番更新証拠。
 - [TSUZUNE Icon Refresh](reports/tsuzune-icon-refresh-2026-08-14.md) — Interwoven Bellのapp／tray専用asset、16–32px確認、runtime接続、検証と本番未反映境界。
 - [Current-state consolidation 2026-08-13](reports/tsuzune-consolidation-2026-08-13.md) — 製品中心、installed／source境界、96-entry working tree、完了／保留、優先順を一枚に固定。
