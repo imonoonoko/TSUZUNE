@@ -1,8 +1,8 @@
 # Windows本番運用ガイド
 
-更新日: 2026-08-03
+更新日: 2026-08-15
 
-対象: 個人用Windows PC / 非公開GitHubリポジトリ`imonoonoko/TSUZUNE`
+対象: 個人用Windows PC / 公開GitHubリポジトリ`imonoonoko/TSUZUNE`
 
 ## 現在の本番構成
 
@@ -11,8 +11,8 @@
 - インストール先: `%LOCALAPPDATA%\Programs\tsuzune`
 - 本体設定: `%APPDATA%\TSUZUNE`
 - Vault: 利用者が選んだ任意のローカルフォルダ
-- 更新配信: 非公開GitHub Releases
-- 更新認証: `GH_TOKEN` / `GITHUB_TOKEN` / GitHub CLIのkeyring
+- 更新配信: 公開GitHub Releases
+- Release作成認証: maintainerのGitHub CLI keyringまたは一時token。アプリ側の更新確認には認証不要
 
 アンインストールや本体更新では、Vault、TSUZUNE設定、暗号化されたGoogle更新トークン、Drive同期台帳を削除しない。NSISの`deleteAppDataOnUninstall`も明示的に`false`としている。
 
@@ -39,7 +39,7 @@ Remove-Item Env:MAIN_VITE_GOOGLE_OAUTH_CLIENT_SECRET
 - `dist/latest.yml`
 - `dist/win-unpacked/resources/app-update.yml`
 
-`npm run check:installer`は、バージョン、ファイル名、SHA-512、blockmap、非公開GitHub更新先に加え、実際の`app.asar`で`electron-updater`をCommonJS互換のdefault importとして読み込んでいることを検査する。`npm run check:packaged`は、パッケージ版を非表示で起動し、レンダラーの読み込み完了を一時ready fileで確認する。単なるプロセス生存は成功条件にしない。
+`npm run check:installer`は、バージョン、ファイル名、SHA-512、blockmap、公開GitHub更新先に加え、実際の`app.asar`で`electron-updater`をCommonJS互換のdefault importとして読み込んでいることを検査する。`npm run check:packaged`は、パッケージ版を非表示で起動し、レンダラーの読み込み完了を一時ready fileで確認する。単なるプロセス生存は成功条件にしない。
 
 ## このPCへのインストール
 
@@ -78,7 +78,7 @@ Start-Process .\dist\TSUZUNE-Setup-0.5.0.exe -ArgumentList '/S' -Wait
 
 1. `package.json`と`package-lock.json`のversionを上げる。
 2. テスト、MCP確認、本番ビルド、`check:installer`を通す。
-3. 変更をcommitして非公開GitHubへpushする。
+3. 変更をcommitして公開GitHubへpushする。
 4. 一時的にGitHub CLIのtokenを環境へ渡してReleaseを作る。
 
 ```powershell
@@ -104,10 +104,10 @@ Vaultと設定はインストール先の外にあるため、本体ファイル
 npm run check:packaged -- "$env:LOCALAPPDATA\Programs\tsuzune\TSUZUNE.exe"
 ```
 
-## 2026-08-03の最新実機結果
+## 2026-08-15の最新実機結果
 
-- `TSUZUNE-Setup-0.5.0.exe`: 104,416,439 bytes
-- blockmap: 109,202 bytes
+- `TSUZUNE-Setup-0.5.0.exe`: 103,607,215 bytes、SHA-256 `01a3ee9002f4d29bc4fc9c0df0e7ad00fb84f64f5964cfa7be14dbeb967bd6c7`
+- blockmap: 108,962 bytes
 - `latest.yml`のversion、ファイル名、SHA-512: PASS
 - packaged `app.asar`のupdater import互換性: PASS
 - HKCUへの`TSUZUNE 0.5.0`登録: PASS
@@ -123,6 +123,6 @@ npm run check:packaged -- "$env:LOCALAPPDATA\Programs\tsuzune\TSUZUNE.exe"
 ## 未完了の本番リスク
 
 - **コード署名**: 現在は未署名。Windows SmartScreenで発行元不明と表示され得る。一般配布前にはWindowsコード署名証明書を設定する。
-- **二版間の実更新**: 0.5.0は更新機能を持つ最初のインストール版。0.5.1以降を非公開Releaseへ出し、確認、取得、保存、再起動、版更新を一度通して最終受入する。
+- **二版間の実更新**: 0.5.0は更新機能を持つ最初の公開インストール版。0.5.1以降を公開Releaseへ出し、確認、取得、保存、再起動、版更新を一度通して最終受入する。
 - **アプリアイコン**: 編み込まれた鈴を表す `tsuzune-app-icon.png` をWindows packageへ設定し、installer gateでElectron既定アイコンへの退行を検査する。通知領域には小サイズ専用の `tsuzune-tray-icon.png` を使う。
-- **非公開GitHub認証**: GitHub CLIがないPCでは、実行時に`GH_TOKEN`または`GITHUB_TOKEN`が必要。現時点はこの個人用PCだけを本番対象とする。
+- **公開GitHub配信**: 更新確認とasset取得は匿名で行う。Release作成時だけmaintainerのGitHub認証を使用し、tokenをアプリ設定やVaultへ保存しない。
