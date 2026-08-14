@@ -171,9 +171,9 @@ TSUZUNE is flat by default. Depth comes from tonal boundaries between Workshop N
 
 ### TSUZUNE Mark
 
-The mark is a compact woven loop: two broad paper ribbons cross and continue as one quiet connection. Its horizontal balance avoids a dominant stem, while the tucked node represents a remembered idea inside the larger context. It appears in the Windows icon, application header, loading state, and empty state. It never becomes a watermark or decorative background pattern.
+The mark is an interwoven bell: two broad ribbons cross into one quiet chime. The crossing represents connected notes; the bell and clapper represent `鈴音`. It appears in the Windows icon, application header, loading state, and empty state. It never becomes a watermark or decorative background pattern.
 
-The production mark was developed with GPT Image and selected for legibility at small Windows icon sizes. Do not replace it with vertically stacked nodes, a central stalk, or a thin-line network: those silhouettes become ambiguous when reduced.
+The application icon uses a Workshop Night square with a jade-and-warm-ivory mark. The tray icon is a separately simplified transparent asset with a dark outline, so it remains recognizable at 16–32px on both light and dark Windows taskbars. Do not derive the tray icon by shrinking the full application tile, and do not add gradients, lettering, thin-line networks, or extra nodes.
 
 ## Do's and Don'ts
 

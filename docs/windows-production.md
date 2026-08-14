@@ -124,5 +124,5 @@ npm run check:packaged -- "$env:LOCALAPPDATA\Programs\tsuzune\TSUZUNE.exe"
 
 - **コード署名**: 現在は未署名。Windows SmartScreenで発行元不明と表示され得る。一般配布前にはWindowsコード署名証明書を設定する。
 - **二版間の実更新**: 0.5.0は更新機能を持つ最初のインストール版。0.5.1以降を非公開Releaseへ出し、確認、取得、保存、再起動、版更新を一度通して最終受入する。
-- **アプリアイコン**: TSUZUNE専用のwoven-loop画像をWindows packageへ設定し、installer gateでElectron既定アイコンへの退行を検査している。Windows各表示面での`.ico`最適化は一般配布前の追加品質項目。
+- **アプリアイコン**: 編み込まれた鈴を表す `tsuzune-app-icon.png` をWindows packageへ設定し、installer gateでElectron既定アイコンへの退行を検査する。通知領域には小サイズ専用の `tsuzune-tray-icon.png` を使う。
 - **非公開GitHub認証**: GitHub CLIがないPCでは、実行時に`GH_TOKEN`または`GITHUB_TOKEN`が必要。現時点はこの個人用PCだけを本番対象とする。

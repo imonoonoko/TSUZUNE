@@ -70,7 +70,7 @@ TSUZUNEで使うVaultを一度開いた後、開発repositoryで次を実行し�
 npm run mcp:register
 ```
 
-Codex Desktopへ登録するMCP toolは7つです。
+Codex Desktopへ登録するMCP toolは10個です。
 
 | Tool | 用途 |
 |---|---|
@@ -78,13 +78,16 @@ Codex Desktopへ登録するMCP toolは7つです。
 | `fetch` | Markdown noteとrevisionを取得 |
 | `get_backlinks` | backlinkを取得 |
 | `build_context` | 起点と関連noteを文字数上限付きで構築 |
+| `preview_drive_sync` | 起動中のTSUZUNE本体でDrive同期内容を確認 |
 | `create_note` | 既存folderへ新規noteを作成 |
 | `update_note` | revision一致時だけ更新 |
 | `autonomous_update_note` | 通常noteを更新し、変更時は旧本文を`50_履歴/AI更新`へ保存 |
+| `patch_note` | revision一致時だけ狭い範囲を更新 |
+| `apply_drive_sync` | 確認済みDrive同期planを再検査して適用 |
 
 AI更新でも、本文が変わるときは出典、理由、旧revisionを履歴へ残します。`fetch`で得た`expected_revision`が一致し、本文が完全に同一なら`unchanged: true`を返して履歴を作りません。`40_情報源`、`50_履歴`、設定の「AIから変更させないパス」に一致するノートは、MCPの作成・通常更新・自動更新を拒否します。設定の「AIレビュー対象パス」では、この3ツールを即時適用せずVault外の提案へ切り替え、Settingsから承認・取消できます。
 
-通常のCodex登録面には、削除、移動、名前変更、フォルダ作成、強制上書き、Google認証・同期を含めません。direct serverに実装済みの`suggest_links`、`move_note`、`add_link`は開発smokeの対象ですが、通常のCodex登録面には公開しません。個別ノート用policy UIは将来計画です。
+通常のCodex登録面には、削除、移動、名前変更、フォルダ作成、強制上書き、Google認証を含めません。Drive同期は、起動中のTSUZUNE本体が持つ既存の同期機能へloopback接続し、`preview_drive_sync`で得た`planId`を`apply_drive_sync`の`plan_id`へ明示的に渡した場合だけ適用します。Google tokenはMCPへ渡しません。`apply_drive_sync`はCodexの確認対象です。direct serverに実装済みの`suggest_links`、`move_note`、`add_link`は開発smokeの対象ですが、通常のCodex登録面には公開しません。個別ノート用policy UIは将来計画です。
 
 登録解除:
 
@@ -97,6 +100,8 @@ npm run mcp:unregister
 ## Google接続は任意
 
 Googleへ接続しなくても、local Vault、Graph、MCPを使えます。標準接続は基本profileと`drive.file`に限定し、TSUZUNE専用Drive folderを手動でpreview/applyします。Calendar読取を有効にした場合だけ、`calendar.events.readonly`を追加で要求します。
+
+Windowsでウィンドウの×を押すと、保存確認後に通知領域へ隠れてTSUZUNE本体とDrive同期MCP bridgeは動作を続けます。通知領域のTSUZUNEから再表示または明示終了できます。自動同期は行いません。
 
 - Google広告profile、検索履歴、他appのDrive全体は取得しません。
 - token、OAuth JSON、account情報をVaultやGitへ保存しません。

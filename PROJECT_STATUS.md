@@ -8,16 +8,17 @@
 
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
-| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-14 01:39 JSTにclean source `f6e85f4`から更新し、全609 tests、10/10 checks、MCP 5 read＋6 write、packaged／installed smoke、build／installed hash一致、profile 55 files不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
+| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-14 20:13 JSTにIcon Refreshを含むcurrent sourceから更新し、全626 tests、10/10 checks、MCP 6 read＋7 write、packaged／installed smoke、build／installed hash一致、profile 57 files不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
+| Icon refresh | Interwoven Bellのapp／tray専用assetを本番反映済み。全626 tests、10/10 checks、build／installed hash一致、profile 57 files不変。タイトルバー、アプリ内ヘッダー、タスクバー、通知領域のinstalled実機目視もPASSし、slice完了 | [icon refresh](docs/reports/tsuzune-icon-refresh-2026-08-14.md) |
 | 開発ブランチ | `agent/tsuzune-mcp-integration`。C0〜C4、AI設定保存flow補修、Google OAuth scope修正を`f6e85f4`まで本番反映し、receipt／status追補commitがinstalled source commitの後に続く | [commit manifest](docs/reports/working-tree-commit-manifest-2026-08-14.md) |
 | Graph直近slice | CP1-B-02で実在Markdownノートにも`フォルダで表示`を接続。公式production updateの全529 tests／10 checksを通して本番反映済み | [CP1-B-02](docs/reports/cp1-b-02-note-folder-reveal-2026-08-13.md) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
-| 最優先Track | O2 Classification Migrationの安全境界。CP1-C-06でdisposable live Driveのfile ID／parent／private path metadata／version／bytes往復をPASSし、3/3 cleanup。本番Vault applyは引き続き禁止 | [CP1-C-06](docs/reports/cp1-c-06-disposable-live-drive-acceptance-2026-08-14.md) |
-| 次の縦切り | production classification apply packet。正確な対象、preimage、rollback、Drive preview、停止条件を固定し、実行前にユーザー承認を得る。並行してO1 7-day dogfoodを継続。X1-C2／新規BM25／Hooks／Graph残件はresume条件までheld | [PLAN.md](PLAN.md#current-transition-queue) |
+| 最優先Track | Drive同期と将来のスマホ利用。Windows通知領域への常駐を本番反映し、×で隠した後もprocessとMCP previewが生存する実機受入をPASS。最新previewは送信12／受信0／移動0／競合0／保持16で、applyは未実施 | [Drive bridge](docs/reports/drive-sync-mcp-bridge-2026-08-14.md) |
+| 次の縦切り | Drive applyとCP1-C-07分類applyは行わず、次の同期sliceを再選択する。Windowsログイン時自動起動は今回の背景常駐契約には含めない | [PLAN.md](PLAN.md#current-transition-queue) |
 | Graph／Excluded files checkpoint | CP0-T04で未解決Wiki nodeのidentityと検索保持を閉じ、CP0-T05でapp-wide Excluded filesを本番MCP search／Contextへ接続した。Manage UI、FileTree directory、全surfaceのObsidian固定比較は未完。GP0-3b-pはGraph再表示camera gate不成立で`blocked` | [CP0-T05 report](docs/reports/cp0-t05-excluded-files-mcp-retrieval-2026-08-12.md) |
 | Context checkpoint | X1-M1は`type: moc`を全タイトル一覧へ投影し、X1-D1はbaseline candidate集合を変えず通常本文だけを質問で優先する。X1-S1aはstable scanで同一canonical creation-time sidecarを再書込みせず、X1-S1bはmatching revisionと同一本文のAI自律更新を履歴なしno-opにして本番反映した。X1-T1は`build_context`だけをstructured-onlyにし、Codex Desktop local stdioで意味指標不変・wire 54.7%減・p95非悪化、fixture 12/12、回答品質4/4、source trace 3/3、future leakage 0、write 0を確認して本番反映した | [X1-T1 report](docs/reports/x1-t1-structured-only-transport-2026-08-12.md) |
-| MCP runtime correction | current sourceの`build_context`をstructured-onlyへ戻し、direct server 10ツールのsmoke、X1-T1 fixture 12/12、Codex登録7ツールを再確認。Codex再起動後の実呼出しも`content: []`＋structuredContentでPASSし、installed v0.5.0 receiptも更新済み | [reconciliation](docs/reports/mcp-contract-reconciliation-2026-08-13.md) |
-| Google OAuth reconnect correction | 失効済みrefresh tokenの再認証時、Googleのcanonical userinfo scopeを短縮scopeと同値判定できず拒否していた。`f6e85f4`で比較だけを正規化し、公式production update 10/10 checksをPASS。修正版で再認証し、`bundle-v1`保存、refresh HTTP 200、Drive read HTTP 200まで実runtime受入済み。同期・Drive書込みは未実施 | [report](docs/reports/google-oauth-scope-reconnect-2026-08-14.md) |
+| MCP runtime | `build_context`のstructured-onlyを維持し、direct serverは13ツール、Codex登録は10ツール。Drive previewはread-only、applyは確認対象。Google tokenを渡さず、ウィンドウを隠したTray常駐中もpreview可能。本番反映・runtime受入済み | [Drive bridge](docs/reports/drive-sync-mcp-bridge-2026-08-14.md) |
+| Google OAuth reconnect correction | 失効済みrefresh tokenの再認証時、Googleのcanonical userinfo scopeを短縮scopeと同値判定できず拒否していた。`f6e85f4`で比較だけを正規化し、修正版で再認証、refresh HTTP 200、Drive read HTTP 200を確認。その後、既存Drive Vaultへ同期し、再確認で送信0／受信0／競合0／保持0のclean baselineまで実測した | [report](docs/reports/google-oauth-scope-reconnect-2026-08-14.md) |
 | MCP retrieval observation | MCP-R1は3/3完了。sample 2・3で`50_履歴/AI更新`の近似重複を再観測し、search/rankingシグナル2/3。新規BM25より、既存history既定除外のruntime受入を先に行う | [protocol](docs/reports/mcp-retrieval-route-observation-2026-08-13.md) |
 | Context remaining | host usageはrolloutからtask別に再取得済み。single-worker pairのfresh側88.58%減は一対だけで一般化しない。CP1-B 3件はFAIL／PASS／BLOCKED、sample 3もinput 2,303,178・cached 96.06%。source／revision／range単位の再読と実費は未観測。X1-C2はContext bundle量が次の主要因と判明するまでheld。Hooks shadowは採用根拠なし | [PLAN.md](PLAN.md#primary-track--x1-cp0-context-profiler-baseline) |
 
@@ -26,7 +27,7 @@
 ## 実装済みの基盤
 
 - ローカルMarkdown編集、folder、Wiki link、backlink、検索、添付preview。
-- MCPによる検索、取得、backlink、Context、明示作成、revision付き更新、履歴付きAI自律更新。Codex Desktopへはこの7ツールだけを登録し、direct serverの`suggest_links`／`move_note`／`add_link`は未登録のままにする。`40_情報源`／`50_履歴`と設定した追加pathはAIの全登録MCP書き込み経路から保護し、明示Review pathでは3 write toolをVault外inboxへ保留してSettingsから承認／取消する。
+- MCPによる検索、取得、backlink、Context、明示作成、revision付き更新、狭いpatch、履歴付きAI自律更新、Drive同期preview／apply。Codex Desktopへはこの10ツールを登録し、direct serverの`suggest_links`／`move_note`／`add_link`は未登録のままにする。Drive同期は起動中の本体だけがGoogle認証を保持し、applyは確認対象。`40_情報源`／`50_履歴`と設定した追加pathはAIのノート書き込み経路から保護する。
 - Path Alias読取基盤。旧pathを現行ノートへ一意に解決しつつ、実在する旧path、壊れた設定、MCP revision、bookmark／last noteの整合性を保護する。
 - Temporal Memory Lite M0〜M5。valid-timeとknowledge-timeを分け、過去時点への未来情報混入を保守的に抑制する。
 - Local／Global Graph、円形node、Canvas edge、Force runtime、Graph設定、Groups、検索、Animate、状態復元のcheckpoint実装。
@@ -40,7 +41,7 @@ X1-M1のread-only本番Vault比較では、`00_入口/知識地図.md`のContext
 
 X1-D0の将来案にあったscore 0候補の除外は撤回しました。X1-D1では、queryが通常候補本文の展開優先順だけを変え、本文を見送った候補も`omitted_ids`から追加取得できます。MOC全タイトル順、query有無のcandidate到達性、Temporal／provenance／warning、最大500文字queryでもContext予算を消費しない境界、2k／4k／6k／8k／15k sweepを回帰固定し、`e2d8621`から本番反映しました。structured-only搬送はRecallと分離したX1-T1で評価し、Codex Desktop local MCPの固定fixtureと通常本番runtimeで受入を完了しました。ChatGPT remote MCPは別Trackです。
 
-2026-08-13のcurrent source監査では、direct serverの拡張後に`build_context`がlegacy text blockを再び重複していたことを検出しました。専用transportへ戻し、通常／query付きの`content: []`、他ツールのlegacy形状、direct 10ツールsmoke、Codex登録7ツールを再固定しました。再構築済みartifactはCodex Desktop再起動後に読み込まれます。この修復はwire契約の回復であり、model-visible tokenまたは実費削減の新しい証明ではありません。
+2026-08-13のcurrent source監査では、direct serverの拡張後に`build_context`がlegacy text blockを再び重複していたことを検出しました。専用transportへ戻し、通常／query付きの`content: []`と他ツールのlegacy形状を再固定しました。2026-08-14のDrive bridge追加後もこの契約を維持し、direct 13ツールsmokeとCodex登録10ツールを検証対象にしています。これはwire契約であり、model-visible tokenまたは実費削減の新しい証明ではありません。
 
 ## 検証済みだが、完了と言わない範囲
 
@@ -59,6 +60,10 @@ CP1-C-04ではO2-P4Aをtest-only prototypeとして実装しました。local-on
 CP1-C-05ではO2-P4Bをtest-only prototypeとして実装しました。明示planだけを対象に既存Drive file ID、content hash、parentを保ったmetadata relocation、local P3／remote notes／remote alias／両ledgerのcombined recovery、remote／alias／ledger failpoint、remote／local rollback drift時のpacket保持と再実行block、完了時のremote再取得を12 testsで固定しました。関連3 files／43 tests、全62 files／608 tests、typecheckはPASSしています。実Drive、OAuth、製品entry point、本番Vault applyは未実施です。
 
 CP1-C-06では実Google資格情報と受入専用disposable Drive fixtureを使い、MarkdownとPath Alias objectの同一file ID、parent、private path metadata、version、exact bytesのforward／reverse roundtripをPASSしました。新規作成したfolder／Markdown／Aliasの3件は3/3でゴミ箱へ移し、既存Drive Vaultと本番Vaultは変更していません。`DRIVE_PATH_ALIAS_UNSUPPORTED`のlive契約blockerはclosedですが、本番classification applyは別承認です。
+
+CP1-C-07ではTSUZUNE writeback履歴まで含む最新の本番Vaultをread-onlyで再解析し、5 moves／15,601 bytes、140 Wiki参照、23 rollback preimages、547-file Vault fingerprintを固定しました。dry-run前後は不変です。ただしGoogle接続後のactive production Vaultにはpaired remote rootと完了済みsync baselineがなく、remote 5 objectsのfile ID／version／parent／hashを固定できません。承認要求前でblockedとし、通常sync baseline確立までapplyを禁止します。
+
+その後、active production Vaultは既存Drive Vaultと接続し、初回同期後の再確認で送信0／受信0／競合0／保持0のclean baselineを確立しました。ただしCP1-C-07 packetのremote previewはこのbaseline後に再固定していないため、classification applyの承認・実行は禁止を継続します。Drive Sync S1ではremote versionをledgerへ保存し、同一versionの本文downloadを省略するmetadata-first previewを本番反映しました。旧ledgerは最初の確認だけ全本文を読んで移行します。
 
 - [O2-P2 Classification Migration Dry-run](docs/reports/o2-p2-classification-migration-dry-run-2026-08-10.md)
 - [O2-P2 explicit plan](docs/migrations/o2-p2-operations-plan.json)
@@ -143,10 +148,14 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 ## 優先キュー
 
 1. **P0 completed delivery:** frozen 245-file inventoryをC0〜C4、C5 exact-pin復旧、4 mixed-path解消、C6/C9 documentation、H1不採用削除へ分離してpushし、clean source `b2fd6bf`を公式`production:update`で本番受入した。
-2. **P1 next approval gate:** disposable live Drive acceptanceはPASS。次はproduction classification apply packetで対象、preimage、rollback、Drive preview、停止条件を固定し、本番applyの明示承認を得る。
-3. **P1 product observation:** O1 7-day dogfood。機能を追加せず、通常ノートの作成、検索、link、Graph、MCP handoffの摩擦を記録する。
-4. **P1 supporting acceptance:** MCP-R1は3/3完了し、履歴近似重複が2/3。新規BM25ではなく、sourceに実装済みの`50_履歴/**`既定除外をactive MCP runtimeで一度受入する。
-5. **Held:** X1-C2、新規BM25/cache/task-state、Hooks/co-occurrence、Excluded files残件、Graph backlog、実Windows accessibility、Google intake、ChatGPT C1-Dは各resume条件が満たされるまで開始しない。
+2. **P1 completed acceptance:** Drive Sync S1を本番反映し、旧ledger warm-up後の差分なし再確認が実機で約1〜2秒となりPASS。
+3. **P1 completed live acceptance:** S2 Drive Changes APIを全617 tests／10 checksで本番反映し、installed app連続previewは初回bootstrap約7秒、2回目Changes差分経路約1秒で受入PASS。
+4. **P1 installed／acceptance pending:** S3 Explicit Note Moveを全624 tests／10 checksで本番反映。installed appで単一ノート移動1件→同期後0件を受入する。
+5. **P1 background runtime completed and live-accepted:** 通知領域常駐を本番反映し、×で隠した後もprocess／MCPが生存。背景状態のDrive previewは送信12／受信0／移動0／競合0／保持16でPASSし、applyは未実施。
+6. **P1 product observation:** O1 7-day dogfood。機能を追加せず、通常ノートの作成、検索、link、Graph、MCP handoffの摩擦を記録する。
+7. **P1 supporting acceptance:** MCP-R1は3/3完了し、履歴近似重複が2/3。新規BM25ではなく、sourceに実装済みの`50_履歴/**`既定除外をactive MCP runtimeで一度受入する。
+8. **Blocked before approval:** CP1-C-07のlocal側は固定済みでpaired sync baselineも成立したが、remote 5 objectsのread-only previewは未更新。本番classification applyは引き続き行わない。
+9. **Held:** X1-C2、新規BM25/cache/task-state、Hooks/co-occurrence、Excluded files残件、Graph backlog、実Windows accessibility、Google intake、ChatGPT C1-Dは各resume条件が満たされるまで開始しない。
 
 ## CheckpointとWorking treeの扱い
 

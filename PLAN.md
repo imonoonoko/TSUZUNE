@@ -48,11 +48,11 @@ Local Graphの可変Depthだけは製品判断として採用しません。現�
 | 配布checkpoint | C0〜C4、AI設定保存flow補修、documentation closeoutを`b2fd6bf`までpush済み。C5はexact pinへ復旧し、未採用H1 Hooks shadow 6 filesは削除した。clean source `b2fd6bf`から公式`production:update`を実行し、本番受入PASS |
 | 開発checkpoint | O2 Classification Migration safety。Graph Parityはcheckpoint化し、現役ではない |
 | Graph trackの直近slice | CP1-B-02 Markdown Note Folder Reveal。固定済み参照と既存安全経路を再利用し、実在Markdownノートにも`フォルダで表示`を接続。2026-08-13の公式production updateで本番反映済み |
-| 現役slice | CP1-C-06でdisposable live Drive acceptanceを完了。同一file ID、parent、private path metadata、version、Markdown／alias exact bytesの往復と3/3 cleanupを実測した。次はproduction classification apply packet。本番applyは別承認 |
+| 現役slice | TSUZUNE Icon Refreshは完了。Interwoven Bellのapp／tray専用assetを本番反映し、タイトルバー、アプリ内ヘッダー、タスクバー、通知領域のinstalled実機目視までPASS。次sliceは未選定 |
 | Context checkpoint | X1-M1 MOC Title Router、X1-D1 Recall-safe Query Bridge、X1-S1a creation-time sidecar no-op、X1-S1b revision-aware autonomous no-op、X1-T1 structured-only transportを本番反映済み。質問はbaseline候補を削除せず、通常本文の展開順だけを変える。X1-T1はCodex Desktop local stdioで受入済み。ChatGPT remote MCPは別Track。詳細は[report](docs/reports/x1-t1-structured-only-transport-2026-08-12.md) |
-| MCP correction checkpoint | current sourceで`build_context`のstructured-only搬送を復旧。direct serverは10ツールをsmokeし、Codex Desktop登録は安全な7ツールのまま。再起動後の実呼出しも`content: []`＋structuredContentでPASSし、installed receiptも更新済み。[reconciliation](docs/reports/mcp-contract-reconciliation-2026-08-13.md) |
+| MCP correction checkpoint | `build_context`のstructured-only搬送を維持したまま、direct serverを13ツール、Codex Desktop登録を10ツールへ拡張。追加したDrive previewはread-only、applyは確認対象で、起動中の本体がない場合はfail-closed。[Drive bridge](docs/reports/drive-sync-mcp-bridge-2026-08-14.md) |
 | MCP retrieval observation | MCP-R1は3/3完了。sample 2・3で`50_履歴/AI更新`の近似重複を再観測し、search/rankingシグナルが2/3。新規BM25より先に、sourceに既存のhistory既定除外をruntimeで受入する。[observation](docs/reports/mcp-retrieval-route-observation-2026-08-13.md) |
-| 現役Primary Track数 | 1。O2の次はproduction classification apply packetを作り、対象・preimage・rollback・Drive preview・停止条件を人間確認する。O1 7-day dogfoodは機能追加なしの並行観測。X1-C2、BM25、Hooks、Graph残件、Google intake、ChatGPT candidate applyは保留 |
+| 現役Primary Track数 | 0。Icon Refreshはinstalled visual受入まで完了。Drive Sync MCP Bridgeは本番受入済み。削除、添付、移動＋編集、モバイルclientは別slice。CP1-C-07はremote preview未更新のためapply禁止を継続 |
 
 ### Current Transition Queue
 
@@ -71,8 +71,14 @@ Context／token調査は、単純なContext削減を最優先にせず、Cost pe
 10. **Completed observation — MCP-R1 retrieval route:** 自然task 3/3を完了。sample 2・3で履歴近似重複が反復しsearch/rankingシグナル2/3。新規BM25やcacheは開始せず、既にdirty sourceへ存在する`50_履歴/**`既定除外をactive MCP runtimeで受入する一つの小実験を次候補とする。[protocol](docs/reports/mcp-retrieval-route-observation-2026-08-13.md)
 11. **Completed delivery — frozen 245-file inventory:** C0〜C4とAI設定保存flow補修を独立commitへ分離し、C5はexact pinへ復旧、未採用H1 Hooks shadow 6 filesは削除した。`b2fd6bf`までpushし、clean sourceから公式`production:update`を実行。62 files／609 tests、10/10 checks、MCP 5 read＋6 write、package／installer、packaged／installed smoke、build／installed hash一致、profile 57 files不変、MCP再登録をPASSした。[manifest](docs/reports/working-tree-commit-manifest-2026-08-14.md)
 12. **Completed — disposable live Drive acceptance:** 受入専用の実Drive folder／Markdown／Path Alias objectだけで、同一file ID、parent、private path metadata、version、Markdown bytes、Alias bytesの往復を確認し、作成3件を3/3 cleanupした。既存Drive Vaultと本番Vaultは不変。[report](docs/reports/cp1-c-06-disposable-live-drive-acceptance-2026-08-14.md)
-13. **Next approval gate — production classification apply packet:** live Drive blockerは閉じた。本番applyは自動解禁せず、正確な対象、preimage、rollback packet、Drive preview、停止条件を固定してユーザー承認を得る。
+13. **Blocked before approval — production classification apply packet:** TSUZUNE writeback履歴まで含むローカル5 moves／15,601 bytes、140参照、23 preimages、rollback、停止条件を固定し、Vault不変dry-runをPASSした。一方、active production VaultはDrive paired rootと完了済みsync baselineがなく、remote 5 objectsを固定できない。通常sync baseline確立後にDrive previewだけを更新する。本番applyは禁止継続。[packet report](docs/reports/cp1-c-07-production-classification-apply-packet-2026-08-14.md)
 14. **Completed correction and runtime acceptance — Google OAuth scope equivalence:** 失効tokenの再接続でGoogleが返すcanonical userinfo scopeを正当に受け入れる最小修正を`f6e85f4`へ収録し、production update 10/10 checksをPASS。修正版installed appで再認証、`bundle-v1`保存、refresh HTTP 200、Drive read HTTP 200まで実測した。同期・Drive書込みは未実施。項目13へ進める。[report](docs/reports/google-oauth-scope-reconnect-2026-08-14.md)
+15. **Completed and installed — Drive Sync S1 metadata-first preview:** ledgerへremote versionを保存し、同じfile ID／versionの本文downloadとhash再計算を省略する。previewで取得済みの本文はapplyで再利用する。旧ledgerの初回warm-up境界を維持し、全62 files／612 tests、10/10 production checks、profile 57 files不変をPASSした。[report](docs/reports/drive-sync-metadata-first-s1-2026-08-14.md)
+16. **Completed live acceptance — S1:** installed appの旧ledger warm-up後、直後の差分なし「同期内容を確認」はユーザー実測で約1〜2秒。精密benchmarkではないが、日常操作の受入条件を満たした。
+17. **Completed and live-accepted — S2 Drive Changes API:** change tokenとremote metadata cacheを保存し、初回full snapshot後は差分metadataだけを列挙する。別Vaultを隔離し、削除cacheを復活させず、HTTP 410で拒否されたtokenだけfull scanへfallbackする。全62 files／617 tests、10/10 production checks、profile 57 files不変をPASS。installed app連続previewはbootstrap約7秒、Changes差分経路約1秒で受入PASS。[report](docs/reports/drive-sync-changes-s2-2026-08-14.md)
+18. **Completed and installed／acceptance pending — S3 Explicit Note Move:** アプリ内の単一Markdown移動／名前変更を同期台帳へ保留し、次回applyで同じDrive file IDのmetadataだけを新pathへ移す。別端末側もfile IDで純粋なremote moveを認識する。移動＋編集や衝突はfail-closed。全62 files／624 tests、production update 10/10 checks、build／installed hash一致、profile 57 files不変をPASS。本番appでの移動1件→0件の実機受入だけが残る。[report](docs/reports/drive-sync-explicit-note-move-s3-2026-08-14.md)
+19. **Completed, installed and live-accepted — Drive Sync MCP Bridge background runtime:** Windowsの×でウィンドウを隠した後もTSUZUNE processとMCP bridgeが生存し、背景状態の実previewが送信12／受信0／移動0／競合0／保持16でPASS。applyは未実施。自動同期、新規依存、別serviceは追加していない。[report](docs/reports/drive-sync-mcp-bridge-2026-08-14.md)
+20. **Completed, installed and live-accepted — TSUZUNE Icon Refresh:** 旧woven-loopをInterwoven Bellへ更新し、appとtrayを別asset化。16–32pxのlight／dark確認、全63 files／626 tests、公式production update 10/10 checks、build／installed hash一致、profile 57 files不変をPASS。installed実機のタイトルバー、アプリ内ヘッダー、タスクバー、通知領域もユーザー目視でPASS。[report](docs/reports/tsuzune-icon-refresh-2026-08-14.md)
 
 新しいSupporting Trackを割り込ませる場合は、目的、停止条件、元Trackへ戻る条件をこの節へ先に記録します。
 
@@ -489,7 +495,7 @@ NotebookLMや外部資料は、原典package、派生要約、更新対象知識
 | Foundation | 現在の意味 | Evidence / Contract |
 |---|---|---|
 | v0.1 Local Markdown Notes | 作成、編集、folder、Wiki link、backlink、search、trash、競合検知 | [README](README.md)、[v0.1 scope](docs/v0.1-scope.md) |
-| MCP Integration | Codex Desktop登録はsearch/fetch/backlinks/context/create/update/autonomous updateの7 tools。direct serverは未登録のsuggest/move/addを含む10 tools | [MCP Guide](docs/mcp-integration.md) |
+| MCP Integration | Codex Desktop登録はDrive preview／applyを含む10 tools。direct serverは未登録のsuggest/move/addを含む13 tools | [MCP Guide](docs/mcp-integration.md) |
 | Temporal Memory Lite M0-M5 | valid/knowledge time、review due、supersedes、as-of context、source trace | [M5 Dogfood](docs/m5-dogfood.md) |
 | Context Snapshot Index M5-C | request内の重複parse/indexを削減し、出力同一性を保持 | [PROJECT_STATUS](PROJECT_STATUS.md) |
 | Human Capture O1-W0/W1 | template、freshness、通常作成、Daily/Idea、toolbar | [Templates and Freshness](docs/templates-and-freshness.md) |
