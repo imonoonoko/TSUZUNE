@@ -1,0 +1,35 @@
+{
+  "common": [
+    "runtime_info",
+    "delivery_info",
+    "search",
+    "fetch",
+    "get_backlinks",
+    "build_context",
+    "list_directory",
+    "preflight_move_entry",
+    "preview_drive_sync",
+    "create_directory",
+    "create_note",
+    "update_note",
+    "autonomous_update_note",
+    "patch_note",
+    "move_entry",
+    "apply_drive_sync"
+  ],
+  "directOnly": [
+    "suggest_links",
+    "add_link"
+  ],
+  "codex": {
+    "defaultApproval": "auto",
+    "approvalOverrides": {
+      "create_directory": "prompt",
+      "create_note": "prompt",
+      "update_note": "prompt",
+      "patch_note": "prompt",
+      "move_entry": "prompt",
+      "apply_drive_sync": "prompt"
+    }
+  }
+}

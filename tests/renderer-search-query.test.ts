@@ -1,11 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import reference from '../docs/reports/assets/a2-1-search-operators/obsidian-1.13.4-query-results.json'
 import {
   parseRendererSearchQuery,
   searchNotes,
-  searchRendererNotes
+  searchRendererRanked
 } from '../src/core/search'
 import type { NoteDocument } from '../src/shared/types'
 
@@ -77,15 +76,36 @@ describe('Renderer search query parser', () => {
 })
 
 describe('Renderer search operator integration', () => {
-  it.each(reference.queries)('$query', ({ query, paths }) => {
-    expect(
-      searchRendererNotes(notes, query)
-        .map((result) => result.path)
-        .sort()
-    ).toEqual(paths)
-  })
+  const tsuZuneExpected: Record<string, string[]> = {
+    Project: ['00_Home.md', '10_projects/Project Alpha.md', '10_projects/Project Beta.md', '20_knowledge/Distillation.md'],
+    'Project active': ['00_Home.md', '10_projects/Project Alpha.md', '10_projects/Project Beta.md', '20_knowledge/Distillation.md'],
+    'Project missing': ['00_Home.md', '10_projects/Project Alpha.md', '10_projects/Project Beta.md', '20_knowledge/Distillation.md'],
+    'Project -paused': ['00_Home.md', '10_projects/Project Alpha.md', '20_knowledge/Distillation.md'],
+    '-excluded': ['00_Home.md', '10_projects/Project Alpha.md', '10_projects/Project Beta.md', '20_knowledge/Distillation.md', '20_knowledge/Reference.md', '90_orphan/Orphan.md'],
+    'tag:project': ['10_projects/Project Alpha.md', '10_projects/Project Beta.md'],
+    'tag:#project/active': ['10_projects/Project Alpha.md'],
+    'TAG:PROJECT': ['10_projects/Project Alpha.md', '10_projects/Project Beta.md'],
+    'path:10_pro': ['10_projects/Project Alpha.md', '10_projects/Project Beta.md'],
+    'path:knowledge Distillation': ['20_knowledge/Distillation.md', '20_knowledge/Reference.md'],
+    'file:project': ['10_projects/Project Alpha.md', '10_projects/Project Beta.md'],
+    'file:alpha': ['10_projects/Project Alpha.md'],
+    '"Project Alpha"': ['00_Home.md', '10_projects/Project Alpha.md', '10_projects/Project Beta.md'],
+    '"project alpha"': ['00_Home.md', '10_projects/Project Alpha.md', '10_projects/Project Beta.md'],
+    '"知識を残す"': ['20_knowledge/Distillation.md'],
+    'tag:': [],
+    'tag: project': ['10_projects/Project Alpha.md', '10_projects/Project Beta.md'],
+    'owner:Home': [],
+    '-': []
+  }
+
+  it.each(Object.entries(tsuZuneExpected))(
+    'keeps the TSUZUNE search contract for $query',
+    (query, paths) => {
+      expect(searchRendererRanked(notes, query).map((result) => result.path).sort()).toEqual(paths)
+    }
+  )
 
   it('keeps the complete legacy result for an ordinary single-word query', () => {
-    expect(searchRendererNotes(notes, 'Project')).toEqual(searchNotes(notes, 'Project'))
+    expect(searchRendererRanked(notes, 'Project')).toEqual(searchNotes(notes, 'Project'))
   })
 })

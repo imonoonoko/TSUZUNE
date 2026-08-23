@@ -1,0 +1,41 @@
+{
+  "title": "build_context query coverage改革",
+  "slug": "20260824-0030-build-context-query-coverage",
+  "goal": "Make build_context query coverage consistent across effective bundle budgets and explicit intent counts",
+  "status": "complete",
+  "approval": {
+    "required": false,
+    "basis": "The user explicitly selected a thorough workflow reform; production acceptance is the repository's normal release gate"
+  },
+  "success_criteria": [
+    "Effective-budget projection removes the 5000-character discontinuity",
+    "Parent heading branches and four explicit intents are retained",
+    "Repository, MCP, production, live quality, and latency gates pass"
+  ],
+  "packets": [
+    {"id": "01", "name": "semantics-and-red", "status": "completed"},
+    {"id": "02", "name": "minimal-integration", "status": "completed", "depends_on": ["01"]},
+    {"id": "03", "name": "verification", "status": "completed", "depends_on": ["02"]}
+  ],
+  "delegation": {
+    "used": false,
+    "reason": "Higher-priority host instruction requires explicit user request before subagent delegation"
+  },
+  "verification": {
+    "status": "passed",
+    "passed": [
+      "context suite 47/47",
+      "typecheck",
+      "full test 818 passed and 1 skipped",
+      "check:mcp",
+      "progressive-context fixture",
+      "production update installed-and-verified",
+      "post-restart runtime fresh",
+      "five-case quality 16/16 markers and 5/5 tasks at all three budgets",
+      "latency p50 482 ms and p95 593 ms",
+      "TSUZUNE record created, read back, and reached by one backlink"
+    ],
+    "pending": [],
+    "final_production_evidence": "docs/reports/production-update-latest.json"
+  }
+}

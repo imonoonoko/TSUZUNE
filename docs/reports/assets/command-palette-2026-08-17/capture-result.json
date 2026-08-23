@@ -1,0 +1,172 @@
+{
+  "result": "pass",
+  "isolatedVault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\fixtures\\obsidian-graph-parity-vault",
+  "windowSizeTargets": [
+    "1440x900",
+    "760x768 (main-window minimum)"
+  ],
+  "digestBefore": "99261427a78c3246518b4c8812544c5d510840ec5d129ec21413d01e5f9ab047",
+  "digestAfter": "99261427a78c3246518b4c8812544c5d510840ec5d129ec21413d01e5f9ab047",
+  "markdownDigestUnchanged": true,
+  "opened": {
+    "dialogCount": 1,
+    "visible": true,
+    "focused": true,
+    "optionCount": 12,
+    "selectedCount": 1,
+    "selectedId": "new-note",
+    "labels": [
+      "新規ノートを作成",
+      "今日のノートを開く",
+      "ノートを開く",
+      "Vaultを検索",
+      "左サイドバーを閉じる",
+      "右サイドバーを閉じる",
+      "編集に切り替える",
+      "プレビューに切り替える",
+      "ローカルグラフを開く",
+      "Vaultグラフを開く",
+      "ブックマークを表示",
+      "設定を開く"
+    ],
+    "activeText": "新規ノートを作成",
+    "disabledCount": 0,
+    "shortcutVisible": true,
+    "stateVisible": true,
+    "query": "",
+    "inert": true,
+    "activeElement": "コマンドを検索",
+    "viewport": {
+      "width": 1424,
+      "height": 861
+    },
+    "documentWidth": 1424,
+    "dialogRight": 1032,
+    "listWidth": 638,
+    "listScrollWidth": 638
+  },
+  "filtered": {
+    "dialogCount": 1,
+    "visible": true,
+    "focused": true,
+    "optionCount": 2,
+    "selectedCount": 1,
+    "selectedId": "toggle-left-sidebar",
+    "labels": [
+      "左サイドバーを閉じる",
+      "右サイドバーを閉じる"
+    ],
+    "activeText": "左サイドバーを閉じる現在: 表示中",
+    "disabledCount": 0,
+    "shortcutVisible": false,
+    "stateVisible": true,
+    "query": "sidebar",
+    "inert": true,
+    "activeElement": "コマンドを検索",
+    "viewport": {
+      "width": 1424,
+      "height": 861
+    },
+    "documentWidth": 1424,
+    "dialogRight": 1032,
+    "listWidth": 638,
+    "listScrollWidth": 638
+  },
+  "toggled": {
+    "dialogVisible": false,
+    "inert": false,
+    "leftExpanded": "false"
+  },
+  "reopened": {
+    "dialogCount": 1,
+    "visible": true,
+    "focused": true,
+    "optionCount": 12,
+    "selectedCount": 1,
+    "selectedId": "new-note",
+    "labels": [
+      "新規ノートを作成",
+      "今日のノートを開く",
+      "ノートを開く",
+      "Vaultを検索",
+      "左サイドバーを開く",
+      "右サイドバーを閉じる",
+      "編集に切り替える",
+      "プレビューに切り替える",
+      "ローカルグラフを開く",
+      "Vaultグラフを開く",
+      "ブックマークを表示",
+      "設定を開く"
+    ],
+    "activeText": "新規ノートを作成",
+    "disabledCount": 0,
+    "shortcutVisible": true,
+    "stateVisible": true,
+    "query": "",
+    "inert": true,
+    "activeElement": "コマンドを検索",
+    "viewport": {
+      "width": 1424,
+      "height": 861
+    },
+    "documentWidth": 1424,
+    "dialogRight": 1032,
+    "listWidth": 638,
+    "listScrollWidth": 638
+  },
+  "escaped": {
+    "dialogCount": 0,
+    "visible": false,
+    "focused": false,
+    "optionCount": 0,
+    "selectedCount": 0,
+    "selectedId": null,
+    "labels": [],
+    "activeText": null,
+    "disabledCount": 0,
+    "shortcutVisible": false,
+    "stateVisible": false,
+    "query": null,
+    "inert": false,
+    "activeElement": "左サイドバーを開く",
+    "viewport": {
+      "width": 1424,
+      "height": 861
+    },
+    "documentWidth": 1424,
+    "dialogRight": null,
+    "listWidth": null,
+    "listScrollWidth": null
+  },
+  "narrow": {
+    "dialogCount": 1,
+    "visible": true,
+    "focused": true,
+    "optionCount": 2,
+    "selectedCount": 1,
+    "selectedId": "toggle-left-sidebar",
+    "labels": [
+      "左サイドバーを開く",
+      "右サイドバーを閉じる"
+    ],
+    "activeText": "左サイドバーを開く現在: 非表示",
+    "disabledCount": 0,
+    "shortcutVisible": false,
+    "stateVisible": true,
+    "query": "sidebar",
+    "inert": true,
+    "activeElement": "コマンドを検索",
+    "viewport": {
+      "width": 760,
+      "height": 768
+    },
+    "documentWidth": 760,
+    "dialogRight": 700,
+    "listWidth": 638,
+    "listScrollWidth": 638
+  },
+  "disabled": {
+    "status": "not-tested",
+    "reason": "fixture starts with a selected note, so no disabled command is safely exposed in the production palette flow"
+  }
+}

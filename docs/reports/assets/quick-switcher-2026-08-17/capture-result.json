@@ -1,0 +1,96 @@
+{
+  "result": "pass",
+  "isolatedVault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\fixtures\\obsidian-graph-parity-vault",
+  "markdownBefore": {
+    "fileCount": 7,
+    "sha256": "99261427a78c3246518b4c8812544c5d510840ec5d129ec21413d01e5f9ab047"
+  },
+  "markdownAfter": {
+    "fileCount": 7,
+    "sha256": "99261427a78c3246518b4c8812544c5d510840ec5d129ec21413d01e5f9ab047"
+  },
+  "opened": {
+    "dialogCount": 1,
+    "dialogVisible": true,
+    "inputFocused": true,
+    "listbox": true,
+    "optionCount": 1,
+    "selectedCount": 1,
+    "selectedText": "00_Home00_Home.md",
+    "query": "",
+    "workspaceInert": true,
+    "activeElement": "ノートを検索",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "documentWidth": 1440,
+    "dialogWidth": 640,
+    "dialogRight": 1040,
+    "listWidth": 638,
+    "listScrollWidth": 638
+  },
+  "filtered": {
+    "dialogCount": 1,
+    "dialogVisible": true,
+    "inputFocused": true,
+    "listbox": true,
+    "optionCount": 4,
+    "selectedCount": 1,
+    "selectedText": "Project Beta10_projects/Project Beta.md",
+    "query": "Project",
+    "workspaceInert": true,
+    "activeElement": "ノートを検索",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "documentWidth": 1440,
+    "dialogWidth": 640,
+    "dialogRight": 1040,
+    "listWidth": 638,
+    "listScrollWidth": 638
+  },
+  "narrow": {
+    "dialogCount": 1,
+    "dialogVisible": true,
+    "inputFocused": true,
+    "listbox": true,
+    "optionCount": 4,
+    "selectedCount": 1,
+    "selectedText": "Project Beta10_projects/Project Beta.md",
+    "query": "Project",
+    "workspaceInert": true,
+    "activeElement": "ノートを検索",
+    "viewport": {
+      "width": 720,
+      "height": 768
+    },
+    "documentWidth": 720,
+    "dialogWidth": 640,
+    "dialogRight": 680,
+    "listWidth": 638,
+    "listScrollWidth": 638
+  },
+  "closed": {
+    "dialogCount": 0,
+    "dialogVisible": false,
+    "inputFocused": false,
+    "listbox": false,
+    "optionCount": 0,
+    "selectedCount": 0,
+    "selectedText": null,
+    "query": null,
+    "workspaceInert": false,
+    "activeElement": "開く",
+    "viewport": {
+      "width": 720,
+      "height": 768
+    },
+    "documentWidth": 720,
+    "dialogWidth": null,
+    "dialogRight": null,
+    "listWidth": null,
+    "listScrollWidth": null
+  }
+}

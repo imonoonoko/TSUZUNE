@@ -1,0 +1,38 @@
+{
+  "goal": "TSUZUNE whole-code review and refactoring proposal",
+  "success_criteria": [
+    "Evidence-backed prioritized findings",
+    "Sequenced refactoring roadmap with verification and stop conditions",
+    "Current typecheck, test, and MCP gate evidence",
+    "TSUZUNE writeback attempted only through a fresh registered runtime; unsynchronized state reported if unavailable"
+  ],
+  "constraints": [
+    "No product code changes",
+    "Preserve the existing dirty worktree",
+    "No production update or Git publication",
+    "Subagents are read-only and cannot write production TSUZUNE"
+  ],
+  "packets": [
+    {"id": "01-core-mcp-main", "status": "complete"},
+    {"id": "02-renderer-preload", "status": "complete"},
+    {"id": "03-tooling-tests-complexity", "status": "complete"}
+  ],
+  "integration_policy": {
+    "owner": "parent",
+    "conflict_resolution": "Inspect the current authoritative source and tests before accepting a finding.",
+    "final_output": "Findings-first review report and prioritized refactoring roadmap"
+  },
+  "artifacts": [
+    ".agent/requirements/20260824-0144-full-code-review-refactoring/final_report.md"
+  ],
+  "verification": {
+    "typecheck": "pass",
+    "tests": "pass: 77 files, 824 tests; 1 file and 1 test skipped",
+    "mcp": "pass: all contract and smoke gates",
+    "diff_check": "pass with pre-existing line-ending warnings"
+  },
+  "unsynchronized": [
+    "Production TSUZUNE execution record: check:mcp rebuilt the registered bundle and the active server correctly became stale_runtime=true, so final writeback was not bypassed."
+  ],
+  "status": "complete"
+}

@@ -1,0 +1,204 @@
+{
+  "result": "pass",
+  "isolatedVault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\fixtures\\obsidian-graph-parity-vault",
+  "opened": {
+    "selectedNote": "00_Home",
+    "leftExpanded": "true",
+    "rightExpanded": "true",
+    "leftHidden": false,
+    "rightHidden": false,
+    "leftDisplay": "grid",
+    "rightDisplay": "block",
+    "leftCollapsedClass": false,
+    "rightCollapsedClass": false,
+    "leftPanelRect": {
+      "left": 0,
+      "top": 58,
+      "right": 260,
+      "bottom": 861,
+      "width": 260,
+      "height": 803
+    },
+    "rightPanelRect": {
+      "left": 1184,
+      "top": 58,
+      "right": 1424,
+      "bottom": 861,
+      "width": 240,
+      "height": 803
+    },
+    "leftButtonRect": {
+      "left": 243,
+      "top": 58,
+      "right": 259,
+      "bottom": 861,
+      "width": 16,
+      "height": 803
+    },
+    "rightButtonRect": {
+      "left": 1185,
+      "top": 58,
+      "right": 1424,
+      "bottom": 88,
+      "width": 239,
+      "height": 30
+    },
+    "gridTemplateColumns": "260px 924px 240px",
+    "viewport": {
+      "width": 1424,
+      "height": 861
+    },
+    "documentWidth": 1424,
+    "workspaceWidth": 1424
+  },
+  "collapsedWide": {
+    "selectedNote": "00_Home",
+    "leftExpanded": "false",
+    "rightExpanded": "false",
+    "leftHidden": true,
+    "rightHidden": true,
+    "leftDisplay": "none",
+    "rightDisplay": "none",
+    "leftCollapsedClass": true,
+    "rightCollapsedClass": true,
+    "leftPanelRect": {
+      "left": 0,
+      "top": 58,
+      "right": 34,
+      "bottom": 861,
+      "width": 34,
+      "height": 803
+    },
+    "rightPanelRect": {
+      "left": 1390,
+      "top": 58,
+      "right": 1424,
+      "bottom": 861,
+      "width": 34,
+      "height": 803
+    },
+    "leftButtonRect": {
+      "left": 0,
+      "top": 58,
+      "right": 33,
+      "bottom": 861,
+      "width": 33,
+      "height": 803
+    },
+    "rightButtonRect": {
+      "left": 1391,
+      "top": 58,
+      "right": 1424,
+      "bottom": 861,
+      "width": 33,
+      "height": 803
+    },
+    "gridTemplateColumns": "34px 1356px 34px",
+    "viewport": {
+      "width": 1424,
+      "height": 861
+    },
+    "documentWidth": 1424,
+    "workspaceWidth": 1424
+  },
+  "collapsedNarrow": {
+    "selectedNote": "00_Home",
+    "leftExpanded": "false",
+    "rightExpanded": "false",
+    "leftHidden": true,
+    "rightHidden": true,
+    "leftDisplay": "none",
+    "rightDisplay": "none",
+    "leftCollapsedClass": true,
+    "rightCollapsedClass": true,
+    "leftPanelRect": {
+      "left": 0,
+      "top": 58,
+      "right": 34,
+      "bottom": 720,
+      "width": 34,
+      "height": 662
+    },
+    "rightPanelRect": {
+      "left": 726,
+      "top": 58,
+      "right": 760,
+      "bottom": 720,
+      "width": 34,
+      "height": 662
+    },
+    "leftButtonRect": {
+      "left": 0,
+      "top": 58,
+      "right": 33,
+      "bottom": 720,
+      "width": 33,
+      "height": 662
+    },
+    "rightButtonRect": {
+      "left": 727,
+      "top": 58,
+      "right": 760,
+      "bottom": 720,
+      "width": 33,
+      "height": 662
+    },
+    "gridTemplateColumns": "34px 692px 34px",
+    "viewport": {
+      "width": 760,
+      "height": 720
+    },
+    "documentWidth": 760,
+    "workspaceWidth": 760
+  },
+  "reopened": {
+    "selectedNote": "00_Home",
+    "leftExpanded": "true",
+    "rightExpanded": "true",
+    "leftHidden": false,
+    "rightHidden": false,
+    "leftDisplay": "grid",
+    "rightDisplay": "block",
+    "leftCollapsedClass": false,
+    "rightCollapsedClass": false,
+    "leftPanelRect": {
+      "left": 0,
+      "top": 58,
+      "right": 176,
+      "bottom": 720,
+      "width": 176,
+      "height": 662
+    },
+    "rightPanelRect": {
+      "left": 600,
+      "top": 58,
+      "right": 760,
+      "bottom": 720,
+      "width": 160,
+      "height": 662
+    },
+    "leftButtonRect": {
+      "left": 159,
+      "top": 58,
+      "right": 175,
+      "bottom": 720,
+      "width": 16,
+      "height": 662
+    },
+    "rightButtonRect": {
+      "left": 601,
+      "top": 58,
+      "right": 760,
+      "bottom": 88,
+      "width": 159,
+      "height": 30
+    },
+    "gridTemplateColumns": "176px 424px 160px",
+    "viewport": {
+      "width": 760,
+      "height": 720
+    },
+    "documentWidth": 760,
+    "workspaceWidth": 760
+  }
+}

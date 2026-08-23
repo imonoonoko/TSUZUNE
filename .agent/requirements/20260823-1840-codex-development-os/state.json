@@ -1,0 +1,27 @@
+{
+  "goal": "Codex and TSUZUNE development workflow major reform",
+  "success_criteria": [
+    "Shared Task Contract and three execution lanes are canonical",
+    "Global AGENTS and core user Skills have non-overlapping responsibilities",
+    "All changed Skills pass validation and independent forward tests",
+    "TSUZUNE roadmap and execution record reflect the verified boundary"
+  ],
+  "constraints": [
+    "Preserve the existing dirty worktree",
+    "No TSUZUNE product code changes",
+    "No plugin or system Skill changes",
+    "No new runtime, hook, database, daemon, or external dependency"
+  ],
+  "max_concurrent_agents": 3,
+  "max_total_agents": 4,
+  "packets": [
+    {"id": "01-architecture-audit", "status": "complete"},
+    {"id": "02-migration-acceptance", "status": "complete"}
+  ],
+  "integration_policy": {
+    "owner": "parent",
+    "conflict_resolution": "Inspect current global AGENTS, Skill files, repository rules, and production TSUZUNE before choosing.",
+    "final_output": "Validated Skill and contract changes plus a TSUZUNE execution record"
+  },
+  "status": "complete"
+}

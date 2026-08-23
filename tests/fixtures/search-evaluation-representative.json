@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "split": "representative",
+  "k": 10,
+  "cases": [
+    {
+      "id": "rep-openevolve-natural",
+      "query": "OpenEvolveって使える？",
+      "relevance": {
+        "30_知識/OpenEvolveの評価とTSUZUNEへの適用判断-2026-08-16.md": 3
+      },
+      "requiredIds": ["30_知識/OpenEvolveの評価とTSUZUNEへの適用判断-2026-08-16.md"]
+    },
+    {
+      "id": "rep-search-improvement-natural",
+      "query": "TSUZUNEの検索を良くしたい",
+      "relevance": {
+        "30_知識/TSUZUNE-検索・Wikiリンク・Graph.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-検索・Wikiリンク・Graph.md"]
+    },
+    {
+      "id": "rep-production-needed-natural",
+      "query": "本番アップデートは必要？",
+      "relevance": {
+        "30_知識/TSUZUNE-実利用環境アップデート要否判定実施記録-2026-08-16.md": 3,
+        "30_知識/TSUZUNE-本番更新・インストール・Release運用.md": 1
+      },
+      "requiredIds": ["30_知識/TSUZUNE-実利用環境アップデート要否判定実施記録-2026-08-16.md"]
+    },
+    {
+      "id": "rep-ai-write-history-natural",
+      "query": "AIが書いた履歴を確認したい",
+      "relevance": {
+        "30_知識/TSUZUNE-MCPとAI書き込み運用.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-MCPとAI書き込み運用.md"]
+    },
+    {
+      "id": "rep-vault-location-natural",
+      "query": "Vaultはどこに保存される？",
+      "relevance": {
+        "30_知識/TSUZUNE-Vault・データ配置・安全な保存.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-Vault・データ配置・安全な保存.md"]
+    },
+    {
+      "id": "rep-move-note-natural",
+      "query": "ノートを安全に移動したい",
+      "relevance": {
+        "30_知識/TSUZUNE-常用フォルダ操作設計-2026-08-15.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-常用フォルダ操作設計-2026-08-15.md"]
+    },
+    {
+      "id": "rep-graph-excluded-natural",
+      "query": "Graphから除外したファイル",
+      "relevance": {
+        "30_知識/TSUZUNE-O0-Graph Parity.md": 3,
+        "30_知識/TSUZUNE-MCP-検索履歴除外-設計-2026-08-13.md": 1
+      },
+      "requiredIds": ["30_知識/TSUZUNE-O0-Graph Parity.md"]
+    },
+    {
+      "id": "rep-context-compiler-natural",
+      "query": "Context Compilerの仕組み",
+      "relevance": {
+        "30_知識/TSUZUNE-Context CompilerとTemporal Memory.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-Context CompilerとTemporal Memory.md"]
+    },
+    {
+      "id": "rep-ponytail-natural",
+      "query": "Ponytailの使い方",
+      "relevance": {
+        "30_知識/Ponytail-Codex運用.md": 3
+      },
+      "requiredIds": ["30_知識/Ponytail-Codex運用.md"]
+    },
+    {
+      "id": "rep-execution-contract-natural",
+      "query": "実施記録のルール",
+      "relevance": {
+        "30_知識/TSUZUNE-AI実施記録契約.md": 3,
+        "90_テンプレート/実施記録.md": 1
+      },
+      "requiredIds": ["30_知識/TSUZUNE-AI実施記録契約.md"]
+    },
+    {
+      "id": "rep-multiword-search",
+      "query": "検索 Wiki Graph",
+      "relevance": {
+        "30_知識/TSUZUNE-検索・Wikiリンク・Graph.md": 3,
+        "30_知識/TSUZUNE-Graph検証地図.md": 1
+      },
+      "requiredIds": ["30_知識/TSUZUNE-検索・Wikiリンク・Graph.md"]
+    },
+    {
+      "id": "rep-exact-phrase",
+      "query": "\"production implicit\"",
+      "relevance": {
+        "30_知識/TSUZUNE検索評価baseline-2026-08-16.md": 3,
+        "30_知識/TSUZUNE-MCP複数語検索本番昇格実施記録-2026-08-16.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE検索評価baseline-2026-08-16.md"]
+    },
+    {
+      "id": "rep-path-filter",
+      "query": "path:30_知識 OpenEvolve",
+      "relevance": {
+        "30_知識/OpenEvolveの評価とTSUZUNEへの適用判断-2026-08-16.md": 3,
+        "30_知識/TSUZUNE検索評価baseline-2026-08-16.md": 1
+      },
+      "requiredIds": ["30_知識/OpenEvolveの評価とTSUZUNEへの適用判断-2026-08-16.md"]
+    },
+    {
+      "id": "rep-file-filter",
+      "query": "file:TSUZUNE検索評価baseline",
+      "relevance": {
+        "30_知識/TSUZUNE検索評価baseline-2026-08-16.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE検索評価baseline-2026-08-16.md"]
+    },
+    {
+      "id": "rep-negation",
+      "query": "-OpenEvolve 検索 評価",
+      "relevance": {
+        "30_知識/TSUZUNE-検索・Wikiリンク・Graph.md": 3,
+        "30_知識/TSUZUNE-シナジー候補の評価方法.md": 1
+      },
+      "requiredIds": ["30_知識/TSUZUNE-検索・Wikiリンク・Graph.md"]
+    },
+    {
+      "id": "rep-live-check-natural",
+      "query": "MCPのlive確認",
+      "relevance": {
+        "30_知識/TSUZUNE-MCP複数語検索本番昇格実施記録-2026-08-16.md": 3,
+        "30_知識/TSUZUNE検索評価baseline-2026-08-16.md": 1
+      },
+      "requiredIds": ["30_知識/TSUZUNE-MCP複数語検索本番昇格実施記録-2026-08-16.md"]
+    },
+    {
+      "id": "rep-folder-design-natural",
+      "query": "フォルダ操作の設計",
+      "relevance": {
+        "30_知識/TSUZUNE-常用フォルダ操作設計-2026-08-15.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-常用フォルダ操作設計-2026-08-15.md"]
+    },
+    {
+      "id": "rep-vault-rediscovery-natural",
+      "query": "Vaultの再発見と思考補助",
+      "relevance": {
+        "30_知識/TSUZUNE-Vault再発見・思考補助-設計示唆-2026-08-14.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-Vault再発見・思考補助-設計示唆-2026-08-14.md"]
+    },
+    {
+      "id": "rep-production-update-short",
+      "query": "本番更新",
+      "relevance": {
+        "30_知識/TSUZUNE-本番更新・インストール・Release運用.md": 3,
+        "30_知識/TSUZUNE-MCP複数語検索本番昇格実施記録-2026-08-16.md": 1
+      },
+      "requiredIds": ["30_知識/TSUZUNE-本番更新・インストール・Release運用.md"]
+    },
+    {
+      "id": "rep-openevolve-short",
+      "query": "OpenEvolve",
+      "relevance": {
+        "30_知識/OpenEvolveの評価とTSUZUNEへの適用判断-2026-08-16.md": 3
+      },
+      "requiredIds": ["30_知識/OpenEvolveの評価とTSUZUNEへの適用判断-2026-08-16.md"]
+    }
+  ]
+}

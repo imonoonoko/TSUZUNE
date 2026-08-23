@@ -47,7 +47,19 @@ function ConvertTo-TomlString([string]$Value) {
   return '"' + $escaped + '"'
 }
 
-$block = @(
+$toolCatalogPath = Join-Path $repositoryRoot 'src\mcp\tool-catalog.json'
+$toolCatalog = Get-Content -Raw -LiteralPath $toolCatalogPath | ConvertFrom-Json
+$enabledTools = @($toolCatalog.common | ForEach-Object {
+  ConvertTo-TomlString ([string]$_)
+}) -join ', '
+$approvalBlocks = @()
+foreach ($override in $toolCatalog.codex.approvalOverrides.PSObject.Properties) {
+  $approvalBlocks += ''
+  $approvalBlocks += "[mcp_servers.tsuzune.tools.$($override.Name)]"
+  $approvalBlocks += 'approval_mode = ' + (ConvertTo-TomlString ([string]$override.Value))
+}
+
+$blockLines = @(
   $beginMarker
   '[mcp_servers.tsuzune]'
   'command = ' + (ConvertTo-TomlString $nodeCommand)
@@ -56,25 +68,14 @@ $block = @(
   'required = false'
   'startup_timeout_sec = 10'
   'tool_timeout_sec = 180'
-  'enabled_tools = ["search", "fetch", "get_backlinks", "build_context", "preview_drive_sync", "create_note", "update_note", "autonomous_update_note", "patch_note", "apply_drive_sync"]'
-  'default_tools_approval_mode = "auto"'
-  ''
-  '[mcp_servers.tsuzune.tools.create_note]'
-  'approval_mode = "prompt"'
-  ''
-  '[mcp_servers.tsuzune.tools.update_note]'
-  'approval_mode = "prompt"'
-  ''
-  '[mcp_servers.tsuzune.tools.autonomous_update_note]'
-  'approval_mode = "auto"'
-  ''
-  '[mcp_servers.tsuzune.tools.patch_note]'
-  'approval_mode = "prompt"'
-  ''
-  '[mcp_servers.tsuzune.tools.apply_drive_sync]'
-  'approval_mode = "prompt"'
+  "enabled_tools = [$enabledTools]"
+  'default_tools_approval_mode = ' + (ConvertTo-TomlString ([string]$toolCatalog.codex.defaultApproval))
+)
+$blockLines += $approvalBlocks
+$blockLines += @(
   $endMarker
-) -join [Environment]::NewLine
+)
+$block = $blockLines -join [Environment]::NewLine
 $block += [Environment]::NewLine
 
 if ($hasManagedBlock) {

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -11,6 +11,46 @@ const appPath =
 const smokeDirectory = await mkdtemp(join(tmpdir(), 'tsuzune-smoke-'))
 const readyFile = join(smokeDirectory, 'ready.txt')
 const isolatedUserData = join(smokeDirectory, 'user-data')
+
+function windowsTsuzuneProcessIds() {
+  if (process.platform !== 'win32') return []
+  const result = spawnSync(
+    'powershell.exe',
+    [
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      "Get-Process -Name TSUZUNE -ErrorAction SilentlyContinue | Where-Object { -not $_.HasExited } | Select-Object -ExpandProperty Id"
+    ],
+    { encoding: 'utf8', windowsHide: true }
+  )
+  if (result.error) throw result.error
+  return result.stdout
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map(Number)
+    .filter(Number.isInteger)
+}
+
+const preexistingProcessIds = new Set(windowsTsuzuneProcessIds())
+assert.equal(preexistingProcessIds.size, 0, 'packaged smoke requires TSUZUNE to be closed')
+
+function ownedWindowsProcessIds() {
+  return windowsTsuzuneProcessIds().filter(
+    (processId) => !preexistingProcessIds.has(processId)
+  )
+}
+
+async function waitForOwnedWindowsProcesses(timeoutMs) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const processIds = ownedWindowsProcessIds()
+    if (processIds.length === 0) return []
+    await delay(100)
+  }
+  return ownedWindowsProcessIds()
+}
+
 const child = spawn(appPath, [`--user-data-dir=${isolatedUserData}`], {
   env: {
     ...process.env,
@@ -45,18 +85,43 @@ try {
     )
   )
 } finally {
-  if (child.exitCode === null) {
+  if (process.platform === 'win32') {
+    const processIds = await waitForOwnedWindowsProcesses(15_000)
+    for (const processId of processIds) {
+      spawnSync('taskkill.exe', ['/PID', String(processId), '/T', '/F'], {
+        stdio: 'ignore',
+        windowsHide: true
+      })
+    }
+    const remainingProcessIds = await waitForOwnedWindowsProcesses(5_000)
+    if (remainingProcessIds.length > 0) {
+      throw new Error('packaged TSUZUNE process did not exit')
+    }
+  } else if (child.exitCode === null) {
     const exited = new Promise((resolve) => child.once('exit', resolve))
-    child.kill()
-    await Promise.race([exited, delay(5_000)])
+    const exitedNaturally = await Promise.race([
+      exited.then(() => true),
+      delay(45_000, false)
+    ])
+    if (!exitedNaturally) {
+      if (process.platform === 'win32') {
+        spawnSync('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], {
+          stdio: 'ignore',
+          windowsHide: true
+        })
+      } else {
+        child.kill()
+      }
+      await Promise.race([exited, delay(5_000)])
+    }
   }
-  for (let attempt = 0; attempt < 50; attempt += 1) {
+  for (let attempt = 0; attempt < 300; attempt += 1) {
     try {
       await rm(smokeDirectory, { recursive: true, force: true })
       break
     } catch (error) {
       if (
-        attempt === 49 ||
+        attempt === 299 ||
         !(error instanceof Error) ||
         !('code' in error) ||
         !['EBUSY', 'EPERM'].includes(error.code)

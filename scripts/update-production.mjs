@@ -11,10 +11,16 @@ import {
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join, relative, resolve } from 'node:path'
+import {
+  SOURCE_RECEIPT_RELATIVE_PATH,
+  fingerprintFiles,
+  sha256File,
+  snapshotSourceTree
+} from './source-fingerprint.mjs'
 
 const root = process.cwd()
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-const receiptRelativePath = 'docs/reports/production-update-latest.json'
+const receiptRelativePath = SOURCE_RECEIPT_RELATIVE_PATH
 
 const plan = {
   steps: [
@@ -83,10 +89,6 @@ function runNpm(args, options = {}) {
   })
 }
 
-async function sha256File(path) {
-  return createHash('sha256').update(await readFile(path)).digest('hex')
-}
-
 async function listFiles(directory, current = directory) {
   if (!existsSync(directory)) return []
   const entries = await readdir(current, { withFileTypes: true })
@@ -97,21 +99,6 @@ async function listFiles(directory, current = directory) {
     else if (entry.isFile() || entry.isSymbolicLink()) files.push(path)
   }
   return files
-}
-
-async function fingerprintFiles(base, paths) {
-  const hash = createHash('sha256')
-  const normalizedPaths = [...paths].sort((left, right) =>
-    left.localeCompare(right, 'en')
-  )
-  for (const path of normalizedPaths) {
-    const normalized = relative(base, path).replaceAll('\\', '/')
-    hash.update(normalized)
-    hash.update('\0')
-    hash.update(await sha256File(path))
-    hash.update('\0')
-  }
-  return { fileCount: normalizedPaths.length, digest: hash.digest('hex') }
 }
 
 async function snapshotDirectory(directory) {
@@ -125,26 +112,6 @@ async function snapshotDirectory(directory) {
   return {
     exists: true,
     ...(await fingerprintFiles(directory, await listFiles(directory)))
-  }
-}
-
-async function snapshotSourceTree() {
-  const output = captureChecked('git', [
-    'ls-files',
-    '--cached',
-    '--others',
-    '--exclude-standard',
-    '-z'
-  ])
-  const paths = output
-    .split('\0')
-    .filter(Boolean)
-    .filter((path) => path.replaceAll('\\', '/') !== receiptRelativePath)
-    .map((path) => resolve(root, path))
-    .filter((path) => existsSync(path))
-  return {
-    ...(await fingerprintFiles(root, paths)),
-    excludedPaths: [receiptRelativePath]
   }
 }
 
@@ -297,7 +264,7 @@ async function main() {
   if (unmerged) throw new Error('Resolve unmerged files before updating production')
   runChecked('git', ['diff', '--check'])
 
-  const sourceBefore = await snapshotSourceTree()
+  const sourceBefore = await snapshotSourceTree(root)
   const profileBefore = await snapshotDirectory(productionProfile)
   const oauth = resolveGoogleOAuthBuildEnvironment(installedAsar)
 
@@ -308,7 +275,7 @@ async function main() {
   runNpm(['run', 'check:installer'])
   runNpm(['run', 'check:packaged'])
 
-  assertSameSnapshot('Source tree', sourceBefore, await snapshotSourceTree())
+  assertSameSnapshot('Source tree', sourceBefore, await snapshotSourceTree(root))
   assertProductionNotRunning(installedExecutable)
   if (!existsSync(installer)) throw new Error(`Installer was not created: ${installer}`)
 
@@ -337,7 +304,7 @@ async function main() {
 
   const profileAfter = await snapshotDirectory(productionProfile)
   assertSameSnapshot('Production TSUZUNE profile', profileBefore, profileAfter)
-  const sourceAfter = await snapshotSourceTree()
+  const sourceAfter = await snapshotSourceTree(root)
   assertSameSnapshot('Source tree', sourceBefore, sourceAfter)
   runNpm(['run', 'mcp:register'])
 

@@ -7,7 +7,6 @@ import {
   parseIdeaNote,
   renderDailyNote,
   renderIdeaNote,
-  renderPlainNote,
   renderTemplate
 } from '../src/core/templates'
 import type { NoteDocument } from '../src/shared/types'
@@ -65,6 +64,21 @@ describe('templates', () => {
     ).toEqual([custom])
   })
 
+  it('uses a chosen template folder and can hide all built-in suggestions', () => {
+    expect(
+      listTemplates(
+        [note('雛形/会議/記録.md'), note('90_テンプレート/旧.md')],
+        { directory: '雛形', includeBuiltIns: false }
+      ).map((item) => item.path)
+    ).toEqual(['雛形/会議/記録.md'])
+
+    expect(
+      listTemplates([], { directory: '雛形', includeBuiltIns: true }).map(
+        (item) => item.path
+      )
+    ).toContain('雛形/今日のノート.md')
+  })
+
   it('replaces supported placeholders and preserves unknown ones', () => {
     const result = renderTemplate(
       '# {{title}}\n{{date}} {{time}} {{datetime}} {{unknown}}',
@@ -113,17 +127,6 @@ describe('templates', () => {
     })
     expect(markdown).toContain('- [ ] 本番で試す\n- [ ] 結果を共有する')
     expect(parseDailyNote(`${markdown}\n手書きの追記`)).toBeNull()
-  })
-
-  it('builds a regular note from a title and unrestricted multiline body', () => {
-    expect(
-      renderPlainNote({
-        title: '自由なノート',
-        body: '    先頭のインデント\n\n## 自分で付けた見出し\n\n- 箇条書き\n\n'
-      })
-    ).toBe(
-      '# 自由なノート\n\n    先頭のインデント\n\n## 自分で付けた見出し\n\n- 箇条書き\n\n'
-    )
   })
 
   it('builds a portable idea note with an optional project link', () => {

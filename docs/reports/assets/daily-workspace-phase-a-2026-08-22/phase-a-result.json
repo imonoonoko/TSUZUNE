@@ -1,0 +1,88 @@
+{
+  "capturedAt": "2026-08-21T21:06:28.456Z",
+  "product": {
+    "executable": "C:\\Users\\Humin\\AppData\\Local\\Programs\\tsuzune\\TSUZUNE.exe",
+    "bytes": 225613824,
+    "sha256": "f9acbe9c6cf2fc7ba9136931f37577bfd82a271c11d4236a10cfd06ecaaacb41"
+  },
+  "isolation": {
+    "vault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\daily-workspace-phase-a-25076\\vault",
+    "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\daily-workspace-phase-a-25076\\userdata",
+    "remainingProcesses": 0
+  },
+  "fixture": {
+    "before": {
+      "fileCount": 8,
+      "sha256": "96b2dc1d2c7884a7127ee4cf7e4a484ada2ff4cae7cacf2732de6570f5618021"
+    },
+    "after": {
+      "fileCount": 8,
+      "sha256": "96b2dc1d2c7884a7127ee4cf7e4a484ada2ff4cae7cacf2732de6570f5618021"
+    },
+    "unchanged": true
+  },
+  "results": [
+    {
+      "id": "A1",
+      "status": "PASS",
+      "window": {
+        "visible": false,
+        "bounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1440,
+          "height": 900
+        },
+        "content": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1440,
+          "height": 900
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "devicePixelRatio": 1
+        }
+      },
+      "entryPoints": [
+        {
+          "id": "quick-switcher",
+          "origin": "左サイドバーを閉じる",
+          "opened": {
+            "surfaceCount": 1,
+            "modalCount": 1,
+            "inputFocused": true,
+            "workspaceInert": true
+          },
+          "closed": {
+            "surfaceCount": 0,
+            "activeLabel": "左サイドバーを閉じる"
+          }
+        },
+        {
+          "id": "command-palette",
+          "origin": "左サイドバーを閉じる",
+          "opened": {
+            "surfaceCount": 1,
+            "modalCount": 1,
+            "inputFocused": true,
+            "workspaceInert": true
+          },
+          "closed": {
+            "surfaceCount": 0,
+            "activeLabel": "左サイドバーを閉じる"
+          }
+        }
+      ],
+      "search": {
+        "leftExpanded": "true",
+        "focused": true,
+        "modalCount": 0
+      },
+      "screenshot": "docs/reports/assets/daily-workspace-phase-a-2026-08-22/a1-entry-points.png"
+    }
+  ],
+  "runError": "Error: CDP timeout: Page.captureScreenshot\n    at Timeout._onTimeout (file:///C:/Users/Humin/Documents/Codex/TSUZUNE/scripts/check-daily-workspace-phase-a.mjs:98:14)\n    at listOnTimeout (node:internal/timers:635:17)\n    at process.processTimers (node:internal/timers:571:7)",
+  "overall": "STOP-UNVERIFIED"
+}

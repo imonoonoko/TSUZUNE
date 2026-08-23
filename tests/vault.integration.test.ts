@@ -460,6 +460,62 @@ describe('VaultService path and scan boundaries', () => {
 })
 
 describe('VaultService file operations', () => {
+  it('keeps audit history immovable through rename, move, and trash', async () => {
+    await vault.createDirectory({ parent: '', name: '50_履歴' })
+    await vault.createDirectory({ parent: '', name: '保管' })
+    await vault.createNote({
+      directory: '50_履歴',
+      name: '監査',
+      content: '# 監査'
+    })
+    await vault.createNote({ directory: '', name: '通常', content: '# 通常' })
+
+    await expect(
+      vault.renameEntry({ path: '50_履歴/監査.md', newName: '改名' })
+    ).rejects.toMatchObject({ appError: { code: 'ACCESS_DENIED' } })
+    await expect(
+      vault.moveNote({
+        path: '50_履歴/監査.md',
+        destinationDirectory: '保管'
+      })
+    ).rejects.toMatchObject({ appError: { code: 'ACCESS_DENIED' } })
+    await expect(
+      vault.moveNote({
+        path: '通常.md',
+        destinationDirectory: '50_履歴'
+      })
+    ).rejects.toMatchObject({ appError: { code: 'ACCESS_DENIED' } })
+    await expect(vault.trashEntry('50_履歴/監査.md')).rejects.toMatchObject({
+      appError: { code: 'ACCESS_DENIED' }
+    })
+
+    expect(await readFile(absolute('50_履歴/監査.md'), 'utf8')).toBe('# 監査')
+    expect(await readFile(absolute('通常.md'), 'utf8')).toBe('# 通常')
+  })
+
+  it('moves a folder with all nested content and rejects moving it into itself', async () => {
+    await vault.createDirectory({ parent: '', name: '資料' })
+    await vault.createDirectory({ parent: '資料', name: '子' })
+    await vault.createDirectory({ parent: '', name: '保管' })
+    await vault.createNote({
+      directory: '資料/子',
+      name: '記録',
+      content: '# 記録\n\n本文'
+    })
+
+    await expect(
+      vault.moveEntry({ path: '資料', destinationDirectory: '資料/子' })
+    ).rejects.toMatchObject({ appError: { code: 'INVALID_PATH' } })
+
+    await expect(
+      vault.moveEntry({ path: '資料', destinationDirectory: '保管' })
+    ).resolves.toEqual({ oldPath: '資料', path: '保管/資料' })
+    expect(await readFile(absolute('保管/資料/子/記録.md'), 'utf8')).toBe(
+      '# 記録\n\n本文'
+    )
+    await expect(access(absolute('資料'))).rejects.toBeDefined()
+  })
+
   it('renames and moves a note without changing its Markdown content', async () => {
     await vault.createDirectory({ parent: '', name: '作業中' })
     await vault.createDirectory({ parent: '', name: '保管' })
@@ -675,6 +731,7 @@ describe('VaultService save conflicts', () => {
       path: '競合.md',
       content: '明示的に上書きした本文',
       expectedModifiedAt: opened.modifiedAt,
+      expectedContent: opened.content,
       force: true
     })
     expect(saved.path).toBe('競合.md')

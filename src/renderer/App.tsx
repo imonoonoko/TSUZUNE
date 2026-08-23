@@ -24,21 +24,19 @@ import {
 } from '../core/paths'
 import type { CopyPathFormat } from '../core/paths'
 import { compilePathAliases, resolvePathAlias } from '../core/path-aliases'
-import { searchRendererNotes } from '../core/search'
+import { searchRendererRanked } from '../core/search'
 import { getNoteFreshness } from '../core/freshness'
 import {
-  DAILY_TEMPLATE_PATH,
+  TEMPLATE_DIRECTORY,
+  dailyTemplatePath,
   dailyNoteLocation,
-  IDEA_TEMPLATE_PATH,
   ideaNoteLocation,
   listTemplates,
   parseDailyNote,
   parseIdeaNote,
   renderDailyNote,
   renderIdeaNote,
-  renderPlainNote,
-  renderTemplate,
-  TEMPLATE_DIRECTORY
+  renderTemplate
 } from '../core/templates'
 import type {
   AppError,
@@ -46,6 +44,7 @@ import type {
   AppUpdateStatus,
   DriveRemoteVault,
   DriveSyncPreview,
+  EntryMoveRecoveryStatus,
   GoogleDriveStatus,
   GraphDisplaySettings,
   GraphFilterSettings,
@@ -74,46 +73,40 @@ import MarkdownEditor from './components/MarkdownEditor'
 import MarkdownPreview from './components/MarkdownPreview'
 import BookmarkDialog from './components/BookmarkDialog'
 import MoveDialog from './components/MoveDialog'
+import QuickNoteCreateDialog from './components/QuickNoteCreateDialog'
+import QuickSwitcherDialog from './components/QuickSwitcherDialog'
+import CommandPaletteDialog, {
+  type CommandPaletteCommand
+} from './components/CommandPaletteDialog'
+import ConflictBanner, {
+  type ConflictState
+} from './components/ConflictBanner'
 import RenameDialog from './components/RenameDialog'
 import RelatedNotes from './components/RelatedNotes'
 import TemporalDetails from './components/TemporalDetails'
 import WikiGraphView from './components/WikiGraphView'
+import WorkspaceTabBar, {
+  WORKSPACE_TAB_PANEL_ID,
+  workspaceTabDomId,
+  workspaceTabLabel,
+  type WorkspaceTab
+} from './components/WorkspaceTabBar'
 import tsuzuneMark from './assets/tsuzune-app-icon.png'
 
 type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict'
 
 const isNormalDiscoveryExcluded = createExcludedFileMatcher(['50_履歴'])
 
-type WorkspaceTab =
-  | {
-      id: number
-      kind: 'note' | 'attachment'
-      path: string
-    }
-  | {
-      id: number
-      kind: 'linked-view'
-      path: string
-    }
-  | {
-      id: number
-      kind: 'global-graph'
-    }
-
-type ConflictState =
-  | {
-      kind: 'changed'
-      externalContent: string
-      externalModifiedAt: number
-      externalSize: number
-      localHeld: boolean
-    }
-  | {
-      kind: 'missing'
-    }
-
 const SAVE_DELAY_MS = 600
 const EXTERNAL_CHANGE_DELAY_MS = 100
+function isTextEditingTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (
+    target.isContentEditable ||
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.tagName === 'SELECT'
+  )
+}
 
 function saveStatusLabel(status: SaveStatus): string {
   switch (status) {
@@ -132,24 +125,6 @@ function saveStatusLabel(status: SaveStatus): string {
 
 function errorMessage(error: AppError): string {
   return error.message || '操作を完了できませんでした。'
-}
-
-function withoutFileExtension(value: string): string {
-  const name = basenameRelative(value)
-  const separator = name.lastIndexOf('.')
-  return separator > 0 ? name.slice(0, separator) : name
-}
-
-function workspaceTabLabel(tab: WorkspaceTab): string {
-  if (tab.kind === 'global-graph') {
-    return 'グラフビュー'
-  }
-  if (tab.kind === 'linked-view') {
-    return `${withoutFileExtension(tab.path)} へのバックリンク`
-  }
-  return tab.kind === 'note'
-    ? withoutMarkdownExtension(basenameRelative(tab.path))
-    : basenameRelative(tab.path)
 }
 
 function localCalendarDate(date: Date): string {
@@ -194,6 +169,8 @@ export default function App(): React.JSX.Element {
   const selectedPathRef = useRef<string | null>(null)
   const [workspaceTabs, setWorkspaceTabs] = useState<WorkspaceTab[]>([])
   const [activeTabId, setActiveTabId] = useState<number | null>(null)
+  const [workspaceTabFocusId, setWorkspaceTabFocusId] = useState<number | null>(null)
+  const workspaceTabRefs = useRef(new Map<number, HTMLButtonElement>())
   const [activeAttachmentPath, setActiveAttachmentPath] = useState<string | null>(null)
   const [activeLinkedViewPath, setActiveLinkedViewPath] = useState<string | null>(null)
   const nextTabIdRef = useRef(1)
@@ -202,13 +179,14 @@ export default function App(): React.JSX.Element {
   const contentRef = useRef('')
   const [modifiedAt, setModifiedAt] = useState(0)
   const modifiedAtRef = useRef(0)
+  const expectedContentRef = useRef('')
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved')
   const savingRef = useRef(false)
   const dirtyRef = useRef(false)
   const versionRef = useRef(0)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveQueueRef = useRef<Promise<boolean>>(Promise.resolve(true))
-  const [viewMode, setViewMode] = useState<'edit' | 'preview' | 'graph'>('edit')
+  const [viewMode, setViewMode] = useState<'edit' | 'preview' | 'graph'>('preview')
   const [graphScope, setGraphScope] = useState<WikiGraphScope>('local')
   const [graphFilters, setGraphFilters] = useState<GraphFilterSettings>(
     DEFAULT_GRAPH_FILTER_SETTINGS
@@ -226,24 +204,37 @@ export default function App(): React.JSX.Element {
     DEFAULT_GRAPH_VIEW_STATES
   )
   const [userIgnoreFilters, setUserIgnoreFilters] = useState<string[]>([])
-  const [aiImmutablePaths, setAiImmutablePaths] = useState<string[]>([])
   const [aiReviewPaths, setAiReviewPaths] = useState<string[]>([])
   const [aiReviewProposals, setAiReviewProposals] = useState<AiWriteReviewProposal[]>([])
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [settingsBusy, setSettingsBusy] = useState(false)
   const [excludedFilesDraft, setExcludedFilesDraft] = useState('')
-  const [aiImmutablePathsDraft, setAiImmutablePathsDraft] = useState('')
   const [aiReviewPathsDraft, setAiReviewPathsDraft] = useState('')
+  const [templateDirectory, setTemplateDirectory] = useState(TEMPLATE_DIRECTORY)
+  const [templateDirectoryDraft, setTemplateDirectoryDraft] = useState(TEMPLATE_DIRECTORY)
+  const [showBuiltInTemplates, setShowBuiltInTemplates] = useState(true)
+  const [showBuiltInTemplatesDraft, setShowBuiltInTemplatesDraft] = useState(true)
   const [query, setQuery] = useState('')
-  const [selectedTemplatePath, setSelectedTemplatePath] = useState('')
-  const [captureKind, setCaptureKind] = useState<'note' | 'daily' | 'idea' | null>(null)
+  const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [recentNotePaths, setRecentNotePaths] = useState<string[]>([])
+  const [quickCreateRequest, setQuickCreateRequest] = useState<{
+    name: string
+    directory: string
+    error: string | null
+  } | null>(null)
+  const [quickCreateBusy, setQuickCreateBusy] = useState(false)
+  const [captureKind, setCaptureKind] = useState<'daily' | 'idea' | null>(null)
   const [captureEditPath, setCaptureEditPath] = useState<string | null>(null)
-  const [noteCreationTemplate, setNoteCreationTemplate] = useState<NoteDocument | null>(null)
   const [captureError, setCaptureError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [moveRecovery, setMoveRecovery] = useState<EntryMoveRecoveryStatus>({
+    status: 'clean'
+  })
   const [conflict, setConflict] = useState<ConflictState | null>(null)
   const conflictRef = useRef<ConflictState | null>(null)
   const [movePath, setMovePath] = useState<string | null>(null)
+  const [createDirectoryParent, setCreateDirectoryParent] = useState<string | null>(null)
   const [renameRequest, setRenameRequest] = useState<{
     selection: TreeSelection
     currentName: string
@@ -251,6 +242,8 @@ export default function App(): React.JSX.Element {
   const [renameError, setRenameError] = useState<string | null>(null)
   const [bookmarkPath, setBookmarkPath] = useState<string | null>(null)
   const [bookmarksOpen, setBookmarksOpen] = useState(false)
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(true)
   const [busy, setBusy] = useState(false)
   const [updateBusy, setUpdateBusy] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<AppUpdateStatus>({
@@ -268,10 +261,23 @@ export default function App(): React.JSX.Element {
   const [drivePreview, setDrivePreview] = useState<DriveSyncPreview | null>(null)
   const [driveVaults, setDriveVaults] = useState<DriveRemoteVault[]>([])
   const [selectedDriveVaultId, setSelectedDriveVaultId] = useState('')
+  const modalOpen =
+    quickSwitcherOpen ||
+    commandPaletteOpen ||
+    Boolean(quickCreateRequest) ||
+    settingsDialogOpen ||
+    googleDialogOpen ||
+    Boolean(movePath) ||
+    Boolean(renameRequest) ||
+    Boolean(bookmarkPath) ||
+    Boolean(captureKind)
   const settingsDialogRef = useRef<HTMLElement | null>(null)
   const settingsDialogPreviousFocusRef = useRef<HTMLElement | null>(null)
   const googleDialogRef = useRef<HTMLElement | null>(null)
   const googleDialogPreviousFocusRef = useRef<HTMLElement | null>(null)
+  const quickSwitcherPreviousFocusRef = useRef<HTMLElement | null>(null)
+  const quickSwitcherRestoreFocusRef = useRef(false)
+  const commandPalettePreviousFocusRef = useRef<HTMLElement | null>(null)
   const busyRef = useRef(false)
   const captureDirtyRef = useRef(false)
   const vaultGenerationRef = useRef(0)
@@ -289,10 +295,85 @@ export default function App(): React.JSX.Element {
     captureDirtyRef.current = dirty
   }, [])
 
+  useEffect(() => {
+    setWorkspaceTabFocusId(activeTabId)
+  }, [activeTabId])
+
+  const focusWorkspaceTab = useCallback((tabId: number): void => {
+    setWorkspaceTabFocusId(tabId)
+    setTimeout(() => workspaceTabRefs.current.get(tabId)?.focus(), 0)
+  }, [])
+
   const setCurrentSnapshot = (next: VaultSnapshot | null): void => {
     snapshotRef.current = next
     setSnapshot(next)
   }
+
+  const rememberRecentNote = useCallback((path: string): void => {
+    setRecentNotePaths((current) => [
+      path,
+      ...current.filter((candidate) => candidate !== path)
+    ].slice(0, 20))
+  }, [])
+
+  const closeQuickSwitcher = (): void => {
+    setQuickSwitcherOpen(false)
+    const previousFocus = quickSwitcherPreviousFocusRef.current
+    const shouldRestore = quickSwitcherRestoreFocusRef.current
+    quickSwitcherPreviousFocusRef.current = null
+    quickSwitcherRestoreFocusRef.current = false
+    if (shouldRestore && previousFocus?.isConnected) {
+      queueMicrotask(() => previousFocus.focus())
+    }
+  }
+
+  const openQuickSwitcher = useCallback((): boolean => {
+    if (!snapshotRef.current || modalOpen || busyRef.current) {
+      return false
+    }
+    quickSwitcherPreviousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    quickSwitcherRestoreFocusRef.current = true
+    setQuickSwitcherOpen(true)
+    return true
+  }, [modalOpen])
+
+  const dismissCommandPalette = (): HTMLElement | null => {
+    setCommandPaletteOpen(false)
+    const previousFocus = commandPalettePreviousFocusRef.current
+    commandPalettePreviousFocusRef.current = null
+    return previousFocus
+  }
+
+  const closeCommandPalette = (): void => {
+    const previousFocus = dismissCommandPalette()
+    queueMicrotask(() => {
+      if (previousFocus?.isConnected) previousFocus.focus()
+    })
+  }
+
+  const openCommandPalette = useCallback((): boolean => {
+    if (!snapshotRef.current || modalOpen || busyRef.current) {
+      return false
+    }
+    commandPalettePreviousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setCommandPaletteOpen(true)
+    return true
+  }, [modalOpen])
+
+  const focusVaultSearch = useCallback((): void => {
+    if (leftSidebarOpen) {
+      searchInputRef.current?.focus()
+      searchInputRef.current?.select()
+      return
+    }
+    setLeftSidebarOpen(true)
+    setTimeout(() => {
+      searchInputRef.current?.focus()
+      searchInputRef.current?.select()
+    }, 0)
+  }, [leftSidebarOpen])
 
   const clearSaveTimer = (): void => {
     if (saveTimerRef.current) {
@@ -383,6 +464,7 @@ export default function App(): React.JSX.Element {
     contentRef.current = note?.content ?? ''
     setContent(note?.content ?? '')
     modifiedAtRef.current = note?.modifiedAt ?? 0
+    expectedContentRef.current = note?.content ?? ''
     setModifiedAt(note?.modifiedAt ?? 0)
     versionRef.current += 1
     dirtyRef.current = false
@@ -450,6 +532,7 @@ export default function App(): React.JSX.Element {
         path,
         content: capturedContent,
         expectedModifiedAt: modifiedAtRef.current,
+        expectedContent: expectedContentRef.current,
         force
       })
 
@@ -483,6 +566,7 @@ export default function App(): React.JSX.Element {
       }
 
       modifiedAtRef.current = result.value.modifiedAt
+      expectedContentRef.current = capturedContent
       setModifiedAt(result.value.modifiedAt)
       updateSnapshotNote(
         path,
@@ -575,7 +659,7 @@ export default function App(): React.JSX.Element {
         setWorkspaceTabs([...workspaceTabs, nextTab])
         setActiveTabId(nextTab.id)
       }
-      setViewMode('edit')
+      setViewMode('preview')
       return
     }
     setWorkspaceTabs((current) =>
@@ -599,6 +683,8 @@ export default function App(): React.JSX.Element {
       if (note) {
         loadNoteState(note)
         activateNoteWorkspace(path)
+        rememberRecentNote(path)
+        setViewMode('preview')
         return
       }
 
@@ -609,6 +695,8 @@ export default function App(): React.JSX.Element {
       }
       loadNoteState(result.value)
       activateNoteWorkspace(path)
+      rememberRecentNote(path)
+      setViewMode('preview')
     } finally {
       finishOperation()
     }
@@ -741,6 +829,7 @@ export default function App(): React.JSX.Element {
         window.tsuzune.openLastVault(),
         window.tsuzune.getUpdateStatus()
       ])
+      const moveRecoveryResult = await window.tsuzune.getMoveRecovery()
 
       if (disposed) {
         return
@@ -749,12 +838,15 @@ export default function App(): React.JSX.Element {
       if (settingsResult.ok) {
         setUserIgnoreFilters(settingsResult.value.userIgnoreFilters)
         setExcludedFilesDraft(settingsResult.value.userIgnoreFilters.join('\n'))
-        setAiImmutablePaths(settingsResult.value.aiImmutablePaths ?? [])
-        setAiImmutablePathsDraft(
-          (settingsResult.value.aiImmutablePaths ?? []).join('\n')
-        )
         setAiReviewPaths(settingsResult.value.aiReviewPaths ?? [])
         setAiReviewPathsDraft((settingsResult.value.aiReviewPaths ?? []).join('\n'))
+        const nextTemplateDirectory =
+          settingsResult.value.templateDirectory ?? TEMPLATE_DIRECTORY
+        const nextShowBuiltIns = settingsResult.value.showBuiltInTemplates ?? true
+        setTemplateDirectory(nextTemplateDirectory)
+        setTemplateDirectoryDraft(nextTemplateDirectory)
+        setShowBuiltInTemplates(nextShowBuiltIns)
+        setShowBuiltInTemplatesDraft(nextShowBuiltIns)
         setGraphForces(settingsResult.value.graphForces)
         setGraphDisplay(settingsResult.value.graphDisplay)
         setGraphFilters(settingsResult.value.graphFilters)
@@ -774,11 +866,15 @@ export default function App(): React.JSX.Element {
           )
           if (previous) {
             loadNoteState(previous, false)
+            rememberRecentNote(previous.path)
           }
         }
       }
       if (updateResult.ok) {
         setUpdateStatus(updateResult.value)
+      }
+      if (moveRecoveryResult.ok) {
+        setMoveRecovery(moveRecoveryResult.value)
       }
       setLoading(false)
     }
@@ -853,15 +949,33 @@ export default function App(): React.JSX.Element {
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent): void => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      if (!(event.ctrlKey || event.metaKey) || event.repeat) {
+        return
+      }
+      const key = event.key.toLowerCase()
+      if (key === 'o') {
+        if (openQuickSwitcher()) {
+          event.preventDefault()
+        }
+        return
+      }
+      if (key === 'p') {
         event.preventDefault()
-        searchInputRef.current?.focus()
-        searchInputRef.current?.select()
+        openCommandPalette()
+        return
+      }
+      if (
+        (key === 'k' || (key === 'f' && event.shiftKey)) &&
+        !modalOpen &&
+        !busyRef.current
+      ) {
+        event.preventDefault()
+        focusVaultSearch()
       }
     }
     window.addEventListener('keydown', handleShortcut)
     return () => window.removeEventListener('keydown', handleShortcut)
-  }, [])
+  }, [focusVaultSearch, modalOpen, openCommandPalette, openQuickSwitcher])
 
   const savedNotes = snapshot?.notes ?? []
   const normalDiscoveryNotes = useMemo(
@@ -886,13 +1000,13 @@ export default function App(): React.JSX.Element {
     }
     return [...groups]
   }, [snapshot?.bookmarks])
-  const templates = useMemo(() => listTemplates(savedNotes), [savedNotes])
-  useEffect(() => {
-    if (templates.some((template) => template.path === selectedTemplatePath)) {
-      return
-    }
-    setSelectedTemplatePath(templates[0]?.path ?? '')
-  }, [selectedTemplatePath, templates])
+  const templates = useMemo(
+    () => listTemplates(savedNotes, {
+      directory: templateDirectory,
+      includeBuiltIns: showBuiltInTemplates
+    }),
+    [savedNotes, templateDirectory, showBuiltInTemplates]
+  )
   const graphNotes = useMemo(() => {
     if (viewMode !== 'graph' || !selectedPath) {
       return normalDiscoveryNotes
@@ -915,7 +1029,7 @@ export default function App(): React.JSX.Element {
     [selectedPath, normalDiscoveryNotes, pathAliases]
   )
   const searchResults = useMemo(
-    () => searchRendererNotes(normalDiscoveryNotes, query),
+    () => searchRendererRanked(normalDiscoveryNotes, query),
     [normalDiscoveryNotes, query]
   )
   const selectedNote = useMemo(
@@ -1033,6 +1147,9 @@ export default function App(): React.JSX.Element {
       }
       if (result.value) {
         setCurrentSnapshot(result.value)
+        setRecentNotePaths([])
+        const recoveryResult = await window.tsuzune.getMoveRecovery()
+        if (recoveryResult.ok) setMoveRecovery(recoveryResult.value)
         loadNoteState(null)
         setTreeSelection({ kind: 'directory', path: '' })
         setQuery('')
@@ -1085,13 +1202,13 @@ export default function App(): React.JSX.Element {
     directory: string,
     preferredName: string,
     content?: string | ((name: string) => string)
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     if (!snapshot || !beginOperation()) {
-      return
+      return false
     }
     try {
       if (!(await flushSave()) || !(await ensureDirectory(directory))) {
-        return
+        return false
       }
       const name = availableNoteName(directory, preferredName)
       const renderedContent = typeof content === 'function' ? content(name) : content
@@ -1102,14 +1219,19 @@ export default function App(): React.JSX.Element {
       })
       if (!result.ok) {
         setMessage(errorMessage(result.error))
-        return
+        return false
       }
       const next = await refreshSnapshot()
       const note = next?.notes.find((candidate) => candidate.path === result.value.path)
       if (note) {
         loadNoteState(note)
+        activateNoteWorkspace(note.path)
+        rememberRecentNote(note.path)
         setViewMode('edit')
+        return true
       }
+      setMessage('作成したノートを現在のVaultから読み込めませんでした。')
+      return false
     } finally {
       finishOperation()
     }
@@ -1123,43 +1245,67 @@ export default function App(): React.JSX.Element {
     await createNoteInDirectory(targetDirectory())
   }
 
-  const createFromTemplate = async (template: NoteDocument): Promise<void> => {
-    const now = new Date()
-    if (template.path === DAILY_TEMPLATE_PATH) {
-      const location = dailyNoteLocation(now)
-      const existing = snapshotRef.current?.notes.find(
-        (note) => note.path === location.path
-      )
-      if (existing) {
-        await openNote(existing.path)
-        setViewMode('edit')
-        return
+  const confirmQuickNoteCreate = async (value: {
+    name: string
+    directory: string
+  }): Promise<void> => {
+    setQuickCreateBusy(true)
+    setQuickCreateRequest((current) =>
+      current ? { ...current, name: value.name, directory: value.directory, error: null } : null
+    )
+    try {
+      if (await createAndOpenNote(value.directory, value.name)) {
+        setQuickCreateRequest(null)
+        quickSwitcherPreviousFocusRef.current = null
+        quickSwitcherRestoreFocusRef.current = false
+        setTimeout(() => {
+          document
+            .querySelector<HTMLElement>('.cm-content, [aria-label="Markdown編集欄"]')
+            ?.focus()
+        }, 0)
+      } else {
+        setQuickCreateRequest((current) =>
+          current
+            ? {
+                ...current,
+                name: value.name,
+                directory: value.directory,
+                error: 'ノートを作成できませんでした。通知を確認してください。'
+              }
+            : null
+        )
       }
-      await createAndOpenNote(location.directory, location.name, (name) =>
-        renderTemplate(template.content, { title: name, now })
-      )
+    } finally {
+      setQuickCreateBusy(false)
+    }
+  }
+
+  const openOrCreateDailyNote = async (): Promise<void> => {
+    const now = new Date()
+    const location = dailyNoteLocation(now)
+    const existing = snapshotRef.current?.notes.find(
+      (note) => note.path === location.path
+    )
+    if (existing) {
+      await openNote(existing.path)
       return
     }
-
-    const selectedDirectory = targetDirectory()
-    const directory =
-      template.path === IDEA_TEMPLATE_PATH
-        ? '01_受信箱/アイデア'
-        : selectedDirectory === TEMPLATE_DIRECTORY ||
-            selectedDirectory.startsWith(`${TEMPLATE_DIRECTORY}/`)
-          ? ''
-          : selectedDirectory
-    await createAndOpenNote(directory, template.name, (name) =>
-      renderTemplate(template.content, { title: name, now })
+    const dailyTemplate = templates.find(
+      (candidate) => candidate.path === dailyTemplatePath(templateDirectory)
+    )
+    await createAndOpenNote(location.directory, location.name, (name) =>
+      renderTemplate(
+        dailyTemplate?.content ??
+          '# {{date}}\n\n## 今日やったこと\n\n## 気づき\n\n## メモ\n\n## 次にすること\n\n',
+        { title: name, now }
+      )
     )
   }
 
-  const addTemplate = async (): Promise<void> => {
-    await createAndOpenNote(
-      TEMPLATE_DIRECTORY,
-      '新しいテンプレート',
-      '# {{title}}\n\n'
-    )
+  const startIdeaCapture = (): void => {
+    setCaptureKind('idea')
+    setCaptureEditPath(null)
+    setCaptureError(null)
   }
 
   const createCapturedNote = async (
@@ -1183,23 +1329,9 @@ export default function App(): React.JSX.Element {
         )
       : now
     const content =
-      submission.kind === 'note'
-        ? noteCreationTemplate
-          ? (() => {
-              const template = renderTemplate(noteCreationTemplate.content, {
-                title: submission.title,
-                now
-              })
-              return submission.body.trim()
-                ? `${template.trimEnd()}\n\n${submission.body}${submission.body.endsWith('\n') ? '' : '\n'}`
-                : template
-            })()
-          : submission.body.trim()
-            ? renderPlainNote(submission)
-            : undefined
-        : submission.kind === 'daily'
-          ? renderDailyNote({ now: dailyDate, ...submission })
-          : renderIdeaNote(submission)
+      submission.kind === 'daily'
+        ? renderDailyNote({ now: dailyDate, ...submission })
+        : renderIdeaNote(submission)
 
     if (captureEditPath) {
       if (
@@ -1246,20 +1378,12 @@ export default function App(): React.JSX.Element {
         return false
       }
 
-      const selectedDirectory = targetDirectory()
-      const directory =
-        submission.kind === 'note'
-          ? noteCreationTemplate &&
-            (selectedDirectory === TEMPLATE_DIRECTORY ||
-              selectedDirectory.startsWith(`${TEMPLATE_DIRECTORY}/`))
-            ? ''
-            : selectedDirectory
-          : location?.directory ?? ''
+      const directory = location?.directory ?? ''
       if (!(await ensureDirectory(directory))) {
         return false
       }
 
-      const name = submission.kind === 'note' ? submission.title : location?.name ?? ''
+      const name = location?.name ?? ''
       const result = await window.tsuzune.createNote({ directory, name, content })
       if (!result.ok) {
         const error = errorMessage(result.error)
@@ -1271,50 +1395,48 @@ export default function App(): React.JSX.Element {
       const note = next?.notes.find((candidate) => candidate.path === result.value.path)
       if (note) {
         loadNoteState(note)
-        setViewMode(submission.kind === 'note' ? 'edit' : 'preview')
+        activateNoteWorkspace(note.path)
+        rememberRecentNote(note.path)
+        setViewMode('preview')
       }
       setCaptureKind(null)
       setCaptureEditPath(null)
-      setNoteCreationTemplate(null)
       return true
     } finally {
       finishOperation()
     }
   }
 
-  const createDirectoryIn = async (parent: string): Promise<void> => {
+  const createDirectoryIn = async (
+    parent: string,
+    name: string
+  ): Promise<string | null> => {
     if (!snapshot) {
-      return
-    }
-    const name = window.prompt('新しいフォルダ名', '新しいフォルダ')
-    if (!name) {
-      return
+      return 'Vaultを開いてください。'
     }
     if (!beginOperation()) {
-      return
+      return '別の操作が進行中です。'
     }
 
     try {
       if (!(await flushSave())) {
-        return
+        return '保存できなかったため、フォルダーを作成できません。'
       }
       const result = await window.tsuzune.createDirectory({
         parent,
         name
       })
       if (!result.ok) {
-        setMessage(errorMessage(result.error))
-        return
+        const message = errorMessage(result.error)
+        setMessage(message)
+        return message
       }
       await refreshSnapshot()
       setTreeSelection({ kind: 'directory', path: result.value.path })
+      return null
     } finally {
       finishOperation()
     }
-  }
-
-  const createDirectory = async (): Promise<void> => {
-    await createDirectoryIn(targetDirectory())
   }
 
   const pathChangesForRename = (
@@ -1330,6 +1452,14 @@ export default function App(): React.JSX.Element {
     for (const note of savedNotes) {
       if (isPathInsideOrEqual(note.path, selection.path)) {
         changes.set(note.path, `${newPath}${note.path.slice(selection.path.length)}`)
+      }
+    }
+    for (const attachment of snapshot?.attachments ?? []) {
+      if (isPathInsideOrEqual(attachment.path, selection.path)) {
+        changes.set(
+          attachment.path,
+          `${newPath}${attachment.path.slice(selection.path.length)}`
+        )
       }
     }
     return changes
@@ -1360,56 +1490,57 @@ export default function App(): React.JSX.Element {
 
   const renameSelected = (): void => openRename(treeSelection)
 
-  const confirmRename = async (requestedName: string): Promise<void> => {
-    const request = renameRequest
-    if (!request || !snapshot) {
-      return
+  const renameEntry = async (
+    selection: TreeSelection,
+    requestedName: string
+  ): Promise<string | null> => {
+    if (!snapshot) {
+      return 'Vaultを読み込めませんでした。'
     }
+    const currentName =
+      selection.kind === 'note'
+        ? withoutMarkdownExtension(basenameRelative(selection.path))
+        : basenameRelative(selection.path)
     const nextName = requestedName.trim()
     if (!nextName) {
-      setRenameError('新しい名前を入力してください。')
-      return
+      return '新しい名前を入力してください。'
     }
-    if (nextName === request.currentName) {
-      setRenameError('現在と異なる名前を入力してください。')
-      return
+    if (nextName === currentName) {
+      return '現在と異なる名前を入力してください。'
     }
     if (!beginOperation()) {
-      return
+      return '別の処理が完了してから再試行してください。'
     }
 
     try {
       if (!(await flushSave())) {
-        return
+        return '編集中のノートを保存できませんでした。'
       }
 
       const finalName =
-        request.selection.kind === 'note'
+        selection.kind === 'note'
           ? withMarkdownExtension(nextName)
           : nextName
       const newPath = joinRelative(
-        dirnameRelative(request.selection.path),
+        dirnameRelative(selection.path),
         finalName
       )
-      const changes = pathChangesForRename(request.selection, newPath)
+      const changes = pathChangesForRename(selection, newPath)
       if (!confirmLinkImpact(changes)) {
-        return
+        return null
       }
 
       const result = await window.tsuzune.renameEntry({
-        path: request.selection.path,
+        path: selection.path,
         newName: nextName
       })
       if (!result.ok) {
-        setRenameError(errorMessage(result.error))
-        return
+        return errorMessage(result.error)
       }
 
-      const previousSelectionPath = request.selection.path
+      const previousSelectionPath = selection.path
       const next = await refreshSnapshot()
-      setTreeSelection({ kind: request.selection.kind, path: result.value.path })
-      setRenameRequest(null)
-      setRenameError(null)
+      setTreeSelection({ kind: selection.kind, path: result.value.path })
 
       if (
         selectedPathRef.current &&
@@ -1423,14 +1554,29 @@ export default function App(): React.JSX.Element {
           loadNoteState(note)
         }
       }
+      return null
     } finally {
       finishOperation()
     }
   }
 
-  const moveSelectedFile = async (destinationDirectory: string): Promise<void> => {
-    const path = movePath
-    setMovePath(null)
+  const confirmRename = async (requestedName: string): Promise<void> => {
+    if (!renameRequest) {
+      return
+    }
+    const error = await renameEntry(renameRequest.selection, requestedName)
+    if (error) {
+      setRenameError(error)
+    } else {
+      setRenameRequest(null)
+      setRenameError(null)
+    }
+  }
+
+  const moveEntryToDirectory = async (
+    path: string,
+    destinationDirectory: string
+  ): Promise<void> => {
     if (!path || !snapshot) {
       return
     }
@@ -1448,45 +1594,77 @@ export default function App(): React.JSX.Element {
         return
       }
 
+      const isDirectory = snapshot.directories.includes(path)
       const newPath = joinRelative(destinationDirectory, basenameRelative(path))
-      const changes = new Map([[path, newPath]])
+      const changes = pathChangesForRename(
+        { kind: isDirectory ? 'directory' : 'note', path },
+        newPath
+      )
       if (!confirmLinkImpact(changes)) {
         return
       }
 
-      const result = await window.tsuzune.moveNote({
-        path,
-        destinationDirectory
-      })
+      const result = isDirectory
+        ? await window.tsuzune.moveEntry({ path, destinationDirectory })
+        : await window.tsuzune.moveNote({ path, destinationDirectory })
       if (!result.ok) {
         setMessage(errorMessage(result.error))
         return
       }
 
       const next = await refreshSnapshot()
+      const mapMovedPath = (candidate: string): string =>
+        isPathInsideOrEqual(candidate, path)
+          ? `${result.value.path}${candidate.slice(path.length)}`
+          : candidate
+      if (isDirectory && isPathInsideOrEqual(templateDirectory, path)) {
+        const movedTemplateDirectory = mapMovedPath(templateDirectory)
+        const templateResult = await window.tsuzune.setTemplateSettings({
+          directory: movedTemplateDirectory,
+          includeBuiltIns: showBuiltInTemplates
+        })
+        if (templateResult.ok) {
+          setTemplateDirectory(movedTemplateDirectory)
+          setTemplateDirectoryDraft(movedTemplateDirectory)
+        } else {
+          setMessage(errorMessage(templateResult.error))
+        }
+      }
       setWorkspaceTabs((current) =>
         current.map((tab) =>
-          tab.kind !== 'global-graph' && tab.path === path
-            ? { ...tab, path: result.value.path }
+          tab.kind !== 'global-graph' && isPathInsideOrEqual(tab.path, path)
+            ? { ...tab, path: mapMovedPath(tab.path) }
             : tab
         )
       )
       setActiveAttachmentPath((current) =>
-        current === path ? result.value.path : current
+        current && isPathInsideOrEqual(current, path) ? mapMovedPath(current) : current
       )
       setTreeSelection((current) =>
-        current?.kind === 'note' && current.path === path
-          ? { ...current, path: result.value.path }
+        current && isPathInsideOrEqual(current.path, path)
+          ? { ...current, path: mapMovedPath(current.path) }
           : current
       )
-      if (selectedPathRef.current === path) {
-        const note = next?.notes.find((candidate) => candidate.path === result.value.path)
+      if (
+        selectedPathRef.current &&
+        isPathInsideOrEqual(selectedPathRef.current, path)
+      ) {
+        const selectedPath = mapMovedPath(selectedPathRef.current)
+        const note = next?.notes.find((candidate) => candidate.path === selectedPath)
         if (note) {
           loadNoteState(note)
         }
       }
     } finally {
       finishOperation()
+    }
+  }
+
+  const moveSelectedFile = async (destinationDirectory: string): Promise<void> => {
+    const path = movePath
+    setMovePath(null)
+    if (path) {
+      await moveEntryToDirectory(path, destinationDirectory)
     }
   }
 
@@ -1609,6 +1787,7 @@ export default function App(): React.JSX.Element {
       const note = next?.notes.find((candidate) => candidate.path === result.value.path)
       if (note) {
         loadNoteState(note)
+        setViewMode('edit')
       }
     } finally {
       finishOperation()
@@ -1768,7 +1947,8 @@ export default function App(): React.JSX.Element {
       }
       setActiveTabId(tab.id)
       loadNoteState(note)
-      setViewMode('edit')
+      rememberRecentNote(note.path)
+      setViewMode('preview')
       return true
     } finally {
       finishOperation()
@@ -1838,7 +2018,8 @@ export default function App(): React.JSX.Element {
       }
       loadNoteState(note)
       setActiveTabId(nextTab.id)
-      setViewMode('edit')
+      rememberRecentNote(note.path)
+      setViewMode('preview')
     } finally {
       finishOperation()
     }
@@ -1889,12 +2070,16 @@ export default function App(): React.JSX.Element {
     const remaining = workspaceTabs.filter((tab) => tab.id !== tabId)
     if (tabId !== activeTabId) {
       setWorkspaceTabs(remaining)
+      if (workspaceTabFocusId === tabId && activeTabId !== null) {
+        focusWorkspaceTab(activeTabId)
+      }
       return
     }
     const next = remaining[Math.min(index, remaining.length - 1)]
     if (next) {
       if (await loadWorkspaceTab(next)) {
         setWorkspaceTabs(remaining)
+        focusWorkspaceTab(next.id)
       }
       return
     }
@@ -1909,13 +2094,92 @@ export default function App(): React.JSX.Element {
       setActiveTabId(null)
       setActiveAttachmentPath(null)
       setActiveLinkedViewPath(null)
-      if (workspaceTabs[index].kind === 'global-graph') {
-        setViewMode('edit')
-      }
+      loadNoteState(null, false)
+      setViewMode('preview')
     } finally {
       finishOperation()
     }
   }
+
+  const activateWorkspaceTabFromKeyboard = (tab: WorkspaceTab): void => {
+    void loadWorkspaceTab(tab).then((loaded) => {
+      if (loaded) {
+        focusWorkspaceTab(tab.id)
+      }
+    })
+  }
+
+  const handleWorkspaceTabKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    tab: WorkspaceTab
+  ): void => {
+    if (event.nativeEvent.isComposing) {
+      return
+    }
+    const index = workspaceTabs.findIndex((candidate) => candidate.id === tab.id)
+    if (index < 0) {
+      return
+    }
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault()
+      const offset = event.key === 'ArrowLeft' ? -1 : 1
+      const next = workspaceTabs[(index + offset + workspaceTabs.length) % workspaceTabs.length]
+      focusWorkspaceTab(next.id)
+      return
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      activateWorkspaceTabFromKeyboard(tab)
+    }
+  }
+
+  useEffect(() => {
+    const handleWorkspaceShortcut = (event: KeyboardEvent): void => {
+      if (!(event.ctrlKey || event.metaKey) || event.repeat || event.isComposing) {
+        return
+      }
+
+      const key = event.key.toLowerCase()
+      if (key === 'w' && (modalOpen || isTextEditingTarget(event.target))) {
+        event.preventDefault()
+        return
+      }
+      if (modalOpen || busyRef.current || workspaceTabs.length === 0) {
+        return
+      }
+
+      let target: WorkspaceTab | undefined
+      if (key === 'tab') {
+        const currentIndex = Math.max(
+          0,
+          workspaceTabs.findIndex((tab) => tab.id === activeTabId)
+        )
+        const offset = event.shiftKey ? -1 : 1
+        target = workspaceTabs[
+          (currentIndex + offset + workspaceTabs.length) % workspaceTabs.length
+        ]
+      } else if (/^[1-9]$/.test(key)) {
+        const index = key === '9' ? workspaceTabs.length - 1 : Number(key) - 1
+        target = workspaceTabs[index]
+      } else if (
+        key === 'w' &&
+        activeTabId !== null &&
+        !isTextEditingTarget(event.target)
+      ) {
+        event.preventDefault()
+        void closeWorkspaceTab(activeTabId)
+        return
+      }
+
+      if (target) {
+        event.preventDefault()
+        activateWorkspaceTabFromKeyboard(target)
+      }
+    }
+
+    window.addEventListener('keydown', handleWorkspaceShortcut)
+    return () => window.removeEventListener('keydown', handleWorkspaceShortcut)
+  }, [activeTabId, modalOpen, workspaceTabs])
 
   const activeAttachment: VaultAttachment | null = activeAttachmentPath
     ? snapshot?.attachments?.find((item) => item.path === activeAttachmentPath) ?? null
@@ -1925,26 +2189,30 @@ export default function App(): React.JSX.Element {
     setQuery(`tag:${tag}`)
   }
 
-  const openSettingsDialog = async (): Promise<void> => {
-    settingsDialogPreviousFocusRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null
+  const showSettingsDialog = async (
+    previousFocus: HTMLElement | null
+  ): Promise<void> => {
+    settingsDialogPreviousFocusRef.current = previousFocus
     setExcludedFilesDraft(userIgnoreFilters.join('\n'))
-    setAiImmutablePathsDraft(aiImmutablePaths.join('\n'))
     setAiReviewPathsDraft(aiReviewPaths.join('\n'))
+    setTemplateDirectoryDraft(templateDirectory)
+    setShowBuiltInTemplatesDraft(showBuiltInTemplates)
     setSettingsDialogOpen(true)
     const proposals = await window.tsuzune.listAiReviewProposals()
     if (proposals.ok) setAiReviewProposals(proposals.value)
     else setMessage(errorMessage(proposals.error))
   }
 
+  const openSettingsDialog = async (): Promise<void> => {
+    await showSettingsDialog(
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    )
+  }
+
   const saveExcludedFiles = async (): Promise<void> => {
     const nextFilters = excludedFilesDraft
       .split(/\r?\n/)
       .map((filter) => filter.trim())
-      .filter(Boolean)
-    const nextAiImmutablePaths = aiImmutablePathsDraft
-      .split(/\r?\n/)
-      .map((path) => path.trim())
       .filter(Boolean)
     const nextAiReviewPaths = aiReviewPathsDraft
       .split(/\r?\n/)
@@ -1958,21 +2226,23 @@ export default function App(): React.JSX.Element {
         setMessage(errorMessage(result.error))
         return
       }
-      const immutableResult = await window.tsuzune.setAiImmutablePaths(
-        nextAiImmutablePaths
-      )
-      if (!immutableResult.ok) {
-        setMessage(errorMessage(immutableResult.error))
-        return
-      }
       const reviewResult = await window.tsuzune.setAiReviewPaths(nextAiReviewPaths)
       if (!reviewResult.ok) {
         setMessage(errorMessage(reviewResult.error))
         return
       }
+      const templateResult = await window.tsuzune.setTemplateSettings({
+        directory: templateDirectoryDraft,
+        includeBuiltIns: showBuiltInTemplatesDraft
+      })
+      if (!templateResult.ok) {
+        setMessage(errorMessage(templateResult.error))
+        return
+      }
       setUserIgnoreFilters(nextFilters)
-      setAiImmutablePaths(nextAiImmutablePaths)
       setAiReviewPaths(nextAiReviewPaths)
+      setTemplateDirectory(templateDirectoryDraft)
+      setShowBuiltInTemplates(showBuiltInTemplatesDraft)
       await refreshSnapshot()
       setSettingsDialogOpen(false)
     } finally {
@@ -2251,6 +2521,7 @@ export default function App(): React.JSX.Element {
     }
 
     contentRef.current = conflict.externalContent
+    expectedContentRef.current = conflict.externalContent
     setContent(conflict.externalContent)
     modifiedAtRef.current = conflict.externalModifiedAt
     setModifiedAt(conflict.externalModifiedAt)
@@ -2390,31 +2661,155 @@ export default function App(): React.JSX.Element {
     }
   }
 
-  const workspaceTabBar = workspaceTabs.length > 0 ? (
-    <div className="workspace-tabs" role="tablist" aria-label="開いているタブ">
-      {workspaceTabs.map((tab) => (
-        <div className="workspace-tab" key={tab.id}>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab.id === activeTabId}
-            className={tab.id === activeTabId ? 'is-active' : ''}
-            onClick={() => void loadWorkspaceTab(tab)}
-          >
-            {workspaceTabLabel(tab)}
-          </button>
-          <button
-            type="button"
-            className="workspace-tab-close"
-            aria-label={`${workspaceTabLabel(tab)}を閉じる`}
-            onClick={() => void closeWorkspaceTab(tab.id)}
-          >
-            ×
-          </button>
-        </div>
-      ))}
-    </div>
-  ) : null
+  const noteCommandDisabledReason = selectedPath
+    ? undefined
+    : 'ノートを選択すると使えます'
+  const commandPaletteCommands: CommandPaletteCommand[] = [
+    {
+      id: 'new-note',
+      label: '新規ノートを作成',
+      keywords: ['ノート', '作成', 'new', 'note', 'create']
+    },
+    {
+      id: 'today-note',
+      label: '今日のノートを開く',
+      keywords: ['今日', 'デイリー', 'daily', 'today']
+    },
+    {
+      id: 'open-note',
+      label: 'ノートを開く',
+      keywords: ['クイックスイッチャー', 'quick switcher', 'open', 'note'],
+      shortcut: 'Ctrl+O / Meta+O'
+    },
+    {
+      id: 'vault-search',
+      label: '内容を検索',
+      keywords: ['全文検索', '検索', 'vault', 'search', 'find in files'],
+      shortcut: 'Ctrl+Shift+F / Meta+Shift+F'
+    },
+    {
+      id: 'toggle-left-sidebar',
+      label: leftSidebarOpen ? '左サイドバーを閉じる' : '左サイドバーを開く',
+      keywords: ['左', 'サイドバー', 'left', 'sidebar', 'navigation'],
+      state: leftSidebarOpen ? '表示中' : '非表示'
+    },
+    {
+      id: 'toggle-right-sidebar',
+      label: rightSidebarOpen ? '右サイドバーを閉じる' : '右サイドバーを開く',
+      keywords: ['右', 'サイドバー', 'right', 'sidebar', 'context'],
+      state: rightSidebarOpen ? '表示中' : '非表示'
+    },
+    {
+      id: 'edit-mode',
+      label: '編集に切り替える',
+      keywords: ['編集', 'edit', 'source', 'markdown'],
+      state: viewMode === 'edit' ? '表示中' : undefined,
+      disabledReason: noteCommandDisabledReason
+    },
+    {
+      id: 'preview-mode',
+      label: 'プレビューに切り替える',
+      keywords: ['プレビュー', 'preview', 'reading'],
+      state: viewMode === 'preview' ? '表示中' : undefined,
+      disabledReason: noteCommandDisabledReason
+    },
+    {
+      id: 'local-graph',
+      label: 'ローカルグラフを開く',
+      keywords: ['ローカルグラフ', 'local', 'graph', 'このノート'],
+      state: viewMode === 'graph' && graphScope === 'local' ? '表示中' : undefined,
+      disabledReason: noteCommandDisabledReason
+    },
+    {
+      id: 'vault-graph',
+      label: 'Vaultグラフを開く',
+      keywords: ['グラフ', 'vault', 'graph', '全体'],
+      state: viewMode === 'graph' && graphScope === 'vault' ? '表示中' : undefined
+    },
+    {
+      id: 'show-bookmarks',
+      label: 'ブックマークを表示',
+      keywords: ['ブックマーク', 'bookmark', 'favorite', 'saved'],
+      state: bookmarksOpen && leftSidebarOpen ? '表示中' : undefined
+    },
+    {
+      id: 'open-settings',
+      label: '設定を開く',
+      keywords: ['設定', 'settings', 'preferences', 'config']
+    }
+  ]
+
+  const executeCommandPaletteCommand = (id: string): void => {
+    const run = (action: () => void): void => {
+      closeCommandPalette()
+      action()
+    }
+
+    switch (id) {
+      case 'new-note':
+        run(() => void createNote())
+        return
+      case 'today-note':
+        run(() => void openOrCreateDailyNote())
+        return
+      case 'open-note': {
+        const previousFocus = dismissCommandPalette()
+        quickSwitcherPreviousFocusRef.current = previousFocus
+        quickSwitcherRestoreFocusRef.current = true
+        setQuickSwitcherOpen(true)
+        return
+      }
+      case 'vault-search':
+        dismissCommandPalette()
+        focusVaultSearch()
+        return
+      case 'toggle-left-sidebar':
+        run(() => setLeftSidebarOpen((current) => !current))
+        return
+      case 'toggle-right-sidebar':
+        run(() => setRightSidebarOpen((current) => !current))
+        return
+      case 'edit-mode':
+        run(() => setViewMode('edit'))
+        return
+      case 'preview-mode':
+        run(() => setViewMode('preview'))
+        return
+      case 'local-graph':
+        run(() => {
+          setGraphScope('local')
+          setViewMode('graph')
+        })
+        return
+      case 'vault-graph':
+        run(openGlobalGraphWorkspace)
+        return
+      case 'show-bookmarks':
+        run(() => {
+          setLeftSidebarOpen(true)
+          setQuery('')
+          setBookmarksOpen(true)
+        })
+        return
+      case 'open-settings': {
+        const previousFocus = dismissCommandPalette()
+        void showSettingsDialog(previousFocus)
+      }
+    }
+  }
+
+  const workspaceTabBar = (
+    <WorkspaceTabBar
+      tabs={workspaceTabs}
+      activeTabId={activeTabId}
+      focusTabId={workspaceTabFocusId}
+      tabRefs={workspaceTabRefs}
+      onActivate={(tab) => void loadWorkspaceTab(tab)}
+      onClose={(tabId) => void closeWorkspaceTab(tabId)}
+      onFocus={setWorkspaceTabFocusId}
+      onKeyDown={handleWorkspaceTabKeyDown}
+    />
+  )
 
   if (loading) {
     return (
@@ -2424,14 +2819,6 @@ export default function App(): React.JSX.Element {
       </div>
     )
   }
-
-  const modalOpen =
-    settingsDialogOpen ||
-    googleDialogOpen ||
-    Boolean(movePath) ||
-    Boolean(renameRequest) ||
-    Boolean(bookmarkPath) ||
-    Boolean(captureKind)
 
   return (
     <div className={`app-shell${busy ? ' is-busy' : ''}`} aria-busy={busy}>
@@ -2470,7 +2857,7 @@ export default function App(): React.JSX.Element {
           <button
             type="button"
             className="secondary-button"
-            onClick={openSettingsDialog}
+            onClick={() => void openSettingsDialog()}
           >
             <Icon name="settings" />
             設定
@@ -2504,39 +2891,24 @@ export default function App(): React.JSX.Element {
         </div>
       )}
 
-      {conflict?.kind === 'changed' && (
-        <div className="conflict-banner" role="alert" inert={busy || modalOpen}>
-          <strong>このノートは別のアプリでも変更されました。</strong>
-          {!conflict.localHeld ? (
-            <div>
-              <button type="button" onClick={loadExternalVersion}>
-                外部版を読み込む
-              </button>
-              <button type="button" onClick={keepLocalVersion}>
-                編集中の内容を保持
-              </button>
-            </div>
-          ) : (
-            <button type="button" onClick={() => void overwriteExternal()}>
-              こちらの内容で上書き保存
-            </button>
-          )}
+      {moveRecovery.status === 'recovery-required' && (
+        <div className="conflict-banner" role="alert">
+          <strong>未完了の移動を安全に判定できません。新しい移動を停止しています。</strong>
+          <span>
+            {moveRecovery.source || '不明'} → {moveRecovery.destination || '不明'}
+          </span>
         </div>
       )}
 
-      {conflict?.kind === 'missing' && (
-        <div className="conflict-banner" role="alert" inert={busy || modalOpen}>
-          <strong>このノートは外部で削除または移動されました。</strong>
-          <div>
-            <button type="button" onClick={() => void saveMissingAsNew()}>
-              別名で保存
-            </button>
-            <button type="button" onClick={discardMissing}>
-              破棄して閉じる
-            </button>
-          </div>
-        </div>
-      )}
+      <ConflictBanner
+        conflict={conflict}
+        inert={busy || modalOpen}
+        onLoadExternal={loadExternalVersion}
+        onKeepLocal={keepLocalVersion}
+        onOverwriteExternal={() => void overwriteExternal()}
+        onSaveMissingAsNew={() => void saveMissingAsNew()}
+        onDiscardMissing={discardMissing}
+      />
 
       {!snapshot ? (
         <main className="welcome" inert={busy || modalOpen}>
@@ -2554,13 +2926,31 @@ export default function App(): React.JSX.Element {
           </div>
         </main>
       ) : (
-        <main className="workspace" inert={busy || modalOpen}>
-          <aside className="left-panel">
+        <main
+          className={`workspace${leftSidebarOpen ? '' : ' is-left-sidebar-collapsed'}${
+            rightSidebarOpen ? '' : ' is-right-sidebar-collapsed'
+          }`}
+          inert={busy || modalOpen}
+        >
+          <aside className={`left-panel${leftSidebarOpen ? '' : ' is-collapsed'}`}>
+            <button
+              type="button"
+              className="sidebar-toggle"
+              aria-label={leftSidebarOpen ? '左サイドバーを閉じる' : '左サイドバーを開く'}
+              title={leftSidebarOpen ? '左サイドバーを閉じる' : '左サイドバーを開く'}
+              aria-expanded={leftSidebarOpen}
+              aria-controls="left-sidebar-content"
+              onClick={() => setLeftSidebarOpen((current) => !current)}
+            >
+              {leftSidebarOpen ? '‹' : '›'}
+            </button>
+            <div id="left-sidebar-content" className="sidebar-content" hidden={!leftSidebarOpen}>
             <label className="search-field">
-              <span className="sr-only">Vaultを検索</span>
+              <span className="sr-only">内容を検索</span>
               <Icon name="search" />
               <input
                 ref={searchInputRef}
+                aria-keyshortcuts="Control+Shift+F Meta+Shift+F Control+K Meta+K"
                 value={query}
                 onChange={(event) => {
                   setQuery(event.target.value)
@@ -2568,17 +2958,44 @@ export default function App(): React.JSX.Element {
                     setBookmarksOpen(false)
                   }
                 }}
-                placeholder="Vaultを検索"
-                title="Vaultを検索（Ctrl+K）"
+                placeholder="内容を検索"
+                title="内容を検索（Ctrl+Shift+F、Ctrl+K）"
               />
             </label>
+            <p className="search-help">
+              条件: tag: / path: / file:　除外: -語　語句: "複数語"
+            </p>
 
             <div className="tree-toolbar">
+              <button
+                type="button"
+                aria-keyshortcuts="Control+P Meta+P"
+                title="操作を実行（Ctrl+P）"
+                onClick={() => void openCommandPalette()}
+              >
+                操作
+              </button>
+              <button
+                type="button"
+                aria-keyshortcuts="Control+O Meta+O"
+                title="ノートを開く（Ctrl+O）"
+                onClick={() => void openQuickSwitcher()}
+              >
+                <Icon name="search" />
+                開く
+              </button>
               <button type="button" onClick={() => void createNote()}>
                 <Icon name="note" />
                 ノート
               </button>
-              <button type="button" onClick={() => void createDirectory()}>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery('')
+                  setBookmarksOpen(false)
+                  setCreateDirectoryParent(targetDirectory())
+                }}
+              >
                 <Icon name="folder" />
                 フォルダ
               </button>
@@ -2602,46 +3019,12 @@ export default function App(): React.JSX.Element {
                 <Icon name="bookmark" />
                 ブックマーク
               </button>
-              <div className="template-create">
-                <label>
-                  <span className="sr-only">テンプレート</span>
-                  <select
-                    aria-label="テンプレート"
-                    value={selectedTemplatePath}
-                    onChange={(event) => setSelectedTemplatePath(event.target.value)}
-                    title={`${TEMPLATE_DIRECTORY}内のMarkdownを雛形として使います`}
-                  >
-                    {templates.length === 0 ? (
-                      <option value="">テンプレートなし</option>
-                    ) : (
-                      templates.map((template) => (
-                        <option key={template.path} value={template.path}>
-                          {withoutMarkdownExtension(
-                            template.path.slice(`${TEMPLATE_DIRECTORY}/`.length)
-                          )}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  disabled={!selectedTemplatePath}
-                  onClick={() => {
-                    const template = templates.find(
-                      (candidate) => candidate.path === selectedTemplatePath
-                    )
-                    if (template) {
-                      void createFromTemplate(template)
-                    }
-                  }}
-                >
-                  テンプレートから作成
-                </button>
-                <button type="button" onClick={() => void addTemplate()}>
-                  テンプレートを追加
-                </button>
-              </div>
+              <button type="button" onClick={() => void openOrCreateDailyNote()}>
+                今日のノート
+              </button>
+              <button type="button" onClick={() => startIdeaCapture()}>
+                アイデアを追加
+              </button>
             </div>
 
             {bookmarksOpen ? (
@@ -2691,6 +3074,10 @@ export default function App(): React.JSX.Element {
                 onSelectEntry={setTreeSelection}
                 onRename={openRename}
                 onMove={setMovePath}
+                onDropEntry={(path, destination) =>
+                  void moveEntryToDirectory(path, destination)
+                }
+                onInlineRename={renameEntry}
                 onTrash={(path) => void trashPath(path)}
                 bookmarkedPaths={bookmarkedPaths}
                 onOpenInNewTab={(path) => void openVaultEntryInNewTab(path, 'note')}
@@ -2698,7 +3085,9 @@ export default function App(): React.JSX.Element {
                 onCopyPath={(path) => void copyGraphNodePath(path, 'vault-relative')}
                 onBookmark={setBookmarkPath}
                 onCreateNote={(directory) => void createNoteInDirectory(directory)}
-                onCreateDirectory={(directory) => void createDirectoryIn(directory)}
+                onCreateDirectory={createDirectoryIn}
+                createDirectoryParent={createDirectoryParent}
+                onCreateDirectoryRequestHandled={() => setCreateDirectoryParent(null)}
               />
             )}
 
@@ -2714,9 +3103,9 @@ export default function App(): React.JSX.Element {
                 </button>
                 <button
                   type="button"
-                  disabled={treeSelection?.kind !== 'note'}
+                  disabled={!treeSelection || treeSelection.path === ''}
                   onClick={() =>
-                    treeSelection?.kind === 'note' && setMovePath(treeSelection.path)
+                    treeSelection?.path && setMovePath(treeSelection.path)
                   }
                 >
                   <Icon name="move" />
@@ -2732,9 +3121,17 @@ export default function App(): React.JSX.Element {
                 </button>
               </div>
             )}
+            </div>
           </aside>
 
-          <section className="note-panel">
+          <section
+            className="note-panel"
+            id={activeTabId === null ? undefined : WORKSPACE_TAB_PANEL_ID}
+            role={activeTabId === null ? undefined : 'tabpanel'}
+            aria-labelledby={
+              activeTabId === null ? undefined : workspaceTabDomId(activeTabId)
+            }
+          >
             {activeLinkedViewPath ? (
               <>
                 <div className="note-top">
@@ -2882,31 +3279,37 @@ export default function App(): React.JSX.Element {
                         内容を編集
                       </button>
                     )}
-                    <button
-                      type="button"
-                      className={viewMode === 'edit' ? 'is-active' : ''}
-                      aria-pressed={viewMode === 'edit'}
-                      onClick={() => setViewMode('edit')}
+                    <div
+                      className="note-view-switcher"
+                      role="group"
+                      aria-label="ノート表示"
                     >
-                      <Icon name="edit" />
-                      {structuredCapture ? 'Markdownソース' : '編集'}
-                    </button>
+                      <button
+                        type="button"
+                        className={viewMode === 'edit' ? 'is-active' : ''}
+                        aria-pressed={viewMode === 'edit'}
+                        onClick={() => setViewMode('edit')}
+                      >
+                        <Icon name="edit" />
+                        {structuredCapture ? 'Markdownソース' : '編集'}
+                      </button>
+                      <button
+                        type="button"
+                        className={viewMode === 'preview' ? 'is-active' : ''}
+                        aria-pressed={viewMode === 'preview'}
+                        onClick={() => setViewMode('preview')}
+                      >
+                        <Icon name="preview" />
+                        プレビュー
+                      </button>
+                    </div>
                     <button
                       type="button"
-                      className={viewMode === 'preview' ? 'is-active' : ''}
-                      aria-pressed={viewMode === 'preview'}
-                      onClick={() => setViewMode('preview')}
-                    >
-                      <Icon name="preview" />
-                      プレビュー
-                    </button>
-                    <button
-                      type="button"
-                      className={
+                      className={`note-context-action ${
                         viewMode === 'graph' && graphScope === 'local'
                           ? 'is-active'
                           : ''
-                      }
+                      }`}
                       aria-pressed={viewMode === 'graph' && graphScope === 'local'}
                       onClick={() => {
                         setGraphScope('local')
@@ -2915,19 +3318,6 @@ export default function App(): React.JSX.Element {
                     >
                       <Icon name="graph" />
                       ローカルグラフ
-                    </button>
-                    <button
-                      type="button"
-                      className={
-                        viewMode === 'graph' && graphScope === 'vault'
-                          ? 'is-active'
-                          : ''
-                      }
-                      aria-pressed={viewMode === 'graph' && graphScope === 'vault'}
-                      onClick={openGlobalGraphWorkspace}
-                    >
-                      <Icon name="graph" />
-                      グラフビュー
                     </button>
                     </div>
                   </header>
@@ -2938,6 +3328,15 @@ export default function App(): React.JSX.Element {
                     onChange={handleContentChange}
                     readOnly={busy}
                     notes={savedNotes.filter((note) => note.path !== selectedPath)}
+                    templates={templates}
+                    templateDirectory={templateDirectory}
+                    noteTitle={
+                      selectedPath
+                        ? withoutMarkdownExtension(
+                            selectedPath.split('/').at(-1) ?? ''
+                          )
+                        : undefined
+                    }
                   />
                 ) : viewMode === 'preview' ? (
                   <MarkdownPreview
@@ -3004,7 +3403,15 @@ export default function App(): React.JSX.Element {
                 </footer>
               </>
             ) : (
-              <div className="note-empty">
+              <div
+                className="note-empty"
+                role="region"
+                aria-label={
+                  workspaceTabs.length === 0
+                    ? '開いているタブはありません'
+                    : 'ノートが選択されていません'
+                }
+              >
                 <img src={tsuzuneMark} alt="" aria-hidden="true" />
                 <p>左の一覧からノートを選ぶか、新しいノートを作成してください。</p>
                 <button type="button" className="primary-button" onClick={() => void createNote()}>
@@ -3015,33 +3422,105 @@ export default function App(): React.JSX.Element {
             )}
           </section>
 
-          {selectedPath ? (
-            <RelatedNotes
-              outgoing={outgoing}
-              backlinks={backlinks}
-              temporal={
-                selectedNote ? (
-                  <TemporalDetails
-                    selectedNote={selectedNote}
-                    notes={savedNotes}
-                    asOf={temporalAsOf}
-                    pathAliases={pathAliases}
-                  />
-                ) : null
-              }
-              onOpen={(path) => void openNote(path)}
-              onMissing={(target) => void createMissingLink(target)}
-            />
-          ) : (
-            <aside className="related-panel related-empty-panel">関連ノート</aside>
-          )}
+          <aside className={`related-panel-shell${rightSidebarOpen ? '' : ' is-collapsed'}`}>
+            <button
+              type="button"
+              className="sidebar-toggle"
+              aria-label={rightSidebarOpen ? '右サイドバーを閉じる' : '右サイドバーを開く'}
+              title={rightSidebarOpen ? '右サイドバーを閉じる' : '右サイドバーを開く'}
+              aria-expanded={rightSidebarOpen}
+              aria-controls="right-sidebar-content"
+              onClick={() => setRightSidebarOpen((current) => !current)}
+            >
+              {rightSidebarOpen ? '›' : '‹'}
+            </button>
+            <div id="right-sidebar-content" className="sidebar-content" hidden={!rightSidebarOpen}>
+              {selectedPath ? (
+                <RelatedNotes
+                  outgoing={outgoing}
+                  backlinks={backlinks}
+                  temporal={
+                    selectedNote ? (
+                      <TemporalDetails
+                        selectedNote={selectedNote}
+                        notes={savedNotes}
+                        asOf={temporalAsOf}
+                        pathAliases={pathAliases}
+                      />
+                    ) : null
+                  }
+                  onOpen={(path) => void openNote(path)}
+                  onMissing={(target) => void createMissingLink(target)}
+                />
+              ) : (
+                <div className="related-panel related-empty-panel">関連ノート</div>
+              )}
+            </div>
+          </aside>
         </main>
+      )}
+
+      {quickSwitcherOpen && snapshot && (
+        <QuickSwitcherDialog
+          notes={normalDiscoveryNotes}
+          recentPaths={recentNotePaths}
+          onClose={closeQuickSwitcher}
+          onOpen={(path) => {
+            quickSwitcherRestoreFocusRef.current = false
+            setQuickSwitcherOpen(false)
+            void openNote(path)
+          }}
+          onOpenInNewTab={(path) => {
+            quickSwitcherRestoreFocusRef.current = false
+            setQuickSwitcherOpen(false)
+            void openVaultEntryInNewTab(path, 'note')
+          }}
+          onCreate={(name) => {
+            setQuickSwitcherOpen(false)
+            setQuickCreateRequest({
+              name,
+              directory: targetDirectory(),
+              error: null
+            })
+          }}
+        />
+      )}
+
+      {commandPaletteOpen && (
+        <CommandPaletteDialog
+          commands={commandPaletteCommands}
+          onExecute={executeCommandPaletteCommand}
+          onClose={closeCommandPalette}
+        />
+      )}
+
+      {quickCreateRequest && snapshot && (
+        <QuickNoteCreateDialog
+          initialName={quickCreateRequest.name}
+          directories={snapshot.directories}
+          initialDirectory={quickCreateRequest.directory}
+          busy={quickCreateBusy}
+          error={quickCreateRequest.error}
+          onCancel={() => {
+            if (quickCreateBusy) {
+              return
+            }
+            setQuickCreateRequest(null)
+            closeQuickSwitcher()
+          }}
+          onConfirm={(value) => void confirmQuickNoteCreate(value)}
+        />
       )}
 
       {movePath && snapshot && (
         <MoveDialog
           notePath={movePath}
-          directories={snapshot.directories}
+          entryKind={snapshot.directories.includes(movePath) ? 'directory' : 'file'}
+          directories={snapshot.directories.filter(
+            (directory) =>
+              !snapshot.directories.includes(movePath) ||
+              !isPathInsideOrEqual(directory, movePath)
+          )}
           currentDirectory={dirnameRelative(movePath)}
           onCancel={() => setMovePath(null)}
           onConfirm={(directory) => void moveSelectedFile(directory)}
@@ -3079,21 +3558,19 @@ export default function App(): React.JSX.Element {
 
       {captureKind && snapshot && (
         <HumanNoteCaptureDialog
-          key={`${captureKind}:${captureEditPath ?? noteCreationTemplate?.path ?? ''}`}
+          key={`${captureKind}:${captureEditPath ?? ''}`}
           kind={captureKind}
           error={captureError}
           dateLabel={
             captureEditPath?.match(/^02_デイリー\/(\d{4}-\d{2}-\d{2})\.md$/)?.[1] ??
             localCalendarDate(new Date())
           }
-          initialTitle={captureKind === 'note' ? '無題のノート' : undefined}
           initialValues={captureEditPath ? structuredCapture ?? undefined : undefined}
           notes={savedNotes}
           onCancel={() => {
             captureDirtyRef.current = false
             setCaptureKind(null)
             setCaptureEditPath(null)
-            setNoteCreationTemplate(null)
             setCaptureError(null)
           }}
           onDirtyChange={handleCaptureDirtyChange}
@@ -3147,21 +3624,6 @@ export default function App(): React.JSX.Element {
               </label>
               <p>
                 1行に1つ、パスの一部または /正規表現/ を指定します。対象は一覧・検索・リンク・グラフから除外されます。
-              </p>
-              <label>
-                <span>AIから変更させないパス</span>
-                <textarea
-                  aria-label="AIから変更させないパス"
-                  value={aiImmutablePathsDraft}
-                  disabled={settingsBusy}
-                  placeholder="例: Private"
-                  onChange={(event) =>
-                    setAiImmutablePathsDraft(event.target.value)
-                  }
-                />
-              </label>
-              <p>
-                40_情報源 と 50_履歴 は常に保護されます。追加するノートまたはフォルダを1行に1つ指定します。
               </p>
               <label>
                 <span>AI変更を承認制にするパス</span>
@@ -3228,6 +3690,42 @@ export default function App(): React.JSX.Element {
                   })
                 )}
               </section>
+            </section>
+
+            <section className="app-settings-section" aria-labelledby="templates-title">
+              <h3 id="templates-title">テンプレート</h3>
+              <label>
+                <span>テンプレートフォルダ</span>
+                <select
+                  aria-label="テンプレートフォルダ"
+                  value={templateDirectoryDraft}
+                  disabled={settingsBusy}
+                  onChange={(event) => setTemplateDirectoryDraft(event.target.value)}
+                >
+                  {(snapshot?.directories ?? []).filter(Boolean).map((directory) => (
+                    <option key={directory} value={directory}>
+                      {directory}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={showBuiltInTemplatesDraft}
+                  disabled={settingsBusy}
+                  onChange={(event) => setShowBuiltInTemplatesDraft(event.target.checked)}
+                />
+                <span>内蔵テンプレートを表示</span>
+              </label>
+              <button
+                type="button"
+                disabled={settingsBusy}
+                onClick={() => revealVaultEntry(templateDirectoryDraft)}
+              >
+                テンプレートフォルダをエクスプローラーで表示
+              </button>
+              <p>このフォルダ内のMarkdownを通常ノートとして編集できます。</p>
             </section>
 
             <div className="modal-actions">

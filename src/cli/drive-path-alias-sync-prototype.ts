@@ -30,6 +30,12 @@ export interface DrivePathAliasRemote {
     expectedVersion: string
     bytes: Buffer
   }): Promise<RemotePathAliasObject>
+  remove?(input: {
+    fileId: string
+    vaultId: string
+    parentId: string
+    expectedVersion: string
+  }): Promise<void>
 }
 
 interface PrototypeOptions {

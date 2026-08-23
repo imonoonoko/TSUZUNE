@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto'
 import { buildContextBundle, type ContextBundle } from '../core/context'
 import {
   buildNoteCreationPath,
-  findLinkImpact,
   getBacklinks,
   getOutgoingLinks
 } from '../core/links'
@@ -16,7 +15,7 @@ import {
   dirnameRelative,
   validateRelativePath
 } from '../core/paths'
-import { searchNotes } from '../core/search'
+import { searchRendererRanked } from '../core/search'
 import {
   assertOnlyLinkInserted,
   buildLinkInsertPlan,
@@ -83,6 +82,7 @@ export interface BacklinksOutput {
     title: string
   }>
   total: number
+  next_after?: string
 }
 
 export interface ContextOutput {
@@ -97,6 +97,8 @@ export interface ContextOutput {
     name: string
     relation: ContextBundle['included'][number]['relation']
     truncated: boolean
+    revision: string
+    modified_at: string
     content_omitted?: boolean
     temporal_status?: ContextBundle['included'][number]['temporalStatus']
     selection_reasons: string[]
@@ -131,7 +133,52 @@ export interface WriteOutput {
     created_at: string
   }
 }
+export type DirectoryListEntry =
+  | {
+      type: 'directory'
+      path: string
+      name: string
+      counts: { directories: number; notes: number; attachments: number }
+    }
+  | {
+      type: 'markdown' | 'attachment'
+      path: string
+      name: string
+      size_bytes: number
+      modified_at: string
+    }
 
+export interface DirectoryListOutput {
+  path: string
+  depth: number
+  fingerprint: string
+  entries: DirectoryListEntry[]
+  truncated: boolean
+  next_after?: string
+}
+
+function directoryFingerprint(
+  rootPath: string,
+  path: string,
+  depth: number,
+  entries: DirectoryListEntry[]
+): string {
+  const inventory = entries.map((entry) =>
+    entry.type === 'directory'
+      ? [entry.path, entry.type]
+      : [entry.path, entry.type, entry.size_bytes, entry.modified_at]
+  )
+  const digest = createHash('sha256')
+    .update(rootPath)
+    .update('\0')
+    .update(path)
+    .update('\0')
+    .update(String(depth))
+    .update('\0')
+    .update(JSON.stringify(inventory))
+    .digest('hex')
+  return `sha256:${digest}`
+}
 function pendingReviewOutput(
   proposal: AiWriteReviewProposal,
   note: Pick<NoteDocument, 'name' | 'modifiedAt' | 'size'> | null
@@ -198,81 +245,6 @@ export interface PatchNoteOutput extends AutonomousUpdateOutput {
   }
 }
 
-export interface MoveNoteOptions {
-  reason?: string
-  sourceRefs?: string[]
-}
-
-export interface MoveNoteOutput {
-  old_path: string
-  new_path: string
-  metadata: {
-    path: string
-    modified_at: string
-    revision: string
-    size_bytes: number
-  }
-  history_path: string
-  provenance: {
-    actor: 'ai'
-    reason: string
-    source_refs: string[]
-    previous_revision: string
-  }
-  backlinks: {
-    total: number
-    ids: string[]
-  }
-  link_impact: {
-    affected_count: number
-    source_paths: string[]
-  }
-}
-
-export interface MovePreflightOutput {
-  preflight: true
-  old_path: string
-  new_path: string
-  backlinks: {
-    total: number
-    ids: string[]
-  }
-  link_impact: {
-    affected_count: number
-    source_paths: string[]
-  }
-  manifest: MovePreflightManifest
-}
-
-interface MoveSafetyReport {
-  backlinksSummary: {
-    total: number
-    ids: string[]
-  }
-  linkImpactSummary: {
-    affected_count: number
-    source_paths: string[]
-  }
-  manifest: MovePreflightManifest
-}
-
-export interface MovePreflightManifest {
-  source: string
-  destination: string
-  source_exists: boolean
-  destination_exists: boolean
-  markdown_only: boolean
-  protected_source: boolean
-  protected_destination: boolean
-  source_revision: string
-  backlink_count: number
-  backlink_paths: string[]
-  link_impact_count: number
-  link_impact_paths: string[]
-  notes_referencing_old_path: string[]
-  would_move: boolean
-}
-
 export interface SuggestLinksOptions {
   maxCandidates?: number
   minConfidence?: number
@@ -317,23 +289,18 @@ function assertEditableLength(content: string): void {
   }
 }
 
-function assertAiWritable(path: string, immutablePaths: readonly string[]): void {
-  if (isAiImmutablePath(path, immutablePaths)) {
+function assertAiWritable(path: string): void {
+  if (isAiImmutablePath(path)) {
     throw new Error(`AIから変更できないノートです: ${path}`)
   }
 }
 
-
-function assertNotReviewProtected(path: string, reviewPaths: readonly string[]): void {
+function assertNotReviewProtected(
+  path: string,
+  reviewPaths: readonly string[]
+): void {
   if (isAiReviewPath(path, reviewPaths)) {
     throw new Error('Review対象のノートは移動できません: ' + path)
-  }
-}
-
-function assertAllowedMoveDestination(path: string): void {
-  const firstSegment = path.split('/')[0].toLocaleLowerCase()
-  if (firstSegment === '.trash' || firstSegment === '.tsuzune') {
-    throw new Error('内部管理フォルダへの移動はできません: ' + path)
   }
 }
 
@@ -350,6 +317,10 @@ function revisionFor(rootPath: string, note: NoteDocument): string {
     .update(note.content)
     .digest('hex')
   return `sha256:${digest}`
+}
+
+function revisionRootSha256(rootPath: string): string {
+  return createHash('sha256').update(rootPath).digest('hex')
 }
 
 function canonicalNote(
@@ -432,7 +403,10 @@ async function ensureDirectory(
 }
 
 function historyPathFor(targetPath: string, previousRevision: string): string {
-  const timestamp = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-')
+  const timestamp = new Date()
+    .toISOString()
+    .replaceAll(':', '-')
+    .replaceAll('.', '-')
   const target = targetPath
     .replace(/\.md$/i, '')
     .replace(/[^a-zA-Z0-9_-]+/g, '-')
@@ -442,7 +416,10 @@ function historyPathFor(targetPath: string, previousRevision: string): string {
 }
 
 function renderAutonomousRevision(
+  rootPath: string,
   targetPath: string,
+  previousModifiedAt: number,
+  previousSizeBytes: number,
   previousRevision: string,
   previousContent: string,
   reason: string,
@@ -459,6 +436,9 @@ function renderAutonomousRevision(
       ? sourceRefs.map((sourceRef) => `  - ${JSON.stringify(sourceRef)}`)
       : ['  - none']),
     `previous_revision: ${previousRevision}`,
+    `previous_modified_at: ${previousModifiedAt}`,
+    `previous_size_bytes: ${previousSizeBytes}`,
+    `revision_root_sha256: ${revisionRootSha256(rootPath)}`,
     `recorded_at: ${new Date().toISOString()}`,
     '---',
     '',
@@ -546,10 +526,14 @@ export class VaultMcpService {
     )
   }
 
+  async vaultIdentity(): Promise<string> {
+    const source = await resolveVaultSource(this.source)
+    return `sha256:${revisionRootSha256(source.vaultPath)}`
+  }
+
   private async snapshot(): Promise<{
     vault: VaultService
     snapshot: VaultSnapshot
-    aiImmutablePaths: string[]
     aiReviewPaths: string[]
   }> {
     const vault = new VaultService()
@@ -558,7 +542,6 @@ export class VaultMcpService {
     return {
       vault,
       snapshot: await vault.scan(source.userIgnoreFilters),
-      aiImmutablePaths: source.aiImmutablePaths,
       aiReviewPaths: source.aiReviewPaths
     }
   }
@@ -577,8 +560,8 @@ export class VaultMcpService {
     const proposal = await this.reviewStore.get(id)
     if (!proposal) throw new Error('AI変更案が見つかりません。')
 
-    const { vault, snapshot, aiImmutablePaths } = await this.snapshot()
-    assertAiWritable(proposal.path, aiImmutablePaths)
+    const { vault, snapshot } = await this.snapshot()
+    assertAiWritable(proposal.path)
 
     if (proposal.operation === 'create') {
       if (
@@ -589,7 +572,8 @@ export class VaultMcpService {
         await this.reviewStore.remove(id)
         throw new VaultError({
           code: 'FILE_CHANGED',
-          message: '承認待ちの間に同じノートが作成されました。変更案は失効しました。'
+          message:
+            '承認待ちの間に同じノートが作成されました。変更案は失効しました。'
         })
       }
       const created = await vault.createNote({
@@ -626,6 +610,7 @@ export class VaultMcpService {
 
     await applyUpdateWithHistory(
       vault,
+      snapshot.rootPath,
       canonical.path,
       current,
       currentRevision,
@@ -651,7 +636,7 @@ export class VaultMcpService {
             !isExcludedFilePath(note.path, DEFAULT_SEARCH_EXCLUDED_PATHS)
         )
     return {
-      results: searchNotes(notes, query)
+      results: searchRendererRanked(notes, query)
         .slice(0, limit)
         .map((result) => ({
           id: result.path,
@@ -674,16 +659,18 @@ export class VaultMcpService {
       !validation.normalized ||
       !validation.normalized.toLocaleLowerCase().endsWith('.md')
     ) {
-      throw new Error('Vault内の新しいMarkdownノートの相対パスを指定してください。')
+      throw new Error(
+        'Vault内の新しいMarkdownノートの相対パスを指定してください。'
+      )
     }
 
-    const { vault, snapshot, aiImmutablePaths, aiReviewPaths } =
-      await this.snapshot()
-    assertAiWritable(validation.normalized, aiImmutablePaths)
+    const { vault, snapshot, aiReviewPaths } = await this.snapshot()
+    assertAiWritable(validation.normalized)
 
     if (
       snapshot.notes.some(
-        (note) => note.path.toLowerCase() === validation.normalized?.toLowerCase()
+        (note) =>
+          note.path.toLowerCase() === validation.normalized?.toLowerCase()
       )
     ) {
       throw new Error(`ノートは既に存在します: ${validation.normalized}`)
@@ -719,8 +706,124 @@ export class VaultMcpService {
     }
   }
 
+  async createDirectory(path: string): Promise<{ path: string }> {
+    const id = path.trim().replaceAll('\\', '/')
+    const validation = validateRelativePath(id)
+    if (!validation.valid || !validation.normalized) {
+      throw new Error('Vault内の新しいフォルダの相対パスを指定してください。')
+    }
+
+    const { vault, aiReviewPaths } = await this.snapshot()
+    assertAiWritable(validation.normalized)
+    if (isAiReviewPath(validation.normalized, aiReviewPaths)) {
+      throw new Error(
+        `Review対象のフォルダは作成できません: ${validation.normalized}`
+      )
+    }
+    return vault.createDirectory({
+      parent: dirnameRelative(validation.normalized),
+      name: basenameRelative(validation.normalized)
+    })
+  }
+
+  async listDirectory(
+    path = '',
+    depth = 1,
+    after?: string,
+    expectedFingerprint?: string
+  ): Promise<DirectoryListOutput> {
+    const validation = validateRelativePath(path.trim().replaceAll('\\', '/'))
+    if (!validation.valid) {
+      throw new Error('Vault内のフォルダの相対パスを指定してください。')
+    }
+    const normalized = validation.normalized ?? ''
+    const { snapshot } = await this.snapshot()
+    const canonical = snapshot.directories.find(
+      (directory) =>
+        directory.toLocaleLowerCase() === normalized.toLocaleLowerCase()
+    )
+    if (canonical === undefined) {
+      throw new Error(`フォルダが見つかりません: ${normalized}`)
+    }
+
+    const boundedDepth = Math.min(3, Math.max(1, depth))
+    const withinDepth = (candidate: string): boolean => {
+      const relative = canonical
+        ? candidate.slice(canonical.length + 1)
+        : candidate
+      return (
+        candidate !== canonical &&
+        (canonical ? candidate.startsWith(`${canonical}/`) : true) &&
+        relative.split('/').length <= boundedDepth
+      )
+    }
+    const entries: DirectoryListEntry[] = [
+      ...snapshot.directories.filter(withinDepth).map((directory) => ({
+        type: 'directory' as const,
+        path: directory,
+        name: basenameRelative(directory),
+        counts: {
+          directories: snapshot.directories.filter(
+            (candidate) => candidate && dirnameRelative(candidate) === directory
+          ).length,
+          notes: snapshot.notes.filter(
+            (candidate) => dirnameRelative(candidate.path) === directory
+          ).length,
+          attachments: (snapshot.attachments ?? []).filter(
+            (candidate) => dirnameRelative(candidate.path) === directory
+          ).length
+        }
+      })),
+      ...snapshot.notes
+        .filter((note) => withinDepth(note.path))
+        .map((note) => ({
+          type: 'markdown' as const,
+          path: note.path,
+          name: note.name,
+          size_bytes: note.size,
+          modified_at: new Date(note.modifiedAt).toISOString()
+        })),
+      ...(snapshot.attachments ?? [])
+        .filter((attachment) => withinDepth(attachment.path))
+        .map((attachment) => ({
+          type: 'attachment' as const,
+          path: attachment.path,
+          name: attachment.name,
+          size_bytes: attachment.size,
+          modified_at: new Date(attachment.modifiedAt).toISOString()
+        }))
+    ].sort((left, right) => left.path.localeCompare(right.path, 'ja'))
+    const fingerprint = directoryFingerprint(
+      snapshot.rootPath,
+      canonical,
+      boundedDepth,
+      entries
+    )
+    if (expectedFingerprint && expectedFingerprint !== fingerprint) {
+      throw new VaultError({
+        code: 'FILE_CHANGED',
+        message:
+          'フォルダ一覧が前のページ取得後に変更されました。先頭ページから再取得してください。'
+      })
+    }
+    const remaining = after
+      ? entries.filter((entry) => entry.path.localeCompare(after, 'ja') > 0)
+      : entries
+    const page = remaining.slice(0, 200)
+    const truncated = remaining.length > page.length
+
+    return {
+      path: canonical,
+      depth: boundedDepth,
+      fingerprint,
+      entries: page,
+      truncated,
+      ...(truncated ? { next_after: page.at(-1)?.path } : {})
+    }
+  }
+
   async fetch(id: string): Promise<FetchOutput> {
-    const { vault, snapshot, aiImmutablePaths } = await this.snapshot()
+    const { vault, snapshot } = await this.snapshot()
     const canonical = canonicalNote(snapshot, id)
     const note = await vault.readNote(canonical.path)
     const truncated = note.content.length > MAX_EDITABLE_CHARACTERS
@@ -735,7 +838,7 @@ export class VaultMcpService {
         revision: revisionFor(snapshot.rootPath, note),
         size_bytes: note.size,
         truncated,
-        editable: !truncated && !isAiImmutablePath(note.path, aiImmutablePaths)
+        editable: !truncated && !isAiImmutablePath(note.path)
       }
     }
   }
@@ -746,10 +849,9 @@ export class VaultMcpService {
     expectedRevision: string
   ): Promise<WriteOutput> {
     assertEditableLength(content)
-    const { vault, snapshot, aiImmutablePaths, aiReviewPaths } =
-      await this.snapshot()
+    const { vault, snapshot, aiReviewPaths } = await this.snapshot()
     const canonical = canonicalNote(snapshot, id)
-    assertAiWritable(canonical.path, aiImmutablePaths)
+    assertAiWritable(canonical.path)
     const current = await vault.readNote(canonical.path)
     assertEditableLength(current.content)
     if (revisionFor(snapshot.rootPath, current) !== expectedRevision) {
@@ -774,7 +876,8 @@ export class VaultMcpService {
     await vault.saveNote({
       path: canonical.path,
       content,
-      expectedModifiedAt: current.modifiedAt
+      expectedModifiedAt: current.modifiedAt,
+      expectedContent: current.content
     })
     const note = await vault.readNote(canonical.path)
 
@@ -796,10 +899,9 @@ export class VaultMcpService {
     options: AutonomousUpdateOptions = {}
   ): Promise<AutonomousUpdateOutput> {
     assertEditableLength(content)
-    const { vault, snapshot, aiImmutablePaths, aiReviewPaths } =
-      await this.snapshot()
+    const { vault, snapshot, aiReviewPaths } = await this.snapshot()
     const canonical = canonicalNote(snapshot, id)
-    assertAiWritable(canonical.path, aiImmutablePaths)
+    assertAiWritable(canonical.path)
     const current = await vault.readNote(canonical.path)
     assertEditableLength(current.content)
     const previousRevision = revisionFor(snapshot.rootPath, current)
@@ -821,7 +923,7 @@ export class VaultMcpService {
       .map((sourceRef) => sourceRef.trim())
       .filter(Boolean)
 
-    if (options.expectedRevision && content === current.content) {
+    if (content === current.content) {
       return {
         id: current.path,
         title: current.name,
@@ -863,6 +965,7 @@ export class VaultMcpService {
 
     const historyPath = await applyUpdateWithHistory(
       vault,
+      snapshot.rootPath,
       canonical.path,
       current,
       previousRevision,
@@ -900,10 +1003,9 @@ export class VaultMcpService {
     if (operations.length === 0 || operations.length > 20) {
       throw new Error('operationsは1〜20件で指定してください。')
     }
-    const { vault, snapshot, aiImmutablePaths, aiReviewPaths } =
-      await this.snapshot()
+    const { vault, snapshot, aiReviewPaths } = await this.snapshot()
     const canonical = canonicalNote(snapshot, id)
-    assertAiWritable(canonical.path, aiImmutablePaths)
+    assertAiWritable(canonical.path)
     const current = await vault.readNote(canonical.path)
     assertEditableLength(current.content)
     const previousRevision = revisionFor(snapshot.rootPath, current)
@@ -953,6 +1055,7 @@ export class VaultMcpService {
 
     const historyPath = await applyUpdateWithHistory(
       vault,
+      snapshot.rootPath,
       canonical.path,
       current,
       previousRevision,
@@ -981,203 +1084,43 @@ export class VaultMcpService {
     }
   }
 
-  async backlinks(id: string, limit = 20): Promise<BacklinksOutput> {
+  async backlinks(
+    id: string,
+    limit = 20,
+    includeHistory = false,
+    after?: string
+  ): Promise<BacklinksOutput> {
     const { snapshot } = await this.snapshot()
     const aliases = compilePathAliases(snapshot.pathAliases ?? {})
     const note = canonicalNote(snapshot, id, aliases)
     const backlinks = getBacklinks(note.path, snapshot.notes, aliases)
+      .filter(
+        (item) =>
+          includeHistory ||
+          !isExcludedFilePath(item.path, DEFAULT_SEARCH_EXCLUDED_PATHS)
+      )
+      .sort((left, right) => left.path.localeCompare(right.path, 'ja'))
+    const remaining = after
+      ? backlinks.filter(
+          (item) => item.path.localeCompare(after, 'ja') > 0
+        )
+      : backlinks
+    const page = remaining.slice(0, limit)
+    const hasMore = remaining.length > page.length
 
     return {
       note: {
         id: note.path,
         title: note.name
       },
-      backlinks: backlinks.slice(0, limit).map((item) => ({
+      backlinks: page.map((item) => ({
         id: item.path,
         title: item.name
       })),
-      total: backlinks.length
+      total: backlinks.length,
+      ...(hasMore ? { next_after: page.at(-1)?.path } : {})
     }
   }
-
-
-  async moveNote(
-    source: string,
-    destination: string,
-    options: MoveNoteOptions = {}
-  ): Promise<MoveNoteOutput> {
-    const sourceId = source.trim().replaceAll('\\', '/')
-    const destinationId = destination.trim().replaceAll('\\', '/')
-    assertAllowedMoveDestination(destinationId)
-    const sourceValidation = validateRelativePath(sourceId)
-    const destinationValidation = validateRelativePath(destinationId)
-
-    if (
-      !sourceValidation.valid ||
-      !sourceValidation.normalized ||
-      !sourceValidation.normalized.toLocaleLowerCase().endsWith('.md')
-    ) {
-      throw new Error('移動元はVault内のMarkdownノートの相対パスを指定してください。')
-    }
-    if (
-      !destinationValidation.valid ||
-      !destinationValidation.normalized ||
-      !destinationValidation.normalized.toLocaleLowerCase().endsWith('.md')
-    ) {
-      throw new Error('移動先はVault内のMarkdownノートの相対パスを指定してください。')
-    }
-
-    const destinationPath = destinationValidation.normalized
-    const { vault, snapshot, aiImmutablePaths, aiReviewPaths } =
-      await this.snapshot()
-    const canonical = canonicalNote(snapshot, sourceValidation.normalized)
-    assertAiWritable(canonical.path, aiImmutablePaths)
-    assertNotReviewProtected(canonical.path, aiReviewPaths)
-
-    if (
-      destinationPath.toLocaleLowerCase() === canonical.path.toLocaleLowerCase()
-    ) {
-      throw new Error('移動元と移動先が同じパスです。')
-    }
-    if (
-      snapshot.notes.some(
-        (note) =>
-          note.path.toLocaleLowerCase() === destinationPath.toLocaleLowerCase()
-      )
-    ) {
-      throw new Error('移動先に同名のノートが既に存在します: ' + destinationPath)
-    }
-    assertAiWritable(destinationPath, aiImmutablePaths)
-    assertNotReviewProtected(destinationPath, aiReviewPaths)
-
-    const previousRevision = revisionFor(snapshot.rootPath, canonical)
-    const reason = options.reason?.trim() || 'AIによるノート移動'
-    const sourceRefs = (options.sourceRefs ?? [])
-      .map((sourceRef) => sourceRef.trim())
-      .filter(Boolean)
-
-    const aliases = compilePathAliases(snapshot.pathAliases ?? {})
-    const { backlinksSummary, linkImpactSummary } = buildMoveSafety(
-      snapshot,
-      canonical.path,
-      destinationPath,
-      previousRevision,
-      aiImmutablePaths,
-      aliases
-    )
-
-    await ensureDirectory(vault, dirnameRelative(destinationPath))
-    const moved = await vault.moveNote({
-      path: canonical.path,
-      destinationDirectory: dirnameRelative(destinationPath),
-      destinationPath
-    })
-    if (
-      moved.path.toLocaleLowerCase() !== destinationPath.toLocaleLowerCase()
-    ) {
-      throw new Error(
-        '移動先が利用できないため移動を中止しました: ' + destinationPath
-      )
-    }
-    const newPath = moved.path
-    const historyPath = await recordNoteMove(
-      vault,
-      canonical.path,
-      newPath,
-      previousRevision,
-      reason,
-      sourceRefs
-    )
-    const note = await vault.readNote(newPath)
-
-    return {
-      old_path: canonical.path,
-      new_path: newPath,
-      metadata: {
-        path: note.path,
-        modified_at: new Date(note.modifiedAt).toISOString(),
-        revision: revisionFor(snapshot.rootPath, note),
-        size_bytes: note.size
-      },
-      history_path: historyPath,
-      provenance: {
-        actor: 'ai',
-        reason,
-        source_refs: sourceRefs,
-        previous_revision: previousRevision
-      },
-      backlinks: backlinksSummary,
-      link_impact: linkImpactSummary
-    }
-  }
-
-  async preflightMove(
-    source: string,
-    destination: string
-  ): Promise<MovePreflightOutput> {
-    const sourceId = source.trim().replaceAll('\\', '/')
-    const destinationId = destination.trim().replaceAll('\\', '/')
-    assertAllowedMoveDestination(destinationId)
-    const sourceValidation = validateRelativePath(sourceId)
-    const destinationValidation = validateRelativePath(destinationId)
-
-    if (
-      !sourceValidation.valid ||
-      !sourceValidation.normalized ||
-      !sourceValidation.normalized.toLocaleLowerCase().endsWith('.md')
-    ) {
-      throw new Error('移動元はVault内のMarkdownノートの相対パスを指定してください。')
-    }
-    if (
-      !destinationValidation.valid ||
-      !destinationValidation.normalized ||
-      !destinationValidation.normalized.toLocaleLowerCase().endsWith('.md')
-    ) {
-      throw new Error('移動先はVault内のMarkdownノートの相対パスを指定してください。')
-    }
-
-    const destinationPath = destinationValidation.normalized
-    const { snapshot, aiImmutablePaths, aiReviewPaths } = await this.snapshot()
-    const canonical = canonicalNote(snapshot, sourceValidation.normalized)
-    assertAiWritable(canonical.path, aiImmutablePaths)
-    assertNotReviewProtected(canonical.path, aiReviewPaths)
-
-    if (
-      destinationPath.toLocaleLowerCase() === canonical.path.toLocaleLowerCase()
-    ) {
-      throw new Error('移動元と移動先が同じパスです。')
-    }
-    if (
-      snapshot.notes.some(
-        (note) =>
-          note.path.toLocaleLowerCase() === destinationPath.toLocaleLowerCase()
-      )
-    ) {
-      throw new Error('移動先に同名のノートが既に存在します: ' + destinationPath)
-    }
-    assertAiWritable(destinationPath, aiImmutablePaths)
-    assertNotReviewProtected(destinationPath, aiReviewPaths)
-
-    const aliases = compilePathAliases(snapshot.pathAliases ?? {})
-    const previousRevision = revisionFor(snapshot.rootPath, canonical)
-    const { backlinksSummary, linkImpactSummary, manifest } = buildMoveSafety(
-      snapshot,
-      canonical.path,
-      destinationPath,
-      previousRevision,
-      aiImmutablePaths,
-      aliases
-    )
-    return {
-      preflight: true,
-      old_path: canonical.path,
-      new_path: destinationPath,
-      backlinks: backlinksSummary,
-      link_impact: linkImpactSummary,
-      manifest
-    }
-  }
-
   async suggestLinks(
     source: string,
     options: SuggestLinksOptions = {}
@@ -1203,11 +1146,10 @@ export class VaultMcpService {
     target: string,
     options: AddLinkOptions = {}
   ): Promise<AddLinkOutput> {
-    const { vault, snapshot, aiImmutablePaths, aiReviewPaths } =
-      await this.snapshot()
+    const { vault, snapshot, aiReviewPaths } = await this.snapshot()
     const aliases = compilePathAliases(snapshot.pathAliases ?? {})
     const canonical = canonicalNote(snapshot, source, aliases)
-    assertAiWritable(canonical.path, aiImmutablePaths)
+    assertAiWritable(canonical.path)
 
     const targetNote = resolveLinkTarget(
       snapshot,
@@ -1216,17 +1158,12 @@ export class VaultMcpService {
       aliases
     )
     if (
-      targetNote.path.toLocaleLowerCase() ===
-      canonical.path.toLocaleLowerCase()
+      targetNote.path.toLocaleLowerCase() === canonical.path.toLocaleLowerCase()
     ) {
       throw new Error('自分自身へのリンクは追加できません。')
     }
     const current = await vault.readNote(canonical.path)
-    const outgoing = getOutgoingLinks(
-      current.content,
-      snapshot.notes,
-      aliases
-    )
+    const outgoing = getOutgoingLinks(current.content, snapshot.notes, aliases)
     const alreadyLinked = outgoing.some(
       (link) =>
         link.status === 'resolved' &&
@@ -1294,7 +1231,8 @@ export class VaultMcpService {
     await vault.saveNote({
       path: canonical.path,
       content: plan.newContent,
-      expectedModifiedAt: current.modifiedAt
+      expectedModifiedAt: current.modifiedAt,
+      expectedContent: current.content
     })
     const saved = await vault.readNote(canonical.path)
     const newRevision = revisionFor(snapshot.rootPath, saved)
@@ -1336,6 +1274,9 @@ export class VaultMcpService {
       temporalPerspective: options.temporalPerspective,
       pathAliases: aliases
     })
+    const notesByPath = new Map(
+      snapshot.notes.map((source) => [source.path, source])
+    )
 
     return {
       seed_id: note.path,
@@ -1353,17 +1294,23 @@ export class VaultMcpService {
           contentOmitted,
           temporalStatus,
           selectionReasons
-        }) => ({
-          path,
-          name,
-          relation,
-          truncated,
-          ...(contentOmitted ? { content_omitted: true } : {}),
-          ...(temporalStatus
-            ? { temporal_status: temporalStatus }
-            : {}),
-          selection_reasons: selectionReasons
-        })
+        }) => {
+          const source = notesByPath.get(path)
+          if (!source) {
+            throw new Error(`Context source is missing from the snapshot: ${path}`)
+          }
+          return {
+            path,
+            name,
+            relation,
+            truncated,
+            revision: revisionFor(snapshot.rootPath, source),
+            modified_at: new Date(source.modifiedAt).toISOString(),
+            ...(contentOmitted ? { content_omitted: true } : {}),
+            ...(temporalStatus ? { temporal_status: temporalStatus } : {}),
+            selection_reasons: selectionReasons
+          }
+        }
       ),
       omitted_ids: bundle.omittedPaths,
       warnings: bundle.warnings
@@ -1386,6 +1333,7 @@ function writeOutput(rootPath: string, note: NoteDocument): WriteOutput {
 
 async function applyUpdateWithHistory(
   vault: VaultService,
+  rootPath: string,
   path: string,
   current: NoteDocument,
   previousRevision: string,
@@ -1399,7 +1347,10 @@ async function applyUpdateWithHistory(
     directory: dirnameRelative(historyPath),
     name: basenameRelative(historyPath),
     content: renderAutonomousRevision(
+      rootPath,
       path,
+      current.modifiedAt,
+      current.size,
       previousRevision,
       current.content,
       reason,
@@ -1409,66 +1360,11 @@ async function applyUpdateWithHistory(
   await vault.saveNote({
     path,
     content,
-    expectedModifiedAt: current.modifiedAt
+    expectedModifiedAt: current.modifiedAt,
+      expectedContent: current.content
   })
   return historyPath
 }
-
-
-function renderNoteMoveRecord(
-  oldPath: string,
-  newPath: string,
-  previousRevision: string,
-  reason: string,
-  sourceRefs: string[]
-): string {
-  return [
-    '---',
-    'kind: note_move',
-    'target: ' + oldPath,
-    'moved_to: ' + newPath,
-    'actor: ai',
-    'reason: ' + JSON.stringify(reason),
-    'source_refs:',
-    ...(sourceRefs.length > 0
-      ? sourceRefs.map((sourceRef) => '  - ' + JSON.stringify(sourceRef))
-      : ['  - none']),
-    'previous_revision: ' + previousRevision,
-    'recorded_at: ' + new Date().toISOString(),
-    '---',
-    '',
-    '# Move audit',
-    '',
-    '- 移動元: ' + oldPath,
-    '- 移動先: ' + newPath,
-    '- 内容は移動前後で不変'
-  ].join('\n')
-}
-
-async function recordNoteMove(
-  vault: VaultService,
-  oldPath: string,
-  newPath: string,
-  previousRevision: string,
-  reason: string,
-  sourceRefs: string[]
-): Promise<string> {
-  const historyPath = historyPathFor(oldPath, previousRevision)
-  await ensureDirectory(vault, '50_履歴/AI更新')
-  await vault.createNote({
-    directory: dirnameRelative(historyPath),
-    name: basenameRelative(historyPath),
-    content: renderNoteMoveRecord(
-      oldPath,
-      newPath,
-      previousRevision,
-      reason,
-      sourceRefs
-    )
-  })
-  return historyPath
-}
-
 async function recordNoteLinkAdd(
   vault: VaultService,
   sourcePath: string,
@@ -1495,57 +1391,4 @@ async function recordNoteLinkAdd(
     )
   })
   return historyPath
-}
-
-function buildMoveSafety(
-  snapshot: VaultSnapshot,
-  sourcePath: string,
-  destinationPath: string,
-  previousRevision: string,
-  aiImmutablePaths: readonly string[],
-  aliases: CompiledPathAliases
-): MoveSafetyReport {
-  const backlinkNotes = getBacklinks(sourcePath, snapshot.notes, aliases)
-  const linkImpact = findLinkImpact(
-    snapshot.notes,
-    new Map([[sourcePath, destinationPath]]),
-    aliases
-  )
-  const backlinksSummary = {
-    total: backlinkNotes.length,
-    ids: backlinkNotes.map((note) => note.path)
-  }
-  const linkImpactSummary = {
-    affected_count: linkImpact.affectedCount,
-    source_paths: linkImpact.sourcePaths
-  }
-  const referencingOldPath = snapshot.notes
-    .filter(
-      (note) =>
-        note.path !== sourcePath &&
-        note.content
-          .toLocaleLowerCase()
-          .includes(sourcePath.toLocaleLowerCase())
-    )
-    .map((note) => note.path)
-  const manifest: MovePreflightManifest = {
-    source: sourcePath,
-    destination: destinationPath,
-    source_exists: true,
-    destination_exists: false,
-    markdown_only: true,
-    protected_source: isAiImmutablePath(sourcePath, aiImmutablePaths),
-    protected_destination: isAiImmutablePath(
-      destinationPath,
-      aiImmutablePaths
-    ),
-    source_revision: previousRevision,
-    backlink_count: backlinkNotes.length,
-    backlink_paths: backlinkNotes.map((note) => note.path),
-    link_impact_count: linkImpact.affectedCount,
-    link_impact_paths: linkImpact.sourcePaths,
-    notes_referencing_old_path: referencingOldPath,
-    would_move: false
-  }
-  return { backlinksSummary, linkImpactSummary, manifest }
 }

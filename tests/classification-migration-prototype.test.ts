@@ -114,6 +114,7 @@ async function createPrototypeFixture(options: {
   existingSidecar?: boolean
   destinationCollision?: boolean
   ownershipToken?: string
+  movedSourceReference?: boolean
 } = {}): Promise<PrototypeFixture> {
   const root = await mkdtemp(join(tmpdir(), 'tsuzune-o2-p3-'))
   temporaryRoots.push(root)
@@ -126,7 +127,9 @@ async function createPrototypeFixture(options: {
   const ownershipToken = options.ownershipToken ?? randomUUID()
 
   const contents: Record<string, string | Buffer> = {
-    [sourcePath]: '# 旧ノート\n\n本文\n',
+    [sourcePath]: options.movedSourceReference
+      ? '# 旧ノート\n\n本文\n\n[[30_知識/旧ノート]]\n'
+      : '# 旧ノート\n\n本文\n',
     [auditPath]: '# 分類監査\n\n[[30_知識/旧ノート]]\n',
     [historyPath]: '# 過去記録\n\n[[30_知識/旧ノート]]\n',
     [activePath]: [
@@ -170,10 +173,10 @@ async function createPrototypeFixture(options: {
         expectedSizeBytes: byteLength(sourceContent),
         expectedSha256: sha256(sourceContent).toLowerCase(),
         expectedReferences: {
-          active: 4,
+          active: options.movedSourceReference ? 5 : 4,
           source: 1,
           history: 1,
-          mcpBacklinks: 3
+          mcpBacklinks: options.movedSourceReference ? 4 : 3
         }
       }
     ]
@@ -352,6 +355,50 @@ describe('classification migration test-only apply/rollback prototype', () => {
     ).rejects.toThrow(/not marked as owned/)
     expect(await snapshotTree(fixture.vaultRoot)).toEqual(before)
     expect(await listPreimages(fixture.preimagesDirectory)).toEqual([])
+  })
+
+  it('keeps moved-source bytes unchanged and resolves their old links through the alias', async () => {
+    const fixture = await createPrototypeFixture({ movedSourceReference: true })
+    const sourceBytes = await readFile(
+      join(fixture.vaultRoot, ...sourcePath.split('/'))
+    )
+
+    const result = await applyClassificationMigrationPrototype(applyOptions(fixture))
+    expect(
+      await readFile(join(fixture.vaultRoot, ...destinationPath.split('/')))
+    ).toEqual(sourceBytes)
+    expect(
+      await readFile(join(fixture.vaultRoot, ...activePath.split('/')), 'utf8')
+    ).toContain(`[[${destinationPath.slice(0, -3)}]]`)
+
+    await rollbackClassificationMigrationPrototype({
+      vaultRoot: fixture.vaultRoot,
+      rollbackPacketPath: result.rollbackPacketPath,
+      ownershipToken: fixture.ownershipToken
+    })
+  })
+
+  it('keeps the production binding during automatic rollback', async () => {
+    const fixture = await createPrototypeFixture()
+    await rm(join(fixture.vaultRoot, ...ownershipPath.split('/')))
+    const before = await snapshotTree(fixture.vaultRoot)
+
+    await expect(
+      applyClassificationMigrationPrototype({
+        ...applyOptions(fixture, { failAfter: 'moves' }),
+        productionBinding: {
+          mode: 'production',
+          settingsPath: join(fixture.root, 'settings.json'),
+          vaultId: 'vault-id',
+          rootFolderId: 'root-id'
+        }
+      })
+    ).rejects.toMatchObject({
+      name: 'PrototypeFailpointError',
+      stage: 'moves',
+      rollbackOutcome: { status: 'restored', unrestoredPaths: [] }
+    })
+    expect(await snapshotTree(fixture.vaultRoot)).toEqual(before)
   })
 
   it('rejects rollback when the ownership token does not match', async () => {

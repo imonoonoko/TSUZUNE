@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "planId": "O2-production-classification-apply-2026-08-14",
-  "analysisAsOf": "2026-08-14T02:04:38+09:00",
+  "planId": "O2-production-classification-apply-2026-08-17",
+  "analysisAsOf": "2026-08-17T00:35:41+09:00",
   "auditSource": {
     "path": "40_情報源/TSUZUNE分類・非破壊Phase2-2026-08-10.md",
     "expectedSizeBytes": 4092,
@@ -11,61 +11,61 @@
     {
       "sourcePath": "30_知識/TSUZUNE-Google連携・同期・障害対応.md",
       "destinationPath": "30_知識/ソフトウェア開発/TSUZUNE-Google連携・同期・障害対応.md",
-      "expectedSizeBytes": 2699,
-      "expectedSha256": "E2399DB925526D631E79AA4491B9374AC59A6FF0C75E785CD1D0B1112D65BD2C",
+      "expectedSizeBytes": 5513,
+      "expectedSha256": "C515A5B671E795114A004E18BC1E5C0B52F6F685E93F7CDF22D507D12BB3DF0C",
       "expectedReferences": {
-        "active": 4,
+        "active": 11,
         "source": 0,
-        "history": 2,
-        "mcpBacklinks": 6
+        "history": 48,
+        "mcpBacklinks": 52
       }
     },
     {
       "sourcePath": "30_知識/TSUZUNE-MCPとAI書き込み運用.md",
       "destinationPath": "30_知識/ソフトウェア開発/TSUZUNE-MCPとAI書き込み運用.md",
-      "expectedSizeBytes": 6272,
-      "expectedSha256": "ECB756A5B845703FB06D096590F5A63B0B87E06D58161E7FAA0D46375E262CC2",
+      "expectedSizeBytes": 6351,
+      "expectedSha256": "0B3B893267F4730F1B6778E5216EE6982FD869DF118FFEEB4C80171FE3B840D2",
       "expectedReferences": {
-        "active": 14,
+        "active": 17,
         "source": 1,
-        "history": 16,
-        "mcpBacklinks": 29
+        "history": 90,
+        "mcpBacklinks": 103
       }
     },
     {
       "sourcePath": "30_知識/TSUZUNE-データ保護・バックアップ・復旧.md",
       "destinationPath": "30_知識/ソフトウェア開発/TSUZUNE-データ保護・バックアップ・復旧.md",
-      "expectedSizeBytes": 2300,
-      "expectedSha256": "6A2D7C71B63D5B6CFE7173B67207E2B397D334EB2083BCE6F73627C66D543370",
+      "expectedSizeBytes": 3737,
+      "expectedSha256": "8C7EA920E734A6D45D8BB83E2C023971F9EE844EC14951DB4FA2D5E0B4FB8DA1",
       "expectedReferences": {
-        "active": 7,
+        "active": 10,
         "source": 1,
-        "history": 7,
-        "mcpBacklinks": 14
+        "history": 41,
+        "mcpBacklinks": 49
       }
     },
     {
       "sourcePath": "30_知識/TSUZUNE-開発開始と区切りの標準ループ.md",
       "destinationPath": "30_知識/ソフトウェア開発/TSUZUNE-開発開始と区切りの標準ループ.md",
-      "expectedSizeBytes": 2078,
-      "expectedSha256": "3521F320F243653222A6E0802423D1DBBB5A1343E94C81813DC44C99375AAED8",
+      "expectedSizeBytes": 2113,
+      "expectedSha256": "1DDB8949028AF9B96F91E89155CBFC615B898CF516BD8053F41A13D3282B65CD",
       "expectedReferences": {
-        "active": 4,
+        "active": 5,
         "source": 1,
-        "history": 3,
-        "mcpBacklinks": 8
+        "history": 25,
+        "mcpBacklinks": 31
       }
     },
     {
       "sourcePath": "30_知識/TSUZUNE-本番更新・インストール・Release運用.md",
       "destinationPath": "30_知識/ソフトウェア開発/TSUZUNE-本番更新・インストール・Release運用.md",
-      "expectedSizeBytes": 2252,
-      "expectedSha256": "742007232BAA0167240EA7EFA7EAC708655B0B37045A7769A882B9BB61DF84A2",
+      "expectedSizeBytes": 2287,
+      "expectedSha256": "5CBE00BA406F316150DF2D7D42B4604058C843C602B9507B08FF12EF150BDB46",
       "expectedReferences": {
-        "active": 6,
+        "active": 8,
         "source": 1,
-        "history": 73,
-        "mcpBacklinks": 80
+        "history": 135,
+        "mcpBacklinks": 144
       }
     }
   ]

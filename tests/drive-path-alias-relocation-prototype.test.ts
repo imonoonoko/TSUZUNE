@@ -61,6 +61,8 @@ class MemoryRelocationRemote
   beforeReverseRelocate: (() => Promise<void>) | null = null;
   rejectReverseRelocation = false;
   relocationResponseOnly = false;
+  createResponseOnly = false;
+  createAttemptFailsWithoutObject = false;
 
   async listMarkdown(): Promise<RemoteRelocationMarkdownObject[]> {
     return this.markdown.map((file) => ({ ...file }));
@@ -115,8 +117,26 @@ class MemoryRelocationRemote
     }));
   }
 
-  async create(): Promise<RemotePathAliasObject> {
-    throw new Error("UNEXPECTED_ALIAS_CREATE");
+  async create(input: {
+    vaultId: string;
+    parentId: string;
+    bytes: Buffer;
+  }): Promise<RemotePathAliasObject> {
+    if (!this.createResponseOnly) throw new Error("UNEXPECTED_ALIAS_CREATE");
+    if (this.createAttemptFailsWithoutObject) {
+      throw new Error("REMOTE_ALIAS_CREATE_NO_OBJECT");
+    }
+    const file: RemotePathAliasObject = {
+      id: "remote-alias-created",
+      vaultId: input.vaultId,
+      role: "pathAliases",
+      parentId: input.parentId,
+      version: "1",
+      bytes: Buffer.from(input.bytes),
+    };
+    this.aliases.push(file);
+    this.operations.push("alias-create");
+    throw new Error("REMOTE_ALIAS_CREATE_RESPONSE_LOST");
   }
 
   async update(input: {
@@ -136,6 +156,24 @@ class MemoryRelocationRemote
     file.version = String(Number(file.version) + 1);
     this.operations.push("alias-update");
     return { ...file, bytes: Buffer.from(file.bytes) };
+  }
+
+  async remove(input: {
+    fileId: string;
+    vaultId: string;
+    parentId: string;
+    expectedVersion: string;
+  }): Promise<void> {
+    const index = this.aliases.findIndex(
+      (candidate) =>
+        candidate.id === input.fileId &&
+        candidate.vaultId === input.vaultId &&
+        candidate.parentId === input.parentId &&
+        candidate.version === input.expectedVersion,
+    );
+    if (index < 0) throw new Error("REMOTE_ALIAS_REMOVE_DRIFT");
+    this.aliases.splice(index, 1);
+    this.operations.push("alias-remove");
   }
 }
 
@@ -547,6 +585,95 @@ describe("O2-P4B Drive Path Alias relocation prototype", () => {
     await expect(
       applyDrivePathAliasRelocationPrototype({ ...options, preview }),
     ).rejects.toThrow("Remote relocation completion verification failed.");
+  });
+
+  it("does not retain a false alias recovery when remote relocation fails before alias creation", async () => {
+    const setup = await fixture();
+    setup.remote.aliases.splice(0);
+    await Promise.all([
+      rm(setup.aliasLedgerPath),
+      rm(join(setup.vaultRoot, ...sidecarPath.split("/"))),
+    ]);
+    const options = {
+      ...setup,
+      vaultId: "vault-1",
+      rootFolderId: "root-1",
+      aliasRemote: setup.remote,
+      markdownRemote: setup.remote,
+    };
+    const preview = await previewDrivePathAliasRelocationPrototype(options);
+    setup.remote.beforeRelocate = async () => {
+      setup.remote.beforeRelocate = null;
+      throw new Error("REMOTE_PRIMARY_FAILURE");
+    };
+
+    await expect(
+      applyDrivePathAliasRelocationPrototype({ ...options, preview }),
+    ).rejects.toThrow("REMOTE_PRIMARY_FAILURE");
+    await expect(readFile(setup.recoveryPacketPath)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    expect(setup.remote.aliases).toEqual([]);
+    expect(
+      await readFile(join(setup.vaultRoot, ...sourcePath.split("/"))),
+    ).toEqual(setup.sourceBytes);
+  });
+
+  it("rolls back an alias created before the remote create response is lost", async () => {
+    const setup = await fixture();
+    setup.remote.aliases.splice(0);
+    await Promise.all([
+      rm(setup.aliasLedgerPath),
+      rm(join(setup.vaultRoot, ...sidecarPath.split("/"))),
+    ]);
+    const options = {
+      ...setup,
+      vaultId: "vault-1",
+      rootFolderId: "root-1",
+      aliasRemote: setup.remote,
+      markdownRemote: setup.remote,
+    };
+    const preview = await previewDrivePathAliasRelocationPrototype(options);
+    setup.remote.createResponseOnly = true;
+
+    await expect(
+      applyDrivePathAliasRelocationPrototype({ ...options, preview }),
+    ).rejects.toThrow("REMOTE_ALIAS_CREATE_RESPONSE_LOST");
+    expect(setup.remote.aliases).toEqual([]);
+    await expect(readFile(setup.recoveryPacketPath)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    expect(
+      await readFile(join(setup.vaultRoot, ...sourcePath.split("/"))),
+    ).toEqual(setup.sourceBytes);
+  });
+
+  it("retains recovery when an attempted alias create is not yet visible", async () => {
+    const setup = await fixture();
+    setup.remote.aliases.splice(0);
+    await Promise.all([
+      rm(setup.aliasLedgerPath),
+      rm(join(setup.vaultRoot, ...sidecarPath.split("/"))),
+    ]);
+    const options = {
+      ...setup,
+      vaultId: "vault-1",
+      rootFolderId: "root-1",
+      aliasRemote: setup.remote,
+      markdownRemote: setup.remote,
+    };
+    const preview = await previewDrivePathAliasRelocationPrototype(options);
+    setup.remote.createResponseOnly = true;
+    setup.remote.createAttemptFailsWithoutObject = true;
+
+    await expect(
+      applyDrivePathAliasRelocationPrototype({ ...options, preview }),
+    ).rejects.toThrow("O2-P4B rollback incomplete; recovery packet retained");
+    const recovery = JSON.parse(
+      await readFile(setup.recoveryPacketPath, "utf8"),
+    );
+    expect(recovery.unresolved).toContain("alias:created-not-found");
+    expect(recovery.aliasCreateAttempted).toBe(true);
   });
 
   it("retains the recovery packet when local rollback reports unrestored paths", async () => {

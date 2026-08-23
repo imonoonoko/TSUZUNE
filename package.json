@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=1",
     "test:production": "vitest run --maxWorkers=2",
     "test:watch": "vitest",
     "dogfood:m5": "node scripts/build-m5-dogfood.mjs",
@@ -81,7 +81,7 @@
     "preview:chatgpt-candidate-quality": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preview-chatgpt-candidate-quality.ps1",
     "build:classification-migration": "node scripts/build-classification-migration-preview.mjs",
     "preview:classification-migration": "npm run build:classification-migration && node work/tools/classification-migration-preview.js",
-    "check:mcp": "npm run build:mcp && node scripts/check-mcp.mjs",
+    "check:mcp": "node scripts/check-mcp-suite.mjs",
     "mcp": "node out/mcp/server.js",
     "mcp:register": "npm run build:mcp && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/register-codex-mcp.ps1",
     "mcp:unregister": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/unregister-codex-mcp.ps1",

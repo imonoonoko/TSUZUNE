@@ -130,6 +130,41 @@ describe('graph settings IPC', () => {
     expect(electron.writeText).toHaveBeenCalledWith('attachments/diagram.svg')
   })
 
+  it('saves template settings only for an existing Vault folder', async () => {
+    const mainFrame = {}
+    const webContents = { mainFrame }
+    const window = { webContents }
+    registerIpc(
+      { scan: vi.fn().mockResolvedValue({ directories: ['', '雛形'] }) } as never,
+      {} as never,
+      { connection: {} as never, driveSync: {} as never },
+      {} as never,
+      () => window as never,
+      () => undefined
+    )
+    const handler = electron.handlers.get('settings:setTemplates')!
+
+    await expect(
+      handler(
+        { sender: webContents, senderFrame: mainFrame },
+        { directory: '存在しない', includeBuiltIns: false }
+      )
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { message: 'テンプレートフォルダがVault内に見つかりません。' }
+    })
+    await expect(
+      handler(
+        { sender: webContents, senderFrame: mainFrame },
+        { directory: '雛形', includeBuiltIns: false }
+      )
+    ).resolves.toEqual({ ok: true, value: null })
+    await expect(readSettings()).resolves.toMatchObject({
+      templateDirectory: '雛形',
+      showBuiltInTemplates: false
+    })
+  })
+
   it('reveals a validated Vault entry only for the active renderer', async () => {
     const mainFrame = {}
     const webContents = { mainFrame }
@@ -471,21 +506,29 @@ describe('graph settings IPC', () => {
     const mainFrame = {}
     const webContents = { mainFrame }
     const window = { webContents }
-    const recordLocalMove = vi.fn().mockResolvedValue(undefined)
-    const moveNote = vi.fn().mockResolvedValue({
-      oldPath: 'Inbox/A.md',
-      path: 'Archive/A.md'
+    const preflight = vi.fn().mockResolvedValue({
+      source: 'Inbox/A.md',
+      destination: 'Archive/A.md',
+      fingerprint: 'sha256:test'
+    })
+    const apply = vi.fn().mockResolvedValue({
+      old_path: 'Inbox/A.md',
+      new_path: 'Archive/A.md'
     })
     registerIpc(
-      { moveNote } as never,
+      {
+        resolveMoveDestination: vi.fn().mockResolvedValue('Archive/A.md')
+      } as never,
       {} as never,
       {
         connection: {} as never,
-        driveSync: { recordLocalMove } as never
+        driveSync: {} as never
       },
       {} as never,
       () => window as never,
-      () => undefined
+      () => undefined,
+      undefined,
+      { preflight, apply } as never
     )
     const handler = electron.handlers.get('entry:moveNote')!
 
@@ -498,31 +541,78 @@ describe('graph settings IPC', () => {
       ok: true,
       value: { oldPath: 'Inbox/A.md', path: 'Archive/A.md' }
     })
-    expect(recordLocalMove).toHaveBeenCalledWith(
+    expect(preflight).toHaveBeenCalledWith(
       'Inbox/A.md',
-      'Archive/A.md'
+      'Archive/A.md',
+      'human'
     )
+    expect(apply).toHaveBeenCalledWith({
+      source: 'Inbox/A.md',
+      destination: 'Archive/A.md',
+      expected_fingerprint: 'sha256:test',
+      actor: 'human',
+      reason: 'アプリでのノート移動',
+      source_refs: []
+    })
   })
 
-  it('rolls a Markdown move back when the Drive ledger cannot be recorded', async () => {
+  it('moves a folder through the renderer-only entry contract', async () => {
     const mainFrame = {}
     const webContents = { mainFrame }
     const window = { webContents }
-    const recordLocalMove = vi.fn().mockRejectedValue(new Error('LEDGER_WRITE_FAILED'))
-    const moveNote = vi
-      .fn()
-      .mockResolvedValueOnce({ oldPath: 'Inbox/A.md', path: 'Archive/A.md' })
-      .mockResolvedValueOnce({ oldPath: 'Archive/A.md', path: 'Inbox/A.md' })
+    const moveEntry = vi.fn().mockResolvedValue({
+      oldPath: '資料',
+      path: '保管/資料'
+    })
     registerIpc(
-      { moveNote } as never,
+      { moveEntry } as never,
       {} as never,
-      {
-        connection: {} as never,
-        driveSync: { recordLocalMove } as never
-      },
+      { connection: {} as never, driveSync: { recordLocalMove: vi.fn() } as never },
       {} as never,
       () => window as never,
       () => undefined
+    )
+    const handler = electron.handlers.get('entry:moveEntry')!
+
+    await expect(
+      handler(
+        { sender: webContents, senderFrame: mainFrame },
+        { path: '資料', destinationDirectory: '保管' }
+      )
+    ).resolves.toEqual({
+      ok: true,
+      value: { oldPath: '資料', path: '保管/資料' }
+    })
+    expect(moveEntry).toHaveBeenCalledWith({
+      path: '資料',
+      destinationDirectory: '保管'
+    })
+  })
+
+  it('returns the shared move coordinator failure to the renderer', async () => {
+    const mainFrame = {}
+    const webContents = { mainFrame }
+    const window = { webContents }
+    const preflight = vi.fn().mockResolvedValue({
+      source: 'Inbox/A.md',
+      destination: 'Archive/A.md',
+      fingerprint: 'sha256:test'
+    })
+    const apply = vi.fn().mockRejectedValue(new Error('LEDGER_WRITE_FAILED'))
+    registerIpc(
+      {
+        resolveMoveDestination: vi.fn().mockResolvedValue('Archive/A.md')
+      } as never,
+      {} as never,
+      {
+        connection: {} as never,
+        driveSync: {} as never
+      },
+      {} as never,
+      () => window as never,
+      () => undefined,
+      undefined,
+      { preflight, apply } as never
     )
     const handler = electron.handlers.get('entry:moveNote')!
 
@@ -535,10 +625,6 @@ describe('graph settings IPC', () => {
       ok: false,
       error: { message: 'LEDGER_WRITE_FAILED' }
     })
-    expect(moveNote).toHaveBeenLastCalledWith({
-      path: 'Archive/A.md',
-      destinationDirectory: 'Inbox',
-      destinationPath: 'Inbox/A.md'
-    })
+    expect(apply).toHaveBeenCalledOnce()
   })
 })

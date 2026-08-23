@@ -1,0 +1,350 @@
+{
+  "measurement": {
+    "indexing": {
+      "coldOpenToWorkspaceReadyMs": 3881.7999999998137
+    },
+    "opener": "開く",
+    "warmup": [
+      {
+        "type": "warmup",
+        "query": "検索準備",
+        "durationMs": 17.199999999720603,
+        "committed": true,
+        "resultCount": 0,
+        "firstResultPath": null
+      }
+    ],
+    "warmupCount": 1,
+    "querySet": [
+      {
+        "type": "japanese-content",
+        "query": "性能"
+      },
+      {
+        "type": "path",
+        "query": "10_Notes/Group-50"
+      },
+      {
+        "type": "duplicate-title-prefix",
+        "query": "Performance Note"
+      },
+      {
+        "type": "title",
+        "query": "Note-0500"
+      },
+      {
+        "type": "content",
+        "query": "Markdown"
+      }
+    ],
+    "repetitionsPerQuery": 6,
+    "samples": [
+      {
+        "type": "japanese-content",
+        "query": "性能",
+        "durationMs": 26.800000000279397,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "path",
+        "query": "10_Notes/Group-50",
+        "durationMs": 14.100000000093132,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-50/Note-4999.md"
+      },
+      {
+        "type": "duplicate-title-prefix",
+        "query": "Performance Note",
+        "durationMs": 26.100000000093132,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "title",
+        "query": "Note-0500",
+        "durationMs": 12.699999999720603,
+        "committed": true,
+        "resultCount": 3,
+        "firstResultPath": "10_Notes/Group-05/Note-0500.md"
+      },
+      {
+        "type": "content",
+        "query": "Markdown",
+        "durationMs": 18.59999999962747,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "japanese-content",
+        "query": "性能",
+        "durationMs": 19.700000000186265,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "path",
+        "query": "10_Notes/Group-50",
+        "durationMs": 11.799999999813735,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-50/Note-4999.md"
+      },
+      {
+        "type": "duplicate-title-prefix",
+        "query": "Performance Note",
+        "durationMs": 23.799999999813735,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "title",
+        "query": "Note-0500",
+        "durationMs": 10,
+        "committed": true,
+        "resultCount": 3,
+        "firstResultPath": "10_Notes/Group-05/Note-0500.md"
+      },
+      {
+        "type": "content",
+        "query": "Markdown",
+        "durationMs": 18.5,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "japanese-content",
+        "query": "性能",
+        "durationMs": 18,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "path",
+        "query": "10_Notes/Group-50",
+        "durationMs": 12.099999999627471,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-50/Note-4999.md"
+      },
+      {
+        "type": "duplicate-title-prefix",
+        "query": "Performance Note",
+        "durationMs": 22.600000000093132,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "title",
+        "query": "Note-0500",
+        "durationMs": 11.099999999627471,
+        "committed": true,
+        "resultCount": 3,
+        "firstResultPath": "10_Notes/Group-05/Note-0500.md"
+      },
+      {
+        "type": "content",
+        "query": "Markdown",
+        "durationMs": 17.300000000279397,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "japanese-content",
+        "query": "性能",
+        "durationMs": 19,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "path",
+        "query": "10_Notes/Group-50",
+        "durationMs": 11.200000000186265,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-50/Note-4999.md"
+      },
+      {
+        "type": "duplicate-title-prefix",
+        "query": "Performance Note",
+        "durationMs": 23.59999999962747,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "title",
+        "query": "Note-0500",
+        "durationMs": 9.899999999906868,
+        "committed": true,
+        "resultCount": 3,
+        "firstResultPath": "10_Notes/Group-05/Note-0500.md"
+      },
+      {
+        "type": "content",
+        "query": "Markdown",
+        "durationMs": 18.200000000186265,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "japanese-content",
+        "query": "性能",
+        "durationMs": 17.799999999813735,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "path",
+        "query": "10_Notes/Group-50",
+        "durationMs": 12.299999999813735,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-50/Note-4999.md"
+      },
+      {
+        "type": "duplicate-title-prefix",
+        "query": "Performance Note",
+        "durationMs": 24.100000000093132,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "title",
+        "query": "Note-0500",
+        "durationMs": 10,
+        "committed": true,
+        "resultCount": 3,
+        "firstResultPath": "10_Notes/Group-05/Note-0500.md"
+      },
+      {
+        "type": "content",
+        "query": "Markdown",
+        "durationMs": 19.399999999906868,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "japanese-content",
+        "query": "性能",
+        "durationMs": 17.699999999720603,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "path",
+        "query": "10_Notes/Group-50",
+        "durationMs": 12.199999999720603,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-50/Note-4999.md"
+      },
+      {
+        "type": "duplicate-title-prefix",
+        "query": "Performance Note",
+        "durationMs": 23.5,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      },
+      {
+        "type": "title",
+        "query": "Note-0500",
+        "durationMs": 11.799999999813735,
+        "committed": true,
+        "resultCount": 3,
+        "firstResultPath": "10_Notes/Group-05/Note-0500.md"
+      },
+      {
+        "type": "content",
+        "query": "Markdown",
+        "durationMs": 18.399999999906868,
+        "committed": true,
+        "resultCount": 50,
+        "firstResultPath": "10_Notes/Group-100/Note-9999.md"
+      }
+    ],
+    "metrics": {
+      "sampleCount": 30,
+      "p50Ms": 17.8,
+      "p95Ms": 26.1,
+      "maxMs": 26.8
+    },
+    "deterministicOrdering": true,
+    "thresholdMs": 150,
+    "pass": true,
+    "afterOpen": {
+      "dialog": true,
+      "input": "quick-switcher-input"
+    }
+  },
+  "runtime": {
+    "node": "24.18.0",
+    "electron": "43.2.0",
+    "chrome": "150.0.7871.129"
+  },
+  "after": {
+    "fileCount": 10000,
+    "sha256": "250d05662ec8ec90271ccc1d653102846de1ebd37904de734edc342d8d19a4ce"
+  },
+  "measuredAt": "2026-08-17T11:42:50.298Z",
+  "scope": "Quick Switcher committed query-to-double-requestAnimationFrame latency on a deterministic 10,000-note fixture",
+  "host": {
+    "hostname": "斧子のPC",
+    "platform": "win32",
+    "release": "10.0.26200",
+    "osVersion": "Windows 11 Home",
+    "arch": "x64",
+    "cpuModel": "13th Gen Intel(R) Core(TM) i7-13700F",
+    "logicalCpuCount": 24,
+    "totalMemoryBytes": 34055766016
+  },
+  "revision": {
+    "gitHead": "5a9443d93840bb970ae34ea76a618bef1f1fce6c",
+    "dirty": true,
+    "changedPathCount": 111
+  },
+  "fixture": {
+    "path": "work/quick-switcher-10000-fixture/vault",
+    "manifest": {
+      "schemaVersion": 1,
+      "noteCount": 10000,
+      "directedLinkCount": 20000,
+      "renderedUndirectedPairCount": 20000,
+      "homePath": "00_Home.md",
+      "markdownSha256": "250d05662ec8ec90271ccc1d653102846de1ebd37904de734edc342d8d19a4ce"
+    },
+    "generatorSha256": "b65551e3ed0450eb173ad40f6f8882ae55b6d9c9b7118c916e3922e54e94e858",
+    "markdownDigestBefore": {
+      "fileCount": 10000,
+      "sha256": "250d05662ec8ec90271ccc1d653102846de1ebd37904de734edc342d8d19a4ce"
+    },
+    "markdownDigestAfter": {
+      "fileCount": 10000,
+      "sha256": "250d05662ec8ec90271ccc1d653102846de1ebd37904de734edc342d8d19a4ce"
+    }
+  },
+  "method": {
+    "isolatedUserData": "work/quick-switcher-10000-fixture/user-data",
+    "window": "1440x900, off-screen (-32000,-32000), skip taskbar, showInactive",
+    "input": "real DOM input event dispatched to focused Quick Switcher search input",
+    "commitBoundary": "React DOM candidate list or explicit empty state followed by double requestAnimationFrame",
+    "note": "Current NoteDocument model exposes no aliases; alias matching was not measured or claimed."
+  }
+}

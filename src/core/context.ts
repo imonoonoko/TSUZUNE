@@ -6,6 +6,7 @@ import {
 } from './links'
 import { parseFrontmatter } from './frontmatter'
 import { withoutMarkdownExtension } from './paths'
+import { segmentJapaneseQuery } from './search'
 import {
   buildTemporalTimeline,
   evaluateKnowledgeTime,
@@ -96,6 +97,214 @@ const DEFAULT_MAX_OUTGOING = 5
 const DEFAULT_MAX_BACKLINKS = 3
 const DEFAULT_MAX_TEMPORAL = 5
 const TRUNCATION_MARKER = '\n\n[このノートは文字数上限で省略されました]\n'
+const MAX_QUERY_FALLBACK_SECTIONS = 3
+
+function projectQuerySections(
+  note: NoteDocument,
+  query: string,
+  maxContentCharacters: number
+): { note: NoteDocument; projected: boolean } {
+  const parsed = parseFrontmatter(note.content)
+  const body = parsed.body
+  const headings = [
+    ...body.matchAll(/^ {0,3}(#{1,6})[ \t]+(.+?)\s*#*\s*$/gm)
+  ].map((match) => ({
+    start: match.index,
+    level: match[1].length,
+    title: match[2].trim()
+  }))
+  if (headings.length < 2) {
+    return { note, projected: false }
+  }
+
+  const termGroups = query
+    .split(/[、,，。;；?？!！:：\n]+/u)
+    .map((part) =>
+      [part.trim(), ...segmentJapaneseQuery(part)]
+        .map((term) => term.toLocaleLowerCase())
+        .filter(
+          (term, index, all) =>
+            (term.length >= 2 || /^\p{Script=Han}$/u.test(term)) &&
+            all.indexOf(term) === index
+        )
+    )
+    .filter((terms) => terms.length > 0)
+  const terms = [...new Set(termGroups.flat())]
+  if (terms.length === 0) {
+    return { note, projected: false }
+  }
+
+  const sections = headings.map((heading, index) => {
+    const directText = body
+      .slice(heading.start, headings[index + 1]?.start ?? body.length)
+      .trim()
+    const branchEnd =
+      headings
+        .slice(index + 1)
+        .find((candidate) => candidate.level <= heading.level)?.start ?? body.length
+    const branchText = body.slice(heading.start, branchEnd).trim()
+    const directNewline = directText.indexOf('\n')
+    return {
+      ...heading,
+      directText,
+      branchText,
+      directBody:
+        directNewline >= 0 ? directText.slice(directNewline + 1).trim() : ''
+    }
+  })
+  const scoreTerms = (section: (typeof sections)[number], group: string[]) => {
+    const title = section.title.toLocaleLowerCase()
+    const text = section.directText.toLocaleLowerCase()
+    return group.reduce(
+      (total, term) =>
+        total +
+        (title.includes(term) || (title.length >= 2 && term.includes(title))
+          ? 20
+          : 0) +
+        (text.includes(term) ? 5 : 0),
+      0
+    )
+  }
+  const scored = sections.map((section, index) => ({
+    index,
+    score: scoreTerms(section, terms),
+    groupScores: termGroups.map((group) => scoreTerms(section, group))
+  }))
+  const ranked = scored
+    .filter(({ score }) => score > 0)
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        sections[right.index].level - sections[left.index].level ||
+        left.index - right.index
+    )
+  const selected = new Set<number>()
+  for (const groupIndex of termGroups.keys()) {
+    const best = scored
+      .filter(({ groupScores }) => groupScores[groupIndex] > 0)
+      .sort(
+        (left, right) =>
+          right.groupScores[groupIndex] - left.groupScores[groupIndex] ||
+          sections[right.index].level - sections[left.index].level ||
+          left.index - right.index
+      )[0]
+    if (best) selected.add(best.index)
+  }
+  const fallbackTarget = Math.max(
+    selected.size,
+    Math.min(MAX_QUERY_FALLBACK_SECTIONS, termGroups.length)
+  )
+  for (const candidate of ranked) {
+    if (selected.size >= fallbackTarget) break
+    selected.add(candidate.index)
+  }
+  if (selected.size === 0) {
+    return { note, projected: false }
+  }
+
+  for (const selectedIndex of [...selected]) {
+    let level = sections[selectedIndex].level
+    for (let index = selectedIndex - 1; index >= 0 && level > 1; index -= 1) {
+      if (sections[index].level < level) {
+        if (selected.has(index) && !sections[index].directBody) {
+          selected.delete(selectedIndex)
+          break
+        }
+        level = sections[index].level
+      }
+    }
+  }
+
+  const ancestors = new Set<number>()
+  for (const selectedIndex of selected) {
+    let level = sections[selectedIndex].level
+    for (let index = selectedIndex - 1; index >= 0 && level > 1; index -= 1) {
+      if (sections[index].level < level) {
+        ancestors.add(index)
+        level = sections[index].level
+      }
+    }
+  }
+  const firstTitle = sections.findIndex((section) => section.level === 1)
+  if (firstTitle >= 0) {
+    ancestors.add(firstTitle)
+  }
+
+  const coveredBySelectedBranch = new Set<number>()
+  for (const selectedIndex of selected) {
+    if (sections[selectedIndex].directBody) continue
+    for (let index = selectedIndex + 1; index < sections.length; index += 1) {
+      if (sections[index].level <= sections[selectedIndex].level) break
+      coveredBySelectedBranch.add(index)
+    }
+  }
+
+  const projectedSections = sections
+    .flatMap((section, index) => {
+      if (selected.has(index)) {
+        const text = section.directBody ? section.directText : section.branchText
+        const newline = text.indexOf('\n')
+        return [
+          {
+            heading: newline >= 0 ? text.slice(0, newline).trim() : text,
+            body: newline >= 0 ? text.slice(newline + 1).trim() : ''
+          }
+        ]
+      }
+      if (coveredBySelectedBranch.has(index)) return []
+      return ancestors.has(index)
+        ? [
+            {
+              heading: `${'#'.repeat(section.level)} ${section.title}`,
+              body: ''
+            }
+          ]
+        : []
+    })
+  const fullBody = projectedSections
+    .map(({ heading, body }) => [heading, body].filter(Boolean).join('\n\n'))
+    .join('\n\n')
+  const fullProjection = [parsed.raw, fullBody].filter(Boolean).join('\n\n')
+  if (fullProjection.length <= maxContentCharacters) {
+    return {
+      note: { ...note, content: fullProjection },
+      projected: true
+    }
+  }
+
+  const headingsOnly = projectedSections.map(({ heading }) => heading).join('\n\n')
+  const fixedContent = [parsed.raw, headingsOnly].filter(Boolean).join('\n\n')
+  const bodyIndexes = projectedSections
+    .map(({ body }, index) => (body ? index : -1))
+    .filter((index) => index >= 0)
+  const bodySeparatorBudget = bodyIndexes.length * 2
+  const bodyBudgets = allocateSectionBudgets(
+    bodyIndexes.map((index) => projectedSections[index].body.length),
+    Math.max(0, maxContentCharacters - fixedContent.length - bodySeparatorBudget)
+  )
+  const budgetByIndex = new Map(
+    bodyIndexes.map((index, position) => [index, bodyBudgets[position]])
+  )
+  const compactBody = projectedSections
+    .map(({ heading, body }, index) => {
+      const bodyBudget = budgetByIndex.get(index) ?? 0
+      return bodyBudget > 0
+        ? `${heading}\n\n${body.slice(0, bodyBudget)}`
+        : heading
+    })
+    .join('\n\n')
+  const compactProjection = [parsed.raw, compactBody]
+    .filter(Boolean)
+    .join('\n\n')
+
+  return {
+    note: {
+      ...note,
+      content: compactProjection.slice(0, maxContentCharacters)
+    },
+    projected: true
+  }
+}
 
 function allocateSectionBudgets(
   sectionLengths: number[],
@@ -326,6 +535,8 @@ function buildContextBundleInternal(
     : seedIsMoc
       ? projectMocTitles(seed, seedOutgoingLinks ?? [])
       : seed
+  let projectedContextSeed = contextSeed
+  let seedWasQueryProjected = false
   if (seedIsUnscoped) {
     omittedNormalPaths.add(seed.path)
   }
@@ -344,7 +555,7 @@ function buildContextBundleInternal(
     source: Omit<ContextSource, 'truncated'>
   }> = [
     {
-      note: contextSeed,
+      note: projectedContextSeed,
       source: {
         path: seed.path,
         name: seed.name,
@@ -616,29 +827,68 @@ function buildContextBundleInternal(
   ].join('\n')
 
   let markdown = header.slice(0, maxCharacters)
+  const totalSectionBudget = Math.max(0, maxCharacters - markdown.length)
   const included: ContextSource[] = []
   const omittedPaths = [...selectionOmittedPaths].filter(
     (path) => !selected.has(path)
   )
   let truncated = header.length > maxCharacters || omittedPaths.length > 0
-  const renderedCandidates = candidates.map((candidate) => {
-    const displayNote =
-      candidate.source.contentOmitted || !isMocNote(candidate.note)
-        ? candidate.note
-        : projectMocTitles(
-            candidate.note,
-            snapshot?.outgoingByPath.get(candidate.note.path) ??
-              getOutgoingLinks(candidate.note.content, notes, pathAliases)
-          )
-    const parts = sourceSectionParts(displayNote, candidate.source)
-    const prefix = `\n${parts.prefix}`
-    return {
-      candidate,
-      parts,
-      prefix,
-      section: `${prefix}${parts.body}${parts.suffix}`
+  const renderCandidates = () =>
+    candidates.map((candidate) => {
+      const displayNote =
+        candidate.source.contentOmitted || !isMocNote(candidate.note)
+          ? candidate.note
+          : projectMocTitles(
+              candidate.note,
+              snapshot?.outgoingByPath.get(candidate.note.path) ??
+                getOutgoingLinks(candidate.note.content, notes, pathAliases)
+            )
+      const parts = sourceSectionParts(displayNote, candidate.source)
+      const prefix = `\n${parts.prefix}`
+      return {
+        candidate,
+        parts,
+        prefix,
+        section: `${prefix}${parts.body}${parts.suffix}`
+      }
+    })
+  let renderedCandidates = renderCandidates()
+  if (
+    query &&
+    !seedContentOmitted &&
+    !seedIsMoc &&
+    seedTemporal.kind === 'normal' &&
+    renderedCandidates.reduce((sum, candidate) => sum + candidate.section.length, 0) >
+      totalSectionBudget
+  ) {
+    const projectedSelectionReason = '質問に関連する見出し節'
+    const projectedSource = {
+      ...candidates[0].source,
+      selectionReasons: [
+        ...candidates[0].source.selectionReasons,
+        projectedSelectionReason
+      ]
     }
-  })
+    const projectedParts = sourceSectionParts(contextSeed, projectedSource)
+    const projectedContentBudget = Math.max(
+      0,
+      totalSectionBudget -
+        `\n${projectedParts.prefix}`.length -
+        projectedParts.suffix.length
+    )
+    const projection = projectQuerySections(
+      contextSeed,
+      query,
+      projectedContentBudget
+    )
+    projectedContextSeed = projection.note
+    seedWasQueryProjected = projection.projected
+    if (seedWasQueryProjected) {
+      candidates[0].note = projectedContextSeed
+      candidates[0].source.selectionReasons.push(projectedSelectionReason)
+      renderedCandidates = renderCandidates()
+    }
+  }
   const isProtected = ({ candidate }: (typeof renderedCandidates)[number]) =>
     candidate.source.relation === 'seed' ||
     candidate.source.temporalStatus !== undefined ||
@@ -664,15 +914,20 @@ function buildContextBundleInternal(
         .map(({ rendered }) => rendered)
       ]
     : renderedCandidates
-  const totalSectionBudget = Math.max(0, maxCharacters - markdown.length)
   const protectedSectionCount = protectedCandidates.length
+  const projectedSeedBudget = seedWasQueryProjected
+    ? Math.min(prioritizedCandidates[0].section.length, totalSectionBudget)
+    : 0
   const protectedBudgets = query
-    ? allocateSectionBudgets(
-        prioritizedCandidates
-          .slice(0, protectedSectionCount)
-          .map((candidate) => candidate.section.length),
-        totalSectionBudget
-      )
+    ? [
+        ...(seedWasQueryProjected ? [projectedSeedBudget] : []),
+        ...allocateSectionBudgets(
+          prioritizedCandidates
+            .slice(seedWasQueryProjected ? 1 : 0, protectedSectionCount)
+            .map((candidate) => candidate.section.length),
+          totalSectionBudget - projectedSeedBudget
+        )
+      ]
     : []
   let remainingQueryBudget =
     totalSectionBudget - protectedBudgets.reduce((sum, value) => sum + value, 0)
@@ -806,7 +1061,7 @@ function projectMocTitles(
       continue
     }
     seen.add(key)
-    routes.push(`- [[${target}]]`)
+    routes.push(`- [[${target}${link.alias ? `|${link.alias}` : ''}]]`)
   }
 
   const content = [`# ${note.name}`, '', ...routes].join('\n')

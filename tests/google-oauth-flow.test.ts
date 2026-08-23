@@ -23,9 +23,7 @@ describe('Google OAuth loopback flow', () => {
         const callback = new URL(url.searchParams.get('redirect_uri') ?? '')
         callback.searchParams.set('code', 'authorization-code')
         callback.searchParams.set('state', url.searchParams.get('state') ?? '')
-        setTimeout(() => {
-          void fetch(callback)
-        }, 10)
+        await fetch(callback)
       }
     })
 
@@ -50,9 +48,7 @@ describe('Google OAuth loopback flow', () => {
         const callback = new URL(url.searchParams.get('redirect_uri') ?? '')
         callback.searchParams.set('code', 'authorization-code')
         callback.searchParams.set('state', url.searchParams.get('state') ?? '')
-        setTimeout(() => {
-          void fetch(callback)
-        }, 10)
+        await fetch(callback)
       }
     })
 

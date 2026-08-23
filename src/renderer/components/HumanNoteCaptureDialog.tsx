@@ -8,11 +8,6 @@ import type { NoteDocument } from '../../shared/types'
 
 export type HumanNoteCaptureSubmission =
   | {
-      kind: 'note'
-      title: string
-      body: string
-    }
-  | {
       kind: 'daily'
       completed: string
       insight: string
@@ -30,10 +25,9 @@ export type HumanNoteCaptureSubmission =
     }
 
 interface HumanNoteCaptureDialogProps {
-  kind: 'note' | 'daily' | 'idea'
+  kind: 'daily' | 'idea'
   dateLabel: string
   error: string | null
-  initialTitle?: string
   initialValues?: HumanNoteCaptureSubmission
   notes: NoteDocument[]
   onCancel: () => void
@@ -174,7 +168,6 @@ export default function HumanNoteCaptureDialog({
   kind,
   dateLabel,
   error,
-  initialTitle = '',
   initialValues,
   notes,
   onCancel,
@@ -200,14 +193,10 @@ export default function HumanNoteCaptureDialog({
       : ''
   )
   const [title, setTitle] = useState(
-    initialValues?.kind === 'note' || initialValues?.kind === 'idea'
-      ? initialValues.title
-      : initialTitle
+    initialValues?.kind === 'idea' ? initialValues.title : ''
   )
   const [body, setBody] = useState(
-    initialValues?.kind === 'note' || initialValues?.kind === 'idea'
-      ? initialValues.body
-      : ''
+    initialValues?.kind === 'idea' ? initialValues.body : ''
   )
   const [reason, setReason] = useState(
     initialValues?.kind === 'idea' ? initialValues.reason : ''
@@ -255,11 +244,9 @@ export default function HumanNoteCaptureDialog({
     setSubmitting(true)
     try {
       const saved = await onSubmit(
-        kind === 'note'
-          ? { kind, title, body }
-          : kind === 'daily'
-            ? { kind, completed, insight, memo, next }
-            : { kind, title, body, reason, projectPath, memo, next }
+        kind === 'daily'
+          ? { kind, completed, insight, memo, next }
+          : { kind, title, body, reason, projectPath, memo, next }
       )
       if (saved) {
         onDirtyChange(false)
@@ -289,16 +276,10 @@ export default function HumanNoteCaptureDialog({
           <div className="capture-heading">
             <div>
               <h2 id={titleId}>
-                {kind === 'note'
-                  ? '新しいノート'
-                  : kind === 'daily'
-                    ? '今日のノート'
-                    : 'アイデアを追加'}
+                {kind === 'daily' ? '今日のノート' : 'アイデアを追加'}
               </h2>
               <p>
-                {kind === 'note'
-                  ? 'ノート名を入力してください。'
-                  : kind === 'daily'
+                {kind === 'daily'
                   ? `${dateLabel}の記録です。空欄はノートに追加しません。`
                   : '項目を入力するだけで、通常のノートとして保存します。'}
               </p>
@@ -319,28 +300,7 @@ export default function HumanNoteCaptureDialog({
             </p>
           )}
 
-          {kind === 'note' ? (
-            <div className="capture-fields">
-              <label>
-                <span>ノート名</span>
-                <input
-                  ref={firstInputRef as React.RefObject<HTMLInputElement | null>}
-                  value={title}
-                  required
-                  disabled={submitting}
-                  onChange={(event) => setTitle(event.target.value)}
-                />
-              </label>
-              <FriendlyTextarea
-                label="本文"
-                value={body}
-                disabled={submitting}
-                notes={notes}
-                allowHeading
-                onChange={setBody}
-              />
-            </div>
-          ) : kind === 'daily' ? (
+          {kind === 'daily' ? (
             <div className="capture-fields">
               <FriendlyTextarea
                 label="今日やったこと"

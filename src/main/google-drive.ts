@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { validateRelativePath } from '../core/paths'
 
 const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files'
@@ -64,6 +64,8 @@ export interface UpdateMarkdownInput {
   vaultId: string
   path: string
   expectedVersion: string
+  expectedMd5Checksum?: string | null
+  expectedContentHash?: string
   content: string
 }
 
@@ -73,6 +75,104 @@ export interface MoveMarkdownInput {
   oldPath: string
   path: string
   expectedVersion: string
+  expectedMd5Checksum?: string | null
+  expectedContentHash?: string
+}
+
+export interface TrashMarkdownInput {
+  fileId: string
+  vaultId: string
+  path: string
+  expectedVersion: string
+  expectedMd5Checksum?: string | null
+  expectedContentHash?: string
+}
+
+export interface DrivePathAliasObject {
+  id: string
+  vaultId: string
+  role: 'pathAliases'
+  parentId: string
+  version: string
+  md5Checksum: string | null
+  contentHash: string
+  bytes: Buffer
+}
+
+export interface CreatePathAliasInput {
+  vaultId: string
+  parentId: string
+  bytes: Buffer
+}
+
+export interface GuardedPathAliasInput {
+  fileId: string
+  vaultId: string
+  parentId: string
+  expectedVersion: string
+  expectedMd5Checksum?: string | null
+  expectedContentHash?: string
+}
+
+/** Full-list adapter used by the production classification coordinator. */
+export async function listPathAliasObjects(accessToken: string, vaultId: string, fetchImpl: typeof fetch = globalThis.fetch): Promise<DrivePathAliasObject[]> {
+  const result: DrivePathAliasObject[] = []
+  let pageToken: string | undefined
+  do {
+    const url = new URL(DRIVE_FILES_URL)
+    url.searchParams.set('q', `trashed = false and appProperties has { key='tsuzuneVaultId' and value='${queryLiteral(vaultId)}' } and appProperties has { key='tsuzuneRole' and value='pathAliases' }`)
+    url.searchParams.set('fields', 'nextPageToken,files(id,parents,version,md5Checksum,appProperties,description,trashed)')
+    url.searchParams.set('pageSize', '1000')
+    if (pageToken) url.searchParams.set('pageToken', pageToken)
+    const payload = asRecord(await requestJson(fetchImpl, url, { headers: authorizationHeaders(accessToken) }))
+    const files = Array.isArray(payload?.files) ? payload.files : []
+    for (const raw of files) {
+      const file = asRecord(raw); const props = asProperties(file?.appProperties)
+      const id = asString(file?.id); const version = asString(file?.version)
+      if (!id || !version || props.tsuzuneVaultId !== vaultId || props.tsuzuneRole !== 'pathAliases') continue
+      const parentId = asStringArray(file?.parents)[0]; if (!parentId) continue
+      const bytes = await downloadMarkdown(accessToken, id, fetchImpl)
+      const buffer = Buffer.from(bytes)
+      result.push({ id, vaultId, role: 'pathAliases', parentId, version, md5Checksum: asString(file?.md5Checksum), contentHash: sha256(buffer), bytes: buffer })
+    }
+    pageToken = asString(payload?.nextPageToken) ?? undefined
+  } while (pageToken)
+  return result
+}
+
+export async function updatePathAliasObject(accessToken: string, input: GuardedPathAliasInput & { bytes: Buffer }, fetchImpl: typeof fetch = globalThis.fetch): Promise<DrivePathAliasObject> {
+  const current = (await listPathAliasObjects(accessToken, input.vaultId, fetchImpl)).find((entry) => entry.id === input.fileId)
+  if (!current || current.parentId !== input.parentId || current.version !== input.expectedVersion || !matchesHash(current, input)) throw new Error('Google Drive Path Alias object changed.')
+  const url = new URL(`${DRIVE_UPLOAD_URL}/${encodeURIComponent(input.fileId)}`); url.searchParams.set('uploadType', 'media'); url.searchParams.set('fields', 'id,parents,version,appProperties')
+  const raw = await requestJson(fetchImpl, url, { method: 'PATCH', headers: authorizationHeaders(accessToken, { 'content-type': 'application/json' }), body: new Uint8Array(input.bytes) })
+  const file = asRecord(raw); return { ...current, version: asString(file?.version) ?? current.version, md5Checksum: asString(file?.md5Checksum), contentHash: sha256(input.bytes), bytes: input.bytes }
+}
+
+/** Create only when the vault has no active path-alias object. */
+export async function createPathAliasObject(accessToken: string, input: CreatePathAliasInput, fetchImpl: typeof fetch = globalThis.fetch): Promise<DrivePathAliasObject> {
+  const existing = await listPathAliasObjects(accessToken, input.vaultId, fetchImpl)
+  if (existing.length !== 0) throw new Error('Google Drive Path Alias object already exists.')
+  const url = new URL(DRIVE_UPLOAD_URL)
+  url.searchParams.set('uploadType', 'multipart')
+  url.searchParams.set('fields', 'id,parents,version,md5Checksum,appProperties,description,trashed')
+  const multipart = multipartBytes({ name: 'path-aliases.json', mimeType: 'application/json', parents: [input.parentId], appProperties: { tsuzuneVaultId: input.vaultId, tsuzuneRole: 'pathAliases' } }, input.bytes)
+  const raw = await requestJson(fetchImpl, url, { method: 'POST', headers: authorizationHeaders(accessToken, { 'content-type': multipart.contentType }), body: Buffer.from(multipart.body) })
+  const file = asRecord(raw)
+  const id = asString(file?.id); const version = asString(file?.version); const parentId = asStringArray(file?.parents)[0]
+  const props = asProperties(file?.appProperties)
+  if (!id || !version || parentId !== input.parentId || props.tsuzuneVaultId !== input.vaultId || props.tsuzuneRole !== 'pathAliases' || file?.trashed === true) throw new Error('Google Drive Path Alias object creation was not verified.')
+  const bytes = Buffer.from(input.bytes)
+  return { id, vaultId: input.vaultId, role: 'pathAliases', parentId, version, md5Checksum: asString(file?.md5Checksum), contentHash: sha256(bytes), bytes }
+}
+
+/** Trash an alias only if its identity and content still match the preimage. */
+export async function trashPathAliasObject(accessToken: string, input: GuardedPathAliasInput, fetchImpl: typeof fetch = globalThis.fetch): Promise<void> {
+  const current = (await listPathAliasObjects(accessToken, input.vaultId, fetchImpl)).find((entry) => entry.id === input.fileId)
+  if (!current || current.parentId !== input.parentId || current.version !== input.expectedVersion || !matchesHash(current, input)) throw new Error('Google Drive Path Alias object changed.')
+  const url = new URL(`${DRIVE_FILES_URL}/${encodeURIComponent(input.fileId)}`)
+  url.searchParams.set('fields', 'id,parents,version,appProperties,trashed')
+  const raw = await requestJson(fetchImpl, url, { method: 'PATCH', headers: authorizationHeaders(accessToken, { 'content-type': 'application/json' }), body: JSON.stringify({ trashed: true }) })
+  verifyTrashResponse(raw, input.fileId)
 }
 
 type UnknownRecord = Record<string, unknown>
@@ -544,12 +644,30 @@ export async function updateMarkdown(
   if (
     current.id !== input.fileId ||
     current.appProperties.tsuzuneVaultId !== input.vaultId ||
-    current.path !== path ||
-    current.version !== input.expectedVersion
+    current.path !== path
   ) {
     throw new Error(
-      'Google Drive側の版が変わりました。同期内容を確認し直してください。'
+      `Google Drive側のノートまたは場所が変わりました。同期内容を確認し直してください: ${path}`
     )
+  }
+  if (current.version !== input.expectedVersion) {
+    const md5Matches =
+      Boolean(input.expectedMd5Checksum) &&
+      current.md5Checksum === input.expectedMd5Checksum
+    if (!md5Matches) {
+      const currentContent = input.expectedContentHash
+        ? await downloadMarkdown(accessToken, input.fileId, fetchImpl)
+        : null
+      if (
+        currentContent === null ||
+        createHash('sha256').update(currentContent).digest('hex') !==
+          input.expectedContentHash
+      ) {
+        throw new Error(
+          `Google Drive側の内容が変わりました。同期内容を確認し直してください: ${path}`
+        )
+      }
+    }
   }
   const multipart = multipartBody(
     markdownMetadata(input.vaultId, path, undefined, true),
@@ -583,12 +701,30 @@ export async function moveMarkdown(
   if (
     current.id !== input.fileId ||
     current.appProperties.tsuzuneVaultId !== input.vaultId ||
-    current.path !== oldPath ||
-    current.version !== input.expectedVersion
+    current.path !== oldPath
   ) {
     throw new Error(
       'Google Drive側の版または場所が変わりました。同期内容を確認し直してください。'
     )
+  }
+  if (current.version !== input.expectedVersion) {
+    const md5Matches =
+      Boolean(input.expectedMd5Checksum) &&
+      current.md5Checksum === input.expectedMd5Checksum
+    if (!md5Matches) {
+      const currentContent = input.expectedContentHash
+        ? await downloadMarkdown(accessToken, input.fileId, fetchImpl)
+        : null
+      if (
+        currentContent === null ||
+        createHash('sha256').update(currentContent).digest('hex') !==
+          input.expectedContentHash
+      ) {
+        throw new Error(
+          `Google Drive側の内容が変わりました。同期内容を確認し直してください: ${oldPath}`
+        )
+      }
+    }
   }
 
   const url = new URL(`${DRIVE_FILES_URL}/${encodeURIComponent(input.fileId)}`)
@@ -602,4 +738,69 @@ export async function moveMarkdown(
       body: JSON.stringify(markdownMetadata(input.vaultId, path, undefined, true))
     })
   )
+}
+
+function multipartBytes(metadata: UnknownRecord, bytes: Buffer): { contentType: string; body: Uint8Array } {
+  const boundary = `tsuzune_${randomUUID()}`
+  const head = [`--${boundary}`, 'Content-Type: application/json; charset=UTF-8', '', JSON.stringify(metadata), `--${boundary}`, 'Content-Type: application/json', '', '']
+  const prefix = new TextEncoder().encode(head.join('\r\n'))
+  const suffix = new TextEncoder().encode(`\r\n--${boundary}--\r\n`)
+  const body = new Uint8Array(prefix.byteLength + bytes.byteLength + suffix.byteLength)
+  body.set(prefix); body.set(bytes, prefix.byteLength); body.set(suffix, prefix.byteLength + bytes.byteLength)
+  return { contentType: `multipart/related; boundary=${boundary}`, body }
+}
+
+function sha256(bytes: Uint8Array): string {
+  return createHash('sha256').update(bytes).digest('hex')
+}
+
+function matchesHash(current: DrivePathAliasObject, input: GuardedPathAliasInput): boolean {
+  if (input.expectedMd5Checksum !== undefined && current.md5Checksum !== input.expectedMd5Checksum) return false
+  return input.expectedContentHash === undefined || current.contentHash === input.expectedContentHash
+}
+
+function verifyTrashResponse(value: unknown, expectedId: string): void {
+  const response = asRecord(value)
+  if (response?.id !== expectedId || response.trashed !== true) {
+    throw new Error('Google Drive側の削除応答を検証できませんでした。')
+  }
+}
+
+export async function trashMarkdown(
+  accessToken: string,
+  input: TrashMarkdownInput,
+  fetchImpl: typeof fetch = globalThis.fetch
+): Promise<void> {
+  const current = await getMarkdownMetadata(accessToken, input.fileId, fetchImpl)
+  if (
+    current.id !== input.fileId ||
+    current.appProperties.tsuzuneVaultId !== input.vaultId ||
+    current.path !== normalizedMarkdownPath(input.path)
+  ) {
+    throw new Error('Google Drive側の削除対象または場所が変わりました。同期内容を確認し直してください。')
+  }
+  if (current.version !== input.expectedVersion) {
+    const md5Matches = Boolean(input.expectedMd5Checksum) &&
+      current.md5Checksum === input.expectedMd5Checksum
+    if (!md5Matches) {
+      const currentContent = input.expectedContentHash
+        ? await downloadMarkdown(accessToken, input.fileId, fetchImpl)
+        : null
+      const contentMatches = currentContent !== null &&
+        createHash('sha256').update(currentContent).digest('hex') === input.expectedContentHash
+      if (!contentMatches) {
+        throw new Error('Google Drive側の削除対象が変わりました。同期内容を確認し直してください。')
+      }
+    }
+  }
+  const url = new URL(`${DRIVE_FILES_URL}/${encodeURIComponent(input.fileId)}`)
+  url.searchParams.set('fields', 'id,trashed')
+  const raw = await requestJson(fetchImpl, url, {
+    method: 'PATCH',
+    headers: authorizationHeaders(accessToken, {
+      'content-type': 'application/json; charset=UTF-8'
+    }),
+    body: JSON.stringify({ trashed: true })
+  })
+  verifyTrashResponse(raw, input.fileId)
 }

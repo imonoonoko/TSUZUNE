@@ -1,6 +1,6 @@
 # TSUZUNE Project Status
 
-更新日: 2026-08-15（JST）
+更新日: 2026-08-23（JST）
 
 この文書は、TSUZUNEの「今」を一枚で確認するための入口です。実行順と将来計画は[PLAN.md](PLAN.md)、製品の不変条件は[PRODUCT.md](PRODUCT.md)、画面・ブランド規約は[DESIGN.md](DESIGN.md)を正本とします。完了証拠は[docs/INDEX.md](docs/INDEX.md)から辿ります。
 
@@ -8,27 +8,32 @@
 
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
-| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-15 04:45 JSTにA2-1 Renderer検索演算子をworking-tree snapshotから更新し、全655 tests、10/10 checks、MCP 6 read＋7 write、packaged／installed smoke、build／installed hash一致、profile 58 files不変、MCP再登録まで確認 | [production-update-latest.json](docs/reports/production-update-latest.json) |
+| インストール済み本番 | v0.5.0、`installed-and-verified`。2026-08-22のWorkspace Tabs R5までを含む製品source checkpointから更新し、770 PASS／1 SKIP、10/10 checks、packaged／installed smoke、build／installed hash一致、profile 58 files不変、MCP再登録まで確認。現在のdirty working sourceはreceipt後の変更を含み、`delivery_info:mismatch`のためinstalled productionと同一視しない | [production-update-latest.json](docs/reports/production-update-latest.json)／[R5 acceptance](docs/reports/workspace-tabs-r5-2026-08-22.md) |
 | Icon refresh | Interwoven Bellのapp／tray専用assetを本番反映済み。全626 tests、10/10 checks、build／installed hash一致、profile 57 files不変。タイトルバー、アプリ内ヘッダー、タスクバー、通知領域のinstalled実機目視もPASSし、slice完了 | [icon refresh](docs/reports/tsuzune-icon-refresh-2026-08-14.md) |
 | 公開配布 | PR #1をmerge commit `4854bdd`で`main`へ統合し、`v0.5.0`を公開Releaseとして配布済み。installer、blockmap、`latest.yml`の匿名HTTP取得、digest、public updater feedを確認。未署名のためSmartScreen警告は残る | [public repository readiness](docs/reports/public-repository-readiness-2026-08-15.md) |
 | Graph直近slice | CP1-B-02で実在Markdownノートにも`フォルダで表示`を接続。公式production updateの全529 tests／10 checksを通して本番反映済み | [CP1-B-02](docs/reports/cp1-b-02-note-folder-reveal-2026-08-13.md) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
-| 最優先Track | P0の履歴ノイズ除外は完了。現在はO1 7-day dogfoodの観測期間で、ニューロン系拡張を加えず通常利用の摩擦とP0の体感差を記録する | [PLAN.md](PLAN.md#current-transition-queue) |
-| 次の縦切り | P0の履歴ノイズ除外とS3 move実機受入は完了。O1 7-day dogfoodで体感差と副作用を観測し、再確認漏れが反復した場合だけfreshness行動キュー、反復しなければ削除伝播を次sliceとして検討する | [S3 acceptance](docs/reports/drive-sync-explicit-note-move-s3-2026-08-14.md) |
+| 最優先Track | 現役Primary Trackは0。P0-1 Quick Switcher、P0-2 Command Palette、P0-3/R3 Full-text Search、P0-4/R4 FileTree keyboard／ARIA、R5 Workspace Tabs keyboard／ARIAは本番受入済み。現在状態コンパイラR1〜R10とCompact Decision EnvelopeはHeldで、承認済みの次sliceはない | [PLAN.md](PLAN.md#current-decision) |
+| 直近4項目 | 左右sidebar独立開閉、既定offのDrive削除伝播、AI履歴止血／将来連鎖metadata、明示5ノート分類applyを完了。旧履歴の圧縮だけは安全条件未達のため未実施 | [Drive deletion](docs/reports/drive-deletion-propagation-acceptance-2026-08-17.md)／[history](docs/reports/history-compaction-preview-2026-08-16.md)／[classification](docs/reports/classification-production-gate-2026-08-17.md) |
+| 直近UX区切り | R4でFileTreeのtreeitem／roving tabindex／Arrow・Home・End・typeahead／IME境界を、R5でWorkspace Tabsのkeyboard／ARIA／close後focusを本番反映。Daily Workspace Phase Bで100%表示、High Contrast、Narrator、主要focus境界もinstalled binary上で確認した | [R4 evidence](docs/reports/daily-workspace-phase-a-2026-08-22.md)／[R5 acceptance](docs/reports/workspace-tabs-r5-2026-08-22.md)／[Phase B](docs/reports/daily-workspace-phase-b-2026-08-22.md) |
+| Quick Switcher P0-1 | `Ctrl+O`、session MRU、タイトル／path／本文検索、重複path表示、Arrow／Home／End、Enter／Ctrl+Enter、作成先確認、Escape focus復帰を本番反映。10,000ノート30 queryでp95 26.1ms、隔離Electron 2 viewport、Markdown不変を確認 | [acceptance](docs/reports/quick-switcher-2026-08-17.md)／[performance](docs/reports/assets/quick-switcher-2026-08-17/performance-result.json) |
+| Command Palette P0-2 | `Ctrl+P`、日本語label／英語keyword検索、12件の既存action、shortcut／現在状態／disabled reason、keyboard／focus／単一modalを本番反映。全755 PASS／1 SKIP、隔離Electron wide／最小幅、Markdown不変を確認 | [acceptance](docs/reports/command-palette-2026-08-17.md)／[UI evidence](docs/reports/assets/command-palette-2026-08-17/capture-result.json) |
+| Full-text Search P0-3/R3 | `Ctrl+Shift+F`でpersistent searchをreveal／focusし、`Ctrl+K`互換を維持。既存operatorのinline help、title／path／modified／excerpt、肯定語の`mark`／太字／下線強調を本番反映。隔離ElectronとMarkdown digest不変を確認 | [acceptance](docs/reports/full-text-search-2026-08-18.md)／[UI evidence](docs/reports/assets/full-text-search-2026-08-18/capture-result.json) |
+| PCTX-A1設計受入 | 初回AC1 FAIL／AC2・AC3 PASSを受けてartifact契約を補正。別の自然作業「右コンテキスト3タブ化」で独立したno-retry受入を行い、AC1／AC2／AC3すべてPASS。製品機能の追加は不要と判断 | [要件](.agent/requirements/20260817-0510-portable-context-handoff/4_requirements.md) |
 | 起動安全性 | Electronのsingle-instance lockを本番反映。後続起動は終了し、既存windowを表示・復元・focusする。installed appの2回連続起動で主プロセス1件・同一PIDを実測 | [single-instance acceptance](docs/reports/single-instance-startup-2026-08-15.md) |
 | Graph／Excluded files checkpoint | CP0-T04で未解決Wiki nodeのidentityと検索保持を閉じ、CP0-T05でapp-wide Excluded filesを本番MCP search／Contextへ接続した。Manage UI、FileTree directory、全surfaceのObsidian固定比較は未完。GP0-3b-pはGraph再表示camera gate不成立で`blocked` | [CP0-T05 report](docs/reports/cp0-t05-excluded-files-mcp-retrieval-2026-08-12.md) |
 | Context checkpoint | X1-M1は`type: moc`を全タイトル一覧へ投影し、X1-D1はbaseline candidate集合を変えず通常本文だけを質問で優先する。X1-S1aはstable scanで同一canonical creation-time sidecarを再書込みせず、X1-S1bはmatching revisionと同一本文のAI自律更新を履歴なしno-opにして本番反映した。X1-T1は`build_context`だけをstructured-onlyにし、Codex Desktop local stdioで意味指標不変・wire 54.7%減・p95非悪化、fixture 12/12、回答品質4/4、source trace 3/3、future leakage 0、write 0を確認して本番反映した | [X1-T1 report](docs/reports/x1-t1-structured-only-transport-2026-08-12.md) |
-| MCP runtime | `build_context`のstructured-onlyを維持し、direct serverは13ツール、Codex登録は10ツール。Drive previewはread-only、applyは確認対象。Google tokenを渡さず、ウィンドウを隠したTray常駐中もpreview可能。本番反映・runtime受入済み | [Drive bridge](docs/reports/drive-sync-mcp-bridge-2026-08-14.md) |
-| Google OAuth reconnect correction | 失効済みrefresh tokenの再認証時、Googleのcanonical userinfo scopeを短縮scopeと同値判定できず拒否していた。`f6e85f4`で比較だけを正規化し、修正版で再認証、refresh HTTP 200、Drive read HTTP 200を確認。その後、既存Drive Vaultへ同期し、再確認で送信0／受信0／競合0／保持0のclean baselineまで実測した | [report](docs/reports/google-oauth-scope-reconnect-2026-08-14.md) |
-| MCP retrieval observation | MCP-R1は3/3完了。sample 2・3で`50_履歴/AI更新`の近似重複を再観測し、search/rankingシグナル2/3。新規BM25より、既存history既定除外のruntime受入を先に行う | [protocol](docs/reports/mcp-retrieval-route-observation-2026-08-13.md) |
-| Context remaining | host usageはrolloutからtask別に再取得済み。single-worker pairのfresh側88.58%減は一対だけで一般化しない。CP1-B 3件はFAIL／PASS／BLOCKED、sample 3もinput 2,303,178・cached 96.06%。source／revision／range単位の再読と実費は未観測。X1-C2はContext bundle量が次の主要因と判明するまでheld。Hooks shadowは採用根拠なし | [PLAN.md](PLAN.md#primary-track--x1-cp0-context-profiler-baseline) |
+| MCP runtime | `build_context`のtransport契約を維持し、Codex／Freebuff共通16ツール、direct 18ツール（read 10／write 8）。`delivery_info`はsourceとlatest receiptのstatus一つだけを明示呼出しで返す。Drive preview／確認付きapplyと単一Markdownのpreflight／moveは起動中本体へ委譲し、本体停止中はfail-closed | [Delivery info](docs/reports/delivery-info-implementation-2026-08-18.md)／[Drive bridge](docs/reports/drive-sync-mcp-bridge-2026-08-14.md) |
+| Google Drive current baseline | 既定の片側削除preserveは維持し、明示opt-in時だけlocal→Drive trash／remote→local `.trash`を伝播する。隔離実Driveでrestart収束まで受入済み。本番分類5件は同じremote objectのmetadata relocationとPath Alias同期を完了 | [Drive deletion](docs/reports/drive-deletion-propagation-acceptance-2026-08-17.md)／[classification](docs/reports/classification-production-gate-2026-08-17.md)／[receipt](docs/reports/production-update-latest.json) |
+| MCP retrieval observation | MCP-R1の履歴近似重複を受け、通常discoveryからの`50_履歴`除外と同一本文no-opは本番反映済み。既存履歴のread-only圧縮previewは153/153 targetsが旧形式で連鎖検証不能のため未適用 | [history preview](docs/reports/history-compaction-preview-2026-08-16.md) |
+| Context remaining | host usageはrolloutからtask別に再取得済み。single-worker pairのfresh側88.58%減は一対だけで一般化しない。CP1-B 3件はFAIL／PASS／BLOCKED、sample 3もinput 2,303,178・cached 96.06%。source／revision／range単位の再読と実費は未観測。X1-C2はContext bundle量が次の主要因と判明するまでheld。Codex統合は既存経路の運用契約として確定し、製品Primaryへ数えない。Stale runtime write guardは公開mutation 8件をfail-closed化。Delivery infoは18〜21-byte応答、646-byte schema増分、repository外cwd／非書込みfixtureで実装済み。installed同一性はreceiptを正本とし、Codex Lifecycle HooksとTSUZUNE内部Hooksは別laneで、どちらも採用根拠なし | [Delivery info implementation](docs/reports/delivery-info-implementation-2026-08-18.md)／[Stale guard implementation](docs/reports/stale-runtime-write-guard-implementation-2026-08-18.md) |
 
 2026-08-12のdelivery-boundary checkpointでは、現行sourceの58 files／519 tests、MCP smoke、X1-T1 fixture 12/12を再確認した。installed executable／app.asar hashはreceiptと一致するが、通常利用後のproduction profile digestはreceipt時点と異なる。これは現在のprofileを受領書の不変性で主張しないための記録であり、P0はprofile、installer、releaseを変更していない。[詳細](docs/reports/delivery-boundary-checkpoint-2026-08-12.md)
 
 ## 実装済みの基盤
 
 - ローカルMarkdown編集、folder、Wiki link、backlink、検索、添付preview。
-- MCPによる検索、取得、backlink、Context、明示作成、revision付き更新、狭いpatch、履歴付きAI自律更新、Drive同期preview／apply。Codex Desktopへはこの10ツールを登録し、direct serverの`suggest_links`／`move_note`／`add_link`は未登録のままにする。Drive同期は起動中の本体だけがGoogle認証を保持し、applyは確認対象。`40_情報源`／`50_履歴`と設定した追加pathはAIのノート書き込み経路から保護する。
+- MCPによる検索、取得、backlink、Context、directory inventory、runtime／delivery境界、明示作成、revision付き更新、狭いpatch、履歴付きAI自律更新、Drive同期preview／apply、単一Markdownのpreflight／move。Codex／Freebuff共通16、direct 18ツール。Drive同期とmoveは起動中本体へ委譲する。`40_情報源`はAIの作成・編集を拒否しつつ領域内へのmoveだけ許可し、領域外への持出しは拒否する。`50_履歴`はmoveを含め不変。
 - Path Alias読取基盤。旧pathを現行ノートへ一意に解決しつつ、実在する旧path、壊れた設定、MCP revision、bookmark／last noteの整合性を保護する。
 - Temporal Memory Lite M0〜M5。valid-timeとknowledge-timeを分け、過去時点への未来情報混入を保守的に抑制する。
 - Local／Global Graph、円形node、Canvas edge、Force runtime、Graph設定、Groups、検索、Animate、状態復元のcheckpoint実装。
@@ -56,15 +61,15 @@ O2-P3では匿名一時Vaultだけを使うtest-only prototypeをHEAD `560b54d`�
 
 CP1-C-03では残る`DRIVE_PATH_ALIAS_UNSUPPORTED`を、O2-P4Aのsidecar同期とO2-P4Bの既存Drive file IDによる明示remote relocationへ分割しました。先にP4Aだけをfake remoteで実装し、P4B、live Drive、本番Vault applyへ自動的に進みません。
 
-CP1-C-04ではO2-P4Aをtest-only prototypeとして実装しました。local-only create、remote-only download、equal no-op、clean ledgerに基づく片側変更、履歴不足・両側変更・version driftのconflict、unique ownership、exact-byte transfer、preview/apply再検証、ledger失敗時のlocal preimage復元を16 testsで固定しました。関連5 files／69 tests、全61 files／585 tests、typecheckはPASSしています。実Drive、P4B remote relocation、製品entry point、本番Vault applyは未実施です。
+CP1-C-04ではO2-P4Aをtest-only prototypeとして実装しました。local-only create、remote-only download、equal no-op、clean ledgerに基づく片側変更、履歴不足・両側変更・version driftのconflict、unique ownership、exact-byte transfer、preview/apply再検証、ledger失敗時のlocal preimage復元を16 testsで固定しました。関連5 files／69 tests、全61 files／585 tests、typecheckはPASSしています。実Drive、P4B remote relocation、製品entry point、本番Vault applyが未実施というのは2026-08-13時点のprototype境界で、後続gateは2026-08-17に完了しました。
 
-CP1-C-05ではO2-P4Bをtest-only prototypeとして実装しました。明示planだけを対象に既存Drive file ID、content hash、parentを保ったmetadata relocation、local P3／remote notes／remote alias／両ledgerのcombined recovery、remote／alias／ledger failpoint、remote／local rollback drift時のpacket保持と再実行block、完了時のremote再取得を12 testsで固定しました。関連3 files／43 tests、全62 files／608 tests、typecheckはPASSしています。実Drive、OAuth、製品entry point、本番Vault applyは未実施です。
+CP1-C-05ではO2-P4Bをtest-only prototypeとして実装しました。明示planだけを対象に既存Drive file ID、content hash、parentを保ったmetadata relocation、local P3／remote notes／remote alias／両ledgerのcombined recovery、remote／alias／ledger failpoint、remote／local rollback drift時のpacket保持と再実行block、完了時のremote再取得を12 testsで固定しました。関連3 files／43 tests、全62 files／608 tests、typecheckはPASSしています。実Drive、OAuth、製品entry point、本番Vault applyが未実施というのは2026-08-13時点のprototype境界で、後続gateは2026-08-17に完了しました。
 
 CP1-C-06では実Google資格情報と受入専用disposable Drive fixtureを使い、MarkdownとPath Alias objectの同一file ID、parent、private path metadata、version、exact bytesのforward／reverse roundtripをPASSしました。新規作成したfolder／Markdown／Aliasの3件は3/3でゴミ箱へ移し、既存Drive Vaultと本番Vaultは変更していません。`DRIVE_PATH_ALIAS_UNSUPPORTED`のlive契約blockerはclosedですが、本番classification applyは別承認です。
 
-CP1-C-07ではTSUZUNE writeback履歴まで含む最新の本番Vaultをread-onlyで再解析し、5 moves／15,601 bytes、140 Wiki参照、23 rollback preimages、547-file Vault fingerprintを固定しました。dry-run前後は不変です。ただしGoogle接続後のactive production Vaultにはpaired remote rootと完了済みsync baselineがなく、remote 5 objectsのfile ID／version／parent／hashを固定できません。承認要求前でblockedとし、通常sync baseline確立までapplyを禁止します。
+CP1-C-07ではTSUZUNE writeback履歴まで含む当時の本番Vaultをread-onlyで再解析し、5 moves／15,601 bytes、140 Wiki参照、23 rollback preimages、547-file Vault fingerprintを固定しました。dry-run前後は不変です。当時のpaired remote root／sync baseline不足というblockerは、2026-08-16の本番同期で解消しました。
 
-その後、active production Vaultは既存Drive Vaultと接続し、初回同期後の再確認で送信0／受信0／競合0／保持0のclean baselineを確立しました。ただしCP1-C-07 packetのremote previewはこのbaseline後に再固定していないため、classification applyの承認・実行は禁止を継続します。Drive Sync S1ではremote versionをledgerへ保存し、同一versionの本文downloadを省略するmetadata-first previewを本番反映しました。旧ledgerは最初の確認だけ全本文を読んで移行します。
+2026-08-17にfresh production gateを作り、現在の5 sources／20,001 bytes、remote identity／version／parent／content hash、Path Alias、両ledger、rollback preimagesを再凍結しました。失敗注入相当の実行時不具合3件はいずれもfail-closedで復元・監査した後に根因修正し、最終applyで5件を`30_知識/ソフトウェア開発/`へ同一byteで移動しました。remote 5 objects、Path Alias 5件、pending move 0、recovery／rollback packet消去を再取得で確認済みです。
 
 - [O2-P2 Classification Migration Dry-run](docs/reports/o2-p2-classification-migration-dry-run-2026-08-10.md)
 - [O2-P2 explicit plan](docs/migrations/o2-p2-operations-plan.json)
@@ -72,6 +77,7 @@ CP1-C-07ではTSUZUNE writeback履歴まで含む最新の本番Vaultをread-onl
 - [O2-P4 Drive Path Alias contract](docs/reports/cp1-c-03-drive-path-alias-contract-2026-08-13.md)
 - [O2-P4A test-only sidecar sync prototype](docs/reports/cp1-c-04-o2-p4a-sidecar-sync-prototype-2026-08-13.md)
 - [O2-P4B test-only relocation／recovery prototype](docs/reports/cp1-c-05-o2-p4b-relocation-recovery-prototype-2026-08-13.md)
+- [O2 production classification gate](docs/reports/classification-production-gate-2026-08-17.md)
 
 ### Graph
 
@@ -148,15 +154,19 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 
 ## 優先キュー
 
+現在の候補整理は[改善・未達成項目 実行台帳](docs/reports/tsuzune-improvement-ledger-2026-08-23.md)を参照します。製品Primaryはありません。日常利用観測を自然利用内で続け、次作業はRepository closeoutのread-only棚卸しに限定します。削除・commit・push・production updateは未承認で、その他は再開条件付きHeldまたはResearchです。
+
 1. **P0 completed delivery:** frozen 245-file inventoryをC0〜C4、C5 exact-pin復旧、4 mixed-path解消、C6/C9 documentation、H1不採用削除へ分離してpushし、clean source `b2fd6bf`を公式`production:update`で本番受入した。
 2. **P1 completed acceptance:** Drive Sync S1を本番反映し、旧ledger warm-up後の差分なし再確認が実機で約1〜2秒となりPASS。
 3. **P1 completed live acceptance:** S2 Drive Changes APIを全617 tests／10 checksで本番反映し、installed app連続previewは初回bootstrap約7秒、2回目Changes差分経路約1秒で受入PASS。
 4. **P1 completed live acceptance:** S3 Explicit Note Moveを全624 tests／10 checksで本番反映。2026-08-15にinstalled app内の単一ノート移動をpreview移動1件→apply移動1件→再preview 0件で受入PASS。
 5. **P1 background runtime completed and live-accepted:** 通知領域常駐を本番反映し、×で隠した後もprocess／MCPが生存。背景状態のDrive previewは送信12／受信0／移動0／競合0／保持16でPASSし、applyは未実施。
-6. **P1 product observation:** O1 7-day dogfood。機能を追加せず、通常ノートの作成、検索、link、Graph、MCP handoffの摩擦を記録する。
-7. **P1 supporting acceptance:** MCP-R1は3/3完了し、履歴近似重複が2/3。新規BM25ではなく、sourceに実装済みの`50_履歴/**`既定除外をactive MCP runtimeで一度受入する。
-8. **Blocked before approval:** CP1-C-07のlocal側は固定済みでpaired sync baselineも成立したが、remote 5 objectsのread-only previewは未更新。本番classification applyは引き続き行わない。
-9. **Held:** X1-C2、新規BM25/cache/task-state、Hooks/co-occurrence、Excluded files残件、Graph backlog、実Windows accessibility、Google intake、ChatGPT C1-Dは各resume条件が満たされるまで開始しない。
+6. **Early-closed observation:** O1 7-day dogfoodは2026-08-16にDay 2で終了。7日完遂とは扱わず、未解決repeat 2件以上は0。
+7. **P1 completed and installed:** 独立sidebar、Drive削除伝播、AI履歴止血／将来連鎖metadataを実装し、削除伝播は隔離実Drive、履歴は本番read-only digestで受入した。旧履歴の圧縮は未適用。
+8. **P1 completed production apply:** 明示5 notesの分類移動、remote relocation、Path Alias、両ledger、recovery clean-upを本番で完了した。
+9. **P1 completed and installed:** 右コンテキストをリンク／バックリンク／時間の3タブへ整理し、全725 tests、隔離UI、10/10 production checksで受入完了。PCTX-A1の補正後受入もAC1／AC2／AC3すべてPASSし、新しい製品機能は不要と判断した。
+10. **P0-4/R4 and R5 completed and installed:** FileTree keyboard／ARIAとWorkspace Tabs keyboard／ARIAを全770 PASS／1 SKIP、隔離Electron、10/10 production checksで本番受入した。Phase Bのinstalled実機境界も確認済み。
+11. **Held:** X1-C2、新規BM25/cache/task-state、Hooks/co-occurrence、Excluded files残件、Graph backlog、Google intake、ChatGPT C1-Dは各resume条件が満たされるまで開始しない。
 
 ## CheckpointとWorking treeの扱い
 

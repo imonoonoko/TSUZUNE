@@ -2,15 +2,11 @@ import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { parseUserIgnoreFilters } from '../shared/excluded-files'
-import {
-  parseAiImmutablePaths,
-  parseAiReviewPaths
-} from '../shared/ai-write-policy'
+import { parseAiReviewPaths } from '../shared/ai-write-policy'
 
 interface StoredSettings {
   lastVaultPath?: unknown
   userIgnoreFilters?: unknown
-  aiImmutablePaths?: unknown
   aiReviewPaths?: unknown
 }
 
@@ -29,14 +25,12 @@ export async function resolveVaultSource(
 ): Promise<{
   vaultPath: string
   userIgnoreFilters: string[]
-  aiImmutablePaths: string[]
   aiReviewPaths: string[]
 }> {
   if (options.explicitVaultPath?.trim()) {
     return {
       vaultPath: resolve(options.explicitVaultPath),
       userIgnoreFilters: [],
-      aiImmutablePaths: [],
       aiReviewPaths: []
     }
   }
@@ -67,7 +61,6 @@ export async function resolveVaultSource(
   return {
     vaultPath: resolve(parsed.lastVaultPath),
     userIgnoreFilters: parseUserIgnoreFilters(parsed.userIgnoreFilters),
-    aiImmutablePaths: parseAiImmutablePaths(parsed.aiImmutablePaths),
     aiReviewPaths: parseAiReviewPaths(parsed.aiReviewPaths)
   }
 }

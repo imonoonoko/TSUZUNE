@@ -13,8 +13,10 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 - **自然に書く** — 通常ノートをすぐ編集画面で開き、Daily／Ideaを含む自由に増やせるテンプレートと簡易書式ツールバーを使えます。
 - **Markdownのまま残す** — ノートは`.md`、添付は通常ファイル。TSUZUNEがなくても一般的なeditorで読めます。
 - **知識をつなぐ** — `[[Wiki link]]`、backlink、未解決link、ブックマーク、Local/Global Graph。
-- **必要なノートを探す** — 全文検索に加え、AND、除外、`tag:`／`path:`／`file:`、完全phraseで絞り込めます。
+- **すばやく開く** — `Ctrl+O`のQuick Switcher、`Ctrl+P`のCommand Palette、複数ノートを行き来できるworkspace tab。
+- **必要なノートを探す** — `Ctrl+Shift+F`で「内容を検索」を開き、AND、除外、`tag:`／`path:`／`file:`、完全phraseで絞り込めます。
 - **安全に整理する** — 一覧の右クリックから名前変更、移動、`.trash`への退避。衝突時は上書きしません。
+- **画面を広く使う** — 左右のsidebarを独立して閉じ、必要な側だけ再表示できます。
 - **古さに気づく** — 最終更新日時と任意の`review_after`から、再確認の目安を非破壊で表示。
 - **時間を区別する** — 現在・過去・未来、情報が有効だった時点とAIが知った時点を分離。
 - **AIと共有する** — MCP経由で検索、取得、Context構築、競合検知付き更新、履歴付きAI更新。
@@ -91,24 +93,30 @@ TSUZUNEで使うVaultを一度開いた後、開発repositoryで次を実行し�
 npm run mcp:register
 ```
 
-Codex Desktopへ登録するMCP toolは10個です。
+Codex Desktopへ登録するMCP toolは16個です。
 
 | Tool | 用途 |
 |---|---|
+| `runtime_info` | MCPのversion・起動時刻・更新状態・匿名化Vault IDを確認 |
+| `delivery_info` | runtime freshnessとは分離して、sourceとlatest receiptのstatus（match／mismatch／unknown）のみを確認。更新推奨・path・hashは返さない |
 | `search` | title、path、本文を検索 |
 | `fetch` | Markdown noteとrevisionを取得 |
-| `get_backlinks` | backlinkを取得 |
-| `build_context` | 起点と関連noteを文字数上限付きで構築 |
+| `get_backlinks` | backlinkを取得（`50_履歴`は既定除外、path cursorで継続可能） |
+| `build_context` | 起点と関連noteを文字数上限付きで構築し、query付きの長い通常起点は関連見出し節を投影して、各sourceのrevision／更新時刻を返す |
+| `list_directory` | 本文を含めずfolder・note・添付metadataを最大200件取得し、複数ページの同時変更をfingerprintで検出 |
 | `preview_drive_sync` | 起動中のTSUZUNE本体でDrive同期内容を確認 |
+| `create_directory` | 既存folderへ新規folderを作成 |
 | `create_note` | 既存folderへ新規noteを作成 |
 | `update_note` | revision一致時だけ更新 |
-| `autonomous_update_note` | 通常noteを更新し、変更時は旧本文を`50_履歴/AI更新`へ保存 |
+| `autonomous_update_note` | 通常noteを更新し、同一本文はno-op、変更時だけ旧本文を`50_履歴/AI更新`へ保存 |
 | `patch_note` | revision一致時だけ狭い範囲を更新 |
+| `preflight_move_entry` | 起動中アプリで単一Markdown移動を事前確認 |
+| `move_entry` | fingerprint一致時だけ単一Markdownを移動 |
 | `apply_drive_sync` | 確認済みDrive同期planを再検査して適用 |
 
-AI更新でも、本文が変わるときは出典、理由、旧revisionを履歴へ残します。`fetch`で得た`expected_revision`が一致し、本文が完全に同一なら`unchanged: true`を返して履歴を作りません。`40_情報源`、`50_履歴`、設定の「AIから変更させないパス」に一致するノートは、MCPの作成・通常更新・自動更新を拒否します。設定の「AIレビュー対象パス」では、この3ツールを即時適用せずVault外の提案へ切り替え、Settingsから承認・取消できます。
+AI更新でも、本文が変わるときは出典、理由、旧revisionを履歴へ残します。指定した`expected_revision`が古い場合は先に拒否し、それ以外で本文が完全に同一ならrevision指定の有無にかかわらず`unchanged: true`を返して履歴を作りません。原典の`40_情報源`と監査履歴の`50_履歴`は、MCPの作成・通常更新・自動更新を拒否します。設定の「AIレビュー対象パス」では、この3ツールを即時適用せずVault外の提案へ切り替え、Settingsから承認・取消できます。
 
-通常のCodex登録面には、削除、移動、名前変更、フォルダ作成、強制上書き、Google認証を含めません。Drive同期は、起動中のTSUZUNE本体が持つ既存の同期機能へloopback接続し、`preview_drive_sync`で得た`planId`を`apply_drive_sync`の`plan_id`へ明示的に渡した場合だけ適用します。Google tokenはMCPへ渡しません。`apply_drive_sync`はCodexの確認対象です。direct serverに実装済みの`suggest_links`、`move_note`、`add_link`は開発smokeの対象ですが、通常のCodex登録面には公開しません。個別ノート用policy UIは将来計画です。
+通常のCodex登録面には、削除、強制上書き、Google認証を含めません。`create_directory`は既存親フォルダの直下だけを確認付きで作成します。単一Markdown移動は、起動中アプリへ`preflight_move_entry`で事前確認し、そのfingerprintを確認付き`move_entry`へ渡した場合だけ実行します。アプリ不在時の直接実行fallbackや旧`move_note`はありません。Drive同期も起動中アプリのloopback bridgeを通し、Google tokenはMCPへ渡しません。direct server専用の`suggest_links`と`add_link`は通常のCodex登録面には公開しません。
 
 登録解除:
 
@@ -126,8 +134,9 @@ Windowsでウィンドウの×を押すと、保存確認後に通知領域へ�
 
 - Google広告profile、検索履歴、他appのDrive全体は取得しません。
 - token、OAuth JSON、account情報をVaultやGitへ保存しません。
-- Drive上の削除をlocalへ自動伝播しません。
-- 別端末受信と競合を含む完全なroundtrip dogfoodは未完です。
+- 既定では片側削除を伝播せず、残存側をpreserveします。
+- 隔離2 profileでのDrive roundtrip（別Vault受信、更新、競合、再起動、削除非伝播）は2026-08-16に受入済みです。[受入証拠](docs/reports/drive-vault-roundtrip-acceptance-2026-08-16.md)
+- Settingsで削除伝播を明示有効化した場合だけ、確認付き手動applyでlocal削除をDrive trash、remote削除をlocal `.trash`へ移します。tombstone、stale-plan、再起動収束は隔離実Driveで受入済みです。[受入証拠](docs/reports/drive-deletion-propagation-acceptance-2026-08-17.md)
 
 OAuth build、credential保存、update/releaseの運用は[Windows Production Guide](docs/windows-production.md)を参照してください。
 

@@ -1,14 +1,14 @@
 /**
- * O2-P3 test-only classification migration prototype.
+ * O2-P3 classification migration transaction engine.
  *
- * Internal apply/rollback path used ONLY by integration tests that own an
- * anonymous temporary Vault. It proves that one validated schema-v1
- * classification plan can be applied to a fixture Vault and then restored
- * byte-for-byte, including after injected failures at each mutation stage.
+ * Internal apply/rollback path shared by integration tests and the separately
+ * gated production classification runner. It applies one validated schema-v1
+ * plan and can restore the Vault byte-for-byte, including after injected
+ * failures at each mutation stage.
  *
- * There is deliberately no app route, MCP tool, package command, Drive flow,
- * or production entry point to this module. `DRIVE_PATH_ALIAS_UNSUPPORTED`
- * remains an open blocker, so no production apply is allowed.
+ * This module remains unavailable through the app, IPC, or MCP. Production use
+ * is allowed only through the canonical-five runner, whose ownership and Drive
+ * guards are supplied explicitly rather than bypassed here.
  */
 import { createHash, randomUUID } from 'node:crypto'
 import {
@@ -67,6 +67,7 @@ export interface ClassificationMigrationPrototypeOptions {
   preimagesDirectory: string
   rollbackPacketPath?: string
   failAfter?: PrototypeMutationStage
+  productionBinding?: { mode: 'production'; settingsPath: string; vaultId: string; rootFolderId: string }
 }
 
 export interface PrototypeFingerprint {
@@ -347,7 +348,8 @@ async function readSidecarState(root: string): Promise<SidecarState> {
   }
 }
 
-async function verifyOwnership(vaultRoot: string, ownershipToken: string): Promise<void> {
+async function verifyOwnership(vaultRoot: string, ownershipToken: string, productionBinding?: ClassificationMigrationPrototypeOptions['productionBinding']): Promise<void> {
+  if (productionBinding?.mode === 'production') return
   const markerPath = resolveVaultPath(vaultRoot, OWNERSHIP_RELATIVE_PATH)
   let raw: string
   try {
@@ -447,6 +449,7 @@ async function stageReferences(
   )
   for (const note of notes) {
     if (!filesToRewrite.has(note.path)) continue
+    if (destinationBySourceKey.has(note.path.toLocaleLowerCase())) continue
     const absolutePath = resolveVaultPath(vaultRoot, note.path)
     const content = await readFile(absolutePath, 'utf8')
     const rewritten = transformWikiLinks(content, (occurrence) => {
@@ -797,7 +800,7 @@ export async function applyClassificationMigrationPrototype(
 ): Promise<ClassificationMigrationPrototypeResult> {
   const vaultRoot = resolve(options.vaultRoot)
   const preimagesDirectory = resolve(options.preimagesDirectory)
-  await verifyOwnership(vaultRoot, options.ownershipToken)
+  await verifyOwnership(vaultRoot, options.ownershipToken, options.productionBinding)
   await verifyPreimagesDirectory(preimagesDirectory, vaultRoot)
 
   const before = await collectVaultSnapshot(vaultRoot)
@@ -868,7 +871,8 @@ export async function applyClassificationMigrationPrototype(
     const outcome = await rollbackClassificationMigrationPrototype({
       vaultRoot,
       rollbackPacketPath: packetPath,
-      ownershipToken: options.ownershipToken
+      ownershipToken: options.ownershipToken,
+      productionBinding: options.productionBinding
     })
     if (outcome.unrestoredPaths.length > 0) {
       throw new Error(
@@ -886,10 +890,11 @@ export async function rollbackClassificationMigrationPrototype(options: {
   vaultRoot: string
   rollbackPacketPath: string
   ownershipToken: string
+  productionBinding?: { mode: 'production'; settingsPath: string; vaultId: string; rootFolderId: string }
 }): Promise<PrototypeRollbackOutcome> {
   const vaultRoot = resolve(options.vaultRoot)
   const packetPath = resolve(options.rollbackPacketPath)
-  await verifyOwnership(vaultRoot, options.ownershipToken)
+  await verifyOwnership(vaultRoot, options.ownershipToken, options.productionBinding)
   await verifyPreimagesDirectory(dirname(packetPath), vaultRoot)
   const packetInfo = await lstat(packetPath)
   if (!packetInfo.isFile() || packetInfo.isSymbolicLink()) {

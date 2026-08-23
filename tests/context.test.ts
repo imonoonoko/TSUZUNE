@@ -105,11 +105,14 @@ describe('context bundle', () => {
       }
     ])
     expect(bundle.markdown).toContain('# 知識地図')
-    expect(bundle.markdown).toContain('- [[30_知識/Alpha]]')
+    expect(bundle.markdown).toContain(
+      '- [[30_知識/Alpha|説明用の別名]]'
+    )
     expect(bundle.markdown).toContain('- [[30_知識/Beta]]')
     expect(bundle.markdown).toContain('- [[30_知識/Missing]]')
-    expect(bundle.markdown.match(/\[\[30_知識\/Alpha\]\]/g)).toHaveLength(1)
-    expect(bundle.markdown).not.toContain('説明用の別名')
+    expect(
+      bundle.markdown.match(/\[\[30_知識\/Alpha(?:\|[^\]]+)?\]\]/g)
+    ).toHaveLength(1)
     expect(bundle.markdown).not.toContain('長い説明')
     expect(bundle.markdown).not.toContain('ALPHA_BODY_SENTINEL')
     expect(bundle.markdown).not.toContain('BETA_BODY_SENTINEL')
@@ -128,7 +131,8 @@ describe('context bundle', () => {
   it('does not spend the MOC title budget on a repeated query header', () => {
     const routeLines = Array.from(
       { length: 106 },
-      (_, index) => `- [[Route-${String(index).padStart(3, '0')}]]`
+      (_, index) =>
+        `- [[Route-${String(index).padStart(3, '0')}|経路 ${String(index).padStart(3, '0')}]]`
     )
     const mocNotes = [
       note(
@@ -713,6 +717,461 @@ describe('context bundle', () => {
       '質問語に一致'
     ])
     expect(bundle.omittedPaths).toContain('Outside.md')
+  })
+
+  it('projects matching heading sections from a long queried seed note', () => {
+    const longSeed = note(
+      'Reform.md',
+      [
+        '# Reform',
+        '',
+        'INTRO_SENTINEL '.repeat(200),
+        '',
+        '## 経緯',
+        '',
+        'CHRONOLOGY_SENTINEL '.repeat(100),
+        '',
+        '## 13. 現在事実',
+        '',
+        '### 完了',
+        '',
+        '完了境界はここ。CURRENT_BOUNDARY_SENTINEL',
+        '',
+        '### Research',
+        '',
+        'context効率の未確認事項。RESEARCH_SENTINEL',
+        '',
+        '## 14. 次の安全な一手',
+        '',
+        '次の自然task。NEXT_TASK_SENTINEL'
+      ].join('\n')
+    )
+
+    const bundle = buildContextBundle('Reform.md', [longSeed], {
+      query: '現在の完了境界、次の自然task、context効率の未確認事項',
+      maxCharacters: 1_200,
+      generatedAt: '2026-08-23T12:00:00+09:00'
+    })
+
+    expect(bundle.markdown).toContain('CURRENT_BOUNDARY_SENTINEL')
+    expect(bundle.markdown).toContain('RESEARCH_SENTINEL')
+    expect(bundle.markdown).toContain('NEXT_TASK_SENTINEL')
+    expect(bundle.markdown).not.toContain('INTRO_SENTINEL')
+    expect(bundle.markdown).not.toContain('CHRONOLOGY_SENTINEL')
+    expect(bundle.characterCount).toBeLessThanOrEqual(1_200)
+    expect(bundle.included[0].truncated).toBe(false)
+    expect(bundle.included[0].selectionReasons).toContain(
+      '質問に関連する見出し節'
+    )
+  })
+
+  it('preserves distinct query intents when a broad heading also matches', () => {
+    const longSeed = note(
+      'Benchmark.md',
+      [
+        '# Benchmark',
+        '',
+        'INTRO_SENTINEL '.repeat(200),
+        '',
+        '## 2. 作業開始時の契約と安全境界',
+        '',
+        '現在の安全境界と完了境界を確認する。DECOY_SENTINEL',
+        '',
+        '## 13. 現在事実',
+        '',
+        '### 完了',
+        '',
+        '現在の完了境界。CURRENT_BOUNDARY_SENTINEL',
+        '',
+        '### Research',
+        '',
+        '未確認事項。RESEARCH_SENTINEL',
+        '',
+        '## 14. 次の安全な一手',
+        '',
+        '次に実行する。NEXT_TASK_SENTINEL'
+      ].join('\n')
+    )
+
+    const bundle = buildContextBundle('Benchmark.md', [longSeed], {
+      query: '現在の完了境界、Research、次の安全な一手',
+      maxCharacters: 1_200,
+      generatedAt: '2026-08-23T21:30:00+09:00'
+    })
+
+    expect(bundle.markdown).toContain('CURRENT_BOUNDARY_SENTINEL')
+    expect(bundle.markdown).toContain('RESEARCH_SENTINEL')
+    expect(bundle.markdown).toContain('NEXT_TASK_SENTINEL')
+    expect(bundle.markdown).not.toContain('DECOY_SENTINEL')
+  })
+
+  it('reserves a projected seed before a linked MOC in compact queried bundles', () => {
+    const routeLines = Array.from(
+      { length: 80 },
+      (_, index) => `- [[Route-${String(index).padStart(3, '0')}]]`
+    )
+    const compactNotes = [
+      note(
+        'Benchmark.md',
+        [
+          '# Benchmark',
+          '',
+          '[[Roadmap]]',
+          '',
+          'INTRO_SENTINEL '.repeat(200),
+          '',
+          '## 契約',
+          '',
+          `FIRST_SEED_SENTINEL ${'a'.repeat(220)}`,
+          '',
+          '## 結果',
+          '',
+          `SECOND_SEED_SENTINEL ${'b'.repeat(220)}`,
+          '',
+          '## 境界',
+          '',
+          `THIRD_SEED_SENTINEL ${'c'.repeat(220)}`
+        ].join('\n')
+      ),
+      note(
+        'Roadmap.md',
+        ['---', 'type: moc', '---', '# Roadmap', '', ...routeLines].join(
+          '\n'
+        )
+      )
+    ]
+
+    const bundle = buildContextBundle('Benchmark.md', compactNotes, {
+      query: '契約、結果、境界',
+      maxCharacters: 1_600,
+      generatedAt: '2026-08-24T00:15:00+09:00'
+    })
+
+    expect(bundle.markdown).toContain('FIRST_SEED_SENTINEL')
+    expect(bundle.markdown).toContain('SECOND_SEED_SENTINEL')
+    expect(bundle.markdown).toContain('THIRD_SEED_SENTINEL')
+    expect(bundle.markdown).not.toContain('INTRO_SENTINEL')
+    expect(bundle.included[0]).toMatchObject({
+      path: 'Benchmark.md',
+      truncated: false
+    })
+    expect(bundle.characterCount).toBeLessThanOrEqual(1_600)
+  })
+
+  it('projects a seed that only overflows after related protected sources are added', () => {
+    const compactNotes = [
+      note(
+        'Boundary.md',
+        [
+          '# Boundary',
+          '',
+          '[[Roadmap]]',
+          '',
+          'INTRO_SENTINEL '.repeat(30),
+          '',
+          '## 契約',
+          '',
+          `FIRST_BOUNDARY_SENTINEL ${'a'.repeat(180)}`,
+          '',
+          '## 結果',
+          '',
+          `SECOND_BOUNDARY_SENTINEL ${'b'.repeat(180)}`,
+          '',
+          '## 検証',
+          '',
+          `THIRD_BOUNDARY_SENTINEL ${'c'.repeat(180)}`
+        ].join('\n')
+      ),
+      note(
+        'Roadmap.md',
+        [
+          '---',
+          'type: moc',
+          '---',
+          '# Roadmap',
+          '',
+          ...Array.from({ length: 100 }, (_, index) => `- [[Route-${index}]]`)
+        ].join('\n')
+      )
+    ]
+
+    expect(compactNotes[0].content.length).toBeLessThan(1_600)
+
+    const bundle = buildContextBundle('Boundary.md', compactNotes, {
+      query: '契約、結果、検証',
+      maxCharacters: 1_600,
+      generatedAt: '2026-08-24T00:35:00+09:00'
+    })
+
+    expect(bundle.markdown).toContain('FIRST_BOUNDARY_SENTINEL')
+    expect(bundle.markdown).toContain('SECOND_BOUNDARY_SENTINEL')
+    expect(bundle.markdown).toContain('THIRD_BOUNDARY_SENTINEL')
+    expect(bundle.markdown).not.toContain('INTRO_SENTINEL')
+    expect(bundle.included[0]).toMatchObject({
+      path: 'Boundary.md',
+      truncated: false
+    })
+    expect(bundle.included[0].selectionReasons).toContain(
+      '質問に関連する見出し節'
+    )
+    expect(bundle.characterCount).toBeLessThanOrEqual(1_600)
+  })
+
+  it('keeps projected seed priority when the selected sections cover the whole note', () => {
+    const notes = [
+      note(
+        'Boundary.md',
+        [
+          '# Boundary',
+          '',
+          '## 契約',
+          '',
+          `[[Roadmap]] FIRST_SENTINEL ${'a'.repeat(180)}`,
+          '',
+          '## 結果',
+          '',
+          `SECOND_SENTINEL ${'b'.repeat(180)}`,
+          '',
+          '## 残課題',
+          '',
+          `THIRD_SENTINEL ${'c'.repeat(180)}`,
+          '',
+          '## 検証',
+          '',
+          `FOURTH_SENTINEL ${'d'.repeat(180)}`
+        ].join('\n')
+      ),
+      note(
+        'Roadmap.md',
+        [
+          '---',
+          'type: moc',
+          '---',
+          '# Roadmap',
+          '',
+          ...Array.from({ length: 100 }, (_, index) => `- [[Route-${index}]]`)
+        ].join('\n')
+      )
+    ]
+
+    const bundle = buildContextBundle('Boundary.md', notes, {
+      query: '契約、結果、残課題、検証',
+      maxCharacters: 1_600,
+      generatedAt: '2026-08-24T00:36:00+09:00'
+    })
+
+    expect(bundle.markdown).toContain('FIRST_SENTINEL')
+    expect(bundle.markdown).toContain('SECOND_SENTINEL')
+    expect(bundle.markdown).toContain('THIRD_SENTINEL')
+    expect(bundle.markdown).toContain('FOURTH_SENTINEL')
+    expect(bundle.included[0].selectionReasons).toContain(
+      '質問に関連する見出し節'
+    )
+    expect(bundle.included[0].truncated).toBe(false)
+    expect(bundle.characterCount).toBeLessThanOrEqual(1_600)
+  })
+
+  it('shares projected seed budget across selected branches', () => {
+    const structuredSeed = note(
+      'Boundary.md',
+      [
+        '# Boundary',
+        '',
+        '## 契約',
+        '',
+        '### 詳細',
+        '',
+        `CONTRACT_SENTINEL ${'a'.repeat(2_000)}`,
+        '',
+        '## 結果',
+        '',
+        'RESULT_SENTINEL'
+      ].join('\n')
+    )
+
+    const bundle = buildContextBundle('Boundary.md', [structuredSeed], {
+      query: '契約、結果',
+      maxCharacters: 1_000,
+      generatedAt: '2026-08-24T00:37:00+09:00'
+    })
+
+    expect(bundle.markdown).toContain('## 契約')
+    expect(bundle.markdown).toContain('## 結果')
+    expect(bundle.markdown).toContain('RESULT_SENTINEL')
+    expect(bundle.included[0].selectionReasons).toContain(
+      '質問に関連する見出し節'
+    )
+    expect(bundle.characterCount).toBeLessThanOrEqual(1_000)
+  })
+
+  it('selects a matching parent heading together with its child content', () => {
+    const structuredSeed = note(
+      'Benchmark.md',
+      [
+        '# Benchmark',
+        '',
+        'INTRO_SENTINEL '.repeat(180),
+        '',
+        '## 2. 作業開始時の契約',
+        '',
+        'Benchmark契約に似た一般説明。DECOY_CONTRACT_SENTINEL',
+        '',
+        '## 3. Benchmark契約',
+        '',
+        '### Oracle質問',
+        '',
+        '正解集合。ORACLE_SENTINEL',
+        '',
+        '### Quality gate',
+        '',
+        '品質条件。QUALITY_SENTINEL',
+        '',
+        '## 6. 結果',
+        '',
+        '測定結果。RESULT_SENTINEL',
+        '',
+        '## 7. Unseen boundary検証',
+        '',
+        '未提示境界。UNSEEN_SENTINEL'
+      ].join('\n')
+    )
+
+    const bundle = buildContextBundle('Benchmark.md', [structuredSeed], {
+      query: 'Benchmark契約、結果、Unseen boundary検証',
+      maxCharacters: 1_800,
+      generatedAt: '2026-08-24T00:40:00+09:00'
+    })
+
+    expect(bundle.markdown).toContain('## 3. Benchmark契約')
+    expect(bundle.markdown).toContain('ORACLE_SENTINEL')
+    expect(bundle.markdown).toContain('QUALITY_SENTINEL')
+    expect(bundle.markdown).toContain('RESULT_SENTINEL')
+    expect(bundle.markdown).toContain('UNSEEN_SENTINEL')
+    expect(bundle.markdown).not.toContain('DECOY_CONTRACT_SENTINEL')
+    expect(bundle.characterCount).toBeLessThanOrEqual(1_800)
+  })
+
+  it('preserves every explicitly separated query intent beyond three sections', () => {
+    const fourBoundarySeed = note(
+      'Closeout.md',
+      [
+        '# Closeout',
+        '',
+        'INTRO_SENTINEL '.repeat(180),
+        '',
+        '## する',
+        '',
+        '実行対象。DO_SENTINEL',
+        '',
+        '## しない',
+        '',
+        '禁止対象。DO_NOT_SENTINEL',
+        '',
+        '## 残課題',
+        '',
+        '未完了境界。RESIDUAL_SENTINEL',
+        '',
+        '## 検証',
+        '',
+        '確認手順。VERIFICATION_SENTINEL'
+      ].join('\n')
+    )
+
+    const bundle = buildContextBundle('Closeout.md', [fourBoundarySeed], {
+      query: 'する、しない、残課題、検証',
+      maxCharacters: 1_600,
+      generatedAt: '2026-08-24T00:45:00+09:00'
+    })
+
+    expect(bundle.markdown).toContain('DO_SENTINEL')
+    expect(bundle.markdown).toContain('DO_NOT_SENTINEL')
+    expect(bundle.markdown).toContain('RESIDUAL_SENTINEL')
+    expect(bundle.markdown).toContain('VERIFICATION_SENTINEL')
+    expect(bundle.markdown).not.toContain('INTRO_SENTINEL')
+    expect(bundle.included[0]).toMatchObject({ truncated: false })
+    expect(bundle.characterCount).toBeLessThanOrEqual(1_600)
+  })
+
+  it.each(['契約？結果？検証', '契約?結果?検証', '契約！結果！検証', '契約：結果：検証'])(
+    'treats punctuation-delimited intents independently: %s',
+    (query) => {
+      const seed = note(
+        'Boundary.md',
+        [
+          '# Boundary',
+          '',
+          'INTRO_SENTINEL '.repeat(120),
+          '',
+          '## 契約',
+          '',
+          'CONTRACT_SENTINEL',
+          '',
+          '## 結果',
+          '',
+          'RESULT_SENTINEL',
+          '',
+          '## 検証',
+          '',
+          'VERIFICATION_SENTINEL'
+        ].join('\n')
+      )
+
+      const bundle = buildContextBundle('Boundary.md', [seed], {
+        query,
+        maxCharacters: 1_000,
+        generatedAt: '2026-08-24T00:46:00+09:00'
+      })
+
+      expect(bundle.markdown).toContain('CONTRACT_SENTINEL')
+      expect(bundle.markdown).toContain('RESULT_SENTINEL')
+      expect(bundle.markdown).toContain('VERIFICATION_SENTINEL')
+      expect(bundle.markdown).not.toContain('INTRO_SENTINEL')
+    }
+  )
+
+  it('does not spend atomic-query seed budget on unrelated fallback sections', () => {
+    const notes = [
+      note(
+        'Project.md',
+        [
+          '# Project',
+          '',
+          '[[Operations]]',
+          '[[Evidence]]',
+          '',
+          'INTRO_SENTINEL '.repeat(120),
+          '',
+          '## MCP',
+          '',
+          `PRIMARY_MCP_SENTINEL ${'a'.repeat(180)}`,
+          '',
+          '## Installed Production',
+          '',
+          `MCP SECONDARY_SENTINEL ${'b'.repeat(500)}`,
+          '',
+          '## Working Tree',
+          '',
+          `MCP TERTIARY_SENTINEL ${'c'.repeat(500)}`
+        ].join('\n')
+      ),
+      note('Operations.md', '---\ntype: moc\n---\n# Operations\n\n- [[Runbook]]'),
+      note('Evidence.md', '---\ntype: moc\n---\n# Evidence\n\n- [[Proof]]')
+    ]
+
+    const bundle = buildContextBundle('Project.md', notes, {
+      query: 'MCP',
+      maxCharacters: 1_600,
+      generatedAt: '2026-08-24T00:50:00+09:00'
+    })
+
+    expect(bundle.markdown).toContain('PRIMARY_MCP_SENTINEL')
+    expect(bundle.markdown).not.toContain('SECONDARY_SENTINEL')
+    expect(bundle.markdown).not.toContain('TERTIARY_SENTINEL')
+    expect(bundle.included.map((source) => source.path)).toEqual([
+      'Project.md',
+      'Operations.md',
+      'Evidence.md'
+    ])
   })
 
   it('expands a query-matching body before omitting lower-priority bodies', () => {

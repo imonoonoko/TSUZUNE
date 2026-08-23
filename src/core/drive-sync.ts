@@ -13,6 +13,12 @@ export interface DriveSyncInput {
   local: readonly DriveSyncFile[]
   remote: readonly DriveSyncFile[]
   previous: readonly DriveSyncPrevious[]
+  deletionPolicy?: DriveSyncDeletionPolicy
+}
+
+export interface DriveSyncDeletionPolicy {
+  propagateLocalDeletion?: boolean
+  propagateRemoteDeletion?: boolean
 }
 
 export type DriveSyncDecision =
@@ -34,13 +40,13 @@ export type DriveSyncDecision =
     }
   | {
       path: string
-      action: 'preserve'
+      action: 'preserve' | 'trash_remote'
       reason: 'local_deleted'
       preservedSide: 'remote'
     }
   | {
       path: string
-      action: 'preserve'
+      action: 'preserve' | 'trash_local'
       reason: 'remote_deleted'
       preservedSide: 'local'
     }
@@ -67,7 +73,9 @@ export function planDriveSync(input: DriveSyncInput): DriveSyncDecision[] {
     if (previous && !local && remote) {
       decisions.push({
         path,
-        action: 'preserve',
+        action: input.deletionPolicy?.propagateLocalDeletion
+          ? 'trash_remote'
+          : 'preserve',
         reason: 'local_deleted',
         preservedSide: 'remote'
       })
@@ -77,7 +85,9 @@ export function planDriveSync(input: DriveSyncInput): DriveSyncDecision[] {
     if (previous && local && !remote) {
       decisions.push({
         path,
-        action: 'preserve',
+        action: input.deletionPolicy?.propagateRemoteDeletion
+          ? 'trash_local'
+          : 'preserve',
         reason: 'remote_deleted',
         preservedSide: 'local'
       })

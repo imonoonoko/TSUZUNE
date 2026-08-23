@@ -5,7 +5,8 @@ import { basename, join } from 'node:path'
 import { DriveSyncService } from './drive-sync-service'
 import { GoogleConnectionService } from './google-connection'
 import { runGoogleOAuthLoopback } from './google-oauth-flow'
-import { registerIpc, runGoogleInOrder } from './ipc'
+import { registerIpc, runEntryMoveInOrder, runGoogleInOrder } from './ipc'
+import { EntryMoveCoordinator } from './entry-move'
 import {
   startDriveSyncBridge,
   type DriveSyncBridge
@@ -210,6 +211,7 @@ if (singleInstanceLock) {
     vault,
     connection: googleConnection
   })
+  const entryMove = new EntryMoveCoordinator({ vault, drive: driveSync })
   autoUpdater.logger = null
   const updates = new UpdateService({
     isPackaged: app.isPackaged,
@@ -244,13 +246,18 @@ if (singleInstanceLock) {
       }
       mainWindow?.hide()
     },
-    openAttachmentWindow
+    openAttachmentWindow,
+    entryMove
   )
   try {
     driveSyncBridge = await startDriveSyncBridge({
       statePath: join(app.getPath('userData'), 'mcp-drive-sync.json'),
-      preview: () => runGoogleInOrder(() => driveSync.preview()),
-      apply: (planId) => runGoogleInOrder(() => driveSync.apply(planId))
+      preview: (options) => runGoogleInOrder(() => driveSync.preview(options)),
+      apply: (planId) => runGoogleInOrder(() => driveSync.apply(planId)),
+      preflightMoveEntry: (source, destination) =>
+        runEntryMoveInOrder(() => entryMove.preflight(source, destination, 'ai')),
+      moveEntry: (input) =>
+        runEntryMoveInOrder(() => entryMove.apply(input))
     })
   } catch (error) {
     console.error(

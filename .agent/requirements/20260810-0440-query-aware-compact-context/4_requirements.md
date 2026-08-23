@@ -22,7 +22,7 @@ X1-D1はcommit `e2d8621`としてpushし、2026-08-10 14:03 JSTにインスト�
 
 ### R0. MOC Title Router — X1-M1
 - valid frontmatterのscalar `type`が完全に`moc`であるノートだけをMOCと判定する。
-- `build_context`のMOC本文は、Wiki linkを記述順に並べたタイトル索引へ投影する。Vault原本と`fetch`結果は変更しない。
+- `build_context`のMOC本文は、Wiki linkを記述順に並べたタイトル索引へ投影する。明示aliasは保持し、aliasが無いlinkはcanonical pathだけを表示する。Vault原本と`fetch`結果は変更しない。
 - 解決済みlinkはcanonical pathを使い、Path Alias後の重複を1件へまとめる。未解決linkは探索候補として残し、invalid linkは出力しない。
 - MOC起点では通常のoutgoing／backlink本文を展開しない。MOCが通常ノートから選ばれた場合も、そのMOC本文は同じタイトル索引へ投影する。
 - temporal候補、valid-time／knowledge-time、future情報の本文省略、warning、source fenceは既存契約を維持する。

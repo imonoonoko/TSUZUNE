@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "split": "dev",
+  "k": 10,
+  "cases": [
+    {
+      "id": "dev-openevolve",
+      "query": "OpenEvolve",
+      "relevance": {
+        "30_知識/OpenEvolveの評価とTSUZUNEへの適用判断-2026-08-16.md": 3
+      },
+      "requiredIds": ["30_知識/OpenEvolveの評価とTSUZUNEへの適用判断-2026-08-16.md"]
+    },
+    {
+      "id": "dev-search-architecture",
+      "query": "検索・Wikiリンク・Graph",
+      "relevance": {
+        "30_知識/TSUZUNE-検索・Wikiリンク・Graph.md": 3,
+        "30_知識/TSUZUNE-Context CompilerとTemporal Memory.md": 1
+      },
+      "requiredIds": ["30_知識/TSUZUNE-検索・Wikiリンク・Graph.md"]
+    },
+    {
+      "id": "dev-production-update",
+      "query": "本番更新",
+      "relevance": {
+        "30_知識/TSUZUNE-本番更新・インストール・Release運用.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-本番更新・インストール・Release運用.md"]
+    },
+    {
+      "id": "dev-ponytail",
+      "query": "Ponytail Codex",
+      "relevance": {
+        "30_知識/Ponytail-Codex運用.md": 3
+      },
+      "requiredIds": ["30_知識/Ponytail-Codex運用.md"]
+    },
+    {
+      "id": "dev-ai-write",
+      "query": "AI書き込み",
+      "relevance": {
+        "30_知識/TSUZUNE-MCPとAI書き込み運用.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-MCPとAI書き込み運用.md"]
+    },
+    {
+      "id": "dev-context-compiler",
+      "query": "Context Compiler",
+      "relevance": {
+        "30_知識/TSUZUNE-Context CompilerとTemporal Memory.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-Context CompilerとTemporal Memory.md"]
+    },
+    {
+      "id": "dev-folder-operations",
+      "query": "常用フォルダ操作",
+      "relevance": {
+        "30_知識/TSUZUNE-常用フォルダ操作設計-2026-08-15.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-常用フォルダ操作設計-2026-08-15.md"]
+    }
+  ]
+}

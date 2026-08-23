@@ -1,6 +1,6 @@
 # TSUZUNE Documentation Index
 
-更新日: 2026-08-15
+更新日: 2026-08-23
 
 ## まず読む
 
@@ -12,18 +12,35 @@
 
 ## 現在の開発
 
+- [改善・未達成項目 実行台帳](reports/tsuzune-improvement-ledger-2026-08-23.md) — する／しない／条件成立時だけを確定した現在の判断索引。製品Primaryは0で、次作業はRepository closeoutのread-only棚卸しに限定する。
+- [Workspace Tabs R5 acceptance](reports/workspace-tabs-r5-2026-08-22.md) — keyboard／ARIA、roving tabindex、Ctrl+Tab／Ctrl+1..9／安全なCtrl+W、active close後focusを既存stateで実装し、770 PASS／1 SKIP、隔離Electron、本番10/10 checksを固定した受入証拠。
+- [Daily Workspace Phase B acceptance](reports/daily-workspace-phase-b-2026-08-22.md) — R4/R5反映済みinstalled binaryを100%表示、High Contrast、Narrator、主要focus境界で確認し、現在のdirty sourceとは分離した実機証拠。
+- [Daily Workspace Phase A acceptance](reports/daily-workspace-phase-a-2026-08-22.md) — production Vaultを開かない隔離・offscreen環境で3入口、FileTree、IME境界、720px幅、long/error/conflict、tabs baselineを確認したR4/R5前段証拠。
+- [Compact Decision Envelope 5-case benchmark](reports/compact-decision-envelope-benchmark-2026-08-23.md) — oracle非提示の通常文／Envelope比較。utilityは10/10対8/10へ改善したが、exact trace失敗と2,437対935 code pointsの総量gate不合格により`NO_CHANGE`、R1とEnvelopeをHeldとした。
+- [Current-State Compiler R1 State Packet Comparison](reports/current-state-compiler-r1-state-packet-comparison-2026-08-23.md) — 1つの実在命題を既存方式と13-field State Packetでwrite 0比較。安全軸2点は改善したが約284%長く、事前登録gate不合格のため`NO_CHANGE`、R1 contract未着手とした。
+- [Current-State Compiler R0 Baseline](reports/current-state-compiler-r0-baseline-2026-08-23.md) — 現行能力、source/runtime境界、公開mutation、owner候補3件、R1 fixture briefを固定。防御可能な重複状態0件／PilotなしのためR1を未承認としたread-only gate。
+- [Delivery info implementation](reports/delivery-info-implementation-2026-08-18.md) — sourceとlatest production receiptをmatch／mismatch／unknownの18〜21 bytesだけで区別するcommon read-only MCP tool、共有fingerprint、repository外cwd fixture、646-byte schema増分を固定した実装証拠。
+- [Full-text Search P0-3/R3 acceptance](reports/full-text-search-2026-08-18.md) — `Ctrl+Shift+F`、`Ctrl+K`互換、既存operatorのinline help、結果metadata／excerpt、非色依存強調、隔離Electron、本番10/10 checksを固定した受入証拠。
+- [Command Palette P0-2 acceptance](reports/command-palette-2026-08-17.md) — `Ctrl+P`、日本語label／英語keyword、12件の既存action、shortcut／state／disabled reason、keyboard／focus、隔離Electron wide／最小幅、本番10/10 checksを固定した受入証拠。
+- [Quick Switcher P0-1 acceptance](reports/quick-switcher-2026-08-17.md) — `Ctrl+O`、session MRU、keyboard／focus、新規作成確認、10,000ノートp95 26.1ms、隔離Electron画面、本番10/10 checksを固定した受入証拠。
+- [Drive deletion propagation acceptance](reports/drive-deletion-propagation-acceptance-2026-08-17.md) — 既定preserveを維持したopt-in削除伝播について、local→Drive trash、remote→local `.trash`、tombstone、stale-plan、再起動収束を隔離実Driveで確認した受入証拠。
+- [Classification production gate](reports/classification-production-gate-2026-08-17.md) — 明示5ノート／20,001 bytesの本番移動、同一remote objects、Path Alias、両ledger、fail-closed修復とrecovery消去を固定した最終証拠。
+- [AI history compaction read-only preview](reports/history-compaction-preview-2026-08-16.md) — 同一本文no-op、将来の連鎖metadata、本番874履歴の前後digest一致、旧形式153 targetsの圧縮未適用を分離した記録。
+- [Independent sidebar capture](reports/assets/sidebar-collapse-2026-08-17/01-both-sidebars-collapsed.png) — 左右sidebarを独立して閉じ、再表示操作を維持した隔離UI証拠。
+- [Drive Vault roundtrip acceptance](reports/drive-vault-roundtrip-acceptance-2026-08-16.md) — 隔離2 profileの実Driveで空Vault受信、更新、競合、再起動台帳、両側削除の非伝播とfixture全回収を確認した受入証拠。
+- [Template / Folder UX audit](reports/tsuzune-template-folder-ux-audit-2026-08-15.md) — 隔離Vaultの4画面とObsidian公式Helpで、template folder固定・内蔵候補・folder移動欠落を特定し、P0をfolder moveとtemplate ownershipへ限定したresearch-only改善案。
 - [Public repository readiness](reports/public-repository-readiness-2026-08-15.md) — 公開後のsecret／privacy監査、GitHub Security設定、public update feed、依存監査、v0.5.0 Releaseと残るlicense／署名境界。
 - [A2-1 Renderer Search Operators](reports/a2-1-search-operators-2026-08-15.md) — Obsidian Desktop 1.13.4の隔離19-query実測に基づくimplicit AND、否定、tag/path/file filter、phrase検索と本番反映証拠。
 - [Single-instance Startup](reports/single-instance-startup-2026-08-15.md) — 後続起動を終了し、既存windowを表示・復元・focusする最小実装、本番更新、installed連続起動の同一PID受入証拠。
 - [50_履歴 Normal Discovery Exclusion](reports/history-normal-discovery-exclusion-2026-08-14.md) — 監査履歴をFile tree／直接openに残し、通常Graph・backlink・Renderer検索だけから既定除外した最小sliceと本番更新証拠。
-- [TSUZUNE Icon Refresh](reports/tsuzune-icon-refresh-2026-08-14.md) — Interwoven Bellのapp／tray専用asset、16–32px確認、runtime接続、検証と本番未反映境界。
+- [TSUZUNE Icon Refresh](reports/tsuzune-icon-refresh-2026-08-14.md) — Interwoven Bellのapp／tray専用asset、16–32px確認、runtime接続、検証と本番反映証拠。
 - [Current-state consolidation 2026-08-13](reports/tsuzune-consolidation-2026-08-13.md) — 製品中心、installed／source境界、96-entry working tree、完了／保留、優先順を一枚に固定。
 - [Product Plan](../PLAN.md) — 現在の実行順、受入条件、保留Track、長期roadmap。
 - [O2-P3 test-only migration prototype](reports/cp1-c-02-o2-p3-prototype-2026-08-13.md) — 匿名一時Vaultで4段階mutation、失敗注入、自動rollback、exact-byte復元を固定。本番applyではない。
 - [O2-P4 Drive Path Alias contract](reports/cp1-c-03-drive-path-alias-contract-2026-08-13.md) — P4A sidecar同期とP4B remote relocationを分離し、次をP4Aだけに限定。
-- [O2-P4A test-only sidecar sync prototype](reports/cp1-c-04-o2-p4a-sidecar-sync-prototype-2026-08-13.md) — fake remoteでexact bytes、ownership、ledger、conflict、local rollbackを固定。P4B／live Drive／本番applyは未実施。
+- [O2-P4A test-only sidecar sync prototype](reports/cp1-c-04-o2-p4a-sidecar-sync-prototype-2026-08-13.md) — fake remoteでexact bytes、ownership、ledger、conflict、local rollbackを固定した当時の境界。後続の[Drive Vault roundtrip acceptance](reports/drive-vault-roundtrip-acceptance-2026-08-16.md)と[production gate](reports/classification-production-gate-2026-08-17.md)でlive Drive／本番applyを完了。
 - [O2 disposable live Drive acceptance](reports/cp1-c-06-disposable-live-drive-acceptance-2026-08-14.md) — 受入専用の実Drive objectでfile ID、parent、private path metadata、version、Markdown／Alias bytesを往復し、3/3 cleanup。本番Vault applyは別承認。
-- [O2 production classification apply packet](reports/cp1-c-07-production-classification-apply-packet-2026-08-14.md) — ローカル5 moves／23 preimages／rollback／停止条件を固定。active production VaultのDrive paired root／sync baseline不足で承認前blocked、本番applyは未実施。
+- [O2 production classification apply packet](reports/cp1-c-07-production-classification-apply-packet-2026-08-14.md) — ローカル5 moves／23 preimages／rollback／停止条件を固定した当時のpacket。後続の[2026-08-17 production gate](reports/classification-production-gate-2026-08-17.md)で再凍結と本番applyを完了。
 - [CP0-T09 AI Write Review mode](reports/cp0-t09-ai-write-review-mode-2026-08-12.md) — 3 MCP write toolの提案化、Vault外inbox、Settings承認／取消、競合失効、履歴付き適用と本番反映の証拠。
 - [CP0-T10 Review runtime acceptance](reports/cp0-t10-ai-write-review-runtime-acceptance-2026-08-12.md) — 再起動後の本番MCPでproposal化、Vault本文不変、試験状態cleanupを確認した可逆な受入。
 - [Context Profiler Native baseline](reports/context-profiler-native-baseline-2026-08-12.md) — 10件の集計、失敗pairの保持、single-worker matched pairで品質維持・fresh側input 88.58%減を確認した条件付き採用判定。
@@ -35,12 +52,12 @@
 - [Obsidian Graph Parity Reference](obsidian-graph-parity-reference.md) — 固定比較対象と受入契約。
 - [GP0-3b-n Attachment Default App Requirements](../.agent/requirements/20260810-1941-attachment-default-app/4_requirements.md) — 実外部アプリを起動せず、添付の既定アプリ要求を一項目だけ比較した設計、安全境界、停止条件。
 - [GP0-3b-p Attachment File Explorer Reveal Requirements](../.agent/requirements/20260811-0257-attachment-file-explorer-reveal/4_requirements.md) — `ファイルエクスプローラでファイルを表示`の意味を推測せず、内部File ExplorerかOS境界かを一項目・一添付で確定する設計、安全境界、停止条件。
-- [MCP Integration](mcp-integration.md) — Codex Desktopの公式10ツール登録、direct server 13ツール、Drive同期bridgeと書込境界。
+- [MCP Integration](mcp-integration.md) — Codex Desktopの16ツール登録、direct server 18ツール、Drive同期bridgeと書込境界。
 - [Drive Sync MCP Bridge](reports/drive-sync-mcp-bridge-2026-08-14.md) — 起動中のTSUZUNE本体が持つ既存同期serviceをpreview／applyへ接続し、Google tokenをMCPへ渡さない実装・検証記録。
 - [Compact Context Requirements](../.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md) — X1-M1 MOC Title Routerの実装契約と、未実装のquery選定・MCP二重搬送削減を分離して記録。
 - [X1-T1 Structured-only Transport Measurement Protocol](../.agent/requirements/20260810-0440-query-aware-compact-context/7_x1-t1-model-visible-token-benchmark.md) — `build_context`の二重搬送を、wire bytesとmodel-visible tokenを混同せずに実測するgate。
 - [X1-T1 structured-only transport](reports/x1-t1-structured-only-transport-2026-08-12.md) — local stdioでの実装・wire／latency計測とCodex Desktop local MCPのfixture受入。ChatGPT remote MCPは別Track。
-- [MCP contract reconciliation](reports/mcp-contract-reconciliation-2026-08-13.md) — `build_context`のstructured-only回帰を修復し、Codex登録7ツール／direct server 10ツールの境界を再固定。
+- [MCP contract reconciliation](reports/mcp-contract-reconciliation-2026-08-13.md) — 過去時点のCodex登録7ツール／direct server 10ツール境界を記録した履歴。現行仕様はMCP Integrationを参照。
 - [Context Budget Priority](reports/context-budget-priority-2026-08-12.md) — Context文字予算、品質gate、host tokenの観測境界を分けたX1-C2 runbook。現在は主要因が観測されるまでheld。
 - [Codex/BM25 Context Gateway Assessment](reports/codex-bm25-context-gateway-assessment-2026-08-11.md) — 外部会話のBM25／永続状態案を、現行Context契約、未検証境界、実装前の比較条件へ分けた研究メモ。
 - [Priority Reset 2026-08-12](reports/tsuzune-priority-reset-2026-08-12.md) — dirty working tree、実Windows accessibility、7日dogfood、Graph、AI write、organization、integrationを現在の根拠で再順位付けした実行キュー。
@@ -54,7 +71,7 @@
 
 ## 現行の検証証拠
 
-- [Latest production receipt](reports/production-update-latest.json) — インストール済み本番の機械可読な固定点。
+- [Latest production receipt](reports/production-update-latest.json) — 10/10 checks、built／installed hash一致、production profile不変を含むインストール済み本番の機械可読な固定点。
 - [Drive Sync S1 metadata-first preview](reports/drive-sync-metadata-first-s1-2026-08-14.md) — remote version cache、preview/apply本文再利用、旧ledger初回warm-up境界、全612 testsと本番受入の記録。
 - [Drive Sync S2 Changes API](reports/drive-sync-changes-s2-2026-08-14.md) — change token、remote metadata cache、別Vault隔離、削除保持、410 full-scan fallback、全617 testsの記録。
 - [Drive Sync S3 Explicit Note Move](reports/drive-sync-explicit-note-move-s3-2026-08-14.md) — 明示的な単一Markdown移動、同一Drive file ID、metadata-only relocation、remote move反映、fail-closed境界、全624 testsの記録。
@@ -120,7 +137,7 @@ HTMLは閲覧用、`.artifact.json`と`assets/**/*.json`は機械可読な証拠
 
 ## 将来計画
 
-- [O2-P4B test-only relocation／recovery prototype](reports/cp1-c-05-o2-p4b-relocation-recovery-prototype-2026-08-13.md) — 明示plan、既存Drive file ID、metadata-only relocation、combined recovery、rollback drift retentionをfake remoteで固定。live Driveと本番applyは別Gate。
+- [O2-P4B test-only relocation／recovery prototype](reports/cp1-c-05-o2-p4b-relocation-recovery-prototype-2026-08-13.md) — 明示plan、既存Drive file ID、metadata-only relocation、combined recovery、rollback drift retentionをfake remoteで固定した当時の境界。live Driveと本番applyは後続Gateで完了。
 
 - [Obsidian Bases assessment](reports/obsidian-bases-assessment-2026-08-13.md) — Markdown原本のStructured Viewsとしての適合性、現行TSUZUNEとの差、最小read-only table Gate。
 - Google Tasks、Drive選択取込、YouTube、Data Portability: `PLAN.md`のPersonal Google Intake。

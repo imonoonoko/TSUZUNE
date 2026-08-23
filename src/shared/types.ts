@@ -69,6 +69,8 @@ export interface SaveNoteInput {
   path: string
   content: string
   expectedModifiedAt: number
+  /** Optional exact content captured when the note was read. */
+  expectedContent?: string
   force?: boolean
 }
 
@@ -100,6 +102,8 @@ export interface MoveNoteInput {
   destinationPath?: string
 }
 
+export type MoveEntryInput = MoveNoteInput
+
 export interface EntryOperationOutput {
   oldPath?: string
   path: string
@@ -115,12 +119,18 @@ export interface AppSettings {
   lastNotePath: string | null
   userIgnoreFilters: string[]
   graphForces: GraphForceSettings
-  aiImmutablePaths?: string[]
   aiReviewPaths?: string[]
   graphDisplay: GraphDisplaySettings
   graphFilters: GraphFilterSettings
   graphGroups: GraphGroup[]
   graphViewStates: GraphViewStates
+  templateDirectory?: string
+  showBuiltInTemplates?: boolean
+}
+
+export interface TemplateSettings {
+  directory: string
+  includeBuiltIns: boolean
 }
 
 export type GraphViewScope = 'local' | 'vault'
@@ -259,7 +269,15 @@ export type DriveSyncAction =
   | 'download'
   | 'move'
   | 'conflict'
-  | 'preserve'
+    | 'preserve'
+    | 'trash_local'
+    | 'trash_remote'
+
+export interface DriveSyncPreviewOptions {
+  propagateLocalDeletion?: boolean
+  propagateRemoteDeletion?: boolean
+  forceFull?: boolean
+}
 
 export interface DriveSyncPreviewItem {
   path: string
@@ -286,8 +304,10 @@ export interface DriveSyncPreview {
     upload: number
     download: number
     move: number
-    conflict: number
-    preserve: number
+      conflict: number
+      preserve: number
+      trashLocal?: number
+      trashRemote?: number
   }
 }
 
@@ -297,9 +317,16 @@ export interface DriveSyncApplyResult {
   moved: number
   conflicts: number
   preserved: number
+  trashedLocal?: number
+  trashedRemote?: number
   conflictPaths: string[]
   completedAt: string
 }
+
+export type EntryMoveRecoveryStatus =
+  | { status: 'clean' }
+  | { status: 'recovered'; action: 'discarded' | 'rolled-back' | 'committed' }
+  | { status: 'recovery-required'; source: string; destination: string }
 
 export interface TsuzuneApi {
   chooseVault(): Promise<Result<VaultSnapshot | null>>
@@ -317,14 +344,16 @@ export interface TsuzuneApi {
   createDirectory(input: CreateDirectoryInput): Promise<Result<EntryOperationOutput>>
   renameEntry(input: RenameEntryInput): Promise<Result<EntryOperationOutput>>
   moveNote(input: MoveNoteInput): Promise<Result<EntryOperationOutput>>
+  moveEntry(input: MoveEntryInput): Promise<Result<EntryOperationOutput>>
+  getMoveRecovery(): Promise<Result<EntryMoveRecoveryStatus>>
   trashEntry(path: string): Promise<Result<EntryOperationOutput>>
   saveBookmark(input: SaveBookmarkInput): Promise<Result<VaultBookmark>>
   removeBookmark(path: string): Promise<Result<null>>
   setLastNote(path: string | null): Promise<Result<null>>
   setUserIgnoreFilters(filters: string[]): Promise<Result<null>>
   setGraphForces(settings: GraphForceSettings): Promise<Result<null>>
-  setAiImmutablePaths(paths: string[]): Promise<Result<null>>
   setAiReviewPaths(paths: string[]): Promise<Result<null>>
+  setTemplateSettings(settings: TemplateSettings): Promise<Result<null>>
   listAiReviewProposals(): Promise<Result<AiWriteReviewProposal[]>>
   approveAiReviewProposal(id: string): Promise<Result<EntryOperationOutput>>
   cancelAiReviewProposal(id: string): Promise<Result<null>>
