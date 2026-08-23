@@ -17,6 +17,7 @@ import type {
   DriveRemoteVault,
   DriveSyncApplyResult,
   DriveSyncPreview,
+  EntryMoveRecoveryStatus,
   GoogleDriveStatus,
   GraphDisplaySettings,
   GraphFilterSettings,
@@ -25,6 +26,8 @@ import type {
   GraphViewScope,
   GraphViewState,
   MoveNoteInput,
+  MoveEntryInput,
+  TemplateSettings,
   PairDriveVaultInput,
   RenameEntryInput,
   Result,
@@ -37,13 +40,11 @@ import { parseGraphFilterSettings } from '../shared/graph-filters'
 import { parseGraphGroups } from '../shared/graph-groups'
 import { parseGraphViewState } from '../shared/graph-view-state'
 import { parseUserIgnoreFilters } from '../shared/excluded-files'
-import {
-  parseAiImmutablePaths,
-  parseAiReviewPaths
-} from '../shared/ai-write-policy'
+import { parseAiReviewPaths } from '../shared/ai-write-policy'
 import { updateSettings, readSettings, settingsPath } from './settings'
 import { VaultMcpService } from '../mcp/service'
 import { VaultError, VaultService } from './vault'
+import { EntryMoveCoordinator } from './entry-move'
 import { VaultWatcher } from './watcher'
 import type { GoogleConnectionService } from './google-connection'
 
@@ -57,6 +58,10 @@ function runInOrder<T>(operation: () => Promise<T>): Promise<T> {
     () => undefined
   )
   return result
+}
+
+export function runEntryMoveInOrder<T>(operation: () => Promise<T>): Promise<T> {
+  return runInOrder(() => runGoogleInOrder(operation))
 }
 
 export function runGoogleInOrder<T>(operation: () => Promise<T>): Promise<T> {
@@ -174,7 +179,15 @@ export interface DriveSyncIpcService {
   ): Promise<{ lastSyncAt: string | null; rootFolderId: string | null }>
   listRemoteVaults(): Promise<DriveRemoteVault[]>
   pairRemoteVault(rootFolderId: string, vaultId: string): Promise<void>
-  recordLocalMove(oldPath: string, path: string): Promise<void>
+  inspectLocalMoves(
+    mappings: Array<{ oldPath: string; path: string }>
+  ): Promise<{
+    tracked: number
+    untracked: number
+    pendingMoves: Record<string, string>
+  }>
+  recordLocalMoves(mappings: Array<{ oldPath: string; path: string }>): Promise<void>
+  replacePendingMoves(pendingMoves: Record<string, string>): Promise<void>
   preview(): Promise<DriveSyncPreview>
   apply(planId: string): Promise<DriveSyncApplyResult>
 }
@@ -198,7 +211,8 @@ export function registerIpc(
   updates: AppUpdateIpcService,
   getWindow: () => BrowserWindow | null,
   confirmClose: (allow: boolean) => void,
-  openVaultFileWindow?: (path: string) => Promise<void>
+  openVaultFileWindow?: (path: string) => Promise<void>,
+  entryMoveOverride?: EntryMoveCoordinator
 ): void {
   const isTrusted = (event: IpcMainInvokeEvent): boolean =>
     trustedSender(event, getWindow)
@@ -218,27 +232,8 @@ export function registerIpc(
     handler: (...args: TArgs) => Promise<TOutput>
   ): void => registerGoogle(channel, isTrusted, handler)
 
-  const recordMovedMarkdown = async (
-    moved: { oldPath?: string; path: string }
-  ): Promise<void> => {
-    if (!moved.oldPath?.toLowerCase().endsWith('.md')) return
-    try {
-      await google.driveSync.recordLocalMove(moved.oldPath, moved.path)
-    } catch (error) {
-      try {
-        await vault.moveNote({
-          path: moved.path,
-          destinationDirectory: dirnameRelative(moved.oldPath),
-          destinationPath: moved.oldPath
-        })
-      } catch {
-        throw new Error(
-          `Drive同期履歴を保存できず、ノートを元の場所へ戻せませんでした: ${moved.path}`
-        )
-      }
-      throw error
-    }
-  }
+  const entryMove =
+    entryMoveOverride ?? new EntryMoveCoordinator({ vault, drive: google.driveSync })
 
   registerTrusted('vault:choose', async () => {
     const options: Electron.OpenDialogOptions = {
@@ -264,6 +259,7 @@ export function registerIpc(
       watcherSwitchAttempted = true
       await watcher.stop()
       await vault.setRootPath(rootPath)
+      await entryMove.recover()
       const snapshot = await vault.scan(previousSettings.userIgnoreFilters)
       await watcher.start(rootPath)
       settingsAttempted = true
@@ -308,6 +304,7 @@ export function registerIpc(
 
     try {
       await vault.setRootPath(settings.lastVaultPath)
+      await entryMove.recover()
       await watcher.start(settings.lastVaultPath)
       return await vault.scan(settings.userIgnoreFilters)
     } catch {
@@ -348,16 +345,62 @@ export function registerIpc(
     return vault.createDirectory(input)
   })
 
+  registerTrusted('entry:getMoveRecovery', async (): Promise<EntryMoveRecoveryStatus> => {
+    return entryMove.getRecoveryStatus()
+  })
+
   registerTrusted('entry:rename', async (input: RenameEntryInput) => {
-    const moved = await vault.renameEntry(input)
-    await recordMovedMarkdown(moved)
-    return moved
+    if (input.path.toLocaleLowerCase().endsWith('.md')) {
+      const destination = vault.resolveMarkdownRenameDestination(input)
+      const plan = await entryMove.preflight(input.path, destination, 'human')
+      const moved = await runGoogleInOrder(() =>
+        entryMove.apply({
+          source: plan.source,
+          destination: plan.destination,
+          expected_fingerprint: plan.fingerprint,
+          actor: 'human',
+          reason: 'アプリでの名前変更',
+          source_refs: []
+        })
+      )
+      return { oldPath: moved.old_path, path: moved.new_path }
+    }
+    return vault.renameEntry(input)
   })
 
   registerTrusted('entry:moveNote', async (input: MoveNoteInput) => {
-    const moved = await vault.moveNote(input)
-    await recordMovedMarkdown(moved)
-    return moved
+    const destination = await vault.resolveMoveDestination(input)
+    const plan = await entryMove.preflight(input.path, destination, 'human')
+    const moved = await runGoogleInOrder(() =>
+      entryMove.apply({
+        source: plan.source,
+        destination: plan.destination,
+        expected_fingerprint: plan.fingerprint,
+        actor: 'human',
+        reason: 'アプリでのノート移動',
+        source_refs: []
+      })
+    )
+    return { oldPath: moved.old_path, path: moved.new_path }
+  })
+
+  registerTrusted('entry:moveEntry', async (input: MoveEntryInput) => {
+    if (input.path.toLocaleLowerCase().endsWith('.md')) {
+      const destination = await vault.resolveMoveDestination(input)
+      const plan = await entryMove.preflight(input.path, destination, 'human')
+      const moved = await runGoogleInOrder(() =>
+        entryMove.apply({
+          source: plan.source,
+          destination: plan.destination,
+          expected_fingerprint: plan.fingerprint,
+          actor: 'human',
+          reason: 'アプリでのノート移動',
+          source_refs: []
+        })
+      )
+      return { oldPath: moved.old_path, path: moved.new_path }
+    }
+    return vault.moveEntry(input)
   })
 
   registerTrusted('entry:trash', async (path: string) => {
@@ -383,13 +426,21 @@ export function registerIpc(
     return null
   })
 
-  registerTrusted('settings:setAiImmutablePaths', async (paths: string[]) => {
-    await updateSettings({ aiImmutablePaths: parseAiImmutablePaths(paths) })
+  registerTrusted('settings:setAiReviewPaths', async (paths: string[]) => {
+    await updateSettings({ aiReviewPaths: parseAiReviewPaths(paths) })
     return null
   })
 
-  registerTrusted('settings:setAiReviewPaths', async (paths: string[]) => {
-    await updateSettings({ aiReviewPaths: parseAiReviewPaths(paths) })
+  registerTrusted('settings:setTemplates', async (settings: TemplateSettings) => {
+    const directory = settings.directory.trim().replaceAll('\\', '/').replace(/^\/+|\/+$/g, '')
+    const snapshot = await vault.scan()
+    if (!directory || !snapshot.directories.includes(directory)) {
+      throw new Error('テンプレートフォルダがVault内に見つかりません。')
+    }
+    await updateSettings({
+      templateDirectory: directory,
+      showBuiltInTemplates: settings.includeBuiltIns
+    })
     return null
   })
 

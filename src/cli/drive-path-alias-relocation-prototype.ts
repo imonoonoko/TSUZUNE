@@ -1,6 +1,7 @@
 /**
- * O2-P4B test-only coordinator for explicit Drive metadata relocation.
- * No app, IPC, MCP, package command, OAuth, or live-Drive entry point uses it.
+ * O2-P4B transaction coordinator for explicit Drive metadata relocation.
+ * It is shared by integration tests and the separately gated canonical-five
+ * production runner; it is not exposed through the app, IPC, or MCP.
  */
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -66,7 +67,7 @@ interface DriveLedger {
   vaults: DriveLedgerVault[];
 }
 
-interface RelocationOptions {
+export interface RelocationOptions {
   vaultRoot: string;
   ownershipToken: string;
   preimagesDirectory: string;
@@ -79,6 +80,7 @@ interface RelocationOptions {
   aliasRemote: DrivePathAliasRemote;
   markdownRemote: DriveMarkdownRelocationRemote;
   failAfter?: "remote" | "alias" | "ledger";
+  ownership?: { mode: 'production'; settingsPath: string; vaultId: string; rootFolderId: string };
 }
 
 export interface DrivePathAliasRelocationPreview {
@@ -187,7 +189,7 @@ function selectLedgerVault(
 function selectAlias(
   aliases: RemotePathAliasObject[],
   options: RelocationOptions,
-): RemotePathAliasObject {
+): RemotePathAliasObject | null {
   const owned = aliases.filter(
     (candidate) =>
       candidate.id &&
@@ -196,9 +198,9 @@ function selectAlias(
       candidate.parentId === options.rootFolderId &&
       candidate.role === "pathAliases",
   );
-  if (owned.length !== 1)
+  if (owned.length > 1)
     throw new Error("Owned remote Path Alias object is not unique.");
-  return owned[0]!;
+  return owned[0] ?? null;
 }
 
 export async function previewDrivePathAliasRelocationPrototype(
@@ -226,16 +228,24 @@ export async function previewDrivePathAliasRelocationPrototype(
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
 
-  const aliasPreview = await previewDrivePathAliasSyncPrototype({
-    vaultRoot: options.vaultRoot,
-    sidecarPath: resolve(options.vaultRoot, ".tsuzune", "path-aliases.json"),
-    ledgerPath: options.aliasLedgerPath,
-    vaultId: options.vaultId,
-    rootFolderId: options.rootFolderId,
-    remote: options.aliasRemote,
-  });
-  if (aliasPreview.action !== "none") {
-    throw new Error("O2-P4A baseline is not clean.");
+  const sidecarPath = resolve(options.vaultRoot, ".tsuzune", "path-aliases.json");
+  const localAlias = await readFile(sidecarPath).catch((error) =>
+    (error as NodeJS.ErrnoException).code === "ENOENT" ? null : Promise.reject(error),
+  );
+  const remoteAlias = selectAlias(await options.aliasRemote.list(options.vaultId), options);
+  const aliasLedger = await readFile(options.aliasLedgerPath).catch((error) =>
+    (error as NodeJS.ErrnoException).code === "ENOENT" ? null : Promise.reject(error),
+  );
+  const aliasBaselineEmpty = !localAlias && !remoteAlias && !aliasLedger;
+  let aliasFingerprint: string;
+  if (aliasBaselineEmpty) aliasFingerprint = sha256("empty-alias-baseline");
+  else {
+    const aliasPreview = await previewDrivePathAliasSyncPrototype({
+      vaultRoot: options.vaultRoot, sidecarPath, ledgerPath: options.aliasLedgerPath,
+      vaultId: options.vaultId, rootFolderId: options.rootFolderId, remote: options.aliasRemote,
+    });
+    if (aliasPreview.action !== "none") throw new Error("O2-P4A baseline is not clean.");
+    aliasFingerprint = aliasPreview.fingerprint;
   }
 
   const [{ bytes: ledgerBytes, value: ledger }, remoteFiles] =
@@ -244,9 +254,14 @@ export async function previewDrivePathAliasRelocationPrototype(
       options.markdownRemote.listMarkdown(options.vaultId),
     ]);
   const ledgerVault = selectLedgerVault(ledger, options);
-  const remoteByPath = new Map(
-    remoteFiles.map((file) => [pathKey(file.path), file] as const),
-  );
+  const remoteByPath = new Map<string, RemoteRelocationMarkdownObject>();
+  for (const file of remoteFiles) {
+    const key = pathKey(file.path);
+    if (remoteByPath.has(key)) {
+      throw new Error(`Remote duplicate path: ${file.path}`);
+    }
+    remoteByPath.set(key, file);
+  }
   const ledgerPaths = new Set(Object.keys(ledgerVault.files).map(pathKey));
   const moves: DrivePathAliasRelocationPreview["moves"] = [];
 
@@ -300,7 +315,7 @@ export async function previewDrivePathAliasRelocationPrototype(
         plan: options.plan,
         moves,
         ledgerHash: sha256(ledgerBytes),
-        aliasFingerprint: aliasPreview.fingerprint,
+        aliasFingerprint,
       }),
     ),
   };
@@ -315,7 +330,9 @@ export async function applyDrivePathAliasRelocationPrototype(
   }
 
   const ledgerPreimage = await readFile(options.driveLedgerPath);
-  const aliasLedgerPreimage = await readFile(options.aliasLedgerPath);
+  const aliasLedgerPreimage = await readFile(options.aliasLedgerPath).catch((error) =>
+    (error as NodeJS.ErrnoException).code === "ENOENT" ? null : Promise.reject(error),
+  );
   const alias = selectAlias(
     await options.aliasRemote.list(options.vaultId),
     options,
@@ -331,12 +348,13 @@ export async function applyDrivePathAliasRelocationPrototype(
     localRollbackPacketPath,
     remoteMarkdown: fresh.moves,
     remoteAlias: {
-      fileId: alias.id,
-      version: alias.version,
-      bytesBase64: alias.bytes.toString("base64"),
+      fileId: alias?.id ?? null,
+      version: alias?.version ?? null,
+      bytesBase64: alias?.bytes.toString("base64") ?? null,
+      existed: Boolean(alias),
     },
     ledgerPreimageBase64: ledgerPreimage.toString("base64"),
-    aliasLedgerPreimageBase64: aliasLedgerPreimage.toString("base64"),
+    aliasLedgerPreimageBase64: aliasLedgerPreimage?.toString("base64") ?? null,
     completedRelocations: [] as Array<{
       fileId: string;
       oldPath: string;
@@ -344,6 +362,9 @@ export async function applyDrivePathAliasRelocationPrototype(
       currentVersion: string;
     }>,
     aliasUpdatedVersion: null as string | null,
+    aliasCreateAttempted: false,
+    ledgerPostimageHash: null as string | null,
+    aliasLedgerPostimageHash: null as string | null,
     unresolved: [] as string[],
   };
   await writeJsonAtomic(options.recoveryPacketPath, recovery);
@@ -353,6 +374,7 @@ export async function applyDrivePathAliasRelocationPrototype(
       vaultRoot: options.vaultRoot,
       plan: options.plan,
       ownershipToken: options.ownershipToken,
+      productionBinding: options.ownership,
       preimagesDirectory: options.preimagesDirectory,
       rollbackPacketPath: localRollbackPacketPath,
     };
@@ -392,21 +414,24 @@ export async function applyDrivePathAliasRelocationPrototype(
     const aliasBytes = await readFile(
       resolve(options.vaultRoot, ".tsuzune", "path-aliases.json"),
     );
-    const updatedAlias = await options.aliasRemote.update({
-      fileId: alias.id,
-      vaultId: options.vaultId,
-      parentId: options.rootFolderId,
-      expectedVersion: alias.version,
-      bytes: aliasBytes,
-    });
+    let updatedAlias: RemotePathAliasObject;
+    if (alias) {
+      updatedAlias = await options.aliasRemote.update({ fileId: alias.id, vaultId: options.vaultId,
+        parentId: options.rootFolderId, expectedVersion: alias.version, bytes: aliasBytes });
+    } else {
+      recovery.aliasCreateAttempted = true;
+      await writeJsonAtomic(options.recoveryPacketPath, recovery);
+      updatedAlias = await options.aliasRemote.create({ vaultId: options.vaultId, parentId: options.rootFolderId, bytes: aliasBytes });
+    }
     if (
-      updatedAlias.id !== alias.id ||
+      (alias && updatedAlias.id !== alias.id) ||
       updatedAlias.parentId !== options.rootFolderId ||
       !updatedAlias.bytes.equals(aliasBytes)
     ) {
       throw new Error("Remote alias verification failed.");
     }
     recovery.aliasUpdatedVersion = updatedAlias.version;
+    if (!recovery.remoteAlias.existed) recovery.remoteAlias.fileId = updatedAlias.id;
     await writeJsonAtomic(options.recoveryPacketPath, recovery);
     if (options.failAfter === "alias")
       throw new Error("O2_P4B_FAIL_AFTER_ALIAS");
@@ -421,6 +446,7 @@ export async function applyDrivePathAliasRelocationPrototype(
       remoteHash: sha256(updatedAlias.bytes),
       remoteVersion: updatedAlias.version,
     });
+    recovery.aliasLedgerPostimageHash = sha256(await readFile(options.aliasLedgerPath));
 
     const ledger = JSON.parse(ledgerPreimage.toString("utf8")) as DriveLedger;
     const ledgerVault = selectLedgerVault(ledger, options);
@@ -430,6 +456,8 @@ export async function applyDrivePathAliasRelocationPrototype(
       ledgerVault.files[move.destinationPath] = entry;
     }
     await writeJsonAtomic(options.driveLedgerPath, ledger);
+    recovery.ledgerPostimageHash = sha256(await readFile(options.driveLedgerPath));
+    await writeJsonAtomic(options.recoveryPacketPath, recovery);
     if (options.failAfter === "ledger")
       throw new Error("O2_P4B_FAIL_AFTER_LEDGER");
 
@@ -511,10 +539,35 @@ export async function applyDrivePathAliasRelocationPrototype(
         unresolved.push(`remote:${completed.fileId}`);
       }
     }
-    if (recovery.aliasUpdatedVersion) {
+    if (!recovery.remoteAlias.existed && recovery.aliasCreateAttempted && !recovery.aliasUpdatedVersion) {
+      try {
+        const expectedBytes = await readFile(
+          resolve(options.vaultRoot, ".tsuzune", "path-aliases.json"),
+        );
+        const created = (await options.aliasRemote.list(options.vaultId)).filter(
+          (candidate) =>
+            candidate.vaultId === options.vaultId &&
+            candidate.parentId === options.rootFolderId &&
+            candidate.role === "pathAliases" &&
+            candidate.bytes.equals(expectedBytes),
+        );
+        if (created.length === 1) {
+          recovery.remoteAlias.fileId = created[0]!.id;
+          recovery.aliasUpdatedVersion = created[0]!.version;
+          await writeJsonAtomic(options.recoveryPacketPath, recovery);
+        } else if (created.length > 1) {
+          unresolved.push("alias:created-ambiguous");
+        } else {
+          unresolved.push("alias:created-not-found");
+        }
+      } catch {
+        unresolved.push("alias:created-unknown");
+      }
+    }
+    if (recovery.aliasUpdatedVersion && recovery.remoteAlias.bytesBase64) {
       try {
         const restored = await options.aliasRemote.update({
-          fileId: recovery.remoteAlias.fileId,
+          fileId: recovery.remoteAlias.fileId!,
           vaultId: options.vaultId,
           parentId: options.rootFolderId,
           expectedVersion: recovery.aliasUpdatedVersion,
@@ -530,14 +583,30 @@ export async function applyDrivePathAliasRelocationPrototype(
       } catch {
         unresolved.push(`alias:${recovery.remoteAlias.fileId}`);
       }
+    } else if (!recovery.remoteAlias.existed && recovery.aliasUpdatedVersion) {
+      try {
+        const remove = options.aliasRemote.remove;
+        if (!remove) throw new Error("alias remove unavailable");
+        await remove.call(options.aliasRemote, { fileId: recovery.remoteAlias.fileId!, vaultId: options.vaultId,
+          parentId: options.rootFolderId, expectedVersion: recovery.aliasUpdatedVersion });
+      } catch { unresolved.push(`alias:${recovery.remoteAlias.fileId ?? "created"}`); }
     }
     try {
+      const current = await readFile(options.driveLedgerPath);
+      if (recovery.ledgerPostimageHash && sha256(current) !== recovery.ledgerPostimageHash &&
+          sha256(current) !== sha256(ledgerPreimage)) throw new Error("ledger CAS");
       await writeBytesAtomic(options.driveLedgerPath, ledgerPreimage);
     } catch {
       unresolved.push(`ledger:${options.driveLedgerPath}`);
     }
     try {
-      await writeBytesAtomic(options.aliasLedgerPath, aliasLedgerPreimage);
+      const current = await readFile(options.aliasLedgerPath).catch((e) =>
+        (e as NodeJS.ErrnoException).code === "ENOENT" ? null : Promise.reject(e));
+      const currentHash = current ? sha256(current) : null;
+      if (currentHash !== recovery.aliasLedgerPostimageHash &&
+          currentHash !== (aliasLedgerPreimage ? sha256(aliasLedgerPreimage) : null)) throw new Error("alias ledger CAS");
+      if (aliasLedgerPreimage) await writeBytesAtomic(options.aliasLedgerPath, aliasLedgerPreimage);
+      else await rm(options.aliasLedgerPath, { force: true });
     } catch {
       unresolved.push(`ledger:${options.aliasLedgerPath}`);
     }
@@ -546,6 +615,7 @@ export async function applyDrivePathAliasRelocationPrototype(
         vaultRoot: options.vaultRoot,
         rollbackPacketPath: localRollbackPacketPath,
         ownershipToken: options.ownershipToken,
+        productionBinding: options.ownership,
       });
       unresolved.push(...local.unrestoredPaths.map((path) => `local:${path}`));
     } catch {
@@ -554,9 +624,7 @@ export async function applyDrivePathAliasRelocationPrototype(
     if (unresolved.length > 0) {
       recovery.unresolved = unresolved;
       await writeJsonAtomic(options.recoveryPacketPath, recovery);
-      throw new Error(
-        `O2-P4B rollback incomplete; recovery packet retained: ${unresolved.join(", ")}`,
-      );
+      throw new Error("O2-P4B rollback incomplete; recovery packet retained");
     }
     await rm(options.recoveryPacketPath, { force: true });
     await rm(localRollbackPacketPath, { force: true });

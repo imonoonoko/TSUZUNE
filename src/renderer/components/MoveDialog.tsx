@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 
 interface MoveDialogProps {
   notePath: string
+  entryKind?: 'file' | 'directory'
   directories: string[]
   currentDirectory: string
   onCancel: () => void
@@ -9,6 +10,7 @@ interface MoveDialogProps {
 }
 export default function MoveDialog({
   notePath,
+  entryKind = 'file',
   directories,
   currentDirectory,
   onCancel,
@@ -70,7 +72,9 @@ export default function MoveDialog({
           onConfirm(String(data.get('directory') ?? ''))
         }}
       >
-        <h2 id="move-dialog-title">ファイルを移動</h2>
+        <h2 id="move-dialog-title">
+          {entryKind === 'directory' ? 'フォルダーを移動' : 'ファイルを移動'}
+        </h2>
         <p id="move-dialog-description">{notePath}</p>
         <label>
           移動先

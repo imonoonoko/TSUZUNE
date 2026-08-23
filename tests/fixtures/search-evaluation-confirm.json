@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "split": "confirm",
+  "k": 10,
+  "cases": [
+    {
+      "id": "conf-hooks-natural",
+      "query": "Hooksの導入を検討したい",
+      "relevance": {
+        "30_知識/TSUZUNE-Hooks設計案.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-Hooks設計案.md"]
+    },
+    {
+      "id": "conf-google-error-natural",
+      "query": "Google連携でエラーが出た",
+      "relevance": {
+        "30_知識/TSUZUNE-Google連携・同期・障害対応.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-Google連携・同期・障害対応.md"]
+    },
+    {
+      "id": "conf-backup-natural",
+      "query": "データのバックアップはどうする？",
+      "relevance": {
+        "30_知識/TSUZUNE-データ保護・バックアップ・復旧.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-データ保護・バックアップ・復旧.md"]
+    },
+    {
+      "id": "conf-ai-organize-natural",
+      "query": "AIが整理するときのルール",
+      "relevance": {
+        "30_知識/TSUZUNE-AI整理運用契約.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-AI整理運用契約.md"]
+    },
+    {
+      "id": "conf-codebase-natural",
+      "query": "コードベースの責務を確認したい",
+      "relevance": {
+        "30_知識/TSUZUNE-コードベース責務地図.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-コードベース責務地図.md"]
+    },
+    {
+      "id": "conf-security-natural",
+      "query": "セキュリティの境界はどこ？",
+      "relevance": {
+        "30_知識/TSUZUNE-アーキテクチャとセキュリティ境界.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-アーキテクチャとセキュリティ境界.md"]
+    },
+    {
+      "id": "conf-template-folder-natural",
+      "query": "テンプレートをフォルダで管理する",
+      "relevance": {
+        "30_知識/TSUZUNE-テンプレート・フォルダUX改善案-2026-08-15.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-テンプレート・フォルダUX改善案-2026-08-15.md"]
+    },
+    {
+      "id": "conf-o1-natural",
+      "query": "O1の観測はいつまで？",
+      "relevance": {
+        "30_知識/TSUZUNE-O1-7-day-dogfood-2026-08-15.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-O1-7-day-dogfood-2026-08-15.md"]
+    },
+    {
+      "id": "conf-vault-plan",
+      "query": "ボールトの整理計画",
+      "relevance": {
+        "30_知識/TSUZUNE-ボールト整理計画-2026-08-13.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-ボールト整理計画-2026-08-13.md"]
+    },
+    {
+      "id": "conf-synergy-discovery-natural",
+      "query": "シナジー候補の見つけ方",
+      "relevance": {
+        "30_知識/TSUZUNE-シナジー候補の発見パイプライン.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-シナジー候補の発見パイプライン.md"]
+    },
+    {
+      "id": "conf-synergy-roadmap",
+      "query": "シナジー実装のロードマップ",
+      "relevance": {
+        "30_知識/TSUZUNE-シナジー実装ロードマップ.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-シナジー実装ロードマップ.md"]
+    },
+    {
+      "id": "conf-graph-evidence-natural",
+      "query": "Graphの検証結果を確認",
+      "relevance": {
+        "30_知識/TSUZUNE-Graph検証地図.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-Graph検証地図.md"]
+    },
+    {
+      "id": "conf-distribution-natural",
+      "query": "配布の計画はどうなってる？",
+      "relevance": {
+        "30_知識/TSUZUNE-Google・ChatGPT・配布ロードマップ.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-Google・ChatGPT・配布ロードマップ.md"]
+    },
+    {
+      "id": "conf-not-observable-phrase",
+      "query": "\"not_observable\"",
+      "relevance": {
+        "30_知識/TSUZUNE-Context CompilerとTemporal Memory.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-Context CompilerとTemporal Memory.md"]
+    },
+    {
+      "id": "conf-search-operator",
+      "query": "検索演算子の実測",
+      "relevance": {
+        "30_知識/TSUZUNE-A2-1-検索演算子-実測・検証-2026-08-15.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-A2-1-検索演算子-実測・検証-2026-08-15.md"]
+    },
+    {
+      "id": "conf-category-file-filter",
+      "query": "file:TSUZUNE-カテゴリ運用チートシート",
+      "relevance": {
+        "30_知識/TSUZUNE-カテゴリ運用チートシート-2026-08-14.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-カテゴリ運用チートシート-2026-08-14.md"]
+    },
+    {
+      "id": "conf-exclude-history-natural",
+      "query": "検索から履歴を除外したい",
+      "relevance": {
+        "30_知識/TSUZUNE-MCP-検索履歴除外-設計-2026-08-13.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-MCP-検索履歴除外-設計-2026-08-13.md"]
+    },
+    {
+      "id": "conf-freebuff-natural",
+      "query": "Freebuffと連携するには",
+      "relevance": {
+        "30_知識/TSUZUNE-Freebuff-MCP連携とボールト境界.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-Freebuff-MCP連携とボールト境界.md"]
+    },
+    {
+      "id": "conf-security-path-filter",
+      "query": "path:30_知識 セキュリティ境界",
+      "relevance": {
+        "30_知識/TSUZUNE-アーキテクチャとセキュリティ境界.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-アーキテクチャとセキュリティ境界.md"]
+    },
+    {
+      "id": "conf-negation",
+      "query": "-Hooks 検索 履歴 除外",
+      "relevance": {
+        "30_知識/TSUZUNE-MCP-検索履歴除外-設計-2026-08-13.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-MCP-検索履歴除外-設計-2026-08-13.md"]
+    }
+  ]
+}

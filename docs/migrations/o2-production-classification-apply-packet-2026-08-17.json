@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 3,
+  "packetId": "O2-production-classification-apply-packet-2026-08-17",
+  "status": "applied-and-verified",
+  "applyAllowed": false,
+  "approvalState": "consumed",
+  "recordedAt": "2026-08-17T02:05:20.4255821+09:00",
+  "sourceCommit": "5a9443d93840bb970ae34ea76a618bef1f1fce6c",
+  "sourceState": "dirty-working-tree",
+  "previewFingerprint": "62ac11261c8fa45b60547cf507f57473905bfbf6e7695e566519db98a1f62f48",
+  "moveCount": 5,
+  "movedBytes": 20001,
+  "moves": [
+    {
+      "sourcePath": "30_知識/TSUZUNE-Google連携・同期・障害対応.md",
+      "destinationPath": "30_知識/ソフトウェア開発/TSUZUNE-Google連携・同期・障害対応.md",
+      "sizeBytes": 5513,
+      "sha256": "c515a5b671e795114a004e18bc1e5c0b52f6f685e93f7cdf22d507d12bb3df0c",
+      "status": "moved-and-verified"
+    },
+    {
+      "sourcePath": "30_知識/TSUZUNE-MCPとAI書き込み運用.md",
+      "destinationPath": "30_知識/ソフトウェア開発/TSUZUNE-MCPとAI書き込み運用.md",
+      "sizeBytes": 6351,
+      "sha256": "0b3b893267f4730f1b6778e5216ee6982fd869df118ffeeb4c80171fe3b840d2",
+      "status": "moved-and-verified"
+    },
+    {
+      "sourcePath": "30_知識/TSUZUNE-データ保護・バックアップ・復旧.md",
+      "destinationPath": "30_知識/ソフトウェア開発/TSUZUNE-データ保護・バックアップ・復旧.md",
+      "sizeBytes": 3737,
+      "sha256": "8c7ea920e734a6d45d8bb83e2c023971f9ee844ec14951db4fa2d5e0b4fb8da1",
+      "status": "moved-and-verified"
+    },
+    {
+      "sourcePath": "30_知識/TSUZUNE-開発開始と区切りの標準ループ.md",
+      "destinationPath": "30_知識/ソフトウェア開発/TSUZUNE-開発開始と区切りの標準ループ.md",
+      "sizeBytes": 2113,
+      "sha256": "1ddb8949028af9b96f91e89155cbfc615b898cf516bd8053f41a13d3282b65cd",
+      "status": "moved-and-verified"
+    },
+    {
+      "sourcePath": "30_知識/TSUZUNE-本番更新・インストール・Release運用.md",
+      "destinationPath": "30_知識/ソフトウェア開発/TSUZUNE-本番更新・インストール・Release運用.md",
+      "sizeBytes": 2287,
+      "sha256": "5cbe00ba406f316150df2d7d42b4604058c843c602b9507b08ff12ef150bdb46",
+      "status": "moved-and-verified"
+    }
+  ],
+  "verification": {
+    "sourcesAbsent": 5,
+    "destinationsPresent": 5,
+    "destinationHashMatches": 5,
+    "remoteRelocationsVerified": 5,
+    "pathAliasesVerified": 5,
+    "driveLedgerMatches": true,
+    "aliasLedgerMatches": true,
+    "pendingMoves": 0,
+    "recoveryPacketPresent": false,
+    "rollbackPacketPresent": false,
+    "rawDriveIdsStored": false
+  },
+  "retryPolicy": "This approval is consumed. Any future migration requires a new preview fingerprint and explicit scope.",
+  "report": "docs/reports/classification-production-gate-2026-08-17.md"
+}

@@ -5,6 +5,10 @@ export const TEMPLATE_DIRECTORY = '90_テンプレート'
 export const DAILY_TEMPLATE_PATH = `${TEMPLATE_DIRECTORY}/今日のノート.md`
 export const IDEA_TEMPLATE_PATH = `${TEMPLATE_DIRECTORY}/アイデアメモ.md`
 
+export function dailyTemplatePath(directory = TEMPLATE_DIRECTORY): string {
+  return `${directory}/今日のノート.md`
+}
+
 const BUILTIN_TEMPLATES: readonly NoteDocument[] = [
   {
     path: IDEA_TEMPLATE_PATH,
@@ -72,11 +76,6 @@ export interface NoteLocation {
   path: string
 }
 
-export interface PlainNoteValues {
-  title: string
-  body: string
-}
-
 function localDate(date: Date): string {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -90,13 +89,23 @@ function localTime(date: Date): string {
   return `${hours}:${minutes}`
 }
 
-export function listTemplates(notes: NoteDocument[]): NoteDocument[] {
-  const prefix = `${TEMPLATE_DIRECTORY}/`
+export function listTemplates(
+  notes: NoteDocument[],
+  options: { directory?: string; includeBuiltIns?: boolean } = {}
+): NoteDocument[] {
+  const directory = options.directory ?? TEMPLATE_DIRECTORY
+  const prefix = `${directory}/`
   const actualTemplates = notes
     .filter((note) => note.path.startsWith(prefix))
   const actualPaths = new Set(actualTemplates.map((template) => template.path))
+  const builtIns = (options.includeBuiltIns ?? true)
+    ? BUILTIN_TEMPLATES.map((template) => ({
+        ...template,
+        path: `${directory}/${template.path.slice(`${TEMPLATE_DIRECTORY}/`.length)}`
+      }))
+    : []
   return [
-    ...BUILTIN_TEMPLATES.filter((template) => !actualPaths.has(template.path)),
+    ...builtIns.filter((template) => !actualPaths.has(template.path)),
     ...actualTemplates
   ].sort((left, right) => left.path.localeCompare(right.path, 'ja'))
 }
@@ -150,13 +159,6 @@ function readTasks(markdown: string, heading: string): string {
   return lines.every((line) => line.startsWith('- [ ] '))
     ? lines.map((line) => line.slice(6)).join('\n')
     : section
-}
-
-export function renderPlainNote(values: PlainNoteValues): string {
-  const body = values.body
-  return body.trim()
-    ? `# ${values.title.trim()}\n\n${body}${body.endsWith('\n') ? '' : '\n'}`
-    : `# ${values.title.trim()}\n`
 }
 
 export function dailyNoteLocation(now: Date): NoteLocation {

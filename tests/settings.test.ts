@@ -48,8 +48,9 @@ describe('App settings', () => {
       graphGroups: DEFAULT_GRAPH_GROUPS,
       graphViewStates: DEFAULT_GRAPH_VIEW_STATES,
       userIgnoreFilters: [],
-      aiImmutablePaths: [],
-      aiReviewPaths: []
+      aiReviewPaths: [],
+      templateDirectory: '90_テンプレート',
+      showBuiltInTemplates: true
     })
   })
 
@@ -80,8 +81,9 @@ describe('App settings', () => {
       graphGroups: DEFAULT_GRAPH_GROUPS,
       graphViewStates: DEFAULT_GRAPH_VIEW_STATES,
       userIgnoreFilters: [],
-      aiImmutablePaths: [],
-      aiReviewPaths: []
+      aiReviewPaths: [],
+      templateDirectory: '90_テンプレート',
+      showBuiltInTemplates: true
     })
   })
 
@@ -102,6 +104,18 @@ describe('App settings', () => {
       lastVaultPath: 'C:/Vault',
       lastNotePath: 'A.md',
       graphGroups
+    })
+  })
+
+  it('saves the chosen template folder and built-in visibility', async () => {
+    await updateSettings({
+      templateDirectory: '雛形',
+      showBuiltInTemplates: false
+    })
+
+    await expect(readSettings()).resolves.toMatchObject({
+      templateDirectory: '雛形',
+      showBuiltInTemplates: false
     })
   })
 
@@ -170,8 +184,9 @@ describe('App settings', () => {
       graphGroups: DEFAULT_GRAPH_GROUPS,
       graphViewStates: DEFAULT_GRAPH_VIEW_STATES,
       userIgnoreFilters: [],
-      aiImmutablePaths: [],
-      aiReviewPaths: []
+      aiReviewPaths: [],
+      templateDirectory: '90_テンプレート',
+      showBuiltInTemplates: true
     })
   })
 
@@ -275,21 +290,22 @@ describe('App settings', () => {
     })
   })
 
-  it('saves and normalizes additional AI immutable paths', async () => {
+  it('drops the retired AI immutable path setting on the next save', async () => {
     await writeFile(
       join(appData.path, 'settings.json'),
-      JSON.stringify({ lastVaultPath: 'C:/Vault', lastNotePath: 'A.md' }),
+      JSON.stringify({
+        lastVaultPath: 'C:/Vault',
+        lastNotePath: 'A.md',
+        aiImmutablePaths: ['Private']
+      }),
       'utf8'
     )
 
-    await updateSettings({
-      aiImmutablePaths: [' Private ', '', 'Drafts']
-    })
+    await updateSettings({ userIgnoreFilters: ['Archive'] })
 
-    await expect(readSettings()).resolves.toMatchObject({
-      lastVaultPath: 'C:/Vault',
-      lastNotePath: 'A.md',
-      aiImmutablePaths: ['Private', 'Drafts']
-    })
+    const stored = JSON.parse(
+      await readFile(join(appData.path, 'settings.json'), 'utf8')
+    ) as Record<string, unknown>
+    expect(stored.aiImmutablePaths).toBeUndefined()
   })
 })

@@ -1,0 +1,31 @@
+{
+  "templateOptions": [
+    "テンプレートを挿入…",
+    "アイデアメモ",
+    "プロジェクトメモ",
+    "会議メモ",
+    "学びメモ",
+    "今日のノート"
+  ],
+  "folderMenuItems": [
+    "ここに新規ノート",
+    "ここに新規フォルダー",
+    "フォルダーで表示",
+    "Vault相対パスをコピー",
+    "名前変更",
+    "ごみ箱へ移動"
+  ],
+  "moveOptions": [
+    "Vault直下",
+    "10_projects",
+    "20_knowledge",
+    "80_excluded",
+    "90_orphan",
+    "90_テンプレート",
+    "attachments"
+  ],
+  "viewport": {
+    "width": 1424,
+    "height": 861
+  }
+}

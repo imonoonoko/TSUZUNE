@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "split": "holdout",
+  "k": 10,
+  "cases": [
+    {
+      "id": "holdout-vault-safety",
+      "query": "Vault データ配置 安全な保存",
+      "relevance": {
+        "30_知識/TSUZUNE-Vault・データ配置・安全な保存.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-Vault・データ配置・安全な保存.md"]
+    },
+    {
+      "id": "holdout-classification",
+      "query": "分類と保存基準",
+      "relevance": {
+        "30_知識/TSUZUNE分類と保存基準.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE分類と保存基準.md"]
+    },
+    {
+      "id": "holdout-graph-evidence",
+      "query": "Graph検証地図",
+      "relevance": {
+        "30_知識/TSUZUNE-Graph検証地図.md": 3,
+        "30_知識/TSUZUNE-検索・Wikiリンク・Graph.md": 1
+      },
+      "requiredIds": ["30_知識/TSUZUNE-Graph検証地図.md"]
+    },
+    {
+      "id": "holdout-synergy-evaluation",
+      "query": "シナジー候補 評価方法",
+      "relevance": {
+        "30_知識/TSUZUNE-シナジー候補の評価方法.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-シナジー候補の評価方法.md"]
+    },
+    {
+      "id": "holdout-product-principles",
+      "query": "製品定義 設計原則",
+      "relevance": {
+        "30_知識/TSUZUNE-製品定義と設計原則.md": 3
+      },
+      "requiredIds": ["30_知識/TSUZUNE-製品定義と設計原則.md"]
+    }
+  ]
+}

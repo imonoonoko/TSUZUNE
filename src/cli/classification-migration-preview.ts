@@ -1028,7 +1028,13 @@ async function main(): Promise<void> {
 }
 
 const entryPath = process.argv[1] ? resolve(process.argv[1]) : ''
-if (entryPath && import.meta.url === pathToFileURL(entryPath).href) {
+const isClassificationPreviewEntry =
+  /(?:^|[\\/])classification-migration-preview\.(?:js|mjs|ts)$/i.test(entryPath)
+if (
+  entryPath &&
+  isClassificationPreviewEntry &&
+  import.meta.url === pathToFileURL(entryPath).href
+) {
   main().catch((error) => {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)
     process.exitCode = 1

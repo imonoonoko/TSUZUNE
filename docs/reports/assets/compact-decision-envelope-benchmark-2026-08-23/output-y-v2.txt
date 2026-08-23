@@ -1,0 +1,19 @@
+=== F1 ===
+outcome: NO_CHANGE
+F1:PLAN@p1を正本とし、F1:STATUS@s1、F1:R0@r1、F1:RECEIPT@i1はいずれも「Primaryなし」と整合する。4/4入力を確認し、未確認は0件。Delivery mismatchは既知だが判断を変えないため、現在の実装対象は変更しない。
+
+=== F2 ===
+outcome: PROPOSED
+F2:USER_SELECTION@u1がread-onlyの5ケースbenchmarkを明示選択し、F2:DESIGN@d1も同じ比較を要求している。3/3入力を確認し、未確認は0件。これは実行提案であり、F2:PLAN@p1の変更や製品実装は適用しない。結果後の計画変更には別途明示承認が必要。
+
+=== F3 ===
+outcome: BLOCKED
+自動更新は決定不能。F3:MOC@m1はprojectionで、F3:DATED_EVIDENCE@e1はevidenceだが、candidate-owner searchが未完了でownerはunknown。omission statusもNOT_MEASURED、source statusもunknownのため、推測による更新は行わない。
+
+=== F4 ===
+outcome: CONFLICT
+F4:EVIDENCE_A@a1は実装閾値達成、F4:EVIDENCE_B@b1は未達と述べ、既知の証拠が矛盾する。加えてproposal base p0はcurrent revision p1に対してstaleだが、判断の主因は矛盾である。Nextを製品実装へ変更せず、解消まで保留する。
+
+=== F5 ===
+outcome: BLOCKED
+current source、runtime、installed identityは別の所有元であり、同一性は確認できない。sourceはfrozenだが、runtimeはstale、delivery mismatchがあり、receiptもsourceより古い。したがってinstalled productionとの同一性も安全なapply可能性も未成立で、applyしない。

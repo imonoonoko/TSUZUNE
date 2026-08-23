@@ -1,0 +1,169 @@
+{
+  "result": "pass",
+  "isolatedVault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\fixtures\\obsidian-graph-parity-vault",
+  "isolatedUserData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\full-text-search-ui-userdata",
+  "query": "\"Project Alpha\" tag:#project/active -nonexistent",
+  "digestBefore": "99261427a78c3246518b4c8812544c5d510840ec5d129ec21413d01e5f9ab047",
+  "digestAfter": "99261427a78c3246518b4c8812544c5d510840ec5d129ec21413d01e5f9ab047",
+  "markdownDigestUnchanged": true,
+  "layout": {
+    "toolbar": {
+      "top": 137,
+      "right": 243,
+      "bottom": 323,
+      "left": 9,
+      "width": 234,
+      "height": 186
+    },
+    "toolbarButtons": [
+      {
+        "top": 145,
+        "right": 123.5,
+        "bottom": 175,
+        "left": 9,
+        "width": 114.5,
+        "height": 30
+      },
+      {
+        "top": 145,
+        "right": 243,
+        "bottom": 175,
+        "left": 128.5,
+        "width": 114.5,
+        "height": 30
+      },
+      {
+        "top": 180,
+        "right": 123.5,
+        "bottom": 210,
+        "left": 9,
+        "width": 114.5,
+        "height": 30
+      },
+      {
+        "top": 180,
+        "right": 243,
+        "bottom": 210,
+        "left": 128.5,
+        "width": 114.5,
+        "height": 30
+      },
+      {
+        "top": 215,
+        "right": 243,
+        "bottom": 245,
+        "left": 9,
+        "width": 234,
+        "height": 30
+      },
+      {
+        "top": 250,
+        "right": 243,
+        "bottom": 280,
+        "left": 9,
+        "width": 234,
+        "height": 30
+      },
+      {
+        "top": 285,
+        "right": 123.5,
+        "bottom": 315,
+        "left": 9,
+        "width": 114.5,
+        "height": 30
+      },
+      {
+        "top": 285,
+        "right": 243,
+        "bottom": 315,
+        "left": 128.5,
+        "width": 114.5,
+        "height": 30
+      }
+    ],
+    "toolbarContentBottom": 323,
+    "tree": {
+      "top": 323,
+      "right": 243,
+      "bottom": 704,
+      "left": 9,
+      "width": 234,
+      "height": 381
+    },
+    "firstRow": {
+      "top": 325,
+      "right": 228,
+      "bottom": 353,
+      "left": 9,
+      "width": 219,
+      "height": 28
+    },
+    "entryToolbar": {
+      "top": 704,
+      "right": 243,
+      "bottom": 743,
+      "left": 9,
+      "width": 234,
+      "height": 39
+    },
+    "treeScrollable": true,
+    "toolbarOverlapsTree": false,
+    "toolbarOverlapsFirstRow": false,
+    "treeOverlapsEntryToolbar": false
+  },
+  "closed": {
+    "leftExpanded": "false",
+    "focused": false,
+    "query": "",
+    "keyshortcuts": "Control+Shift+F Meta+Shift+F Control+K Meta+K",
+    "help": "条件: tag: / path: / file: 除外: -語 語句: \"複数語\"",
+    "resultCount": 0,
+    "name": null,
+    "path": null,
+    "metadata": [],
+    "markTexts": [],
+    "markTagNames": [],
+    "markFontWeight": null,
+    "markTextDecoration": null,
+    "markBackground": null
+  },
+  "opened": {
+    "leftExpanded": "true",
+    "focused": true,
+    "query": "",
+    "keyshortcuts": "Control+Shift+F Meta+Shift+F Control+K Meta+K",
+    "help": "条件: tag: / path: / file: 除外: -語 語句: \"複数語\"",
+    "resultCount": 0,
+    "name": null,
+    "path": null,
+    "metadata": [],
+    "markTexts": [],
+    "markTagNames": [],
+    "markFontWeight": null,
+    "markTextDecoration": null,
+    "markBackground": null
+  },
+  "searched": {
+    "leftExpanded": "true",
+    "focused": true,
+    "query": "\"Project Alpha\" tag:#project/active -nonexistent",
+    "keyshortcuts": "Control+Shift+F Meta+Shift+F Control+K Meta+K",
+    "help": "条件: tag: / path: / file: 除外: -語 語句: \"複数語\"",
+    "resultCount": 1,
+    "name": "Project Alpha",
+    "path": "10_projects/Project Alpha.md",
+    "metadata": [
+      "最終更新: 2026/8/15 5:22:09 · 最近更新",
+      "# Project Alpha #project/active - [[00_Home|Home]] - [[10_projects/Project Beta|Pro…"
+    ],
+    "markTexts": [
+      "Project Alpha"
+    ],
+    "markTagNames": [
+      "MARK"
+    ],
+    "markFontWeight": "700",
+    "markTextDecoration": "underline",
+    "markBackground": "rgba(0, 0, 0, 0)"
+  }
+}

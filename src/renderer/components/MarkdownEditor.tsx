@@ -7,6 +7,7 @@ import {
   insertWikiLink,
   type MarkdownFormat
 } from '../../core/markdown-edit'
+import { renderTemplate } from '../../core/templates'
 import type { NoteDocument } from '../../shared/types'
 
 interface MarkdownEditorProps {
@@ -14,13 +15,19 @@ interface MarkdownEditorProps {
   onChange: (value: string) => void
   readOnly?: boolean
   notes?: NoteDocument[]
+  templates?: NoteDocument[]
+  noteTitle?: string
+  templateDirectory?: string
 }
 
 export default function MarkdownEditor({
   value,
   onChange,
   readOnly = false,
-  notes = []
+  notes = [],
+  templates = [],
+  noteTitle,
+  templateDirectory = '90_テンプレート'
 }: MarkdownEditorProps): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -163,6 +170,37 @@ export default function MarkdownEditor({
     view.focus()
   }
 
+  const insertTemplate = (path: string): void => {
+    const view = viewRef.current
+    if (!view || !path || readOnly) {
+      return
+    }
+    const template = templates.find((candidate) => candidate.path === path)
+    if (!template) {
+      return
+    }
+    const rendered = renderTemplate(template.content, {
+      title: noteTitle?.trim() || '無題のノート',
+      now: new Date()
+    }).trimEnd()
+    if (!rendered) {
+      return
+    }
+    const selection = view.state.selection.main
+    const insert = `${rendered}\n`
+    view.dispatch({
+      changes: {
+        from: selection.from,
+        to: selection.to,
+        insert
+      },
+      selection: {
+        anchor: selection.from + insert.length
+      }
+    })
+    view.focus()
+  }
+
   return (
     <div className="markdown-editor-shell">
       <div className="markdown-format-toolbar" role="toolbar" aria-label="書式ツール">
@@ -191,6 +229,21 @@ export default function MarkdownEditor({
           {notes.map((note) => (
             <option key={note.path} value={note.path}>
               {note.path.replace(/\.md$/i, '')}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="テンプレートを挿入"
+          value=""
+          disabled={readOnly}
+          onChange={(event) => insertTemplate(event.target.value)}
+        >
+          <option value="">テンプレートを挿入…</option>
+          {templates.map((template) => (
+            <option key={template.path} value={template.path}>
+              {template.path
+                .slice(`${templateDirectory}/`.length)
+                .replace(/\.md$/i, '')}
             </option>
           ))}
         </select>

@@ -20,12 +20,14 @@ import {
 } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { isSupportedAttachmentPath } from '../shared/attachments'
+import { isAuditHistoryPath } from '../shared/ai-write-policy'
 import { createExcludedFileMatcher } from '../shared/excluded-files'
 import { compilePathAliases, resolvePathAlias } from '../core/path-aliases'
 import {
   basenameRelative,
   dirnameRelative,
   joinRelative,
+  isPathInsideOrEqual,
   validateEntryName,
   validateRelativePath,
   withMarkdownExtension,
@@ -36,6 +38,7 @@ import type {
   CreateDirectoryInput,
   CreateNoteInput,
   EntryOperationOutput,
+  MoveEntryInput,
   MoveNoteInput,
   NoteDocument,
   RenameEntryInput,
@@ -97,6 +100,21 @@ const IMAGE_MIME_TYPES = new Map([
 
 function validBirthtime(birthtimeMs: number): number | null {
   return Number.isFinite(birthtimeMs) && birthtimeMs > 0 ? birthtimeMs : null
+}
+
+
+const SCAN_BATCH_SIZE = 16
+
+async function mapScanFiles<T, Result>(
+  items: readonly T[],
+  mapper: (item: T) => Promise<Result>
+): Promise<Result[]> {
+  const results: Result[] = []
+  for (let start = 0; start < items.length; start += SCAN_BATCH_SIZE) {
+    const batch = items.slice(start, start + SCAN_BATCH_SIZE)
+    results.push(...(await Promise.all(batch.map(mapper))))
+  }
+  return results
 }
 
 type CreationTimeRegistry = Record<string, number>
@@ -630,8 +648,9 @@ export class VaultService {
 
     await walk(root)
 
-    const notes = await Promise.all(
-      notePaths.map(async (absolutePath): Promise<NoteDocument> => {
+    const notes = await mapScanFiles(
+      notePaths,
+      async (absolutePath): Promise<NoteDocument> => {
         const [content, info] = await Promise.all([
           readFile(absolutePath, 'utf8'),
           stat(absolutePath)
@@ -645,11 +664,12 @@ export class VaultService {
           createdAt: validBirthtime(info.birthtimeMs),
           size: info.size
         }
-      })
+      }
     )
 
-    const attachments = await Promise.all(
-      attachmentPaths.map(async (absolutePath): Promise<VaultAttachment> => {
+    const attachments = await mapScanFiles(
+      attachmentPaths,
+      async (absolutePath): Promise<VaultAttachment> => {
         const info = await stat(absolutePath)
         const relativePath = this.relativePathFrom(root, absolutePath)
         return {
@@ -659,7 +679,7 @@ export class VaultService {
           createdAt: validBirthtime(info.birthtimeMs),
           size: info.size
         }
-      })
+      }
     )
 
     if (this.rootRevision !== revision || this.rootPath !== root) {
@@ -700,10 +720,14 @@ export class VaultService {
     }
 
     const isExcluded = createExcludedFileMatcher(userIgnoreFilters)
+    const visibleDirectories = directories.filter(
+      (directory) =>
+        !directory || (!isExcluded(directory) && !isExcluded(`${directory}/`))
+    )
     const visibleNotes = notes.filter((item) => !isExcluded(item.path))
     const visibleAttachments = attachments.filter((item) => !isExcluded(item.path))
 
-    directories.sort((left, right) => left.localeCompare(right, 'ja'))
+    visibleDirectories.sort((left, right) => left.localeCompare(right, 'ja'))
     visibleNotes.sort((left, right) => left.path.localeCompare(right.path, 'ja'))
     visibleAttachments.sort((left, right) => left.path.localeCompare(right.path, 'ja'))
 
@@ -731,7 +755,7 @@ export class VaultService {
     return {
       rootPath: root,
       rootName: basename(root),
-      directories,
+      directories: visibleDirectories,
       notes: visibleNotes,
       attachments: visibleAttachments,
       bookmarks: resolvedBookmarks,
@@ -927,6 +951,15 @@ export class VaultService {
           currentModifiedAt: currentInfo.mtimeMs
         })
       }
+      const initialContent = await readFile(absolute, 'utf8')
+      if (!input.force && input.expectedContent !== undefined && initialContent !== input.expectedContent) {
+        throw new VaultError({
+          code: 'FILE_CHANGED',
+          message: 'このノートは別のアプリで変更されています。',
+          currentContent: initialContent,
+          currentModifiedAt: currentInfo.mtimeMs
+        })
+      }
 
       await this.updateCreationTimes(root, revision, (current) => {
         const timestamp = current[normalizedPath] ?? validBirthtime(currentInfo.birthtimeMs)
@@ -959,6 +992,17 @@ export class VaultService {
               currentContent,
               currentModifiedAt: latestInfo.mtimeMs
             })
+          }
+          if (input.expectedContent !== undefined) {
+            const latestContent = await readFile(absolute, 'utf8')
+            if (latestContent !== input.expectedContent) {
+              throw new VaultError({
+                code: 'FILE_CHANGED',
+                message: '保存中に、このノートが別のアプリで変更されました。',
+                currentContent: latestContent,
+                currentModifiedAt: latestInfo.mtimeMs
+              })
+            }
           }
         }
         await rename(temporaryPath, absolute)
@@ -1037,6 +1081,12 @@ export class VaultService {
     const root = this.requireRoot()
     const revision = this.rootRevision
     const source = this.absolutePath(input.path)
+    if (isAuditHistoryPath(input.path)) {
+      throw new VaultError({
+        code: 'ACCESS_DENIED',
+        message: '監査履歴は名前変更できません。'
+      })
+    }
     let info
     try {
       await this.assertNoSymlinkTraversal(source)
@@ -1066,6 +1116,12 @@ export class VaultService {
     }
 
     const destination = join(dirname(source), newName)
+    if (isAuditHistoryPath(this.relativePathFrom(root, destination))) {
+      throw new VaultError({
+        code: 'ACCESS_DENIED',
+        message: '監査履歴の領域へ名前変更できません。'
+      })
+    }
     try {
       await this.ensureDestinationAvailable(source, destination)
       await rename(source, destination)
@@ -1095,7 +1151,43 @@ export class VaultService {
       })
     }
 
+    return this.moveEntry(input)
+  }
+
+  async resolveMoveDestination(input: MoveNoteInput): Promise<string> {
+    const source = this.absolutePath(input.path)
+    const destinationDirectory = input.destinationPath
+      ? this.absolutePath(dirnameRelative(input.destinationPath), true)
+      : this.absolutePath(input.destinationDirectory, true)
+    const requestedDestination = input.destinationPath
+      ? this.absolutePath(input.destinationPath)
+      : join(destinationDirectory, basename(source))
+    const destination = input.destinationPath
+      ? requestedDestination
+      : await this.findAvailableMoveDestination(source, requestedDestination)
+    return this.relativePath(destination)
+  }
+
+  async moveEntry(input: MoveEntryInput): Promise<EntryOperationOutput> {
+    if (
+      !input.path ||
+      input.path === '.trash' ||
+      input.path.startsWith('.trash/') ||
+      input.path === '.tsuzune' ||
+      input.path.startsWith('.tsuzune/')
+    ) {
+      throw new VaultError({
+        code: 'INVALID_PATH',
+        message: 'Vault本体またはTSUZUNEの内部管理項目は移動できません。'
+      })
+    }
     const root = this.requireRoot()
+    if (isAuditHistoryPath(input.path)) {
+      throw new VaultError({
+        code: 'ACCESS_DENIED',
+        message: '監査履歴は移動できません。'
+      })
+    }
     const revision = this.rootRevision
     const source = this.absolutePath(input.path)
     const destinationDirectory = input.destinationPath
@@ -1108,6 +1200,37 @@ export class VaultService {
     try {
       await this.assertNoSymlinkTraversal(source)
       await this.assertNoSymlinkTraversal(destinationDirectory)
+      const sourceInfo = await lstat(source)
+      if (sourceInfo.isSymbolicLink()) {
+        throw new VaultError({
+          code: 'INVALID_PATH',
+          message: 'シンボリックリンクは操作できません。'
+        })
+      }
+      if (
+        !sourceInfo.isDirectory() &&
+        !isMarkdownFile(input.path) &&
+        !isSupportedAttachmentPath(input.path)
+      ) {
+        throw new VaultError({
+          code: 'INVALID_PATH',
+          message: 'フォルダ、Markdownノート、対応する添付ファイルだけを移動できます。'
+        })
+      }
+      const sourcePath = this.relativePathFrom(root, source)
+      const destinationDirectoryPath = this.relativePathFrom(
+        root,
+        destinationDirectory
+      )
+      if (
+        sourceInfo.isDirectory() &&
+        isPathInsideOrEqual(destinationDirectoryPath, sourcePath)
+      ) {
+        throw new VaultError({
+          code: 'INVALID_PATH',
+          message: 'フォルダを自分自身の中へ移動できません。'
+        })
+      }
       const directoryInfo = await stat(destinationDirectory)
       if (!directoryInfo.isDirectory()) {
         throw new VaultError({
@@ -1121,17 +1244,29 @@ export class VaultService {
             source,
             requestedDestination
           )
+      if (isAuditHistoryPath(this.relativePathFrom(root, destination))) {
+        throw new VaultError({
+          code: 'ACCESS_DENIED',
+          message: '監査履歴の領域へ移動できません。'
+        })
+      }
       await this.ensureDestinationAvailable(source, destination)
       await rename(source, destination)
       const oldPath = this.relativePathFrom(root, source)
       const newPath = this.relativePathFrom(root, destination)
-      await this.moveCreationTimes(root, revision, oldPath, newPath, false)
+      await this.moveCreationTimes(
+        root,
+        revision,
+        oldPath,
+        newPath,
+        sourceInfo.isDirectory()
+      )
       return {
         oldPath,
         path: newPath
       }
     } catch (error) {
-      throw fromNodeError(error, 'UNKNOWN', 'ファイルを移動できませんでした。')
+      throw fromNodeError(error, 'UNKNOWN', '項目を移動できませんでした。')
     }
   }
 
@@ -1140,6 +1275,12 @@ export class VaultService {
       throw new VaultError({
         code: 'INVALID_PATH',
         message: '.trashはTSUZUNEから削除できません。'
+      })
+    }
+    if (isAuditHistoryPath(relativePath)) {
+      throw new VaultError({
+        code: 'ACCESS_DENIED',
+        message: '監査履歴はごみ箱へ移動できません。'
       })
     }
 
@@ -1184,5 +1325,17 @@ export class VaultService {
         ? `${newName}${extension}`
         : newName
     return joinRelative(dirnameRelative(relativePath), normalizedName)
+  }
+
+  resolveMarkdownRenameDestination(input: RenameEntryInput): string {
+    const newName = withMarkdownExtension(input.newName.trim())
+    const validation = validateEntryName(newName)
+    if (!validation.valid) {
+      throw new VaultError({
+        code: 'INVALID_NAME',
+        message: validation.reason ?? '新しい名前を確認してください。'
+      })
+    }
+    return joinRelative(dirnameRelative(input.path), newName)
   }
 }

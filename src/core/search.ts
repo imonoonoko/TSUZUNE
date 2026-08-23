@@ -195,6 +195,16 @@ function matchesRendererClause(note: NoteDocument, clause: RendererSearchClause)
   })
 }
 
+const JAPANESE_QUERY_SEPARATORS =
+  /[はをにへがでとやものってかだなぞよね？?！!。、・\s]+/
+
+export function segmentJapaneseQuery(value: string): string[] {
+  return normalized(value)
+    .split(JAPANESE_QUERY_SEPARATORS)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0)
+}
+
 export function searchRendererNotes(notes: NoteDocument[], rawQuery: string): SearchResult[] {
   const clauses = parseRendererSearchQuery(rawQuery)
   if (clauses.length === 0) return []
@@ -220,6 +230,63 @@ export function searchRendererNotes(notes: NoteDocument[], rawQuery: string): Se
         0
       )
     }))
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        right.modifiedAt - left.modifiedAt ||
+        left.path.localeCompare(right.path, 'ja')
+    )
+}
+
+export function searchRendererRanked(notes: NoteDocument[], rawQuery: string): SearchResult[] {
+  const clauses = parseRendererSearchQuery(rawQuery)
+  if (clauses.length === 0) return []
+
+  const excerptQuery =
+    clauses.find((clause) => clause.kind === 'term' && !clause.negated)?.value ?? rawQuery.trim()
+
+  return notes
+    .map((note): SearchResult | null => {
+      for (const clause of clauses) {
+        if (!clause.negated && clause.kind === 'term') continue
+        const matches = matchesRendererClause(note, clause)
+        if (clause.negated ? matches : !matches) return null
+      }
+
+      const positiveClauses = clauses.filter(
+        (clause) => clause.kind === 'term' && !clause.negated && clause.value !== '-'
+      )
+      if (positiveClauses.length === 0) {
+        const hasRestriction = clauses.some(
+          (clause) => clause.kind !== 'term' || clause.negated
+        )
+        if (!hasRestriction) return null
+        return {
+          path: note.path,
+          name: note.name,
+          excerpt: excerptFor(note.content, excerptQuery),
+          modifiedAt: note.modifiedAt,
+          score: 1
+        }
+      }
+
+      const terms = positiveClauses.flatMap((clause) =>
+        /\s/.test(clause.value)
+          ? [normalized(clause.value)]
+          : segmentJapaneseQuery(clause.value)
+      )
+      const score = terms.reduce((sum, term) => sum + scoreTerm(note, term), 0)
+      if (score === 0) return null
+
+      return {
+        path: note.path,
+        name: note.name,
+        excerpt: excerptFor(note.content, excerptQuery),
+        modifiedAt: note.modifiedAt,
+        score
+      }
+    })
+    .filter((result): result is SearchResult => result !== null)
     .sort(
       (left, right) =>
         right.score - left.score ||

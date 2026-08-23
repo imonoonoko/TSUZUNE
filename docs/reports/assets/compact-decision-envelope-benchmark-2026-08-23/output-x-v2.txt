@@ -1,0 +1,34 @@
+=== F1 ===
+summary: NO_CHANGE; state=Primaryなし; owner=F1:PLAN@p1; scope=4/4 consulted, trace=F1:STATUS@s1,F1:R0@r1,F1:RECEIPT@i1, exclusions=omitted 0, whole-Vault scan excluded; freshness=source frozen, revision consistent, runtime fresh, installed identity/receipt aligned, delivery mismatch known and non-decisive; omission=none; conflict=none; uncertainty=none; action=保持; writes=なし.
+
+=== F2 ===
+summary: PROPOSED; state=benchmark実行を提案; owner=F2:PLAN@p1; scope=3/3 consulted, trace=F2:USER_SELECTION@u1,F2:DESIGN@d1, exclusions=omitted 0, product implementation excluded; freshness=source frozen, revision consistent, runtime not required, installed identity/receipt/delivery not relevant; omission=none; conflict=none; uncertainty=apply未承認; action=read-only benchmark; writes=なし.
+details:
+reason: USER_SELECTION@u1が明示選択し、DESIGN@d1が五ケース比較を要求
+target: F2:PLAN@p1のNext
+evidence: F2:USER_SELECTION@u1,F2:DESIGN@d1
+release: 結果後、別途明示承認
+
+=== F3 ===
+summary: BLOCKED; state=自動更新を決定不能; owner=unknown; scope=候補owner探索未完了, trace=F3:MOC@m1,F3:DATED_EVIDENCE@e1, exclusions=omission=NOT_MEASURED; freshness=source status unknown, runtime/installed identity/receipt/delivery not relevant; conflict=none; uncertainty=canonical unknown; action=停止・追加確認; writes=なし.
+details:
+reason: canonical ownerと候補ownerの網羅性が不明
+target: project state
+evidence: F3:MOC@m1,F3:DATED_EVIDENCE@e1
+release: owner探索とomission計測完了
+
+=== F4 ===
+summary: CONFLICT; state=製品実装への変更不可; owner=F4:PLAN@p1; scope=4/4 consulted, trace=F4:EVIDENCE_A@a1,F4:EVIDENCE_B@b1, exclusions=omitted 0; freshness=source current p1, proposal base p0 stale, runtime/installed identity/receipt/delivery not relevant; omission=none; conflict=threshold met/unmet; uncertainty=none; action=停止・解消待ち; writes=なし.
+details:
+reason: 既知の相反証拠があり、stale-base guardより優先
+target: F4:PLAN@p1
+evidence: F4:EVIDENCE_A@a1,F4:EVIDENCE_B@b1
+release: contradictory evidenceの解消
+
+=== F5 ===
+summary: BLOCKED; state=安全なapply未確立; owner=F5:SOURCE@s1; scope=3/3 consulted, trace=F5:RUNTIME@m1,F5:RECEIPT@i1, exclusions=omitted 0; freshness=source frozen, runtime stale, installed identity receipt older than source, delivery mismatch; runtime/installed identity/receipt/delivery are distinct; omission=none; conflict=none; uncertainty=equality未確立; action=apply停止; writes=なし.
+details:
+reason: source・runtime・installed identityの同一性と安全条件を確認不能
+target: F5:SOURCE@s1
+evidence: F5:RUNTIME@m1,F5:RECEIPT@i1
+release: runtime/receipt/delivery再検証後

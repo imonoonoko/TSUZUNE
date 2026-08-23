@@ -132,6 +132,8 @@ beforeEach(() => {
     createDirectory: vi.fn(),
     renameEntry: vi.fn(),
     moveNote: vi.fn(),
+    moveEntry: vi.fn(),
+    getMoveRecovery: vi.fn(() => ok({ status: 'clean' as const })),
     trashEntry: vi.fn(),
     saveBookmark: vi.fn((input) =>
       ok({ type: 'file', ...input, ctime: 1 })
@@ -139,8 +141,8 @@ beforeEach(() => {
     removeBookmark: vi.fn(() => ok(null)),
     setLastNote: vi.fn(() => ok(null)),
     setUserIgnoreFilters: vi.fn(() => ok(null)),
-    setAiImmutablePaths: vi.fn(() => ok(null)),
     setAiReviewPaths: vi.fn(() => ok(null)),
+    setTemplateSettings: vi.fn(() => ok(null)),
     listAiReviewProposals: vi.fn(() => ok([])),
     approveAiReviewProposal: vi.fn((id: string) => ok({ path: id })),
     cancelAiReviewProposal: vi.fn(() => ok(null)),
@@ -277,6 +279,45 @@ afterEach(() => {
 })
 
 describe('App data-loss guards', () => {
+  it('creates a folder from the tree inline without opening a prompt', async () => {
+    const prompt = vi.spyOn(window, 'prompt')
+    vi.mocked(api.createDirectory).mockResolvedValue(await ok({ path: '資料' }))
+    vi.mocked(api.getSnapshot).mockResolvedValue(
+      await ok({ ...snapshot, directories: ['', '資料'] })
+    )
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'フォルダ' }))
+    const input = screen.getByRole('textbox', {
+      name: 'Vaultに作るフォルダー名'
+    })
+    fireEvent.change(input, { target: { value: '資料' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() =>
+      expect(api.createDirectory).toHaveBeenCalledWith({ parent: '', name: '資料' })
+    )
+    expect(prompt).not.toHaveBeenCalled()
+  })
+
+  it('shows a fixed recovery warning with both paths', async () => {
+    vi.mocked(api.getMoveRecovery).mockResolvedValue(
+      await ok({
+        status: 'recovery-required',
+        source: 'Inbox/A.md',
+        destination: 'Archive/A.md'
+      })
+    )
+    render(<App />)
+
+    expect(
+      await screen.findByText(
+        '未完了の移動を安全に判定できません。新しい移動を停止しています。'
+      )
+    ).toBeTruthy()
+    expect(screen.getByText('Inbox/A.md → Archive/A.md')).toBeTruthy()
+  })
+
   it('restores an aliased last note without rewriting the saved setting', async () => {
     const canonical: NoteDocument = {
       ...noteB,
@@ -311,6 +352,7 @@ describe('App data-loss guards', () => {
     )
 
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
 
     expect(await screen.findByDisplayValue('aliasから復元した本文')).toBeTruthy()
     expect(api.setLastNote).not.toHaveBeenCalled()
@@ -356,6 +398,7 @@ describe('App data-loss guards', () => {
     )
 
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
 
     expect(
       await screen.findByDisplayValue('現在も存在する旧パスの本文')
@@ -463,6 +506,7 @@ describe('App data-loss guards', () => {
       expect(api.setLastNote).toHaveBeenCalledWith(canonical.path)
     })
     expect(await screen.findByText('canonical本文')).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: /バックリンク/ }))
     expect(
       screen.getByRole('button', { name: /A\s*A\.md/ })
     ).toBeTruthy()
@@ -514,8 +558,54 @@ describe('App data-loss guards', () => {
     expect(api.moveNote).not.toHaveBeenCalled()
   })
 
+  it('moves a folder from its context menu with its nested note', async () => {
+    const nestedNote: NoteDocument = {
+      ...noteA,
+      path: '資料/子/記録.md',
+      name: '記録',
+      content: '# 記録'
+    }
+    const initialSnapshot: VaultSnapshot = {
+      ...snapshot,
+      directories: ['', '資料', '資料/子', '保管'],
+      notes: [nestedNote]
+    }
+    const movedSnapshot: VaultSnapshot = {
+      ...initialSnapshot,
+      directories: ['', '保管', '保管/資料', '保管/資料/子'],
+      notes: [{ ...nestedNote, path: '保管/資料/子/記録.md' }]
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok(initialSnapshot))
+    vi.mocked(api.getSnapshot).mockResolvedValue(await ok(movedSnapshot))
+    vi.mocked(api.moveEntry).mockResolvedValue(
+      await ok({ oldPath: '資料', path: '保管/資料' })
+    )
+
+    render(<App />)
+    fireEvent.contextMenu(await screen.findByRole('treeitem', { name: '資料' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '移動' }))
+    fireEvent.change(screen.getByRole('combobox', { name: '移動先' }), {
+      target: { value: '保管' }
+    })
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: 'フォルダーを移動' })).getByRole(
+        'button',
+        { name: '移動' }
+      )
+    )
+
+    await waitFor(() => {
+      expect(api.moveEntry).toHaveBeenCalledWith({
+        path: '資料',
+        destinationDirectory: '保管'
+      })
+    })
+    expect(await screen.findByText('記録')).toBeTruthy()
+  })
+
   it('shows each note modification time and the selected note freshness', async () => {
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
     await screen.findByLabelText('Markdown編集欄')
 
     expect(screen.getByLabelText(/Aの最終更新:/).textContent).toBeTruthy()
@@ -558,96 +648,58 @@ describe('App data-loss guards', () => {
     expect((screen.getByLabelText('Markdown編集欄') as HTMLTextAreaElement).value).toBe('')
   })
 
-  it('creates from a selected template immediately and opens the ordinary editor', async () => {
-    const template: NoteDocument = {
-      path: '90_テンプレート/基本.md',
-      name: '基本',
-      content: '# {{title}}\n\n作成日: {{date}}\n',
-      modifiedAt: 1,
-      size: 30
-    }
-    const createdNote: NoteDocument = {
-      path: '基本.md',
-      name: '基本',
-      content: '# 基本\n\n作成日: 2026-08-11\n',
-      modifiedAt: 400,
-      size: 35
-    }
-    const templateSnapshot = {
-      ...snapshot,
-      directories: ['', '90_テンプレート'],
-      notes: [...snapshot.notes, template]
-    }
-    vi.mocked(api.openLastVault).mockResolvedValue(await ok(templateSnapshot))
-    vi.mocked(api.createNote).mockResolvedValue(await ok({ path: createdNote.path }))
-    vi.mocked(api.getSnapshot).mockResolvedValue(
-      await ok({ ...templateSnapshot, notes: [...templateSnapshot.notes, createdNote] })
-    )
-
+  it('removes the template create and add buttons in favour of note creation and template insertion', async () => {
     render(<App />)
-    fireEvent.change(await screen.findByLabelText('テンプレート'), {
-      target: { value: template.path }
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'テンプレートから作成' }))
-
-    await waitFor(() => expect(api.createNote).toHaveBeenCalledTimes(1))
-    expect(vi.mocked(api.createNote).mock.calls[0][0]).toMatchObject({
-      directory: '',
-      name: '基本'
-    })
-    expect(vi.mocked(api.createNote).mock.calls[0][0].content).toMatch(
-      /^# 基本\n\n作成日: \d{4}-\d{2}-\d{2}\n$/
-    )
-    expect(screen.queryByRole('dialog', { name: '新しいノート' })).toBeNull()
-    expect((screen.getByLabelText('Markdown編集欄') as HTMLTextAreaElement).value).toMatch(
-      /^# 基本/
-    )
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
+    await screen.findByLabelText('Markdown編集欄')
+    expect(screen.queryByRole('button', { name: 'テンプレートから作成' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'テンプレートを追加' })).toBeNull()
+    expect(screen.queryByLabelText('テンプレート')).toBeNull()
+    expect(screen.getByRole('button', { name: '今日のノート' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'アイデアを追加' })).toBeTruthy()
   })
 
-  it('adds an editable Vault template and removes the dedicated daily and idea buttons', async () => {
-    const createdTemplate: NoteDocument = {
-      path: '90_テンプレート/新しいテンプレート.md',
-      name: '新しいテンプレート',
-      content: '# {{title}}\n\n',
+  it('creates an idea note through the idea capture form', async () => {
+    const ideaNote: NoteDocument = {
+      path: '01_受信箱/アイデア/新しいアイデア.md',
+      name: '新しいアイデア',
+      content: '# 新しいアイデア\n\n## アイデア\n\nいい感じの案\n',
       modifiedAt: 400,
-      size: 15
+      size: 40
     }
-    vi.mocked(api.createDirectory).mockResolvedValue(await ok({ path: '90_テンプレート' }))
-    vi.mocked(api.createNote).mockResolvedValue(await ok({ path: createdTemplate.path }))
+    vi.mocked(api.createDirectory).mockResolvedValue(
+      await ok({ path: '01_受信箱/アイデア' })
+    )
+    vi.mocked(api.createNote).mockResolvedValue(await ok({ path: ideaNote.path }))
     vi.mocked(api.getSnapshot).mockResolvedValue(
       await ok({
         ...snapshot,
-        directories: ['', '90_テンプレート'],
-        notes: [...snapshot.notes, createdTemplate]
+        directories: ['', '01_受信箱', '01_受信箱/アイデア'],
+        notes: [...snapshot.notes, ideaNote]
       })
     )
 
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
     await screen.findByLabelText('Markdown編集欄')
-    expect(screen.queryByRole('button', { name: '今日のノート' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'アイデアを追加' })).toBeNull()
-    expect(
-      within(screen.getByLabelText('テンプレート')).getByRole('option', {
-        name: '今日のノート'
-      })
-    ).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'アイデアを追加' }))
 
-    fireEvent.click(screen.getByRole('button', { name: 'テンプレートを追加' }))
-    await waitFor(() => expect(api.createNote).toHaveBeenCalledTimes(1))
-    expect(api.createDirectory).toHaveBeenCalledWith({ parent: '', name: '90_テンプレート' })
-    expect(api.createNote).toHaveBeenCalledWith({
-      directory: '90_テンプレート',
-      name: '新しいテンプレート',
-      content: '# {{title}}\n\n'
+    const dialog = await screen.findByRole('dialog', { name: 'アイデアを追加' })
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'タイトル' }), {
+      target: { value: '新しいアイデア' }
     })
-    expect((screen.getByLabelText('Markdown編集欄') as HTMLTextAreaElement).value).toBe(
-      '# {{title}}\n\n'
-    )
-    expect(
-      within(screen.getByLabelText('テンプレート')).getByRole('option', {
-        name: '新しいテンプレート'
+    fireEvent.change(within(dialog).getByRole('textbox', { name: '内容' }), {
+      target: { value: 'いい感じの案' }
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: '保存して開く' }))
+
+    await waitFor(() => expect(api.createNote).toHaveBeenCalledTimes(1))
+    expect(api.createNote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        directory: '01_受信箱/アイデア',
+        name: '新しいアイデア'
       })
-    ).toBeTruthy()
+    )
   })
 
   it('renames the selected note through an in-app dialog', async () => {
@@ -663,6 +715,7 @@ describe('App data-loss guards', () => {
     const promptSpy = vi.spyOn(window, 'prompt')
 
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
     await screen.findByDisplayValue('Aの本文')
     fireEvent.click(screen.getByRole('button', { name: '名前変更', exact: true }))
 
@@ -684,8 +737,73 @@ describe('App data-loss guards', () => {
     expect(promptSpy).not.toHaveBeenCalled()
   })
 
+  it('moves a note by dropping it on a folder through the existing move contract', async () => {
+    const nestedSnapshot = {
+      ...snapshot,
+      directories: ['', 'Archive']
+    }
+    const movedNote = { ...noteA, path: 'Archive/A.md' }
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok(nestedSnapshot))
+    vi.mocked(api.getSnapshot)
+      .mockResolvedValueOnce(await ok(nestedSnapshot))
+      .mockResolvedValue(await ok({
+        ...nestedSnapshot,
+        notes: [movedNote, noteB, noteC]
+      }))
+    vi.mocked(api.moveNote).mockResolvedValue(await ok({ path: movedNote.path }))
+
+    const { container } = render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
+    await screen.findByDisplayValue('Aの本文')
+    const note = container.querySelector<HTMLButtonElement>('button.tree-note')!
+    const archive = screen.getByRole('treeitem', { name: 'Archive' })
+    const dataTransfer = {
+      effectAllowed: '',
+      dropEffect: '',
+      setData: vi.fn()
+    }
+
+    fireEvent.dragStart(note, { dataTransfer })
+    fireEvent.dragOver(archive, { dataTransfer })
+    fireEvent.drop(archive, { dataTransfer })
+
+    await waitFor(() => {
+      expect(api.moveNote).toHaveBeenCalledWith({
+        path: 'A.md',
+        destinationDirectory: 'Archive'
+      })
+    })
+    expect(screen.queryByRole('dialog', { name: 'ファイルを移動' })).toBeNull()
+  })
+
+  it('renames a note inline through the existing rename contract', async () => {
+    const renamedNote = { ...noteA, path: 'Renamed.md', name: 'Renamed' }
+    vi.mocked(api.renameEntry).mockResolvedValue(await ok({ path: renamedNote.path }))
+    vi.mocked(api.getSnapshot).mockResolvedValue(
+      await ok({ ...snapshot, notes: [renamedNote, noteB, noteC] })
+    )
+
+    const { container } = render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
+    await screen.findByDisplayValue('Aの本文')
+    fireEvent.doubleClick(container.querySelector<HTMLButtonElement>('button.tree-note')!)
+    const input = screen.getByRole('textbox', { name: 'Aの名前' })
+    fireEvent.change(input, { target: { value: 'Renamed' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(api.renameEntry).toHaveBeenCalledWith({
+        path: 'A.md',
+        newName: 'Renamed'
+      })
+    })
+    expect(api.renameEntry).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('dialog', { name: 'ノートの名前を変更' })).toBeNull()
+  })
+
   it('keeps the rename dialog open for blank or unchanged names', async () => {
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
     await screen.findByDisplayValue('Aの本文')
     fireEvent.click(screen.getByRole('button', { name: '名前変更', exact: true }))
 
@@ -708,7 +826,7 @@ describe('App data-loss guards', () => {
     expect(api.renameEntry).not.toHaveBeenCalled()
   })
 
-  it('creates todays note from the built-in template and opens the ordinary editor', async () => {
+  it('creates todays note from the daily button and opens the ordinary editor', async () => {
     const now = new Date()
     const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const content = `# ${date}\n\n## 今日やったこと\n\n## 気づき\n\n## メモ\n\n## 次にすること\n\n`
@@ -732,10 +850,7 @@ describe('App data-loss guards', () => {
     )
 
     render(<App />)
-    fireEvent.change(await screen.findByLabelText('テンプレート'), {
-      target: { value: '90_テンプレート/今日のノート.md' }
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'テンプレートから作成' }))
+    fireEvent.click(await screen.findByRole('button', { name: '今日のノート' }))
 
     await waitFor(() => expect(api.createNote).toHaveBeenCalledTimes(1))
     const input = vi.mocked(api.createNote).mock.calls[0][0]
@@ -746,7 +861,7 @@ describe('App data-loss guards', () => {
     expect((screen.getByLabelText('Markdown編集欄') as HTMLTextAreaElement).value).toBe(content)
   })
 
-  it('opens an existing daily note selected from templates instead of creating a duplicate', async () => {
+  it('opens an existing daily note from the daily button instead of creating a duplicate', async () => {
     const now = new Date()
     const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const dailyNote: NoteDocument = {
@@ -768,12 +883,10 @@ describe('App data-loss guards', () => {
     )
 
     render(<App />)
-    fireEvent.change(await screen.findByLabelText('テンプレート'), {
-      target: { value: '90_テンプレート/今日のノート.md' }
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'テンプレートから作成' }))
+    fireEvent.click(await screen.findByRole('button', { name: '今日のノート' }))
 
     await waitFor(() => expect(api.setLastNote).toHaveBeenCalledWith(dailyNote.path))
+    fireEvent.click(screen.getByRole('button', { name: '編集' }))
     expect(api.createNote).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog', { name: '今日のノート' })).toBeNull()
     expect((screen.getByLabelText('Markdown編集欄') as HTMLTextAreaElement).value).toBe(
@@ -883,9 +996,8 @@ describe('App data-loss guards', () => {
     expect(screen.queryByRole('button', { name: '内容を編集' })).toBeNull()
   })
 
-  it('creates an idea note from the built-in template and opens the ordinary editor', async () => {
-    const content =
-      '# アイデアメモ\n\n## 思いついたこと\n\n## なぜ思いついたか\n\n## 次の一歩\n\n'
+  it('creates an idea note through the idea button and opens the ordinary editor', async () => {
+    const content = '# アイデアメモ\n\n## アイデア\n\nいい感じの案\n'
     const idea: NoteDocument = {
       path: '01_受信箱/アイデア/アイデアメモ.md',
       name: 'アイデアメモ',
@@ -904,10 +1016,18 @@ describe('App data-loss guards', () => {
     )
 
     render(<App />)
-    fireEvent.change(await screen.findByLabelText('テンプレート'), {
-      target: { value: '90_テンプレート/アイデアメモ.md' }
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
+    await screen.findByLabelText('Markdown編集欄')
+    fireEvent.click(screen.getByRole('button', { name: 'アイデアを追加' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'アイデアを追加' })
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'タイトル' }), {
+      target: { value: 'アイデアメモ' }
     })
-    fireEvent.click(screen.getByRole('button', { name: 'テンプレートから作成' }))
+    fireEvent.change(within(dialog).getByRole('textbox', { name: '内容' }), {
+      target: { value: 'いい感じの案' }
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: '保存して開く' }))
 
     await waitFor(() => expect(api.createNote).toHaveBeenCalledTimes(1))
     const input = vi.mocked(api.createNote).mock.calls[0][0]
@@ -915,7 +1035,8 @@ describe('App data-loss guards', () => {
     expect(input.name).toBe('アイデアメモ')
     expect(input.content).toBe(content)
     expect(screen.queryByRole('dialog', { name: 'アイデアを追加' })).toBeNull()
-    expect((screen.getByLabelText('Markdown編集欄') as HTMLTextAreaElement).value).toBe(content)
+    expect(await screen.findByRole('heading', { name: 'アイデアメモ', level: 1 })).toBeTruthy()
+    expect(screen.getByText('いい感じの案')).toBeTruthy()
   })
 
   it('keeps the selected note visible when direct note creation fails', async () => {
@@ -925,6 +1046,7 @@ describe('App data-loss guards', () => {
     })
 
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
     fireEvent.click(await screen.findByRole('button', { name: 'ノート' }))
     expect(await screen.findByText('ノートを作成できませんでした。')).toBeTruthy()
     expect((screen.getByLabelText('Markdown編集欄') as HTMLTextAreaElement).value).toBe(
@@ -939,6 +1061,7 @@ describe('App data-loss guards', () => {
     )
 
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
     await screen.findByLabelText('Markdown編集欄')
     vi.mocked(api.getSnapshot).mockClear()
 
@@ -966,6 +1089,7 @@ describe('App data-loss guards', () => {
     )
 
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
     await screen.findByLabelText('Markdown編集欄')
     vi.mocked(api.getSnapshot).mockClear()
     vi.mocked(api.readNote).mockClear()
@@ -984,16 +1108,334 @@ describe('App data-loss guards', () => {
     })
   })
 
+  it('keeps local text until an external change is explicitly overwritten', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.mocked(api.readNote).mockResolvedValue(
+      await ok({ ...noteA, content: '外部版の本文', modifiedAt: 450, size: 18 })
+    )
+
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
+    const editor = await screen.findByLabelText('Markdown編集欄')
+    fireEvent.change(editor, { target: { value: '保持する編集中の本文' } })
+
+    act(() => {
+      vaultChanged?.({ type: 'change', path: noteA.path })
+    })
+
+    expect(
+      await screen.findByRole('button', { name: '外部版を読み込む' })
+    ).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '編集中の内容を保持' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'こちらの内容で上書き保存' })
+    )
+
+    await waitFor(() => {
+      expect(api.saveNote).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: noteA.path,
+          content: '保持する編集中の本文',
+          force: true
+        })
+      )
+    })
+  })
+
   it('focuses Vault search with Ctrl+K', async () => {
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
     const editor = await screen.findByLabelText('Markdown編集欄')
     editor.focus()
 
     fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
 
     expect(document.activeElement).toBe(
-      screen.getByPlaceholderText('Vaultを検索')
+      screen.getByPlaceholderText('内容を検索')
     )
+  })
+
+  it('reveals and focuses Vault search with Ctrl+Shift+F', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
+    const editor = await screen.findByLabelText('Markdown編集欄')
+    fireEvent.click(screen.getByRole('button', { name: '左サイドバーを閉じる' }))
+    editor.focus()
+
+    fireEvent.keyDown(window, { key: 'f', ctrlKey: true, shiftKey: true })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '左サイドバーを閉じる' })).toBeTruthy()
+    })
+    expect(document.activeElement).toBe(screen.getByPlaceholderText('内容を検索'))
+  })
+
+  it('labels content search distinctly and explains its operators', async () => {
+    render(<App />)
+    await screen.findByText('Aの本文')
+
+    const search = screen.getByRole('textbox', { name: '内容を検索' })
+    expect(search.getAttribute('aria-keyshortcuts')).toBe(
+      'Control+Shift+F Meta+Shift+F Control+K Meta+K'
+    )
+    expect(screen.getByText(/条件: tag:/).textContent?.replace(/\s+/gu, ' ')).toBe(
+      '条件: tag: / path: / file: 除外: -語 語句: "複数語"'
+    )
+  })
+
+  it('opens the Quick Switcher with Ctrl+O and restores focus after Escape', async () => {
+    const { container } = render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
+    expect(screen.getByRole('button', { name: '開く' }).getAttribute('aria-keyshortcuts')).toBe(
+      'Control+O Meta+O'
+    )
+    const editor = await screen.findByLabelText('Markdown編集欄')
+    editor.focus()
+
+    fireEvent.keyDown(window, { key: 'o', ctrlKey: true })
+
+    const dialog = await screen.findByRole('dialog', { name: 'ノートを開く' })
+    const input = screen.getByRole('combobox', { name: 'ノートを検索' })
+    expect(document.activeElement).toBe(input)
+    expect(dialog.getAttribute('aria-modal')).toBe('true')
+    expect(container.querySelector('.workspace')?.hasAttribute('inert')).toBe(true)
+
+    fireEvent.keyDown(input, { key: 'Escape' })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'ノートを開く' })).toBeNull()
+    })
+    expect(document.activeElement).toBe(editor)
+    expect(container.querySelector('.workspace')?.hasAttribute('inert')).toBe(false)
+  })
+
+  it('opens the Command Palette with Ctrl+P and restores focus after Escape', async () => {
+    const { container } = render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
+    expect(
+      screen.getByRole('button', { name: '操作' }).getAttribute('aria-keyshortcuts')
+    ).toBe('Control+P Meta+P')
+    const editor = await screen.findByLabelText('Markdown編集欄')
+    editor.focus()
+
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+
+    const dialog = await screen.findByRole('dialog', { name: '操作を実行' })
+    const input = screen.getByRole('combobox', { name: 'コマンドを検索' })
+    expect(document.activeElement).toBe(input)
+    expect(dialog.getAttribute('aria-modal')).toBe('true')
+    expect(container.querySelector('.workspace')?.hasAttribute('inert')).toBe(true)
+
+    fireEvent.keyDown(input, { key: 'Escape' })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: '操作を実行' })).toBeNull()
+    })
+    expect(document.activeElement).toBe(editor)
+    expect(container.querySelector('.workspace')?.hasAttribute('inert')).toBe(false)
+  })
+
+  it('exposes the stable R2 command set and filters by English keywords', async () => {
+    render(<App />)
+    await screen.findByText('Aの本文')
+
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    const dialog = await screen.findByRole('dialog', { name: '操作を実行' })
+    const input = within(dialog).getByRole('combobox', { name: 'コマンドを検索' })
+    const labels = [
+      '新規ノートを作成',
+      '今日のノート',
+      'ノートを開く',
+      '内容を検索',
+      '左サイドバー',
+      '右サイドバー',
+      '編集',
+      'プレビュー',
+      'ローカルグラフ',
+      'Vaultグラフ',
+      'ブックマーク',
+      '設定'
+    ]
+    for (const label of labels) {
+      expect(within(dialog).getByRole('option', { name: new RegExp(`^${label}`) })).toBeTruthy()
+    }
+    expect(within(dialog).getByText(/Ctrl\+O|Meta\+O/)).toBeTruthy()
+    fireEvent.change(input, { target: { value: 'sidebar' } })
+    expect(within(dialog).getByRole('option', { name: /左サイドバー/ })).toBeTruthy()
+    expect(within(dialog).queryByRole('option', { name: /今日のノート/ })).toBeNull()
+  })
+
+  it('keeps note-view commands disabled with a reason when no note is selected', async () => {
+    vi.mocked(api.openLastVault).mockResolvedValue(
+      await ok({ ...snapshot, notes: snapshot.notes, directories: [''] })
+    )
+    vi.mocked(api.getSettings).mockResolvedValue(
+      await ok({
+        lastVaultPath: snapshot.rootPath,
+        lastNotePath: null,
+        userIgnoreFilters: [],
+        graphForces: DEFAULT_GRAPH_FORCE_SETTINGS,
+        graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
+        graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
+        graphGroups: DEFAULT_GRAPH_GROUPS,
+        graphViewStates: DEFAULT_GRAPH_VIEW_STATES
+      })
+    )
+    render(<App />)
+    await screen.findByText('左の一覧からノートを選ぶか、新しいノートを作成してください。')
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    const dialog = await screen.findByRole('dialog', { name: '操作を実行' })
+    for (const label of ['編集', 'プレビュー', 'ローカルグラフ']) {
+      const option = within(dialog).getByRole('option', { name: new RegExp(label) })
+      expect(option.getAttribute('aria-disabled')).toBe('true')
+      expect(option.getAttribute('title')).toMatch(/ノート|選択/)
+    }
+    const disabled = within(dialog).getByRole('option', { name: /編集/ })
+    fireEvent.keyDown(disabled, { key: 'Enter' })
+    expect(screen.getByRole('dialog', { name: '操作を実行' })).toBeTruthy()
+  })
+
+  it('toggles the left sidebar and focuses Vault search from the palette', async () => {
+    render(<App />)
+    await screen.findByText('Aの本文')
+    fireEvent.click(screen.getByRole('button', { name: '左サイドバーを閉じる' }))
+    expect(screen.getByRole('button', { name: '左サイドバーを開く' })).toBeTruthy()
+
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    let dialog = await screen.findByRole('dialog', { name: '操作を実行' })
+    fireEvent.click(within(dialog).getByRole('option', { name: /左サイドバー/ }))
+    await waitFor(() => expect(screen.getByRole('button', { name: '左サイドバーを閉じる' })).toBeTruthy())
+
+    fireEvent.click(screen.getByRole('button', { name: '左サイドバーを閉じる' }))
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    dialog = await screen.findByRole('dialog', { name: '操作を実行' })
+    fireEvent.change(
+      within(dialog).getByRole('combobox', { name: 'コマンドを検索' }),
+      { target: { value: 'vault search' } }
+    )
+    fireEvent.keyDown(
+      within(dialog).getByRole('combobox', { name: 'コマンドを検索' }),
+      { key: 'Enter' }
+    )
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByPlaceholderText('内容を検索')))
+  })
+
+  it('transitions from the palette to Quick Switcher without stacking dialogs', async () => {
+    const { container } = render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
+    const editor = await screen.findByLabelText('Markdown編集欄')
+    editor.focus()
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    const palette = await screen.findByRole('dialog', { name: '操作を実行' })
+    fireEvent.click(within(palette).getByRole('option', { name: /^ノートを開く/ }))
+    expect(screen.queryByRole('dialog', { name: '操作を実行' })).toBeNull()
+    const switcher = await screen.findByRole('dialog', { name: 'ノートを開く' })
+    expect(screen.queryAllByRole('dialog')).toHaveLength(1)
+    fireEvent.keyDown(within(switcher).getByRole('combobox', { name: 'ノートを検索' }), {
+      key: 'Escape'
+    })
+    await waitFor(() => expect(document.activeElement).toBe(editor))
+    expect(container.querySelector('.workspace')?.hasAttribute('inert')).toBe(false)
+  })
+
+  it('routes representative palette commands through settings, bookmarks, and graph actions', async () => {
+    render(<App />)
+    await screen.findByText('Aの本文')
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    let dialog = await screen.findByRole('dialog', { name: '操作を実行' })
+    fireEvent.click(within(dialog).getByRole('option', { name: /^設定/ }))
+    const settingsDialog = await screen.findByRole('dialog', { name: '設定' })
+    fireEvent.keyDown(settingsDialog, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '設定' })).toBeNull())
+
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    dialog = await screen.findByRole('dialog', { name: '操作を実行' })
+    fireEvent.click(within(dialog).getByRole('option', { name: /^ブックマーク/ }))
+    expect(screen.getByRole('region', { name: 'ブックマーク一覧' })).toBeTruthy()
+
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    dialog = await screen.findByRole('dialog', { name: '操作を実行' })
+    fireEvent.click(within(dialog).getByRole('option', { name: /^ローカルグラフ/ }))
+    expect(screen.getByRole('button', { name: 'ローカルグラフ' }).getAttribute('aria-pressed')).toBe('true')
+
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    dialog = await screen.findByRole('dialog', { name: '操作を実行' })
+    fireEvent.click(within(dialog).getByRole('option', { name: /^Vaultグラフ/ }))
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'グラフビュー' })).toBeTruthy())
+  })
+
+  it('opens a Quick Switcher result in the current workspace and records it as most recent', async () => {
+    render(<App />)
+    await screen.findByText('Aの本文')
+
+    fireEvent.keyDown(window, { key: 'o', ctrlKey: true })
+    const input = await screen.findByRole('combobox', { name: 'ノートを検索' })
+    fireEvent.change(input, { target: { value: 'B' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await screen.findByText('Bの本文')
+    fireEvent.keyDown(window, { key: 'o', ctrlKey: true })
+
+    const listbox = await screen.findByRole('listbox', { name: 'ノート候補' })
+    expect(within(listbox).getAllByRole('option')[0].textContent).toContain('B')
+  })
+
+  it('opens a Quick Switcher result in a new active workspace tab with Ctrl+Enter', async () => {
+    render(<App />)
+    await screen.findByText('Aの本文')
+
+    fireEvent.keyDown(window, { key: 'o', ctrlKey: true })
+    const input = await screen.findByRole('combobox', { name: 'ノートを検索' })
+    fireEvent.change(input, { target: { value: 'B' } })
+    fireEvent.keyDown(input, { key: 'Enter', ctrlKey: true })
+
+    expect(
+      (await screen.findByRole('tab', { name: 'A' })).getAttribute('aria-selected')
+    ).toBe('false')
+    expect(screen.getByRole('tab', { name: 'B' }).getAttribute('aria-selected')).toBe(
+      'true'
+    )
+    await screen.findByText('Bの本文')
+  })
+
+  it('confirms the destination before creating a no-match Quick Switcher note', async () => {
+    const createdNote: NoteDocument = {
+      path: '新規改善メモ.md',
+      name: '新規改善メモ',
+      content: '',
+      modifiedAt: 400,
+      size: 0
+    }
+    vi.mocked(api.createNote).mockResolvedValue(await ok({ path: createdNote.path }))
+    vi.mocked(api.getSnapshot).mockResolvedValue(
+      await ok({ ...snapshot, notes: [...snapshot.notes, createdNote] })
+    )
+    render(<App />)
+    await screen.findByText('Aの本文')
+
+    fireEvent.keyDown(window, { key: 'o', ctrlKey: true })
+    const input = await screen.findByRole('combobox', { name: 'ノートを検索' })
+    fireEvent.change(input, { target: { value: '新規改善メモ' } })
+    fireEvent.click(screen.getByRole('button', { name: '新規ノートを作成' }))
+
+    const createDialog = await screen.findByRole('dialog', { name: '新規ノートを作成' })
+    expect(within(createDialog).getByText('作成先: 新規改善メモ.md')).toBeTruthy()
+    expect(api.createNote).not.toHaveBeenCalled()
+    fireEvent.click(within(createDialog).getByRole('button', { name: '作成' }))
+
+    await waitFor(() => {
+      expect(api.createNote).toHaveBeenCalledWith({
+        directory: '',
+        name: '新規改善メモ',
+        content: undefined
+      })
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: '新規ノートを作成' })).toBeNull()
+    })
+    const editor = screen.getByLabelText('Markdown編集欄') as HTMLTextAreaElement
+    expect(editor.value).toBe('')
+    await waitFor(() => expect(document.activeElement).toBe(editor))
   })
 
   it('renders an embedded Vault image through the trusted image reader', async () => {
@@ -1058,6 +1500,7 @@ describe('App data-loss guards', () => {
 
   it('checks for updates and saves the current note before installing', async () => {
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
 
     fireEvent.click(
       await screen.findByRole('button', { name: '更新を確認' })
@@ -1104,6 +1547,7 @@ describe('App data-loss guards', () => {
     })
 
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
     fireEvent.change(await screen.findByLabelText('Markdown編集欄'), {
       target: { value: 'まだ保存できていない本文' }
     })
@@ -1140,9 +1584,7 @@ describe('App data-loss guards', () => {
     })
     fireEvent.click(linkedNote)
 
-    expect(
-      await screen.findByRole('button', { name: 'B（現在のノート）' })
-    ).toBeTruthy()
+    expect(await screen.findByText('Bの本文')).toBeTruthy()
     expect(api.setLastNote).toHaveBeenCalledWith('B.md')
   })
 
@@ -1171,15 +1613,21 @@ describe('App data-loss guards', () => {
     })
 
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
     await screen.findByLabelText('Markdown編集欄')
 
     const tree = within(screen.getByRole('tree', { name: 'Vaultファイル' }))
-    const historyFile = tree.getByRole('button', { name: /A-history/ })
+    const historyFile = tree.getByRole('treeitem', { name: /A-history/ })
     fireEvent.click(historyFile)
+    await waitFor(() =>
+      expect(api.setLastNote).toHaveBeenCalledWith(historyNote.path)
+    )
+    fireEvent.click(screen.getByRole('button', { name: '編集' }))
     expect(
       (await screen.findByLabelText('Markdown編集欄') as HTMLTextAreaElement).value
     ).toBe(historyNote.content)
-    fireEvent.click(tree.getByRole('button', { name: /Aの最終更新:/ }))
+    fireEvent.click(tree.getByRole('treeitem', { name: 'A.md' }))
+    fireEvent.click(screen.getByRole('tab', { name: /バックリンク/ }))
     const backlinks = screen
       .getByRole('heading', { name: 'バックリンク' })
       .closest('section')
@@ -1190,7 +1638,7 @@ describe('App data-loss guards', () => {
     const graph = await screen.findByRole('region', { name: 'ローカルグラフ' })
     expect(within(graph).queryByRole('button', { name: /A-history/ })).toBeNull()
 
-    fireEvent.change(screen.getByPlaceholderText('Vaultを検索'), {
+    fireEvent.change(screen.getByPlaceholderText('内容を検索'), {
       target: { value: 'audit-only-token' }
     })
     expect(
@@ -1359,48 +1807,52 @@ describe('App data-loss guards', () => {
     expect(screen.queryByRole('dialog', { name: '設定' })).toBeNull()
   })
 
-  it('shows additional paths that AI cannot change in the settings dialog', async () => {
+  it('chooses a template folder and hides built-in templates from settings', async () => {
+    vi.mocked(api.openLastVault).mockResolvedValue(
+      await ok({
+        ...snapshot,
+        directories: ['', '90_テンプレート', '雛形']
+      })
+    )
     vi.mocked(api.getSettings).mockResolvedValue(
       await ok({
         lastVaultPath: snapshot.rootPath,
         lastNotePath: noteA.path,
         userIgnoreFilters: [],
-        aiImmutablePaths: ['Private'],
-        graphForces: {
-          centerForce: 0.5,
-          repelForce: 10,
-          linkForce: 1,
-          linkDistance: 250
-        },
+        graphForces: DEFAULT_GRAPH_FORCE_SETTINGS,
         graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
         graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
         graphGroups: DEFAULT_GRAPH_GROUPS,
-        graphViewStates: DEFAULT_GRAPH_VIEW_STATES
+        graphViewStates: DEFAULT_GRAPH_VIEW_STATES,
+        templateDirectory: '90_テンプレート',
+        showBuiltInTemplates: true
       })
     )
 
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: '設定' }))
-
-    expect(
-      (screen.getByRole('textbox', {
-        name: 'AIから変更させないパス'
-      }) as HTMLTextAreaElement).value
-    ).toBe('Private')
-    expect(screen.getByText(/40_情報源.*50_履歴/)).not.toBeNull()
-
-    fireEvent.change(
-      screen.getByRole('textbox', { name: 'AIから変更させないパス' }),
-      { target: { value: ' Private\n\nDrafts ' } }
-    )
+    fireEvent.change(screen.getByRole('combobox', { name: 'テンプレートフォルダ' }), {
+      target: { value: '雛形' }
+    })
+    fireEvent.click(screen.getByRole('checkbox', { name: '内蔵テンプレートを表示' }))
     fireEvent.click(screen.getByRole('button', { name: '設定を保存' }))
 
     await waitFor(() => {
-      expect(api.setAiImmutablePaths).toHaveBeenCalledWith([
-        'Private',
-        'Drafts'
-      ])
+      expect(api.setTemplateSettings).toHaveBeenCalledWith({
+        directory: '雛形',
+        includeBuiltIns: false
+      })
     })
+  })
+
+  it('does not expose retired additional AI immutable paths in settings', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '設定' }))
+
+    expect(
+      screen.queryByRole('textbox', { name: 'AIから変更させないパス' })
+    ).toBeNull()
+    expect(screen.getByRole('textbox', { name: 'AI変更を承認制にするパス' })).not.toBeNull()
   })
 
   it('saves review paths and lets the user approve a pending AI change', async () => {
@@ -1687,6 +2139,53 @@ describe('App data-loss guards', () => {
     ).toBeTruthy()
   })
 
+  it('keeps note display modes primary and the Vault graph in the left navigation', async () => {
+    render(<App />)
+
+    const noteActions = (await screen.findByRole('group', { name: 'ノート表示' }))
+      .closest('.note-actions') as HTMLElement
+    expect(within(noteActions).getByRole('button', { name: '編集' })).toBeTruthy()
+    expect(within(noteActions).getByRole('button', { name: 'プレビュー' })).toBeTruthy()
+    expect(within(noteActions).getByRole('button', { name: 'ローカルグラフ' })).toBeTruthy()
+    expect(within(noteActions).queryByRole('button', { name: 'グラフビュー' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'グラフビュー' }).closest('.left-panel')).not.toBeNull()
+  })
+
+  it('collapses and restores each sidebar independently while preserving the note pane', async () => {
+    render(<App />)
+
+    const leftToggle = await screen.findByRole('button', { name: '左サイドバーを閉じる' })
+    const rightToggle = screen.getByRole('button', { name: '右サイドバーを閉じる' })
+    const noteBody = await screen.findByText('Aの本文')
+    expect(noteBody).toBeTruthy()
+    expect(leftToggle.getAttribute('aria-expanded')).toBe('true')
+    expect(rightToggle.getAttribute('aria-expanded')).toBe('true')
+    expect(leftToggle.getAttribute('title')).toBe('左サイドバーを閉じる')
+    expect(rightToggle.getAttribute('title')).toBe('右サイドバーを閉じる')
+
+    fireEvent.click(leftToggle)
+    const leftReopen = screen.getByRole('button', { name: '左サイドバーを開く' })
+    expect(leftReopen.getAttribute('aria-controls')).toBe('left-sidebar-content')
+    expect(leftReopen.getAttribute('title')).toBe('左サイドバーを開く')
+    expect(document.getElementById('left-sidebar-content')?.hasAttribute('hidden')).toBe(true)
+    expect(screen.getByText('Aの本文')).toBe(noteBody)
+    expect(screen.getByRole('button', { name: '右サイドバーを閉じる' }).getAttribute('aria-expanded')).toBe(
+      'true'
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '右サイドバーを閉じる' }))
+    expect(screen.getByRole('button', { name: '右サイドバーを開く' }).getAttribute('title')).toBe(
+      '右サイドバーを開く'
+    )
+    expect(document.getElementById('right-sidebar-content')?.hasAttribute('hidden')).toBe(true)
+    expect(screen.getByText('Aの本文')).toBe(noteBody)
+
+    fireEvent.click(screen.getByRole('button', { name: '左サイドバーを開く' }))
+    fireEvent.click(screen.getByRole('button', { name: '右サイドバーを開く' }))
+    expect(document.getElementById('left-sidebar-content')?.hasAttribute('hidden')).toBe(false)
+    expect(document.getElementById('right-sidebar-content')?.hasAttribute('hidden')).toBe(false)
+  })
+
   it('shows unresolved Wiki links until the existing-files-only filter is enabled and persisted', async () => {
     vi.mocked(api.openLastVault).mockResolvedValue({
       ok: true,
@@ -1764,7 +2263,7 @@ describe('App data-loss guards', () => {
     fireEvent.click(tagNode)
 
     expect(
-      (screen.getByRole('textbox', { name: 'Vaultを検索' }) as HTMLInputElement)
+      (screen.getByRole('textbox', { name: '内容を検索' }) as HTMLInputElement)
         .value
     ).toBe('tag:#project/tsuzune')
     expect(api.setGraphFilters).toHaveBeenCalledWith({
@@ -2028,6 +2527,8 @@ describe('App data-loss guards', () => {
     expect(screen.getByText(/ブックマーク先「Missing.md」が見つかりません/)).toBeTruthy()
 
     fireEvent.click(within(list).getByRole('button', { name: /重要ノート/ }))
+    await screen.findByText('Bの本文')
+    fireEvent.click(screen.getByRole('button', { name: '編集' }))
     await waitFor(() =>
       expect(
         (screen.getByRole('textbox', {
@@ -2073,6 +2574,8 @@ describe('App data-loss guards', () => {
     expect(screen.getByRole('tab', { name: 'B' }).getAttribute('aria-selected')).toBe(
       'true'
     )
+    await screen.findByText('Bの本文')
+    fireEvent.click(screen.getByRole('button', { name: '編集' }))
     expect(
       (screen.getByRole('textbox', { name: 'Markdown編集欄' }) as HTMLTextAreaElement)
         .value
@@ -2080,11 +2583,135 @@ describe('App data-loss guards', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'A' }))
     await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'A' }).getAttribute('aria-selected')).toBe(
+        'true'
+      )
+    })
+    fireEvent.click(screen.getByRole('button', { name: '編集' }))
+    await waitFor(() => {
       expect(
         (screen.getByRole('textbox', { name: 'Markdown編集欄' }) as HTMLTextAreaElement)
           .value
       ).toBe('[[B]]')
     })
+  })
+
+  it('provides ARIA-linked roving keyboard navigation for workspace tabs', async () => {
+    vi.mocked(api.openLastVault).mockResolvedValue({
+      ok: true,
+      value: {
+        ...snapshot,
+        notes: [{ ...noteA, content: '[[B]]' }, noteB, noteC]
+      }
+    })
+
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'ローカルグラフ' }))
+    fireEvent.contextMenu(
+      screen.getByRole('button', { name: 'B（リンク先）を開く' })
+    )
+    fireEvent.click(screen.getByRole('menuitem', { name: '新規タブに開く' }))
+
+    const tabA = await screen.findByRole('tab', { name: 'A' })
+    const tabB = screen.getByRole('tab', { name: 'B' })
+    await waitFor(() => {
+      expect(tabA.tabIndex).toBe(-1)
+      expect(tabB.tabIndex).toBe(0)
+    })
+    expect(tabA.id).not.toBe('')
+    expect(tabB.id).not.toBe('')
+    expect(tabA.getAttribute('aria-controls')).toBe('workspace-tabpanel')
+    expect(tabB.getAttribute('aria-controls')).toBe('workspace-tabpanel')
+    expect(
+      screen.getByRole('tabpanel', { name: 'B' }).getAttribute('aria-labelledby')
+    ).toBe(tabB.id)
+
+    tabB.focus()
+    fireEvent.keyDown(tabB, { key: 'ArrowLeft' })
+    await waitFor(() => {
+      expect(document.activeElement).toBe(tabA)
+      expect(tabA.tabIndex).toBe(0)
+      expect(tabB.tabIndex).toBe(-1)
+    })
+    expect(tabA.getAttribute('aria-selected')).toBe('false')
+
+    fireEvent.keyDown(tabA, { key: 'Enter' })
+    await waitFor(() => {
+      expect(tabA.getAttribute('aria-selected')).toBe('true')
+      expect(screen.getByRole('tabpanel', { name: 'A' })).toBeTruthy()
+    })
+
+    fireEvent.keyDown(tabA, { key: 'ArrowLeft' })
+    await waitFor(() => expect(document.activeElement).toBe(tabB))
+    fireEvent.keyDown(tabB, { key: ' ' })
+    await waitFor(() => {
+      expect(tabB.getAttribute('aria-selected')).toBe('true')
+    })
+    fireEvent.keyDown(tabB, { key: 'ArrowRight' })
+    await waitFor(() => expect(document.activeElement).toBe(tabA))
+  })
+
+  it('cycles, selects, and safely closes workspace tabs with global shortcuts', async () => {
+    vi.mocked(api.openLastVault).mockResolvedValue({
+      ok: true,
+      value: {
+        ...snapshot,
+        notes: [{ ...noteA, content: '[[B]]' }, noteB, noteC]
+      }
+    })
+
+    render(<App />)
+    fireEvent.click((await screen.findAllByRole('button', { name: 'グラフビュー' }))[0])
+    fireEvent.contextMenu(
+      screen.getByRole('button', { name: 'B（リンク先）を開く' })
+    )
+    fireEvent.click(screen.getByRole('menuitem', { name: '新規タブに開く' }))
+
+    const selectedTabName = (): string | null =>
+      screen
+        .getAllByRole('tab')
+        .find((tab) => tab.getAttribute('aria-selected') === 'true')
+        ?.textContent ?? null
+
+    await screen.findByRole('tab', { name: 'B' })
+    fireEvent.keyDown(window, { key: '1', ctrlKey: true })
+    await waitFor(() => expect(selectedTabName()).toBe('A'))
+    fireEvent.keyDown(window, { key: '2', ctrlKey: true })
+    await waitFor(() => expect(selectedTabName()).toBe('グラフビュー'))
+    fireEvent.keyDown(window, { key: '9', ctrlKey: true })
+    await waitFor(() => expect(selectedTabName()).toBe('B'))
+    fireEvent.keyDown(window, { key: 'Tab', ctrlKey: true, shiftKey: true })
+    await waitFor(() => expect(selectedTabName()).toBe('グラフビュー'))
+    fireEvent.keyDown(window, { key: 'Tab', ctrlKey: true })
+    await waitFor(() => expect(selectedTabName()).toBe('B'))
+
+    fireEvent.click(screen.getByRole('button', { name: '編集' }))
+    const editor = await screen.findByRole('textbox', { name: 'Markdown編集欄' })
+    editor.focus()
+    expect(fireEvent.keyDown(editor, { key: 'w', ctrlKey: true })).toBe(false)
+    expect(screen.getByRole('tab', { name: 'B' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '設定' }))
+    const settingsDialog = await screen.findByRole('dialog', { name: '設定' })
+    expect(fireEvent.keyDown(window, { key: 'w', ctrlKey: true })).toBe(false)
+    expect(screen.getByRole('tab', { name: 'B' })).toBeTruthy()
+    fireEvent.keyDown(settingsDialog, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '設定' })).toBeNull())
+
+    fireEvent.keyDown(window, { key: 'w', ctrlKey: true })
+    await waitFor(() => {
+      expect(screen.queryByRole('tab', { name: 'B' })).toBeNull()
+      expect(selectedTabName()).toBe('グラフビュー')
+      expect(document.activeElement).toBe(
+        screen.getByRole('tab', { name: 'グラフビュー' })
+      )
+    })
+    fireEvent.keyDown(window, { key: 'w', ctrlKey: true })
+    await waitFor(() => expect(selectedTabName()).toBe('A'))
+    fireEvent.keyDown(window, { key: 'w', ctrlKey: true })
+    expect(
+      await screen.findByRole('region', { name: '開いているタブはありません' })
+    ).toBeTruthy()
   })
 
   it('keeps Global Graph as a workspace tab after opening a note in a new tab', async () => {
@@ -2225,6 +2852,12 @@ describe('App data-loss guards', () => {
     ).toBe('false')
 
     fireEvent.click(screen.getByRole('tab', { name: 'A' }))
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'A' }).getAttribute('aria-selected')).toBe(
+        'true'
+      )
+    })
+    fireEvent.click(screen.getByRole('button', { name: '編集' }))
     await screen.findByRole('textbox', { name: 'Markdown編集欄' })
     fireEvent.click(screen.getByRole('tab', { name: 'diagram へのバックリンク' }))
 
@@ -2243,6 +2876,12 @@ describe('App data-loss guards', () => {
     render(<App />)
     fireEvent.click((await screen.findAllByRole('button', { name: 'グラフビュー' }))[0])
     fireEvent.click(await screen.findByRole('tab', { name: 'A' }))
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'A' }).getAttribute('aria-selected')).toBe(
+        'true'
+      )
+    })
+    fireEvent.click(screen.getByRole('button', { name: '編集' }))
 
     const editor = await screen.findByRole('textbox', { name: 'Markdown編集欄' })
     fireEvent.change(editor, { target: { value: '保存できていない本文' } })
@@ -2609,7 +3248,9 @@ describe('App data-loss guards', () => {
 
     render(<App />)
 
+    fireEvent.click(await screen.findByRole('tab', { name: '時間' }))
     expect(await screen.findByText('メタデータ不完全。本文の編集は続けられます。')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '編集' }))
     const editor = screen.getByLabelText('Markdown編集欄')
     fireEvent.change(editor, {
       target: { value: `${malformedContent}\n\n追記` }
@@ -2625,6 +3266,7 @@ describe('App data-loss guards', () => {
       error: { code: 'NOT_FOUND', message: '見つかりません。' }
     })
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
     const editor = await screen.findByLabelText('Markdown編集欄')
 
     fireEvent.change(editor, { target: { value: '失いたくない編集中の本文' } })
@@ -2647,6 +3289,7 @@ describe('App data-loss guards', () => {
         })
     )
     const { container } = render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
     const editor = await screen.findByLabelText('Markdown編集欄')
     fireEvent.change(editor, { target: { value: '保存待ちのA' } })
 
@@ -2685,6 +3328,7 @@ describe('App data-loss guards', () => {
           ?.textContent
       ).toContain('B')
     })
+    fireEvent.click(screen.getByRole('button', { name: '編集' }))
     expect((screen.getByLabelText('Markdown編集欄') as HTMLTextAreaElement).value).toBe(
       'Bの本文'
     )

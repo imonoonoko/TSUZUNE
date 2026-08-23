@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+import { readFile, stat } from 'node:fs/promises'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import * as z from 'zod/v4'
+// @ts-expect-error The shared runtime helper is exercised by the MCP fixture.
+import { deliveryStatus as readDeliveryStatus } from '../../scripts/source-fingerprint.mjs'
 import { DriveSyncMcpClient, defaultDriveSyncStatePath } from './drive-sync'
 import {
   MAX_EDITABLE_CHARACTERS,
@@ -12,7 +17,19 @@ interface ServerArguments {
   vaultPath?: string
   settingsPath?: string
   driveSyncStatePath?: string
+  profile?: 'freebuff'
 }
+
+declare const __TSUZUNE_VERSION__: string
+
+const processStartedAt = new Date(Date.now() - process.uptime() * 1_000)
+const repositoryRoot = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../..'
+)
+const deliveryStatus = readDeliveryStatus as (
+  repositoryRoot: string
+) => Promise<'match' | 'mismatch' | 'unknown'>
 
 const readOnlyAnnotations = {
   readOnlyHint: true,
@@ -79,53 +96,40 @@ const autonomousUpdateOutputSchema = {
   })
 }
 
-const moveOutputSchema = {
-  preflight: z.boolean().optional(),
-  old_path: z.string(),
-  new_path: z.string(),
-  metadata: z
-    .object({
-      path: z.string(),
-      modified_at: z.string(),
-      revision: z.string(),
-      size_bytes: z.number()
-    })
-    .optional(),
-  history_path: z.string().nullable().optional(),
-  provenance: z
-    .object({
-      actor: z.literal('ai'),
-      reason: z.string(),
-      source_refs: z.array(z.string()),
-      previous_revision: z.string()
-    })
-    .optional(),
-  backlinks: z.object({
-    total: z.number(),
-    ids: z.array(z.string())
+const movePlanOutputSchema = {
+  source_type: z.literal('markdown'),
+  source: z.string(),
+  destination: z.string(),
+  fingerprint: z.string(),
+  source_revision: z.string(),
+  content_revision: z.string(),
+  counts: z.object({
+    markdown: z.literal(1),
+    directories: z.literal(0),
+    attachments: z.literal(0)
   }),
+  mappings: z.array(
+    z.object({ old_path: z.string(), new_path: z.string() })
+  ),
+  mapping_truncated: z.literal(false),
+  collision: z.literal(false),
+  protected_source: z.boolean(),
+  protected_destination: z.boolean(),
   link_impact: z.object({
     affected_count: z.number(),
     source_paths: z.array(z.string())
   }),
-  manifest: z
-    .object({
-      source: z.string(),
-      destination: z.string(),
-      source_exists: z.boolean(),
-      destination_exists: z.boolean(),
-      markdown_only: z.boolean(),
-      protected_source: z.boolean(),
-      protected_destination: z.boolean(),
-      source_revision: z.string(),
-      backlink_count: z.number(),
-      backlink_paths: z.array(z.string()),
-      link_impact_count: z.number(),
-      link_impact_paths: z.array(z.string()),
-      notes_referencing_old_path: z.array(z.string()),
-      would_move: z.boolean()
-    })
-    .optional()
+  drive: z.object({
+    tracked_moves: z.number(),
+    untracked_uploads: z.number()
+  })
+}
+
+const moveResultOutputSchema = {
+  old_path: z.string(),
+  new_path: z.string(),
+  fingerprint: z.string(),
+  history_path: z.string().nullable()
 }
 
 function parseArguments(args: string[]): ServerArguments {
@@ -150,6 +154,11 @@ function parseArguments(args: string[]): ServerArguments {
       index += 1
       continue
     }
+    if (argument === '--profile' && value === 'freebuff') {
+      parsed.profile = value
+      index += 1
+      continue
+    }
     throw new Error(`不明な引数です: ${argument}`)
   }
 
@@ -168,10 +177,64 @@ function textResult<T extends object>(structuredContent: T) {
   }
 }
 
-function structuredOnlyResult<T extends object>(structuredContent: T) {
+async function runtimeFreshness(): Promise<{
+  buildUpdatedAt: Date
+  packageVersion: string | null
+  stale: boolean
+}> {
+  const build = await stat(fileURLToPath(import.meta.url))
+  let packageVersion: string | null = null
+  try {
+    const packageJson = JSON.parse(
+      await readFile(new URL('../../package.json', import.meta.url), 'utf8')
+    ) as { version?: unknown }
+    if (typeof packageJson.version === 'string') {
+      packageVersion = packageJson.version
+    }
+  } catch {
+    // The embedded server version remains authoritative when package.json is unavailable.
+  }
+
   return {
-    content: [],
-    structuredContent: structuredContent as Record<string, unknown>
+    buildUpdatedAt: build.mtime,
+    packageVersion,
+    stale:
+      build.mtimeMs > processStartedAt.getTime() ||
+      (packageVersion !== null && packageVersion !== __TSUZUNE_VERSION__)
+  }
+}
+
+async function assertFreshRuntime(): Promise<void> {
+  let freshness
+  try {
+    freshness = await runtimeFreshness()
+  } catch {
+    throw new Error('RUNTIME_FRESHNESS_UNAVAILABLE')
+  }
+  if (freshness.stale) throw new Error('STALE_RUNTIME_WRITE_BLOCKED')
+}
+
+async function runtimeInfo(
+  vault: VaultMcpService,
+  profile: ServerArguments['profile']
+) {
+  const freshness = await runtimeFreshness()
+
+  let vaultId: string | null = null
+  try {
+    vaultId = await vault.vaultIdentity()
+  } catch {
+    // Keep runtime diagnostics available before a Vault has been configured.
+  }
+
+  return {
+    server_version: __TSUZUNE_VERSION__,
+    package_version: freshness.packageVersion,
+    profile: profile ?? 'direct',
+    process_started_at: processStartedAt.toISOString(),
+    build_updated_at: freshness.buildUpdatedAt.toISOString(),
+    stale_runtime: freshness.stale,
+    vault_id: vaultId
   }
 }
 
@@ -187,12 +250,49 @@ async function main(): Promise<void> {
   const server = new McpServer(
     {
       name: 'tsuzune',
-      version: '0.3.0'
+      version: __TSUZUNE_VERSION__
     },
     {
       instructions:
-        'TSUZUNEのローカルMarkdown Vaultを扱います。検索はsearch、取得はfetch、関連文脈はbuild_context、リンク候補はsuggest_linksを使ってください。Drive同期は起動中のTSUZUNE本体に対してpreview_drive_syncで確認し、返されたplanIdをapply_drive_syncのplan_idへ渡した時だけ適用します。searchは50_履歴(監査履歴)を既定で除外します。履歴を検索に含めたい場合はinclude_history: trueを指定してください。1行の修正はpatch_note、全文置換はupdate_noteを使ってください。AIによる自動更新はautonomous_update_noteを使えます。自動更新はユーザー承認を待たずに実行されますが、旧本文を50_履歴/AI更新へ保存し、出典と理由を記録します。原文・会話ログは自動更新対象にせず、削除・強制上書きはできません。ノートの移動はmove_noteで行い、監査記録を50_履歴/AI更新へ残し、同名上書き・Vault外・内部管理フォルダ・AI変更不可ノートを拒否します。move_noteはpreflight_onlyで移動せずに安全性を確認できます。Wikiリンクの追加はadd_linkで行い、重複・保護ノート・revision競合を拒否し、note_link_addの監査記録を50_履歴/AI更新へ残します。suggest_linksとadd_linkは、フォルダ移動と知識リンクを別判断として扱えます。'
+        'TSUZUNEのローカルMarkdown Vaultです。検索・取得・関連文脈はsearch/fetch/build_contextを使い、各ツールの説明に従ってください。40_情報源・50_履歴の保護と、削除・強制上書き・Vault外操作の禁止はMCPが強制します。'
     }
+  )
+  const directTools = args.profile === 'freebuff' ? undefined : server
+
+  server.registerTool(
+    'runtime_info',
+    {
+      title: 'TSUZUNE MCP実行状態',
+      description:
+        'Report the active MCP build, process start time, profile, stale-runtime status, and anonymized Vault identity without exposing local paths.',
+      inputSchema: {},
+      outputSchema: {
+        server_version: z.string(),
+        package_version: z.string().nullable(),
+        profile: z.enum(['direct', 'freebuff']),
+        process_started_at: z.string(),
+        build_updated_at: z.string(),
+        stale_runtime: z.boolean(),
+        vault_id: z.string().nullable()
+      },
+      annotations: readOnlyAnnotations
+    },
+    async () => textResult(await runtimeInfo(vault, args.profile))
+  )
+
+  server.registerTool(
+    'delivery_info',
+    {
+      title: 'TSUZUNE本番反映状態',
+      description:
+        'Compare working source with the latest verified production receipt. Returns only match, mismatch, or unknown.',
+      inputSchema: {},
+      outputSchema: {
+        status: z.enum(['match', 'mismatch', 'unknown'])
+      },
+      annotations: readOnlyAnnotations
+    },
+    async () => textResult({ status: await deliveryStatus(repositoryRoot) })
   )
 
   server.registerTool(
@@ -200,7 +300,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEノート検索',
       description:
-        'Search the active TSUZUNE Vault by note title, relative path, and Markdown content. 50_履歴 (audit history) notes are excluded by default; pass include_history: true to include them.',
+        'Search the active TSUZUNE Vault by note title, relative path, and Markdown content. Space-separated terms use implicit AND; natural Japanese sentences are split on particles/punctuation and ranked by how many segmented terms match (not all terms are required); quoted phrases, -negation, tag:, path:, and file: filters are supported. 50_履歴 (audit history) notes are excluded by default; pass include_history: true to include them.',
       inputSchema: {
         query: z.string().min(1).describe('Search query'),
         limit: z.number().int().min(1).max(50).optional().default(10),
@@ -259,6 +359,81 @@ async function main(): Promise<void> {
   )
 
   server.registerTool(
+    'list_directory',
+    {
+      title: 'TSUZUNEフォルダ一覧',
+      description:
+        'List bounded folder, Markdown, and attachment metadata without note content. Returns at most 200 entries with next_after pagination. Pass the first page fingerprint as expected_fingerprint on later pages to reject concurrent scope changes.',
+      inputSchema: {
+        path: z.string().max(500).optional().default(''),
+        depth: z.number().int().min(1).max(3).optional().default(1),
+        after: z.string().max(500).optional(),
+        expected_fingerprint: z
+          .string()
+          .regex(/^sha256:[a-f0-9]{64}$/)
+          .optional()
+      },
+      outputSchema: {
+        path: z.string(),
+        depth: z.number(),
+        fingerprint: z.string(),
+        entries: z.array(
+          z.union([
+            z.object({
+              type: z.literal('directory'),
+              path: z.string(),
+              name: z.string(),
+              counts: z.object({
+                directories: z.number(),
+                notes: z.number(),
+                attachments: z.number()
+              })
+            }),
+            z.object({
+              type: z.enum(['markdown', 'attachment']),
+              path: z.string(),
+              name: z.string(),
+              size_bytes: z.number(),
+              modified_at: z.string()
+            })
+          ])
+        ),
+        truncated: z.boolean(),
+        next_after: z.string().optional()
+      },
+      annotations: readOnlyAnnotations
+    },
+    async ({ path, depth, after, expected_fingerprint }) =>
+      textResult(
+        await vault.listDirectory(path, depth, after, expected_fingerprint)
+      )
+  )
+
+  server.registerTool(
+    'create_directory',
+    {
+      title: 'TSUZUNEフォルダ作成',
+      description:
+        'Create one new folder inside an existing Vault folder. Never overwrites an existing file or folder and never creates missing parent folders. Use only when the user asks to add a folder.',
+      inputSchema: {
+        path: z
+          .string()
+          .min(1)
+          .max(500)
+          .describe('New Vault-relative folder path')
+      },
+      outputSchema: {
+        path: z.string()
+      },
+      annotations: createAnnotations
+    },
+    async ({ path }) => {
+      await assertFreshRuntime()
+      return textResult(await vault.createDirectory(path))
+    }
+  )
+
+  server.registerTool(
     'create_note',
     {
       title: 'TSUZUNEノート作成',
@@ -280,8 +455,10 @@ async function main(): Promise<void> {
       outputSchema: writeOutputSchema,
       annotations: createAnnotations
     },
-    async ({ path, content }) =>
-      textResult(await vault.createNote(path, content))
+    async ({ path, content }) => {
+      await assertFreshRuntime()
+      return textResult(await vault.createNote(path, content))
+    }
   )
 
   server.registerTool(
@@ -304,8 +481,10 @@ async function main(): Promise<void> {
       outputSchema: writeOutputSchema,
       annotations: updateAnnotations
     },
-    async ({ id, content, expected_revision }) =>
-      textResult(await vault.updateNote(id, content, expected_revision))
+    async ({ id, content, expected_revision }) => {
+      await assertFreshRuntime()
+      return textResult(await vault.updateNote(id, content, expected_revision))
+    }
   )
 
   server.registerTool(
@@ -313,7 +492,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNE AI自動ノート更新',
       description:
-        'Update one existing Markdown note without waiting for human approval. The previous content is preserved in 50_履歴/AI更新 and the reason/source references are returned as provenance. Use for AI-assisted knowledge maintenance; never use for raw source notes.',
+        'Update one existing Markdown note without waiting for human approval. A supplied revision guard is checked first. Identical content is a no-op with no history; changed content preserves the previous version in 50_履歴/AI更新 and returns reason/source references as provenance. Use for AI-assisted knowledge maintenance; never use for raw source notes.',
       inputSchema: {
         id: z.string().min(1).max(500).describe('Vault-relative note path'),
         content: z
@@ -340,14 +519,16 @@ async function main(): Promise<void> {
       outputSchema: autonomousUpdateOutputSchema,
       annotations: autonomousUpdateAnnotations
     },
-    async ({ id, content, expected_revision, reason, source_refs }) =>
-      textResult(
+    async ({ id, content, expected_revision, reason, source_refs }) => {
+      await assertFreshRuntime()
+      return textResult(
         await vault.autonomousUpdateNote(id, content, {
           expectedRevision: expected_revision,
           reason,
           sourceRefs: source_refs
         })
       )
+    }
   )
 
   server.registerTool(
@@ -412,8 +593,9 @@ async function main(): Promise<void> {
       },
       annotations: updateAnnotations
     },
-    async ({ id, expected_revision, operations, reason, source_refs }) =>
-      textResult(
+    async ({ id, expected_revision, operations, reason, source_refs }) => {
+      await assertFreshRuntime()
+      return textResult(
         await vault.patchNote(
           id,
           expected_revision,
@@ -428,6 +610,7 @@ async function main(): Promise<void> {
           }
         )
       )
+    }
   )
 
   server.registerTool(
@@ -436,7 +619,11 @@ async function main(): Promise<void> {
       title: 'TSUZUNE Drive同期内容の確認',
       description:
         'Preview the active Vault Drive sync through the running TSUZUNE app. This does not apply uploads, downloads, moves, or conflicts. Return planId to the user before applying.',
-      inputSchema: {},
+      inputSchema: {
+        propagate_local_deletion: z.boolean().optional(),
+        propagate_remote_deletion: z.boolean().optional(),
+        force_full: z.boolean().optional()
+      },
       outputSchema: {
         planId: z.string(),
         createdAt: z.string(),
@@ -444,7 +631,7 @@ async function main(): Promise<void> {
           z.object({
             path: z.string(),
             oldPath: z.string().optional(),
-            action: z.enum(['upload', 'download', 'move', 'conflict', 'preserve']),
+            action: z.enum(['upload', 'download', 'move', 'conflict', 'preserve', 'trash_local', 'trash_remote']),
             reason: z.enum([
               'new_local',
               'new_remote',
@@ -465,11 +652,16 @@ async function main(): Promise<void> {
           move: z.number(),
           conflict: z.number(),
           preserve: z.number()
+          , trashLocal: z.number(), trashRemote: z.number()
         })
       },
       annotations: drivePreviewAnnotations
     },
-    async () => textResult(await driveSync.preview())
+    async (input) => textResult(await driveSync.preview({
+      propagateLocalDeletion: input.propagate_local_deletion,
+      propagateRemoteDeletion: input.propagate_remote_deletion,
+      forceFull: input.force_full
+    }))
   )
 
   server.registerTool(
@@ -492,15 +684,18 @@ async function main(): Promise<void> {
       },
       annotations: driveApplyAnnotations
     },
-    async ({ plan_id }) => textResult(await driveSync.apply(plan_id))
+    async ({ plan_id }) => {
+      await assertFreshRuntime()
+      return textResult(await driveSync.apply(plan_id))
+    }
   )
 
   server.registerTool(
-    'move_note',
+    'preflight_move_entry',
     {
-      title: 'TSUZUNEノート移動',
+      title: 'TSUZUNEノート移動の事前確認',
       description:
-        'Move one existing Markdown note to another Vault-relative path. Refuses missing sources, existing destinations, moves outside the Vault, internal folders (.trash, .tsuzune), and notes protected from AI changes. Records an audit entry in 50_履歴/AI更新 and returns the old and new paths.',
+        'Preflight one Markdown note move through the running TSUZUNE app. Returns a state fingerprint and impact summary without changing the Vault.',
       inputSchema: {
         source: z
           .string()
@@ -512,37 +707,46 @@ async function main(): Promise<void> {
           .min(1)
           .max(500)
           .describe('Vault-relative destination note path ending in .md'),
-        reason: z
-          .string()
-          .max(2_000)
-          .optional()
-          .describe('Why the AI is moving this note'),
+      },
+      outputSchema: movePlanOutputSchema,
+      annotations: readOnlyAnnotations
+    },
+    async ({ source, destination }) =>
+      textResult(await driveSync.preflightMoveEntry(source, destination))
+  )
+
+  server.registerTool(
+    'move_entry',
+    {
+      title: 'TSUZUNEノート移動の適用',
+      description:
+        'Apply one preflighted Markdown note move through the running TSUZUNE app. Rejects stale fingerprints and records one AI success audit.',
+      inputSchema: {
+        source: z.string().min(1).max(500),
+        destination: z.string().min(1).max(500),
+        expected_fingerprint: z.string().min(1).max(100),
+        reason: z.string().min(1).max(2_000),
         source_refs: z
           .array(z.string().min(1).max(500))
           .max(50)
           .optional()
           .default([])
-          .describe('Vault-relative source or research package references'),
-        preflight_only: z
-          .boolean()
-          .optional()
-          .default(false)
-          .describe(
-            'Check move safety (backlinks, link impact, manifest) without moving'
-          )
       },
-      outputSchema: moveOutputSchema,
+      outputSchema: moveResultOutputSchema,
       annotations: updateAnnotations
     },
-    async ({ source, destination, reason, source_refs, preflight_only }) =>
-      textResult(
-        preflight_only
-          ? await vault.preflightMove(source, destination)
-          : await vault.moveNote(source, destination, {
-              reason,
-              sourceRefs: source_refs
-            })
+    async ({ source, destination, expected_fingerprint, reason, source_refs }) => {
+      await assertFreshRuntime()
+      return textResult(
+        await driveSync.moveEntry({
+          source,
+          destination,
+          expected_fingerprint,
+          reason,
+          source_refs
+        })
       )
+    }
   )
 
   server.registerTool(
@@ -550,10 +754,12 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEバックリンク取得',
       description:
-        'List notes that contain a resolved Wiki link to the requested note.',
+        'List resolved Wiki-link sources. Excludes 50_履歴 by default; use include_history to opt in and next_after as after to continue.',
       inputSchema: {
         id: z.string().min(1).describe('Relative note path'),
-        limit: z.number().int().min(1).max(50).optional().default(20)
+        limit: z.number().int().min(1).max(50).optional().default(20),
+        include_history: z.boolean().optional().default(false),
+        after: z.string().max(500).optional()
       },
       outputSchema: {
         note: z.object({
@@ -566,14 +772,16 @@ async function main(): Promise<void> {
             title: z.string()
           })
         ),
-        total: z.number()
+        total: z.number(),
+        next_after: z.string().optional()
       },
       annotations: readOnlyAnnotations
     },
-    async ({ id, limit }) => textResult(await vault.backlinks(id, limit))
+    async ({ id, limit, include_history, after }) =>
+      textResult(await vault.backlinks(id, limit, include_history, after))
   )
 
-  server.registerTool(
+  directTools?.registerTool(
     'suggest_links',
     {
       title: 'TSUZUNEリンク候補提案',
@@ -636,7 +844,7 @@ async function main(): Promise<void> {
       )
   )
 
-  server.registerTool(
+  directTools?.registerTool(
     'add_link',
     {
       title: 'TSUZUNE Wikiリンク追加',
@@ -694,14 +902,16 @@ async function main(): Promise<void> {
       },
       annotations: updateAnnotations
     },
-    async ({ source, target, expected_revision, reason, source_refs }) =>
-      textResult(
+    async ({ source, target, expected_revision, reason, source_refs }) => {
+      await assertFreshRuntime()
+      return textResult(
         await vault.addLink(source, target, {
           expectedRevision: expected_revision,
           reason,
           sourceRefs: source_refs
         })
       )
+    }
   )
 
   server.registerTool(
@@ -718,7 +928,7 @@ async function main(): Promise<void> {
           .max(500)
           .optional()
           .describe(
-            'Optional question used to prioritize related note bodies; MOC titles are not filtered'
+            'Optional question used when the full context would exceed the bundle budget: preserve every intent delimited by commas, periods, semicolons, question marks, exclamation marks, colons, or newlines; project matching heading branches including bodyless parents and descendants without duplication; share compact seed budget across selected branches; reserve the projected ordinary seed before related source bodies; and prioritize remaining related note bodies. MOC titles are not filtered'
           ),
         max_characters: z
           .number()
@@ -757,6 +967,8 @@ async function main(): Promise<void> {
             name: z.string(),
             relation: z.enum(['seed', 'outgoing', 'backlink']),
             truncated: z.boolean(),
+            revision: z.string(),
+            modified_at: z.string(),
             content_omitted: z.boolean().optional(),
             temporal_status: z
               .enum([
@@ -800,7 +1012,7 @@ async function main(): Promise<void> {
       include_history,
       temporal_perspective
     }) =>
-      structuredOnlyResult(
+      textResult(
         await vault.buildContext(id, max_characters, {
           asOf: as_of,
           includeHistory: include_history,
@@ -811,7 +1023,7 @@ async function main(): Promise<void> {
   )
 
   await server.connect(new StdioServerTransport())
-  console.error('TSUZUNE MCP server is ready (6 read tools, 7 write tools).')
+  console.error('TSUZUNE MCP server is ready.')
 }
 
 main().catch((error: unknown) => {

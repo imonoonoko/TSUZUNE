@@ -54,7 +54,7 @@ bundleにはこの4ノートに加えて、関連MOC・情報源・履歴も含�
 ## 実行
 
 ```powershell
-npm run measure:progressive-context
+node scripts/measure-progressive-context.mjs
 ```
 
 ## 次の最小評価

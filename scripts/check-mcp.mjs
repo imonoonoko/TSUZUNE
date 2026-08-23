@@ -18,7 +18,7 @@ const escapedPath = join(
   '..',
   `tsuzune-mcp-escape-${process.pid}-${Date.now()}.md`
 )
-const serverPath = resolve('out/mcp/server.js')
+const serverPath = resolve(process.env.TSUZUNE_MCP_SERVER_PATH ?? 'out/mcp/server.js')
 const transport = new StdioClientTransport({
   command: process.execPath,
   args: [
@@ -44,6 +44,7 @@ try {
   await mkdir(join(vaultPath, 'Projects'))
   await mkdir(join(vaultPath, 'History'))
   await mkdir(join(vaultPath, 'Knowledge'))
+  await mkdir(join(vaultPath, '50_履歴', 'AI更新'), { recursive: true })
   await writeFile(
     join(vaultPath, 'Home.md'),
     '# Home\n\nTSUZUNE MCP smoke test. [[Projects/TSUZUNE]]',
@@ -52,6 +53,16 @@ try {
   await writeFile(
     join(vaultPath, 'Projects', 'TSUZUNE.md'),
     '# TSUZUNE\n\nLocal Markdown memory.',
+    'utf8'
+  )
+  await writeFile(
+    join(vaultPath, 'Knowledge', 'Backlink.md'),
+    '# Knowledge backlink\n\n[[Projects/TSUZUNE]]',
+    'utf8'
+  )
+  await writeFile(
+    join(vaultPath, '50_履歴', 'AI更新', 'Backlink.md'),
+    '# History backlink\n\n[[Projects/TSUZUNE]]',
     'utf8'
   )
   await writeFile(
@@ -84,23 +95,38 @@ try {
 
   await client.connect(transport)
 
+  const serverInstructions = client.getInstructions()
+  const requiredInstructionTerms = [
+    'search',
+    'fetch',
+    'build_context',
+    '40_情報源',
+    '50_履歴',
+    '削除',
+    '強制上書き',
+    'Vault外',
+    '禁止',
+    'MCPが強制'
+  ]
+  if (
+    typeof serverInstructions !== 'string' ||
+    serverInstructions.length > 160 ||
+    requiredInstructionTerms.some((term) => !serverInstructions.includes(term))
+  ) {
+    throw new Error(
+      'Server instructions must stay concise while preserving routing and safety boundaries.'
+    )
+  }
+
   const listed = await client.listTools()
   const toolNames = listed.tools.map((tool) => tool.name).sort()
-  const expected = [
-    'add_link',
-    'apply_drive_sync',
-    'autonomous_update_note',
-    'build_context',
-    'create_note',
-    'fetch',
-    'get_backlinks',
-    'move_note',
-    'patch_note',
-    'preview_drive_sync',
-    'search',
-    'suggest_links',
-    'update_note'
-  ]
+  const toolCatalog = JSON.parse(
+    await readFile(new URL('../src/mcp/tool-catalog.json', import.meta.url), 'utf8')
+  )
+  const packageJson = JSON.parse(
+    await readFile(new URL('../package.json', import.meta.url), 'utf8')
+  )
+  const expected = [...toolCatalog.common, ...toolCatalog.directOnly].sort()
   if (JSON.stringify(toolNames) !== JSON.stringify(expected)) {
     throw new Error(`Unexpected tools: ${toolNames.join(', ')}`)
   }
@@ -114,7 +140,49 @@ try {
   ) {
     throw new Error('build_context query must be optional and limited to 500 characters.')
   }
-  for (const name of ['search', 'fetch', 'get_backlinks', 'build_context', 'suggest_links']) {
+  const contextOutputSchema = toolsByName.get('build_context')?.outputSchema
+  const contextSourceSchema = contextOutputSchema?.properties?.included?.items
+  if (
+    contextSourceSchema?.properties?.revision?.type !== 'string' ||
+    contextSourceSchema?.properties?.modified_at?.type !== 'string' ||
+    !contextSourceSchema.required?.includes('revision') ||
+    !contextSourceSchema.required?.includes('modified_at')
+  ) {
+    throw new Error(
+      'build_context must expose required revision and modified_at source descriptors.'
+    )
+  }
+  const backlinksTool = toolsByName.get('get_backlinks')
+  const backlinksInputSchema = backlinksTool?.inputSchema
+  const backlinksOutputSchema = backlinksTool?.outputSchema
+  if (
+    backlinksInputSchema?.properties?.include_history?.type !== 'boolean' ||
+    backlinksInputSchema?.required?.includes('include_history') ||
+    backlinksInputSchema?.properties?.after?.type !== 'string' ||
+    backlinksInputSchema.properties.after.maxLength !== 500 ||
+    backlinksInputSchema?.required?.includes('after') ||
+    backlinksOutputSchema?.properties?.next_after?.type !== 'string'
+  ) {
+    throw new Error(
+      'get_backlinks must expose optional history and bounded path-cursor inputs.'
+    )
+  }
+  const directoryTool = toolsByName.get('list_directory')
+  const directoryInputSchema = directoryTool?.inputSchema
+  const directoryOutputSchema = directoryTool?.outputSchema
+  if (
+    directoryInputSchema?.properties?.expected_fingerprint?.type !== 'string' ||
+    directoryInputSchema.properties.expected_fingerprint.pattern !==
+      '^sha256:[a-f0-9]{64}$' ||
+    directoryInputSchema?.required?.includes('expected_fingerprint') ||
+    directoryOutputSchema?.properties?.fingerprint?.type !== 'string' ||
+    !directoryOutputSchema?.required?.includes('fingerprint')
+  ) {
+    throw new Error(
+      'list_directory must expose an optional expected fingerprint and a required current fingerprint.'
+    )
+  }
+  for (const name of ['runtime_info', 'delivery_info', 'search', 'fetch', 'get_backlinks', 'build_context', 'list_directory', 'preflight_move_entry', 'suggest_links']) {
     const annotations = toolsByName.get(name)?.annotations
     if (
       annotations?.readOnlyHint !== true ||
@@ -134,7 +202,7 @@ try {
   ) {
     throw new Error('preview_drive_sync has incorrect annotations.')
   }
-  for (const name of ['create_note', 'update_note', 'autonomous_update_note', 'patch_note', 'move_note', 'add_link']) {
+  for (const name of ['create_directory', 'create_note', 'update_note', 'autonomous_update_note', 'patch_note', 'move_entry', 'add_link']) {
     const annotations = toolsByName.get(name)?.annotations
     if (
       annotations?.readOnlyHint !== false ||
@@ -156,6 +224,9 @@ try {
   if (toolsByName.get('create_note')?.annotations?.destructiveHint !== false) {
     throw new Error('create_note must be marked non-destructive.')
   }
+  if (toolsByName.get('create_directory')?.annotations?.destructiveHint !== false) {
+    throw new Error('create_directory must be marked non-destructive.')
+  }
   if (toolsByName.get('update_note')?.annotations?.destructiveHint !== true) {
     throw new Error('update_note must disclose full-content replacement.')
   }
@@ -171,8 +242,61 @@ try {
     throw new Error('patch_note must disclose that it modifies a note.')
   }
 
-  if (toolsByName.get('move_note')?.annotations?.destructiveHint !== true) {
-    throw new Error('move_note must disclose that it relocates a note.')
+  const runtimeInfo = await client.callTool({
+    name: 'runtime_info',
+    arguments: {}
+  })
+  const runtime = runtimeInfo.structuredContent
+  if (
+    runtimeInfo.isError ||
+    runtime?.server_version !== packageJson.version ||
+    runtime?.package_version !== packageJson.version ||
+    runtime?.profile !== 'direct' ||
+    !Number.isFinite(Date.parse(runtime?.process_started_at)) ||
+    !Number.isFinite(Date.parse(runtime?.build_updated_at)) ||
+    runtime?.stale_runtime !== false ||
+    !/^sha256:[0-9a-f]{64}$/.test(runtime?.vault_id)
+  ) {
+    throw new Error('runtime_info did not return the active runtime identity.')
+  }
+
+  const deliveryInfo = await client.callTool({
+    name: 'delivery_info',
+    arguments: {}
+  })
+  const delivery = deliveryInfo.structuredContent
+  if (
+    deliveryInfo.isError ||
+    !delivery ||
+    JSON.stringify(Object.keys(delivery).sort()) !== JSON.stringify(['status']) ||
+    !['match', 'mismatch', 'unknown'].includes(delivery.status) ||
+    deliveryInfo.content?.length !== 1 ||
+    deliveryInfo.content[0]?.type !== 'text' ||
+    deliveryInfo.content[0].text !== JSON.stringify(delivery, null, 2)
+  ) {
+    throw new Error('delivery_info did not return the bounded delivery status.')
+  }
+
+  const serverTimes = await stat(serverPath)
+  try {
+    const future = new Date(Date.now() + 60_000)
+    await utimes(serverPath, future, future)
+    const staleRuntime = await client.callTool({
+      name: 'runtime_info',
+      arguments: {}
+    })
+    if (
+      staleRuntime.isError ||
+      staleRuntime.structuredContent?.stale_runtime !== true
+    ) {
+      throw new Error('runtime_info did not detect a replaced server build.')
+    }
+  } finally {
+    await utimes(serverPath, serverTimes.atime, serverTimes.mtime)
+  }
+
+  if (toolsByName.get('move_entry')?.annotations?.destructiveHint !== true) {
+    throw new Error('move_entry must disclose that it relocates a note.')
   }
   if (toolsByName.get('add_link')?.annotations?.destructiveHint !== true) {
     throw new Error('add_link must disclose that it modifies a note.')
@@ -217,15 +341,52 @@ try {
     throw new Error('fetch did not return the expected note.')
   }
 
-  const backlinks = await client.callTool({
+  const firstBacklinks = await client.callTool({
     name: 'get_backlinks',
-    arguments: { id: 'Projects/TSUZUNE.md' }
+    arguments: { id: 'Projects/TSUZUNE.md', limit: 1 }
+  })
+  const nextAfter = firstBacklinks.structuredContent?.next_after
+  const secondBacklinks = await client.callTool({
+    name: 'get_backlinks',
+    arguments: {
+      id: 'Projects/TSUZUNE.md',
+      limit: 1,
+      after: nextAfter
+    }
+  })
+  const backlinkIds = [
+    ...(firstBacklinks.structuredContent?.backlinks ?? []),
+    ...(secondBacklinks.structuredContent?.backlinks ?? [])
+  ].map((item) => item.id)
+  if (
+    firstBacklinks.isError ||
+    secondBacklinks.isError ||
+    firstBacklinks.structuredContent?.total !== 2 ||
+    secondBacklinks.structuredContent?.total !== 2 ||
+    typeof nextAfter !== 'string' ||
+    secondBacklinks.structuredContent?.next_after !== undefined ||
+    backlinkIds.length !== 2 ||
+    new Set(backlinkIds).size !== 2 ||
+    backlinkIds.some((id) => id.startsWith('50_履歴/'))
+  ) {
+    throw new Error('get_backlinks did not page filtered sources correctly.')
+  }
+  const backlinksWithHistory = await client.callTool({
+    name: 'get_backlinks',
+    arguments: {
+      id: 'Projects/TSUZUNE.md',
+      limit: 50,
+      include_history: true
+    }
   })
   if (
-    backlinks.isError ||
-    backlinks.structuredContent?.total !== 1
+    backlinksWithHistory.isError ||
+    backlinksWithHistory.structuredContent?.total !== 3 ||
+    !backlinksWithHistory.structuredContent?.backlinks?.some((item) =>
+      item.id.startsWith('50_履歴/')
+    )
   ) {
-    throw new Error('get_backlinks did not return the expected source.')
+    throw new Error('get_backlinks did not include history when requested.')
   }
 
   const context = await client.callTool({
@@ -235,12 +396,25 @@ try {
   if (
     context.isError ||
     !Array.isArray(context.content) ||
-    context.content.length !== 0 ||
+    context.content.length !== 1 ||
+    context.content[0]?.type !== 'text' ||
+    !String(context.content[0]?.text).includes('Projects/TSUZUNE.md') ||
     !String(context.structuredContent?.markdown).includes(
       'Projects/TSUZUNE.md'
     )
   ) {
-    throw new Error('build_context did not return the structured-only context.')
+    throw new Error('build_context did not return the context in text content.')
+  }
+  const contextSource = context.structuredContent?.included?.find(
+    (source) => source?.path === 'Projects/TSUZUNE.md'
+  )
+  if (
+    contextSource?.revision !== fetched.structuredContent?.metadata?.revision ||
+    contextSource?.modified_at !== fetched.structuredContent?.metadata?.modified_at
+  ) {
+    throw new Error(
+      'build_context source descriptors did not match fetch for the same note.'
+    )
   }
 
   const queriedContext = await client.callTool({
@@ -257,7 +431,8 @@ try {
   if (
     queriedContext.isError ||
     !Array.isArray(queriedContext.content) ||
-    queriedContext.content.length !== 0 ||
+    queriedContext.content.length !== 1 ||
+    queriedContext.content[0]?.type !== 'text' ||
     String(queriedContext.structuredContent?.markdown).includes('Query:') ||
     !queriedSource?.selection_reasons?.includes('質問語に一致')
   ) {
@@ -355,6 +530,63 @@ try {
   })
   if (!rejectedCreate.isError) {
     throw new Error('create_note accepted a path outside the Vault.')
+  }
+
+  const rejectedDirectory = await client.callTool({
+    name: 'create_directory',
+    arguments: { path: '../outside' }
+  })
+  if (!rejectedDirectory.isError) {
+    throw new Error('create_directory accepted a path outside the Vault.')
+  }
+
+  const listedDirectory = await client.callTool({
+    name: 'list_directory',
+    arguments: { path: 'Projects', depth: 1 }
+  })
+  if (
+    listedDirectory.isError ||
+    !/^sha256:[a-f0-9]{64}$/.test(
+      listedDirectory.structuredContent?.fingerprint ?? ''
+    ) ||
+    !listedDirectory.structuredContent?.entries?.some(
+      (entry) => entry.path === 'Projects/TSUZUNE.md' && entry.type === 'markdown'
+    ) ||
+    JSON.stringify(listedDirectory.structuredContent).includes('AI連携を試す')
+  ) {
+    throw new Error('list_directory did not return content-free entry metadata.')
+  }
+  await writeFile(
+    join(vaultPath, 'Projects', 'Changed-after-page.md'),
+    '# Changed after page',
+    'utf8'
+  )
+  const staleDirectoryPage = await client.callTool({
+    name: 'list_directory',
+    arguments: {
+      path: 'Projects',
+      depth: 1,
+      after: 'Projects/TSUZUNE.md',
+      expected_fingerprint: listedDirectory.structuredContent.fingerprint
+    }
+  })
+  if (
+    !staleDirectoryPage.isError ||
+    !String(staleDirectoryPage.content?.[0]?.text).includes('先頭ページ')
+  ) {
+    throw new Error('list_directory did not reject a changed scope fingerprint.')
+  }
+  await rm(join(vaultPath, 'Projects', 'Changed-after-page.md'))
+
+  const createdDirectory = await client.callTool({
+    name: 'create_directory',
+    arguments: { path: 'Projects/Research' }
+  })
+  if (
+    createdDirectory.isError ||
+    createdDirectory.structuredContent?.path !== 'Projects/Research'
+  ) {
+    throw new Error('create_directory did not create the expected folder.')
   }
 
   const created = await client.callTool({
@@ -538,93 +770,42 @@ try {
     throw new Error('add_link did not write a note_link_add audit record.')
   }
 
-  await client.callTool({
-    name: 'create_note',
-    arguments: { path: 'Projects/Movable.md', content: '# Movable\n\nMove me.' }
-  })
-  const preflight = await client.callTool({
-    name: 'move_note',
+  const unavailableMovePreflight = await client.callTool({
+    name: 'preflight_move_entry',
     arguments: {
-      source: 'Projects/Movable.md',
-      destination: 'History/Movable.md',
-      preflight_only: true
+      source: 'Projects/TSUZUNE.md',
+      destination: 'History/TSUZUNE.md'
     }
   })
   if (
-    preflight.isError ||
-    preflight.structuredContent?.preflight !== true ||
-    !(await stat(join(vaultPath, 'Projects', 'Movable.md'))).isFile() ||
-    !Array.isArray(preflight.structuredContent?.manifest?.link_impact_paths)
-  ) {
-    throw new Error('move_note preflight did not report safety without moving.')
-  }
-  const moved = await client.callTool({
-    name: 'move_note',
-    arguments: {
-      source: 'Projects/Movable.md',
-      destination: 'History/Movable.md',
-      reason: 'MCP smoke test'
-    }
-  })
-  if (
-    moved.isError ||
-    moved.structuredContent?.old_path !== 'Projects/Movable.md' ||
-    moved.structuredContent?.new_path !== 'History/Movable.md' ||
-    moved.structuredContent?.provenance?.actor !== 'ai' ||
-    typeof moved.structuredContent?.history_path !== 'string' ||
-    !(await readFile(join(vaultPath, 'History', 'Movable.md'), 'utf8')).includes(
-      'Move me.'
+    !unavailableMovePreflight.isError ||
+    !String(unavailableMovePreflight.content?.[0]?.text).includes(
+      'TSUZUNE本体を起動'
     )
   ) {
-    throw new Error('move_note did not move the note with an audit trail.')
+    throw new Error('preflight_move_entry did not fail closed without the app.')
   }
-  let sourceStillExists = true
-  try {
-    await stat(join(vaultPath, 'Projects', 'Movable.md'))
-  } catch {
-    sourceStillExists = false
-  }
-  if (sourceStillExists) {
-    throw new Error('move_note left the source note behind.')
-  }
-  const auditRecord = await readFile(
-    join(vaultPath, ...moved.structuredContent.history_path.split('/')),
-    'utf8'
-  )
-  if (!auditRecord.includes('kind: note_move')) {
-    throw new Error('move_note did not write a note_move audit record.')
-  }
-  const movedCollision = await client.callTool({
-    name: 'move_note',
-    arguments: { source: 'Home.md', destination: 'History/Home-active.md' }
+  const unavailableMove = await client.callTool({
+    name: 'move_entry',
+    arguments: {
+      source: 'Projects/TSUZUNE.md',
+      destination: 'History/TSUZUNE.md',
+      expected_fingerprint: 'sha256:unavailable',
+      reason: 'MCP smoke test',
+      source_refs: []
+    }
   })
-  if (!movedCollision.isError) {
-    throw new Error('move_note accepted an existing destination.')
-  }
-  const movedMissing = await client.callTool({
-    name: 'move_note',
-    arguments: { source: 'Projects/Nope.md', destination: 'History/Nope.md' }
-  })
-  if (!movedMissing.isError) {
-    throw new Error('move_note accepted a missing source.')
-  }
-  const movedToTrash = await client.callTool({
-    name: 'move_note',
-    arguments: { source: 'Home.md', destination: '.trash/Home.md' }
-  })
-  if (!movedToTrash.isError) {
-    throw new Error('move_note accepted an internal .trash destination.')
-  }
-  const movedNonMarkdown = await client.callTool({
-    name: 'move_note',
-    arguments: { source: 'Home.md', destination: 'History/Home.txt' }
-  })
-  if (!movedNonMarkdown.isError) {
-    throw new Error('move_note accepted a non-Markdown destination.')
+  if (
+    !unavailableMove.isError ||
+    !String(unavailableMove.content?.[0]?.text).includes(
+      'TSUZUNE本体を起動'
+    )
+  ) {
+    throw new Error('move_entry did not fail closed without the app.')
   }
 
 
-  console.log('TSUZUNE MCP smoke check passed: 6 read tools and 7 write tools.')
+  console.log('TSUZUNE MCP smoke check passed: 10 read tools and 8 write tools.')
 } catch (error) {
   if (stderr.trim()) {
     console.error(stderr.trim())

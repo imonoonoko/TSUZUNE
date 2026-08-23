@@ -1,0 +1,482 @@
+{
+  "capturedAt": "2026-08-21T21:18:28.746Z",
+  "product": {
+    "executable": "C:\\Users\\Humin\\AppData\\Local\\Programs\\tsuzune\\TSUZUNE.exe",
+    "bytes": 225613824,
+    "sha256": "853173efd7c84ec20a1a1db62c256ab53ec8690b9ec45760af450b889a8462d3"
+  },
+  "isolation": {
+    "vault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\daily-workspace-phase-a-24852\\vault",
+    "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\daily-workspace-phase-a-24852\\userdata",
+    "remainingProcesses": 0
+  },
+  "fixture": {
+    "before": {
+      "fileCount": 8,
+      "sha256": "96b2dc1d2c7884a7127ee4cf7e4a484ada2ff4cae7cacf2732de6570f5618021"
+    },
+    "after": {
+      "fileCount": 8,
+      "sha256": "96b2dc1d2c7884a7127ee4cf7e4a484ada2ff4cae7cacf2732de6570f5618021"
+    },
+    "unchanged": true
+  },
+  "results": [
+    {
+      "id": "A6",
+      "status": "PASS",
+      "window": {
+        "visible": false,
+        "bounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1440,
+          "height": 900
+        },
+        "content": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1440,
+          "height": 900
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "devicePixelRatio": 1
+        }
+      },
+      "narrowWindow": {
+        "visible": false,
+        "bounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 720,
+          "height": 768
+        },
+        "content": {
+          "x": -32000,
+          "y": -32000,
+          "width": 720,
+          "height": 768
+        },
+        "viewport": {
+          "width": 720,
+          "height": 768,
+          "devicePixelRatio": 1
+        }
+      },
+      "attachment": {
+        "tabs": [
+          {
+            "text": "00_Home",
+            "selected": "false"
+          },
+          {
+            "text": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+            "selected": "false"
+          },
+          {
+            "text": "グラフビュー",
+            "selected": "false"
+          },
+          {
+            "text": "diagram.svg",
+            "selected": "true"
+          }
+        ],
+        "attachmentVisible": true
+      },
+      "linked": {
+        "tabs": [
+          {
+            "text": "00_Home",
+            "selected": "false",
+            "tabIndex": -1
+          },
+          {
+            "text": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+            "selected": "false",
+            "tabIndex": -1
+          },
+          {
+            "text": "グラフビュー",
+            "selected": "false",
+            "tabIndex": -1
+          },
+          {
+            "text": "diagram.svg",
+            "selected": "false",
+            "tabIndex": -1
+          },
+          {
+            "text": "Project Alpha へのバックリンク",
+            "selected": "true",
+            "tabIndex": 0
+          }
+        ],
+        "linkedVisible": true,
+        "hasAriaControls": true
+      },
+      "keyboard": {
+        "initial": {
+          "tabs": [
+            {
+              "id": "workspace-tab-2",
+              "label": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+              "title": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+              "selected": "true",
+              "controls": "workspace-tabpanel",
+              "tabIndex": 0
+            },
+            {
+              "id": "workspace-tab-3",
+              "label": "グラフビュー",
+              "title": "グラフビュー",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            },
+            {
+              "id": "workspace-tab-4",
+              "label": "diagram.svg",
+              "title": "diagram.svg",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            },
+            {
+              "id": "workspace-tab-5",
+              "label": "Project Alpha へのバックリンク",
+              "title": "Project Alpha へのバックリンク",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            }
+          ],
+          "focusedId": "workspace-tab-2",
+          "panel": {
+            "id": "workspace-tabpanel",
+            "labelledBy": "workspace-tab-2"
+          }
+        },
+        "arrowFocused": "workspace-tab-4",
+        "arrowActivated": {
+          "tabs": [
+            {
+              "id": "workspace-tab-1",
+              "label": "00_Home",
+              "title": "00_Home",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            },
+            {
+              "id": "workspace-tab-2",
+              "label": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+              "title": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            },
+            {
+              "id": "workspace-tab-3",
+              "label": "グラフビュー",
+              "title": "グラフビュー",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            },
+            {
+              "id": "workspace-tab-4",
+              "label": "diagram.svg",
+              "title": "diagram.svg",
+              "selected": "true",
+              "controls": "workspace-tabpanel",
+              "tabIndex": 0
+            },
+            {
+              "id": "workspace-tab-5",
+              "label": "Project Alpha へのバックリンク",
+              "title": "Project Alpha へのバックリンク",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            }
+          ],
+          "focusedId": "workspace-tab-4",
+          "panel": {
+            "id": "workspace-tabpanel",
+            "labelledBy": "workspace-tab-4"
+          }
+        },
+        "arrowRightFocused": "workspace-tab-5",
+        "directFirst": {
+          "tabs": [
+            {
+              "id": "workspace-tab-1",
+              "label": "00_Home",
+              "title": "00_Home",
+              "selected": "true",
+              "controls": "workspace-tabpanel",
+              "tabIndex": 0
+            },
+            {
+              "id": "workspace-tab-2",
+              "label": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+              "title": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            },
+            {
+              "id": "workspace-tab-3",
+              "label": "グラフビュー",
+              "title": "グラフビュー",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            },
+            {
+              "id": "workspace-tab-4",
+              "label": "diagram.svg",
+              "title": "diagram.svg",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            },
+            {
+              "id": "workspace-tab-5",
+              "label": "Project Alpha へのバックリンク",
+              "title": "Project Alpha へのバックリンク",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            }
+          ],
+          "focusedId": "workspace-tab-1",
+          "panel": {
+            "id": "workspace-tabpanel",
+            "labelledBy": "workspace-tab-1"
+          }
+        },
+        "directLast": {
+          "tabs": [
+            {
+              "id": "workspace-tab-1",
+              "label": "00_Home",
+              "title": "00_Home",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            },
+            {
+              "id": "workspace-tab-2",
+              "label": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+              "title": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            },
+            {
+              "id": "workspace-tab-3",
+              "label": "グラフビュー",
+              "title": "グラフビュー",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            },
+            {
+              "id": "workspace-tab-4",
+              "label": "diagram.svg",
+              "title": "diagram.svg",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            },
+            {
+              "id": "workspace-tab-5",
+              "label": "Project Alpha へのバックリンク",
+              "title": "Project Alpha へのバックリンク",
+              "selected": "true",
+              "controls": "workspace-tabpanel",
+              "tabIndex": 0
+            }
+          ],
+          "focusedId": "workspace-tab-5",
+          "panel": {
+            "id": "workspace-tabpanel",
+            "labelledBy": "workspace-tab-5"
+          }
+        },
+        "cycledBackward": {
+          "tabs": [
+            {
+              "id": "workspace-tab-1",
+              "label": "00_Home",
+              "title": "00_Home",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            },
+            {
+              "id": "workspace-tab-2",
+              "label": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+              "title": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            },
+            {
+              "id": "workspace-tab-3",
+              "label": "グラフビュー",
+              "title": "グラフビュー",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            },
+            {
+              "id": "workspace-tab-4",
+              "label": "diagram.svg",
+              "title": "diagram.svg",
+              "selected": "true",
+              "controls": "workspace-tabpanel",
+              "tabIndex": 0
+            },
+            {
+              "id": "workspace-tab-5",
+              "label": "Project Alpha へのバックリンク",
+              "title": "Project Alpha へのバックリンク",
+              "selected": "false",
+              "controls": "workspace-tabpanel",
+              "tabIndex": -1
+            }
+          ],
+          "focusedId": "workspace-tab-4",
+          "panel": {
+            "id": "workspace-tabpanel",
+            "labelledBy": "workspace-tab-4"
+          }
+        },
+        "protectedClose": {
+          "editorFound": true,
+          "before": 5,
+          "after": 5
+        },
+        "close": {
+          "before": 5,
+          "after": 4,
+          "state": {
+            "tabs": [
+              {
+                "id": "workspace-tab-2",
+                "label": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+                "title": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+                "selected": "true",
+                "controls": "workspace-tabpanel",
+                "tabIndex": 0
+              },
+              {
+                "id": "workspace-tab-3",
+                "label": "グラフビュー",
+                "title": "グラフビュー",
+                "selected": "false",
+                "controls": "workspace-tabpanel",
+                "tabIndex": -1
+              },
+              {
+                "id": "workspace-tab-4",
+                "label": "diagram.svg",
+                "title": "diagram.svg",
+                "selected": "false",
+                "controls": "workspace-tabpanel",
+                "tabIndex": -1
+              },
+              {
+                "id": "workspace-tab-5",
+                "label": "Project Alpha へのバックリンク",
+                "title": "Project Alpha へのバックリンク",
+                "selected": "false",
+                "controls": "workspace-tabpanel",
+                "tabIndex": -1
+              }
+            ],
+            "focusedId": "workspace-tab-2",
+            "panel": {
+              "id": "workspace-tabpanel",
+              "labelledBy": "workspace-tab-2"
+            }
+          }
+        }
+      },
+      "narrow": {
+        "viewport": {
+          "width": 720,
+          "height": 768
+        },
+        "documentWidth": 720,
+        "tabs": [
+          {
+            "label": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+            "title": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+            "selected": "true",
+            "tabIndex": 0
+          },
+          {
+            "label": "グラフビュー",
+            "title": "グラフビュー",
+            "selected": "false",
+            "tabIndex": -1
+          },
+          {
+            "label": "diagram.svg",
+            "title": "diagram.svg",
+            "selected": "false",
+            "tabIndex": -1
+          },
+          {
+            "label": "Project Alpha へのバックリンク",
+            "title": "Project Alpha へのバックリンク",
+            "selected": "false",
+            "tabIndex": -1
+          }
+        ],
+        "panelLabelledBy": "workspace-tab-2"
+      },
+      "switching": [
+        {
+          "label": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+          "found": true,
+          "selected": "true"
+        },
+        {
+          "label": "グラフビュー",
+          "found": true,
+          "selected": "true"
+        },
+        {
+          "label": "diagram.svg",
+          "found": true,
+          "selected": "true"
+        },
+        {
+          "label": "Project Alpha へのバックリンク",
+          "found": true,
+          "selected": "true"
+        }
+      ],
+      "close": {
+        "found": true,
+        "remaining": [
+          "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日",
+          "グラフビュー",
+          "Project Alpha へのバックリンク"
+        ]
+      },
+      "screenshot": "docs/reports/assets/workspace-tabs-r5-2026-08-22/a6-tabs-baseline.png",
+      "r5Keyboard": "verified",
+      "r5AriaLinkage": "verified"
+    }
+  ],
+  "runError": null,
+  "overall": "R5-READY"
+}

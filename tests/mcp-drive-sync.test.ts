@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { startDriveSyncBridge } from '../src/main/mcp-drive-sync-bridge'
 import { DriveSyncMcpClient } from '../src/mcp/drive-sync'
 import type { DriveSyncApplyResult, DriveSyncPreview } from '../src/shared/types'
+import type { EntryMovePlan, EntryMoveResult } from '../src/main/entry-move'
 
 const preview: DriveSyncPreview = {
   planId: 'plan-1',
@@ -23,6 +24,30 @@ const applied: DriveSyncApplyResult = {
   completedAt: '2026-08-14T00:00:01.000Z'
 }
 
+const movePlan: EntryMovePlan = {
+  source_type: 'markdown',
+  source: 'Inbox/A.md',
+  destination: 'Archive/A.md',
+  fingerprint: 'sha256:plan',
+  source_revision: 'sha256:source',
+  content_revision: 'sha256:content',
+  counts: { markdown: 1, directories: 0, attachments: 0 },
+  mappings: [{ old_path: 'Inbox/A.md', new_path: 'Archive/A.md' }],
+  mapping_truncated: false,
+  collision: false,
+  protected_source: false,
+  protected_destination: false,
+  link_impact: { affected_count: 0, source_paths: [] },
+  drive: { tracked_moves: 1, untracked_uploads: 0 }
+}
+
+const moved: EntryMoveResult = {
+  old_path: 'Inbox/A.md',
+  new_path: 'Archive/A.md',
+  fingerprint: movePlan.fingerprint,
+  history_path: '50_履歴/AI更新/move.md'
+}
+
 describe('Drive sync MCP bridge', () => {
   it('previews and applies through the running app without exposing Google credentials', async () => {
     const root = await mkdtemp(join(tmpdir(), 'tsuzune-drive-mcp-'))
@@ -34,13 +59,27 @@ describe('Drive sync MCP bridge', () => {
     const bridge = await startDriveSyncBridge({
       statePath,
       preview: async () => preview,
-      apply
+      apply,
+      preflightMoveEntry: async () => movePlan,
+      moveEntry: async () => moved
     })
 
     try {
       const client = new DriveSyncMcpClient(statePath)
       expect(await client.preview()).toEqual(preview)
       expect(await client.apply(preview.planId)).toEqual(applied)
+      expect(
+        await client.preflightMoveEntry('Inbox/A.md', 'Archive/A.md')
+      ).toEqual(movePlan)
+      expect(
+        await client.moveEntry({
+          source: movePlan.source,
+          destination: movePlan.destination,
+          expected_fingerprint: movePlan.fingerprint,
+          reason: '整理',
+          source_refs: []
+        })
+      ).toEqual(moved)
       expect(apply).toHaveBeenCalledOnce()
       expect(await readFile(statePath, 'utf8')).not.toContain('refresh')
     } finally {

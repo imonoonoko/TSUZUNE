@@ -17,6 +17,8 @@ import type {
   GraphViewScope,
   GraphViewState,
   MoveNoteInput,
+  MoveEntryInput,
+  EntryMoveRecoveryStatus,
   NoteDocument,
   PairDriveVaultInput,
   RenameEntryInput,
@@ -25,6 +27,7 @@ import type {
   SaveNoteInput,
   SaveNoteOutput,
   TsuzuneApi,
+  TemplateSettings,
   VaultChangeEvent,
   VaultBookmark,
   VaultSnapshot
@@ -55,6 +58,10 @@ const api: TsuzuneApi = {
     invoke<EntryOperationOutput>('entry:rename', input),
   moveNote: (input: MoveNoteInput) =>
     invoke<EntryOperationOutput>('entry:moveNote', input),
+  moveEntry: (input: MoveEntryInput) =>
+    invoke<EntryOperationOutput>('entry:moveEntry', input),
+  getMoveRecovery: () =>
+    invoke<EntryMoveRecoveryStatus>('entry:getMoveRecovery'),
   trashEntry: (path: string) => invoke<EntryOperationOutput>('entry:trash', path),
   saveBookmark: (input: SaveBookmarkInput) =>
     invoke<VaultBookmark>('bookmark:save', input),
@@ -63,10 +70,10 @@ const api: TsuzuneApi = {
     invoke<null>('settings:setLastNote', path),
   setUserIgnoreFilters: (filters: string[]) =>
     invoke<null>('settings:setUserIgnoreFilters', filters),
-  setAiImmutablePaths: (paths: string[]) =>
-    invoke<null>('settings:setAiImmutablePaths', paths),
   setAiReviewPaths: (paths: string[]) =>
     invoke<null>('settings:setAiReviewPaths', paths),
+  setTemplateSettings: (settings: TemplateSettings) =>
+    invoke<null>('settings:setTemplates', settings),
   listAiReviewProposals: () =>
     invoke<AiWriteReviewProposal[]>('aiReview:list'),
   approveAiReviewProposal: (id: string) =>

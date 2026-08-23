@@ -41,6 +41,7 @@ class MemoryVault {
   readonly notes = new Map<string, NoteDocument>()
   readonly directories = new Set<string>([''])
   private clock = 100
+  trashCount = 0
 
   constructor(initial: Record<string, string> = {}) {
     for (const [path, content] of Object.entries(initial)) {
@@ -110,6 +111,12 @@ class MemoryVault {
     return { oldPath: input.path, path: input.destinationPath }
   }
 
+  async trashEntry(path: string): Promise<EntryOperationOutput> {
+    if (!this.notes.delete(path)) throw new Error('NOT_FOUND')
+    this.trashCount += 1
+    return { path }
+  }
+
   set(path: string, content: string): void {
     const directory = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
     if (directory) {
@@ -139,10 +146,18 @@ class MemoryRemote implements DriveSyncRemote {
   rootCreated = false
   beforeUpdate: (() => void) | null = null
   failUpdatePath: string | null = null
+  throwAfterUpdatePath: string | null = null
   lastListedVaultId: string | null = null
   downloadCount = 0
   fullListCount = 0
   changeListCount = 0
+  updateCount = 0
+  trashCount = 0
+  failTrash = false
+  duplicateListedFiles: DriveMarkdownFile[] = []
+  activeUpdates = 0
+  maxConcurrentUpdates = 0
+  updateDelayMs = 0
   rejectChangeToken = false
   private readonly changes: DriveChange[] = []
   private nextId = 1
@@ -175,7 +190,7 @@ class MemoryRemote implements DriveSyncRemote {
     this.fullListCount += 1
     return [...this.files.entries()].map(([path, file]) =>
       this.metadata(path, file)
-    )
+    ).concat(this.duplicateListedFiles)
   }
 
   async getStartPageToken(): Promise<string> {
@@ -240,23 +255,39 @@ class MemoryRemote implements DriveSyncRemote {
     _accessToken: string,
     input: UpdateMarkdownInput
   ): Promise<DriveMarkdownFile> {
-    this.beforeUpdate?.()
-    if (input.path === this.failUpdatePath) {
-      throw new Error('SIMULATED_UPDATE_FAILURE')
+    this.updateCount += 1
+    this.activeUpdates += 1
+    this.maxConcurrentUpdates = Math.max(
+      this.maxConcurrentUpdates,
+      this.activeUpdates
+    )
+    try {
+      if (this.updateDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, this.updateDelayMs))
+      }
+      this.beforeUpdate?.()
+      if (input.path === this.failUpdatePath) {
+        throw new Error('SIMULATED_UPDATE_FAILURE')
+      }
+      const current = this.files.get(input.path)
+      if (!current || String(current.version) !== input.expectedVersion) {
+        throw new Error('Drive版が変わりました。同期内容を確認し直してください。')
+      }
+      const file = {
+        id: input.fileId,
+        content: input.content,
+        version: current.version + 1
+      }
+      this.files.set(input.path, file)
+      const metadata = this.metadata(input.path, file)
+      this.changes.push({ fileId: file.id, removed: false, file: metadata })
+      if (input.path === this.throwAfterUpdatePath) {
+        throw new Error('SIMULATED_CHECKPOINT_CRASH')
+      }
+      return metadata
+    } finally {
+      this.activeUpdates -= 1
     }
-    const current = this.files.get(input.path)
-    if (!current || String(current.version) !== input.expectedVersion) {
-      throw new Error('Drive版が変わりました。同期内容を確認し直してください。')
-    }
-    const file = {
-      id: input.fileId,
-      content: input.content,
-      version: current.version + 1
-    }
-    this.files.set(input.path, file)
-    const metadata = this.metadata(input.path, file)
-    this.changes.push({ fileId: file.id, removed: false, file: metadata })
-    return metadata
   }
 
   async move(
@@ -280,6 +311,19 @@ class MemoryRemote implements DriveSyncRemote {
     return metadata
   }
 
+  async trash(
+    _accessToken: string,
+    input: { fileId: string; path: string; expectedVersion: string }
+  ): Promise<void> {
+    if (this.failTrash) throw new Error('SIMULATED_TRASH_FAILURE')
+    const current = this.files.get(input.path)
+    if (!current || current.id !== input.fileId || String(current.version) !== input.expectedVersion) {
+      throw new Error('Drive版が変わりました。同期内容を確認し直してください。')
+    }
+    this.files.delete(input.path)
+    this.trashCount += 1
+  }
+
   set(path: string, content: string): void {
     const current = this.files.get(path)
     this.files.set(path, {
@@ -297,6 +341,12 @@ class MemoryRemote implements DriveSyncRemote {
       removed: false,
       file: this.metadata(path, file)
     })
+  }
+
+  bumpInvisibleVersion(path: string): void {
+    const current = this.files.get(path)
+    if (!current) throw new Error('NOT_FOUND')
+    current.version += 1
   }
 
   remove(path: string): void {
@@ -326,8 +376,16 @@ async function service(
 ): Promise<DriveSyncService> {
   const directory = await mkdtemp(join(tmpdir(), 'tsuzune-drive-sync-'))
   temporaryDirectories.push(directory)
+  return serviceAt(vault, remote, join(directory, 'ledger.json'))
+}
+
+function serviceAt(
+  vault: MemoryVault,
+  remote: MemoryRemote,
+  ledgerPath: string
+): DriveSyncService {
   return new DriveSyncService({
-    ledgerPath: join(directory, 'ledger.json'),
+    ledgerPath,
     vault,
     connection: {
       async getAccessToken() {
@@ -340,6 +398,24 @@ async function service(
 }
 
 describe('DriveSyncService', () => {
+  it('rejects exact duplicate normalized Drive paths before downloading content', async () => {
+    const vault = new MemoryVault()
+    const remote = new MemoryRemote()
+    remote.set('Duplicate.md', 'one')
+    remote.duplicateListedFiles = [{
+      id: 'duplicate-file',
+      name: 'Duplicate.md',
+      path: 'Duplicate.md',
+      parentIds: ['root-1'],
+      version: '1',
+      md5Checksum: null,
+      appProperties: { tsuzuneVaultId: 'vault-id', tsuzunePath: 'Duplicate.md' }
+    }]
+    const sync = await service(vault, remote)
+    await expect(sync.preview({ forceFull: true })).rejects.toThrow(/同じTSUZUNEパスが複数/)
+    expect(remote.downloadCount).toBe(0)
+  })
+
   it('lists existing Drive vault roots as pairing choices', async () => {
     const vault = new MemoryVault()
     const remote = new MemoryRemote()
@@ -614,6 +690,22 @@ describe('DriveSyncService', () => {
     expect(remote.files.get('A.md')?.content).toBe('late remote change')
   })
 
+  it('accepts a version-only Drive change when the remote content is unchanged', async () => {
+    const vault = new MemoryVault({ 'A.md': 'baseline' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    await sync.apply((await sync.preview()).planId)
+
+    vault.set('A.md', 'local changed')
+    const preview = await sync.preview()
+    remote.bumpInvisibleVersion('A.md')
+
+    const result = await sync.apply(preview.planId)
+
+    expect(result.uploaded).toBe(1)
+    expect(remote.files.get('A.md')?.content).toBe('local changed')
+  })
+
   it('checkpoints each successful action before a later action fails', async () => {
     const vault = new MemoryVault({
       'A.md': 'baseline A',
@@ -726,6 +818,230 @@ describe('DriveSyncService', () => {
     expect((await sync.preview()).items).toEqual([])
   })
 
+  it('persists a deletion tombstone before Drive trash and requires recovery after failure', async () => {
+    const vault = new MemoryVault({ 'A.md': 'baseline' })
+    const remote = new MemoryRemote()
+    const directory = await mkdtemp(join(tmpdir(), 'tsuzune-drive-delete-'))
+    temporaryDirectories.push(directory)
+    const ledgerPath = join(directory, 'ledger.json')
+    const sync = serviceAt(vault, remote, ledgerPath)
+    await sync.apply((await sync.preview()).planId)
+    vault.notes.delete('A.md')
+    remote.failTrash = true
+    const preview = await sync.preview({ propagateLocalDeletion: true })
+    await expect(sync.apply(preview.planId)).rejects.toThrow(/SIMULATED_TRASH_FAILURE/)
+    expect(remote.trashCount).toBe(0)
+
+    const restarted = serviceAt(vault, remote, ledgerPath)
+    await expect(restarted.preview()).rejects.toThrow(/RECOVERY_REQUIRED/)
+  })
+
+  it('forces a full remote refresh before propagating a local deletion', async () => {
+    const vault = new MemoryVault({ 'A.md': 'baseline' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    await sync.apply((await sync.preview()).planId)
+
+    remote.remove('A.md')
+    const fullListCountBeforePreview = remote.fullListCount
+    const preview = await sync.preview({ propagateRemoteDeletion: true })
+
+    expect(preview.items).toContainEqual({
+      path: 'A.md',
+      action: 'trash_local',
+      reason: 'remote_deleted'
+    })
+    expect(remote.fullListCount).toBe(fullListCountBeforePreview + 1)
+
+    const fullListCountBeforeApply = remote.fullListCount
+    await sync.apply(preview.planId)
+    expect(remote.fullListCount).toBe(fullListCountBeforeApply + 1)
+  })
+
+  it('rejects a stale deletion plan before the first destructive call', async () => {
+    const vault = new MemoryVault({ 'A.md': 'baseline' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    await sync.apply((await sync.preview()).planId)
+    vault.notes.delete('A.md')
+    const preview = await sync.preview({ propagateLocalDeletion: true })
+    remote.set('A.md', 'changed externally')
+    await expect(sync.apply(preview.planId)).rejects.toThrow(/確認し直/)
+    expect(remote.trashCount).toBe(0)
+  })
+
+  it('re-baselines an equal local and remote pair after an update checkpoint crash', async () => {
+    const vault = new MemoryVault({ 'A.md': 'baseline' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    await sync.apply((await sync.preview()).planId)
+
+    vault.set('A.md', 'local update')
+    remote.throwAfterUpdatePath = 'A.md'
+    await expect(sync.apply((await sync.preview()).planId)).rejects.toThrow(
+      /SIMULATED_CHECKPOINT_CRASH/
+    )
+
+    remote.throwAfterUpdatePath = null
+    const recovered = await sync.preview()
+    expect(recovered.items).toEqual([])
+
+    vault.set('A.md', 'local edit after recovery')
+    const next = await sync.preview()
+    expect(next.items).toEqual([
+      { path: 'A.md', action: 'upload', reason: 'local_changed' }
+    ])
+  })
+
+  it('re-baselines an equal pair even when an unrelated preserve remains', async () => {
+    const vault = new MemoryVault({ 'A.md': 'A', 'B.md': 'B' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    await sync.apply((await sync.preview()).planId)
+
+    vault.notes.delete('B.md')
+    vault.set('A.md', 'A changed')
+    vault.set('C.md', 'new local')
+    remote.throwAfterUpdatePath = 'A.md'
+    await expect(sync.apply((await sync.preview()).planId)).rejects.toThrow(
+      /SIMULATED_CHECKPOINT_CRASH/
+    )
+
+    remote.throwAfterUpdatePath = null
+    const recovered = await sync.preview()
+    expect(recovered.items).toContainEqual({
+      path: 'B.md',
+      action: 'preserve',
+      reason: 'local_deleted'
+    })
+    expect(recovered.items).toContainEqual({
+      path: 'C.md',
+      action: 'upload',
+      reason: 'new_local'
+    })
+    const recoveredResult = await sync.apply(recovered.planId)
+    expect(recoveredResult.preserved).toBe(1)
+    expect(recoveredResult.uploaded).toBe(1)
+    expect(remote.files.get('C.md')?.content).toBe('new local')
+    vault.set('A.md', 'A edited after recovery')
+    expect((await sync.preview()).items).toContainEqual({
+      path: 'A.md',
+      action: 'upload',
+      reason: 'local_changed'
+    })
+  })
+
+  it('forces a full remote refresh before acting on an existing remote file', async () => {
+    const vault = new MemoryVault({ 'A.md': 'baseline', 'B.md': 'keep' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    await sync.apply((await sync.preview()).planId)
+
+    vault.set('A.md', 'local change')
+    const remoteFile = remote.files.get('A.md') as { id: string; content: string; version: number }
+    remoteFile.content = 'unreported remote change'
+    remoteFile.version += 1
+
+    const fullListCountBeforePreview = remote.fullListCount
+    const preview = await sync.preview()
+    expect(preview.items).toContainEqual({
+      path: 'A.md',
+      action: 'conflict',
+      reason: 'both_changed'
+    })
+    expect(remote.fullListCount).toBe(fullListCountBeforePreview + 1)
+  })
+
+  it('refreshes full metadata again immediately before existing Drive updates', async () => {
+    const vault = new MemoryVault({ 'A.md': 'baseline' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    await sync.apply((await sync.preview()).planId)
+
+    vault.set('A.md', 'local change')
+    const preview = await sync.preview()
+    const fullListCountBeforeApply = remote.fullListCount
+
+    await sync.apply(preview.planId)
+
+    expect(remote.fullListCount).toBe(fullListCountBeforeApply + 1)
+  })
+
+  it('updates existing Drive notes four at a time', async () => {
+    const vault = new MemoryVault({
+      'A.md': 'baseline A',
+      'B.md': 'baseline B',
+      'C.md': 'baseline C',
+      'D.md': 'baseline D'
+    })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    await sync.apply((await sync.preview()).planId)
+
+    for (const path of vault.notes.keys()) {
+      vault.set(path, `changed ${path}`)
+    }
+    remote.updateDelayMs = 10
+
+    const result = await sync.apply((await sync.preview()).planId)
+
+    expect(result.uploaded).toBe(4)
+    expect(remote.updateCount).toBe(4)
+    expect(remote.maxConcurrentUpdates).toBe(4)
+  })
+
+  it('does not batch existing updates across a different action', async () => {
+    const vault = new MemoryVault({
+      'A.md': 'baseline A',
+      'C.md': 'baseline C'
+    })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    await sync.apply((await sync.preview()).planId)
+
+    vault.set('A.md', 'changed A')
+    vault.set('B.md', 'new B')
+    vault.set('C.md', 'changed C')
+
+    const result = await sync.apply((await sync.preview()).planId)
+
+    expect(result.uploaded).toBe(3)
+    expect(remote.updateCount).toBe(2)
+    expect(remote.files.get('A.md')?.content).toBe('changed A')
+    expect(remote.files.get('B.md')?.content).toBe('new B')
+    expect(remote.files.get('C.md')?.content).toBe('changed C')
+    expect((await sync.preview()).items).toEqual([])
+  })
+
+  it('normalizes chained local moves to the original Drive path', async () => {
+    const vault = new MemoryVault({ 'A.md': 'baseline' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    await sync.apply((await sync.preview()).planId)
+
+    await vault.moveNote({
+      path: 'A.md',
+      destinationDirectory: 'Middle',
+      destinationPath: 'Middle/A.md'
+    })
+    await sync.recordLocalMove('A.md', 'Middle/A.md')
+    await vault.moveNote({
+      path: 'Middle/A.md',
+      destinationDirectory: 'Archive',
+      destinationPath: 'Archive/A.md'
+    })
+    await sync.recordLocalMove('Middle/A.md', 'Archive/A.md')
+
+    expect((await sync.preview()).items).toEqual([
+      {
+        path: 'Archive/A.md',
+        oldPath: 'A.md',
+        action: 'move',
+        reason: 'local_moved'
+      }
+    ])
+  })
+
   it('applies a Drive move locally by stable file id', async () => {
     const vault = new MemoryVault({ 'Inbox/A.md': 'baseline' })
     const remote = new MemoryRemote()
@@ -776,3 +1092,60 @@ describe('DriveSyncService', () => {
     expect(remote.files.has('Archive/A.md')).toBe(false)
   })
 })
+
+if (process.env.TSUZUNE_DRIVE_BENCHMARK === '1') {
+  describe('DriveSyncService benchmark', () => {
+    it(
+      'measures incremental change merging at production-like Vault scale',
+      async () => {
+        const fileCount = 1_140
+        const changeCount = 1_000
+        const warmups = 3
+        const runs = 15
+        const initial = Object.fromEntries(
+          Array.from({ length: fileCount }, (_, index) => [
+            `Notes/${String(index).padStart(4, '0')}.md`,
+            `note ${index}`
+          ])
+        )
+        const vault = new MemoryVault(initial)
+        const remote = new MemoryRemote()
+        for (const [path, content] of Object.entries(initial)) {
+          remote.set(path, content)
+        }
+        const sync = await service(vault, remote)
+        expect((await sync.preview()).items).toEqual([])
+        for (let index = 0; index < changeCount; index += 1) {
+          remote.remove(`Notes/${String(index).padStart(4, '0')}.md`)
+        }
+
+        const samples: number[] = []
+        for (let run = 0; run < warmups + runs; run += 1) {
+          const startedAt = performance.now()
+          const preview = await sync.preview()
+          const elapsedMs = performance.now() - startedAt
+          expect(preview.counts.preserve).toBe(changeCount)
+          if (run >= warmups) samples.push(elapsedMs)
+        }
+
+        const sorted = [...samples].sort((left, right) => left - right)
+        const percentile = (value: number): number =>
+          sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * value))]
+        const round = (value: number): number => Math.round(value * 1000) / 1000
+        console.log(
+          `TSUZUNE_DRIVE_BENCHMARK ${JSON.stringify({
+            scenario: 'incremental-change-merge',
+            fileCount,
+            changeCount,
+            runs,
+            p50Ms: round(percentile(0.5)),
+            p95Ms: round(percentile(0.95)),
+            maxMs: round(sorted.at(-1) ?? 0),
+            minMs: round(sorted[0] ?? 0)
+          })}`
+        )
+      },
+      120_000
+    )
+  })
+}

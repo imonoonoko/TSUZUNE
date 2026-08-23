@@ -1,6 +1,15 @@
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import type { DriveSyncApplyResult, DriveSyncPreview } from '../shared/types'
+import type {
+  DriveSyncApplyResult,
+  DriveSyncPreview,
+  DriveSyncPreviewOptions
+} from '../shared/types'
+import type {
+  EntryMoveApplyInput,
+  EntryMovePlan,
+  EntryMoveResult
+} from '../main/entry-move'
 import { defaultSettingsPath } from './vault-source'
 
 interface BridgeState {
@@ -16,12 +25,22 @@ export function defaultDriveSyncStatePath(settingsPath?: string): string {
 export class DriveSyncMcpClient {
   constructor(private readonly statePath: string) {}
 
-  preview(): Promise<DriveSyncPreview> {
-    return this.request('/preview')
+  preview(options: DriveSyncPreviewOptions = {}): Promise<DriveSyncPreview> {
+    return this.request('/preview', options)
   }
 
   apply(planId: string): Promise<DriveSyncApplyResult> {
     return this.request('/apply', { planId })
+  }
+
+  preflightMoveEntry(source: string, destination: string): Promise<EntryMovePlan> {
+    return this.request('/entry-move/preflight', { source, destination })
+  }
+
+  moveEntry(
+    input: Omit<EntryMoveApplyInput, 'actor'>
+  ): Promise<EntryMoveResult> {
+    return this.request('/entry-move/apply', input)
   }
 
   private async request<T>(path: string, body?: object): Promise<T> {

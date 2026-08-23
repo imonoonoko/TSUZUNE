@@ -80,6 +80,31 @@ describe('planDriveSync', () => {
     ])
   })
 
+  it('requires explicit direction before planning a trash operation', () => {
+    const input = {
+      local: [],
+      remote: [{ path: 'Archive/remote.md', hash: 'base' }],
+      previous: [{ path: 'Archive/remote.md', localHash: 'base', remoteHash: 'base' }]
+    }
+    expect(planDriveSync(input)).toEqual([
+      { path: 'Archive/remote.md', action: 'preserve', reason: 'local_deleted', preservedSide: 'remote' }
+    ])
+    expect(planDriveSync({ ...input, deletionPolicy: { propagateLocalDeletion: true } })).toEqual([
+      { path: 'Archive/remote.md', action: 'trash_remote', reason: 'local_deleted', preservedSide: 'remote' }
+    ])
+  })
+
+  it('plans local trash only for explicit remote deletion policy', () => {
+    expect(planDriveSync({
+      local: [{ path: 'Archive/local.md', hash: 'base' }],
+      remote: [],
+      previous: [{ path: 'Archive/local.md', localHash: 'base', remoteHash: 'base' }],
+      deletionPolicy: { propagateRemoteDeletion: true }
+    })).toEqual([
+      { path: 'Archive/local.md', action: 'trash_local', reason: 'remote_deleted', preservedSide: 'local' }
+    ])
+  })
+
   it('does nothing when both copies still match the previous sync', () => {
     expect(
       planDriveSync({

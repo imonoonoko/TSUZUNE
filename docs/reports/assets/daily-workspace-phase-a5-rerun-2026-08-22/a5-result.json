@@ -1,0 +1,127 @@
+{
+  "capturedAt": "2026-08-21T20:31:56.231Z",
+  "product": {
+    "executable": "C:\\Users\\Humin\\AppData\\Local\\Programs\\tsuzune\\TSUZUNE.exe",
+    "bytes": 225613824,
+    "sha256": "e2e9ce0807bfdeb14aa7268e5dc7f5016e91d989bb055895e38693944e36397f"
+  },
+  "isolation": {
+    "vault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\daily-workspace-phase-a-12236\\vault",
+    "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\daily-workspace-phase-a-12236\\userdata",
+    "remainingProcesses": 0
+  },
+  "fixture": {
+    "before": {
+      "fileCount": 8,
+      "sha256": "96b2dc1d2c7884a7127ee4cf7e4a484ada2ff4cae7cacf2732de6570f5618021"
+    },
+    "after": {
+      "fileCount": 8,
+      "sha256": "96b2dc1d2c7884a7127ee4cf7e4a484ada2ff4cae7cacf2732de6570f5618021"
+    },
+    "unchanged": true
+  },
+  "results": [
+    {
+      "id": "A5",
+      "status": "PASS",
+      "window": {
+        "visible": false,
+        "bounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 1280,
+          "height": 800
+        },
+        "content": {
+          "x": -31992,
+          "y": -31969,
+          "width": 1264,
+          "height": 761
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "devicePixelRatio": 1
+        }
+      },
+      "treeLong": {
+        "ariaLabel": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日.md",
+        "title": "日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日日.md\n最終更新: 2026/8/22 5:31:31\n最近更新（今日）",
+        "clientWidth": 232,
+        "scrollWidth": 232
+      },
+      "empty": {
+        "visible": true,
+        "text": "左の一覧からノートを選ぶか、新しいノートを作成してください。最初のノートを作る",
+        "primaryVisible": true
+      },
+      "changed": {
+        "text": "このノートは別のアプリでも変更されました。外部版を読み込む編集中の内容を保持",
+        "box": {
+          "x": 0,
+          "y": 104.171875,
+          "width": 1280,
+          "height": 46.15625,
+          "top": 104.171875,
+          "right": 1280,
+          "bottom": 150.328125,
+          "left": 0
+        },
+        "buttons": [
+          {
+            "text": "外部版を読み込む",
+            "box": {
+              "x": 955.5625,
+              "y": 110.25,
+              "width": 141.3125,
+              "height": 33,
+              "top": 110.25,
+              "right": 1096.875,
+              "bottom": 143.25,
+              "left": 955.5625
+            }
+          },
+          {
+            "text": "編集中の内容を保持",
+            "box": {
+              "x": 1104.875,
+              "y": 110.25,
+              "width": 159.125,
+              "height": 33,
+              "top": 110.25,
+              "right": 1264,
+              "bottom": 143.25,
+              "left": 1104.875
+            }
+          }
+        ],
+        "visibleActions": true
+      },
+      "missing": {
+        "text": "このノートは外部で削除または移動されました。別名で保存破棄して閉じる",
+        "buttons": [
+          "別名で保存",
+          "破棄して閉じる"
+        ]
+      },
+      "saveError": {
+        "text": "A5 fixture: 保存できません。再試行",
+        "buttons": [
+          "再試行",
+          "通知を閉じる"
+        ],
+        "retryVisible": true,
+        "fixture": "isolated main-process note:save failure injection"
+      },
+      "screenshots": [
+        "docs/reports/assets/daily-workspace-phase-a5-rerun-2026-08-22/a5-01-empty-state.png",
+        "docs/reports/assets/daily-workspace-phase-a5-rerun-2026-08-22/a5-02-changed-conflict.png",
+        "docs/reports/assets/daily-workspace-phase-a5-rerun-2026-08-22/a5-03-missing-conflict.png",
+        "docs/reports/assets/daily-workspace-phase-a5-rerun-2026-08-22/a5-04-save-error.png"
+      ]
+    }
+  ],
+  "runError": null,
+  "overall": "R5-READY"
+}

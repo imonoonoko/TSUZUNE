@@ -1,0 +1,15 @@
+{
+  "status": "complete",
+  "packets": [
+    {"id": "A-check-mcp-isolation", "status": "complete", "depends_on": []},
+    {"id": "B-content-revision", "status": "complete", "depends_on": []},
+    {"id": "C-history-semantics", "status": "held-gate-a-no-go", "depends_on": ["B-content-revision"]}
+  ],
+  "verification": {
+    "focused": "pass",
+    "full": "pass-77-files-825-tests",
+    "production": "installed-and-verified",
+    "delivery": "match",
+    "tsuzune": "saved-read-back-unique-backlink-verified"
+  }
+}

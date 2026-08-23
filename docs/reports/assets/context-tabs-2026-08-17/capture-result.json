@@ -1,0 +1,163 @@
+{
+  "result": "pass",
+  "isolatedVault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\fixtures\\obsidian-graph-parity-vault",
+  "links": {
+    "selectedNote": "00_Home",
+    "tabs": [
+      {
+        "id": "context-tab-links",
+        "label": "リンク 3件",
+        "selected": "true",
+        "controls": "context-panel-links",
+        "controlsExist": true,
+        "tabIndex": "0"
+      },
+      {
+        "id": "context-tab-backlinks",
+        "label": "バックリンク 3件",
+        "selected": "false",
+        "controls": "context-panel-backlinks",
+        "controlsExist": true,
+        "tabIndex": "-1"
+      },
+      {
+        "id": "context-tab-temporal",
+        "label": "時間",
+        "selected": "false",
+        "controls": "context-panel-temporal",
+        "controlsExist": true,
+        "tabIndex": "-1"
+      }
+    ],
+    "panels": [
+      {
+        "id": "context-panel-links",
+        "hidden": false,
+        "labelledBy": "context-tab-links"
+      },
+      {
+        "id": "context-panel-backlinks",
+        "hidden": true,
+        "labelledBy": "context-tab-backlinks"
+      },
+      {
+        "id": "context-panel-temporal",
+        "hidden": true,
+        "labelledBy": "context-tab-temporal"
+      }
+    ],
+    "activeElement": "",
+    "hasResolvedLinks": true,
+    "hasBacklinks": true,
+    "temporalText": "時間情報基準日 2026-08-17時間情報はありません",
+    "viewportWidth": 1424,
+    "panelWidth": 239,
+    "panelScrollWidth": 238
+  },
+  "backlinks": {
+    "selectedNote": "00_Home",
+    "tabs": [
+      {
+        "id": "context-tab-links",
+        "label": "リンク 3件",
+        "selected": "false",
+        "controls": "context-panel-links",
+        "controlsExist": true,
+        "tabIndex": "-1"
+      },
+      {
+        "id": "context-tab-backlinks",
+        "label": "バックリンク 3件",
+        "selected": "true",
+        "controls": "context-panel-backlinks",
+        "controlsExist": true,
+        "tabIndex": "0"
+      },
+      {
+        "id": "context-tab-temporal",
+        "label": "時間",
+        "selected": "false",
+        "controls": "context-panel-temporal",
+        "controlsExist": true,
+        "tabIndex": "-1"
+      }
+    ],
+    "panels": [
+      {
+        "id": "context-panel-links",
+        "hidden": true,
+        "labelledBy": "context-tab-links"
+      },
+      {
+        "id": "context-panel-backlinks",
+        "hidden": false,
+        "labelledBy": "context-tab-backlinks"
+      },
+      {
+        "id": "context-panel-temporal",
+        "hidden": true,
+        "labelledBy": "context-tab-temporal"
+      }
+    ],
+    "activeElement": "",
+    "hasResolvedLinks": true,
+    "hasBacklinks": true,
+    "temporalText": "時間情報基準日 2026-08-17時間情報はありません",
+    "viewportWidth": 1424,
+    "panelWidth": 239,
+    "panelScrollWidth": 238
+  },
+  "temporal": {
+    "selectedNote": "00_Home",
+    "tabs": [
+      {
+        "id": "context-tab-links",
+        "label": "リンク 3件",
+        "selected": "false",
+        "controls": "context-panel-links",
+        "controlsExist": true,
+        "tabIndex": "-1"
+      },
+      {
+        "id": "context-tab-backlinks",
+        "label": "バックリンク 3件",
+        "selected": "false",
+        "controls": "context-panel-backlinks",
+        "controlsExist": true,
+        "tabIndex": "-1"
+      },
+      {
+        "id": "context-tab-temporal",
+        "label": "時間",
+        "selected": "true",
+        "controls": "context-panel-temporal",
+        "controlsExist": true,
+        "tabIndex": "0"
+      }
+    ],
+    "panels": [
+      {
+        "id": "context-panel-links",
+        "hidden": true,
+        "labelledBy": "context-tab-links"
+      },
+      {
+        "id": "context-panel-backlinks",
+        "hidden": true,
+        "labelledBy": "context-tab-backlinks"
+      },
+      {
+        "id": "context-panel-temporal",
+        "hidden": false,
+        "labelledBy": "context-tab-temporal"
+      }
+    ],
+    "activeElement": "context-tab-temporal",
+    "hasResolvedLinks": true,
+    "hasBacklinks": true,
+    "temporalText": "時間情報基準日 2026-08-17時間情報はありません",
+    "viewportWidth": 1424,
+    "panelWidth": 239,
+    "panelScrollWidth": 238
+  }
+}

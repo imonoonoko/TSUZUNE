@@ -64,6 +64,267 @@ describe('MCP vault service', () => {
     expect(context.markdown).toContain('Path: Projects/TSUZUNE.md')
   })
 
+  it('returns fetch-compatible descriptors for every included context source', async () => {
+    const context = await service.buildContext('Home.md')
+
+    for (const source of context.included) {
+      const fetched = await service.fetch(source.path)
+      expect(source.revision).toBe(fetched.metadata.revision)
+      expect(source.modified_at).toBe(fetched.metadata.modified_at)
+    }
+  })
+
+  it('changes only the descriptor of a context source that changed', async () => {
+    const before = await service.buildContext('Home.md')
+    const beforeByPath = new Map(
+      before.included.map((source) => [source.path, source])
+    )
+    const targetPath = join(root, 'Projects', 'TSUZUNE.md')
+
+    await writeFile(targetPath, '# TSUZUNE\n\nAI連携を更新。', 'utf8')
+    const targetInfo = await stat(targetPath)
+    const changedTime = new Date(targetInfo.mtimeMs + 10_000)
+    await utimes(targetPath, changedTime, changedTime)
+
+    const after = await service.buildContext('Home.md')
+    const afterByPath = new Map(
+      after.included.map((source) => [source.path, source])
+    )
+
+    expect(afterByPath.get('Home.md')?.revision).toBe(
+      beforeByPath.get('Home.md')?.revision
+    )
+    expect(afterByPath.get('Home.md')?.modified_at).toBe(
+      beforeByPath.get('Home.md')?.modified_at
+    )
+    expect(afterByPath.get('Projects/TSUZUNE.md')?.revision).not.toBe(
+      beforeByPath.get('Projects/TSUZUNE.md')?.revision
+    )
+    expect(afterByPath.get('Projects/TSUZUNE.md')?.modified_at).not.toBe(
+      beforeByPath.get('Projects/TSUZUNE.md')?.modified_at
+    )
+  })
+
+  it('excludes history backlinks by default', async () => {
+    await mkdir(join(root, '50_履歴', 'AI更新'), { recursive: true })
+    await writeFile(
+      join(root, '50_履歴', 'AI更新', 'Backlink.md'),
+      '# History backlink\n\n[[Projects/TSUZUNE]]',
+      'utf8'
+    )
+
+    const backlinks = await service.backlinks('Projects/TSUZUNE.md')
+
+    expect(backlinks.backlinks.map((item) => item.id)).toEqual(['Home.md'])
+    expect(backlinks.total).toBe(1)
+  })
+
+  it('includes history backlinks when explicitly requested', async () => {
+    await mkdir(join(root, '50_履歴', 'AI更新'), { recursive: true })
+    await writeFile(
+      join(root, '50_履歴', 'AI更新', 'Backlink.md'),
+      '# History backlink\n\n[[Projects/TSUZUNE]]',
+      'utf8'
+    )
+
+    const backlinks = await service.backlinks(
+      'Projects/TSUZUNE.md',
+      20,
+      true
+    )
+
+    expect(backlinks.backlinks.map((item) => item.id)).toEqual([
+      '50_履歴/AI更新/Backlink.md',
+      'Home.md'
+    ])
+    expect(backlinks.total).toBe(2)
+  })
+
+  it('continues backlinks with a stateless path cursor', async () => {
+    await writeFile(
+      join(root, 'Alpha.md'),
+      '# Alpha backlink\n\n[[Projects/TSUZUNE]]',
+      'utf8'
+    )
+    await writeFile(
+      join(root, 'Zulu.md'),
+      '# Zulu backlink\n\n[[Projects/TSUZUNE]]',
+      'utf8'
+    )
+
+    const first = await service.backlinks('Projects/TSUZUNE.md', 2)
+    const second = await service.backlinks(
+      'Projects/TSUZUNE.md',
+      2,
+      false,
+      first.next_after
+    )
+    const ids = [...first.backlinks, ...second.backlinks].map(
+      (item) => item.id
+    )
+
+    expect(first.total).toBe(3)
+    expect(second.total).toBe(3)
+    expect(first.next_after).toBe(first.backlinks.at(-1)?.id)
+    expect(second.next_after).toBeUndefined()
+    expect(ids).toEqual(['Alpha.md', 'Home.md', 'Zulu.md'])
+    expect(new Set(ids).size).toBe(3)
+  })
+
+  it('ranks natural multiword MCP queries with the target note on top', async () => {
+    const search = await service.search('TSUZUNE AI連携')
+
+    expect(search.results[0]?.id).toBe('Projects/TSUZUNE.md')
+  })
+
+  it('ranks natural Japanese sentence queries without requiring all terms', async () => {
+    const search = await service.search('TSUZUNEの検索を良くしたい')
+
+    expect(search.results[0]?.id).toBe('Projects/TSUZUNE.md')
+  })
+
+  it('lists bounded directory metadata without note content and continues after a page', async () => {
+    await mkdir(join(root, 'Projects', 'Nested'))
+    await writeFile(join(root, 'Projects', 'asset.png'), 'image', 'utf8')
+    await writeFile(join(root, 'Projects', 'Nested', 'Deep.md'), 'secret body', 'utf8')
+    await Promise.all(
+      Array.from({ length: 198 }, (_, index) =>
+        mkdir(join(root, 'Projects', `Folder-${String(index).padStart(3, '0')}`))
+      )
+    )
+
+    const first = await service.listDirectory('Projects', 2)
+
+    expect(first).toMatchObject({
+      path: 'Projects',
+      depth: 2,
+      truncated: true
+    })
+    expect(first.entries).toHaveLength(200)
+    expect(JSON.stringify(first)).not.toContain('secret body')
+
+    const second = await service.listDirectory('Projects', 2, first.next_after)
+    expect(second).toMatchObject({ truncated: false })
+    const entries = [...first.entries, ...second.entries]
+    expect(entries).toHaveLength(202)
+    expect(entries.find((entry) => entry.path === 'Projects/Nested')).toEqual({
+      type: 'directory',
+      path: 'Projects/Nested',
+      name: 'Nested',
+      counts: { directories: 0, notes: 1, attachments: 0 }
+    })
+    expect(entries.find((entry) => entry.path === 'Projects/asset.png')).toEqual({
+      type: 'attachment',
+      path: 'Projects/asset.png',
+      name: 'asset.png',
+      size_bytes: 5,
+      modified_at: expect.any(String)
+    })
+    expect(entries.map((entry) => entry.path)).toContain('Projects/Nested/Deep.md')
+  })
+
+  it('keeps one inventory fingerprint across three unchanged directory pages', async () => {
+    await Promise.all(
+      Array.from({ length: 400 }, (_, index) =>
+        mkdir(join(root, 'Projects', `Page-${String(index).padStart(3, '0')}`))
+      )
+    )
+
+    const first = await service.listDirectory('Projects')
+    const second = await service.listDirectory(
+      'Projects',
+      1,
+      first.next_after,
+      first.fingerprint
+    )
+    const third = await service.listDirectory(
+      'Projects',
+      1,
+      second.next_after,
+      first.fingerprint
+    )
+
+    expect(first.entries).toHaveLength(200)
+    expect(second.entries).toHaveLength(200)
+    expect(third.entries).toHaveLength(1)
+    expect(first.fingerprint).toMatch(/^sha256:[a-f0-9]{64}$/)
+    expect(second.fingerprint).toBe(first.fingerprint)
+    expect(third.fingerprint).toBe(first.fingerprint)
+  })
+
+  it('guards later pages from in-scope inventory changes only', async () => {
+    await Promise.all(
+      Array.from({ length: 200 }, (_, index) =>
+        mkdir(join(root, 'Projects', `Guard-${String(index).padStart(3, '0')}`))
+      )
+    )
+    const first = await service.listDirectory('Projects')
+    await writeFile(join(root, 'Projects', 'Added.md'), '# Added', 'utf8')
+
+    await expect(
+      service.listDirectory(
+        'Projects',
+        1,
+        first.next_after,
+        first.fingerprint
+      )
+    ).rejects.toMatchObject({ appError: { code: 'FILE_CHANGED' } })
+
+    const afterAddition = await service.listDirectory('Projects')
+    await rm(join(root, 'Projects', 'Added.md'))
+    await expect(
+      service.listDirectory(
+        'Projects',
+        1,
+        afterAddition.next_after,
+        afterAddition.fingerprint
+      )
+    ).rejects.toMatchObject({ appError: { code: 'FILE_CHANGED' } })
+
+    const afterDeletion = await service.listDirectory('Projects')
+    const notePath = join(root, 'Projects', 'TSUZUNE.md')
+    const noteInfo = await stat(notePath)
+    const changedTime = new Date(noteInfo.mtimeMs + 10_000)
+    await utimes(notePath, changedTime, changedTime)
+    await expect(
+      service.listDirectory(
+        'Projects',
+        1,
+        afterDeletion.next_after,
+        afterDeletion.fingerprint
+      )
+    ).rejects.toMatchObject({ appError: { code: 'FILE_CHANGED' } })
+
+    const beforeOutsideChange = await service.listDirectory('Projects')
+    await writeFile(join(root, 'Home.md'), '# Home changed outside scope', 'utf8')
+    const afterOutsideChange = await service.listDirectory(
+      'Projects',
+      1,
+      beforeOutsideChange.next_after,
+      beforeOutsideChange.fingerprint
+    )
+    expect(afterOutsideChange.fingerprint).toBe(
+      beforeOutsideChange.fingerprint
+    )
+  })
+
+  it('omits folders covered by the active excluded-files settings', async () => {
+    await mkdir(join(root, 'Hidden'))
+    await writeFile(join(root, 'Hidden', 'Secret.md'), '# Secret', 'utf8')
+    const settingsPath = join(root, 'settings.json')
+    await writeFile(
+      settingsPath,
+      JSON.stringify({ lastVaultPath: root, userIgnoreFilters: ['Hidden/'] }),
+      'utf8'
+    )
+    const configured = new VaultMcpService({ settingsPath })
+
+    const listed = await configured.listDirectory()
+
+    expect(listed.entries.map((entry) => entry.path)).not.toContain('Hidden')
+    expect(listed.entries.map((entry) => entry.path)).not.toContain('Hidden/Secret.md')
+  })
+
   it('excludes 50_履歴 audit history from search by default', async () => {
     await mkdir(join(root, '50_履歴', 'AI更新'), { recursive: true })
     await writeFile(
@@ -446,6 +707,8 @@ describe('MCP vault service', () => {
         name: 'Map',
         relation: 'seed',
         truncated: false,
+        revision: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+        modified_at: expect.any(String),
         selection_reasons: ['MOCタイトル索引']
       }
     ])
@@ -585,6 +848,8 @@ describe('MCP vault service', () => {
       name: 'Home',
       relation: 'seed',
       truncated: false,
+      revision: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+      modified_at: expect.any(String),
       content_omitted: true,
       selection_reasons: ['起点ノート（時間範囲のない本文は省略）']
     })
@@ -600,6 +865,8 @@ describe('MCP vault service', () => {
       name: 'Home-planning',
       relation: 'backlink',
       truncated: false,
+      revision: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+      modified_at: expect.any(String),
       temporal_status: 'review_due',
       selection_reasons: ['指定時点で有効だが再確認期限を超過']
     })
@@ -689,6 +956,8 @@ describe('MCP vault service', () => {
       name: 'Home-planning',
       relation: 'backlink',
       truncated: false,
+      revision: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+      modified_at: expect.any(String),
       temporal_status: 'historical',
       selection_reasons: ['指定時点より前に終了した状態']
     })
@@ -724,6 +993,17 @@ describe('MCP vault service', () => {
       service.createNote('Projects/連携メモ.md', '上書き')
     ).rejects.toThrow()
     expect(await readFile(join(root, created.id), 'utf8')).not.toBe('上書き')
+  })
+
+  it('creates one new folder inside an existing Vault folder without overwriting', async () => {
+    await expect(service.createDirectory('Projects/資料')).resolves.toEqual({
+      path: 'Projects/資料'
+    })
+    expect((await stat(join(root, 'Projects', '資料'))).isDirectory()).toBe(true)
+
+    await expect(service.createDirectory('Projects/資料')).rejects.toThrow()
+    await expect(service.createDirectory('Missing/資料')).rejects.toThrow()
+    await expect(service.createDirectory('../資料')).rejects.toThrow('相対パス')
   })
 
   it('updates only the exact revision returned by fetch', async () => {
@@ -786,6 +1066,9 @@ describe('MCP vault service', () => {
     const history = await readFile(join(root, historyPath), 'utf8')
     expect(history).toContain('kind: ai_revision')
     expect(history).toContain('target: Projects/TSUZUNE.md')
+    expect(history).toMatch(/previous_modified_at: \d+/)
+    expect(history).toMatch(/previous_size_bytes: \d+/)
+    expect(history).toMatch(/revision_root_sha256: [a-f0-9]{64}/)
     expect(history).toContain('調査結果を知識ノートへ反映')
     expect(history).toContain('NotebookLM/research-package-001.md')
     expect(history).toContain('AI連携を試す。')
@@ -955,7 +1238,7 @@ describe('MCP vault service', () => {
     await expect(stat(historyDirectory)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
-  it('applies configured immutable paths to every MCP write', async () => {
+  it('ignores legacy configured immutable paths for ordinary notes', async () => {
     const settingsPath = join(root, 'settings.json')
     await writeFile(
       settingsPath,
@@ -968,46 +1251,35 @@ describe('MCP vault service', () => {
     const activeVaultService = new VaultMcpService({ settingsPath })
     const opened = await activeVaultService.fetch('Projects/TSUZUNE.md')
 
-    expect(opened.metadata.editable).toBe(false)
-    await expect(
-      activeVaultService.createNote('Projects/New.md', '# New')
-    ).rejects.toThrow('AIから変更できないノートです')
-    await expect(
-      activeVaultService.updateNote(
-        opened.id,
-        '# TSUZUNE\n\n更新後。',
-        opened.metadata.revision
-      )
-    ).rejects.toThrow('AIから変更できないノートです')
-    await expect(
-      activeVaultService.autonomousUpdateNote(
-        opened.id,
-        '# TSUZUNE\n\n自動更新後。',
-        { expectedRevision: opened.metadata.revision }
-      )
-    ).rejects.toThrow('AIから変更できないノートです')
-    expect(await readFile(join(root, 'Projects', 'TSUZUNE.md'), 'utf8')).toBe(
-      opened.text
+    expect(opened.metadata.editable).toBe(true)
+    await activeVaultService.createNote('Projects/New.md', '# New')
+    await activeVaultService.createDirectory('Projects/New')
+    await activeVaultService.updateNote(
+      opened.id,
+      '# TSUZUNE\n\n更新後。',
+      opened.metadata.revision
     )
-    await expect(stat(join(root, 'Projects', 'New.md'))).rejects.toMatchObject({
-      code: 'ENOENT'
-    })
+
+    expect(await readFile(join(root, 'Projects', 'New.md'), 'utf8')).toBe('# New')
+    await expect(stat(join(root, 'Projects', 'New'))).resolves.toBeDefined()
+    expect(await readFile(join(root, 'Projects', 'TSUZUNE.md'), 'utf8')).toBe(
+      '# TSUZUNE\n\n更新後。'
+    )
+  })
+
+  it('returns an unchanged no-op for identical content without a revision guard', async () => {
+    const opened = await service.fetch('Projects/TSUZUNE.md')
+    const updated = await service.autonomousUpdateNote(opened.id, opened.text)
+
+    expect(updated.unchanged).toBe(true)
+    expect(updated.metadata.revision).toBe(opened.metadata.revision)
+    expect(updated.provenance.previous_revision).toBe(
+      opened.metadata.revision
+    )
+    expect(updated.provenance.history_path).toBeUndefined()
     await expect(stat(join(root, '50_履歴', 'AI更新'))).rejects.toMatchObject({
       code: 'ENOENT'
     })
-  })
-
-  it('keeps the legacy history write for identical content without a revision guard', async () => {
-    const opened = await service.fetch('Projects/TSUZUNE.md')
-    const updated = await service.autonomousUpdateNote(opened.id, opened.text)
-    const historyPath = updated.provenance.history_path
-
-    expect(updated.unchanged).toBeUndefined()
-    expect(historyPath).toMatch(/^50_履歴\/AI更新\/.*\.md$/)
-    if (!historyPath) {
-      throw new Error('unprotected autonomous update must record a history path')
-    }
-    expect(await readFile(join(root, historyPath), 'utf8')).toContain('AI連携を試す。')
   })
 
   it('rejects a stale autonomous revision before considering identical content', async () => {
@@ -1101,114 +1373,4 @@ describe('MCP vault service', () => {
     expect(await readFile(existingPath, 'utf8')).toBe(tooLarge)
   })
 
-  it('moves a note across folders with an audit record and old/new paths', async () => {
-    const originalContent = await readFile(
-      join(root, 'Projects', 'TSUZUNE.md'),
-      'utf8'
-    )
-    const moved = await service.moveNote('Projects/TSUZUNE.md', '保管/TSUZUNE.md', {
-      reason: '分類移動',
-      sourceRefs: ['Fixtures/move-source.md']
-    })
-
-    expect(moved.old_path).toBe('Projects/TSUZUNE.md')
-    expect(moved.new_path).toBe('保管/TSUZUNE.md')
-    expect(moved.metadata.path).toBe('保管/TSUZUNE.md')
-    expect(moved.provenance.actor).toBe('ai')
-    expect(moved.provenance.reason).toBe('分類移動')
-    expect(moved.provenance.source_refs).toEqual(['Fixtures/move-source.md'])
-    expect(moved.provenance.previous_revision).toMatch(/^sha256:/)
-    expect(typeof moved.history_path).toBe('string')
-
-    expect(await readFile(join(root, '保管', 'TSUZUNE.md'), 'utf8')).toBe(
-      originalContent
-    )
-    await expect(
-      readFile(join(root, 'Projects', 'TSUZUNE.md'), 'utf8')
-    ).rejects.toMatchObject({ code: 'ENOENT' })
-
-    const audit = await readFile(
-      join(root, ...moved.history_path.split('/')),
-      'utf8'
-    )
-    expect(audit).toContain('kind: note_move')
-    expect(audit).toContain('target: Projects/TSUZUNE.md')
-    expect(audit).toContain('moved_to: 保管/TSUZUNE.md')
-    expect(await readFile(join(root, 'Home.md'), 'utf8')).toContain(
-      '[[Projects/TSUZUNE]]'
-    )
-  })
-
-  it('supports moving with a new file name', async () => {
-    const moved = await service.moveNote('Projects/TSUZUNE.md', '保管/別名.md')
-    expect(moved.old_path).toBe('Projects/TSUZUNE.md')
-    expect(moved.new_path).toBe('保管/別名.md')
-    expect(await readFile(join(root, '保管', '別名.md'), 'utf8')).toContain(
-      'AI連携'
-    )
-    await expect(
-      readFile(join(root, 'Projects', 'TSUZUNE.md'), 'utf8')
-    ).rejects.toMatchObject({ code: 'ENOENT' })
-  })
-
-  it('rejects a missing source note', async () => {
-    await expect(
-      service.moveNote('Projects/存在しない.md', '保管/存在しない.md')
-    ).rejects.toThrow('ノートが見つかりません')
-    expect(await readFile(join(root, 'Projects', 'TSUZUNE.md'), 'utf8')).toContain(
-      'AI連携'
-    )
-  })
-
-  it('never overwrites an existing destination', async () => {
-    await mkdir(join(root, '保管'), { recursive: true })
-    await writeFile(join(root, '保管', 'TSUZUNE.md'), '既存の本文', 'utf8')
-    await expect(
-      service.moveNote('Projects/TSUZUNE.md', '保管/TSUZUNE.md')
-    ).rejects.toThrow('既に存在')
-    expect(await readFile(join(root, '保管', 'TSUZUNE.md'), 'utf8')).toBe(
-      '既存の本文'
-    )
-    expect(await readFile(join(root, 'Projects', 'TSUZUNE.md'), 'utf8')).toContain(
-      'AI連携'
-    )
-  })
-
-  it('rejects moves into internal management folders', async () => {
-    await expect(
-      service.moveNote('Projects/TSUZUNE.md', '.trash/TSUZUNE.md')
-    ).rejects.toThrow('内部管理フォルダ')
-    await expect(
-      service.moveNote('Projects/TSUZUNE.md', '.tsuzune/TSUZUNE.md')
-    ).rejects.toThrow('内部管理フォルダ')
-    expect(await readFile(join(root, 'Projects', 'TSUZUNE.md'), 'utf8')).toContain(
-      'AI連携'
-    )
-  })
-
-  it('rejects non-Markdown and outside-Vault paths', async () => {
-    await expect(
-      service.moveNote('Projects/TSUZUNE.md', '保管/TSUZUNE.txt')
-    ).rejects.toThrow('Markdown')
-    await expect(
-      service.moveNote('../escape.md', '保管/TSUZUNE.md')
-    ).rejects.toThrow('Markdown')
-    await expect(
-      service.moveNote('Projects/TSUZUNE.md', '../escape.md')
-    ).rejects.toThrow('Markdown')
-  })
-
-  it('refuses to move notes protected from AI changes', async () => {
-    await mkdir(join(root, '40_情報源'), { recursive: true })
-    await writeFile(join(root, '40_情報源', 'Source.md'), '原文', 'utf8')
-    await expect(
-      service.moveNote('40_情報源/Source.md', '保管/Source.md')
-    ).rejects.toThrow('AIから変更できないノートです')
-    await expect(
-      service.moveNote('Projects/TSUZUNE.md', '50_履歴/TSUZUNE.md')
-    ).rejects.toThrow('AIから変更できないノートです')
-    expect(await readFile(join(root, '40_情報源', 'Source.md'), 'utf8')).toBe(
-      '原文'
-    )
-  })
 })

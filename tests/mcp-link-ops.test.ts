@@ -225,47 +225,4 @@ describe('MCP link operations (suggest_links / add_link / move preflight)', () =
     )
   })
 
-  it('reports move preflight without moving and without writing history', async () => {
-    const report = await service.preflightMove(
-      'Projects/TSUZUNE.md',
-      'Knowledge/TSUZUNE.md'
-    )
-
-    expect(report.preflight).toBe(true)
-    expect(report.manifest.backlink_paths).toContain('Home.md')
-    expect(report.manifest.link_impact_paths).toContain('Home.md')
-    expect(report.manifest.would_move).toBe(false)
-    expect(report.backlinks.total).toBe(1)
-
-    await expect(
-      stat(join(root, 'Projects', 'TSUZUNE.md'))
-    ).resolves.toBeDefined()
-    await expect(stat(join(root, 'Knowledge', 'TSUZUNE.md'))).rejects.toThrow()
-    await expect(readdir(join(root, '50_履歴'))).rejects.toThrow()
-  })
-
-  it('moves a note with backlinks and reports the link impact', async () => {
-    const moved = await service.moveNote(
-      'Projects/TSUZUNE.md',
-      'Knowledge/TSUZUNE.md',
-      { reason: '整理' }
-    )
-
-    expect(moved.old_path).toBe('Projects/TSUZUNE.md')
-    expect(moved.new_path).toBe('Knowledge/TSUZUNE.md')
-    expect(moved.backlinks.total).toBe(1)
-    expect(moved.backlinks.ids).toContain('Home.md')
-    expect(moved.link_impact.affected_count).toBe(1)
-    expect(moved.link_impact.source_paths).toContain('Home.md')
-    expect(typeof moved.history_path).toBe('string')
-    const history = await readFile(
-      join(root, ...moved.history_path.split('/')),
-      'utf8'
-    )
-    expect(history).toContain('kind: note_move')
-    await expect(stat(join(root, 'Projects', 'TSUZUNE.md'))).rejects.toThrow()
-    await expect(
-      stat(join(root, 'Knowledge', 'TSUZUNE.md'))
-    ).resolves.toBeDefined()
-  })
 })

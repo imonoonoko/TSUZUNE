@@ -1,0 +1,202 @@
+{
+  "capturedAt": "2026-08-22T10:55:11.637Z",
+  "product": {
+    "executable": "C:\\Users\\Humin\\AppData\\Local\\Programs\\tsuzune\\TSUZUNE.exe",
+    "bytes": 225613824,
+    "sha256": "853173efd7c84ec20a1a1db62c256ab53ec8690b9ec45760af450b889a8462d3"
+  },
+  "isolation": {
+    "vault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\daily-workspace-phase-a-4212\\vault",
+    "userData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\daily-workspace-phase-a-4212\\userdata",
+    "remainingProcesses": 0
+  },
+  "fixture": {
+    "before": {
+      "fileCount": 8,
+      "sha256": "96b2dc1d2c7884a7127ee4cf7e4a484ada2ff4cae7cacf2732de6570f5618021"
+    },
+    "after": {
+      "fileCount": 8,
+      "sha256": "96b2dc1d2c7884a7127ee4cf7e4a484ada2ff4cae7cacf2732de6570f5618021"
+    },
+    "unchanged": true
+  },
+  "results": [
+    {
+      "id": "B3-B4-SURROGATE",
+      "status": "PASS",
+      "window": {
+        "visible": false,
+        "bounds": {
+          "x": -32000,
+          "y": -32000,
+          "width": 720,
+          "height": 768
+        },
+        "content": {
+          "x": -32000,
+          "y": -32000,
+          "width": 720,
+          "height": 768
+        },
+        "viewport": {
+          "width": 720,
+          "height": 768,
+          "devicePixelRatio": 2
+        }
+      },
+      "layout": {
+        "viewport": {
+          "width": 720,
+          "height": 768
+        },
+        "documentWidth": 720,
+        "bodyWidth": 720,
+        "center": {
+          "left": 176,
+          "right": 560,
+          "top": 58,
+          "bottom": 768,
+          "width": 384,
+          "height": 710
+        },
+        "leftExpanded": "true",
+        "rightExpanded": "true",
+        "controls": [
+          {
+            "label": "左サイドバーを閉じる",
+            "rect": {
+              "left": 159,
+              "right": 175,
+              "top": 58,
+              "bottom": 768,
+              "width": 16,
+              "height": 710
+            }
+          },
+          {
+            "label": "00_Homeを閉じる",
+            "rect": {
+              "left": 267,
+              "right": 295,
+              "top": 58,
+              "bottom": 94,
+              "width": 28,
+              "height": 36
+            }
+          },
+          {
+            "label": "00_Homeを閉じる",
+            "rect": {
+              "left": 387,
+              "right": 415,
+              "top": 58,
+              "bottom": 94,
+              "width": 28,
+              "height": 36
+            }
+          },
+          {
+            "label": "編集",
+            "rect": {
+              "left": 256.765625,
+              "right": 319.765625,
+              "top": 159,
+              "bottom": 183,
+              "width": 63,
+              "height": 24
+            }
+          },
+          {
+            "label": "プレビュー",
+            "rect": {
+              "left": 319.765625,
+              "right": 399.265625,
+              "top": 159,
+              "bottom": 183,
+              "width": 79.5,
+              "height": 24
+            }
+          },
+          {
+            "label": "ローカルグラフ",
+            "rect": {
+              "left": 410.265625,
+              "right": 513.96875,
+              "top": 157,
+              "bottom": 185,
+              "width": 103.703125,
+              "height": 28
+            }
+          },
+          {
+            "label": "右サイドバーを閉じる",
+            "rect": {
+              "left": 561,
+              "right": 720,
+              "top": 58,
+              "bottom": 88,
+              "width": 159,
+              "height": 30
+            }
+          }
+        ],
+        "allControlsReachable": true
+      },
+      "current": {
+        "forcedColors": true,
+        "devicePixelRatio": 2,
+        "selectedTabs": 1
+      },
+      "quickSwitcher": {
+        "inputFocused": true,
+        "selectedSemantics": "true",
+        "selectedOutline": {
+          "style": "solid",
+          "width": "2px"
+        },
+        "withinViewport": true
+      },
+      "focus": {
+        "label": "左サイドバーを閉じる",
+        "focused": true,
+        "focusVisible": true,
+        "outline": {
+          "style": "solid",
+          "width": "2px"
+        }
+      },
+      "primary": {
+        "text": "最初のノートを作る",
+        "focused": true,
+        "focusVisible": true,
+        "outline": {
+          "style": "solid",
+          "width": "2px"
+        },
+        "withinViewport": true
+      },
+      "disabled": [
+        {
+          "label": "編集に切り替える",
+          "reason": "利用不可: ノートを選択すると使えます",
+          "ariaDisabled": "true"
+        },
+        {
+          "label": "プレビューに切り替える",
+          "reason": "利用不可: ノートを選択すると使えます",
+          "ariaDisabled": "true"
+        },
+        {
+          "label": "ローカルグラフを開く",
+          "reason": "利用不可: ノートを選択すると使えます",
+          "ariaDisabled": "true"
+        }
+      ],
+      "screenshot": "docs/reports/assets/daily-workspace-phase-b-2026-08-22/b3-b4-surrogate.png",
+      "evidenceBoundary": "CDP forced-colors and deviceScaleFactor=2 verify current/focus/disabled/empty-state renderer behavior only; they do not prove Windows High Contrast, physical 200% DPI, or forced-colors conflict/error states."
+    }
+  ],
+  "runError": null,
+  "overall": "SURROGATE-PASS"
+}

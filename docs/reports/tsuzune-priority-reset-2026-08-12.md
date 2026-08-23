@@ -60,7 +60,7 @@ host model-visible tokenはhostが正確なusageを公開した場合だけ記�
 |---|---|---|
 | Contextual Tasks / Quick Capture | 7日dogfoodでcheckbox横断確認またはquick captureが上位摩擦として実測される | 専用task DB、常駐server、Google Tasks同時実装 |
 | O2-P3 Classification | 匿名一時Vaultでapply/rollbackを安全に往復できる、またはDrive Path Alias sidecar契約を決める | 本番Vaultの物理move・自動apply |
-| Google Drive roundtrip | O2のpath/rollback境界を満たした後、空Vault受信、local/Drive/conflict/delete、再起動台帳を確認する | 複数端末の同時apply |
+| Google Drive roundtrip（2026-08-16完了） | 隔離2 profileで空Vault受信、local／Drive更新、競合、両側削除の非伝播、再起動台帳を実Driveで確認し、fixtureを全回収した。[証拠](drive-vault-roundtrip-acceptance-2026-08-16.md) | 複数端末の同時apply、確認なしの削除伝播 |
 | Google Intake | G1 Tasks read-only → G2 selected-file → G3 YouTube → G4 Data Portability → G5 Calendarの順。各々最小scope/preview/source ID/重複防止を閉じる | Drive全走査、広告profile、認証情報の保存 |
 | ChatGPT C1-D candidate apply | rule種別ごとに高信頼review例10件以上、precision gate、privacy条件を満たす | 人物profileノートへの自動write |
 | ChatGPT remote MCP | 利用者がChatGPTからの接続を明示的に必要とし、remote transportと権限境界を別契約で承認する | Codex local MCPの結果から正常動作を推定すること |
@@ -83,3 +83,9 @@ host model-visible tokenはhostが正確なusageを公開した場合だけ記�
 4. P1の結果に修正がなければ、P3 Graph Filters/Searchの要件と固定参照を作る。
 
 この順序を変えるのは、新しい実測が「日常利用を止める問題」または「データ損失・安全性の問題」を示した時だけにする。
+
+## 2026-08-16 closeout addendum
+
+日付だけを理由にした2026-08-22待機は解除した。O1はDay 2で早期終了し、7日dogfood完了とは扱わない。隔離実Drive roundtripはPASSし、本番Drive同期は29 uploads／0 conflicts、直後previewはmutable delta 0、片側削除のpreserve 22だけへ収束した。`40_情報源`のAI move-only境界に加え、DriveのChanges差分cacheで版ずれを見逃した場合のfull refreshと、checkpoint-crash後に他の計画項目が同居する再基準化を含むcurrent sourceは686 PASS／1 SKIP、production gate 10/10でinstalled-and-verifiedとなった。
+
+削除伝播とproduction classification applyは日付待ちではない。前者はtombstone、確認付きapply、local／Drive trash、再起動、rollback、後者は最新preimage、Path Alias、remote identity、rollback packetを必要とする独立したデータ保護ゲートとして継続する。

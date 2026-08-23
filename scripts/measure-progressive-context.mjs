@@ -92,6 +92,11 @@ try {
         response_utf8_bytes: bytes(context.value),
         latency_ms: context.latency_ms,
         included_paths: context.value.included.map((source) => source.path),
+        descriptor_count: context.value.included.filter(
+          (source) =>
+            typeof source.revision === 'string' &&
+            typeof source.modified_at === 'string'
+        ).length,
         omitted_ids: context.value.omitted_ids,
         markdown_chars: context.value.markdown.length
       }
@@ -129,6 +134,25 @@ try {
   if (!multiSourceScenario.expected_paths.every((path) => multiSourceIncluded.includes(path))) {
     throw new Error('Multi-source context did not reach every expected source.')
   }
+  const descriptorFetches = []
+  for (const id of multiSourceIncluded) {
+    descriptorFetches.push(await call('fetch', { id }))
+  }
+  const descriptorFetchByPath = new Map(
+    descriptorFetches.map((fetch) => [fetch.value.id, fetch.value.metadata])
+  )
+  const matchingDescriptorPaths = multiSourceContext.value.included
+    .filter((source) => {
+      const metadata = descriptorFetchByPath.get(source.path)
+      return (
+        source.revision === metadata?.revision &&
+        source.modified_at === metadata?.modified_at
+      )
+    })
+    .map((source) => source.path)
+  if (matchingDescriptorPaths.length !== multiSourceIncluded.length) {
+    throw new Error('Context source descriptors did not match fetch metadata.')
+  }
 
   const after = await fixtureDigest(measurementVault)
   if (before !== after) throw new Error('Progressive-context measurement modified its fixture copy.')
@@ -165,10 +189,17 @@ try {
         calls: 1,
         response_utf8_bytes: bytes(multiSourceContext.value),
         included_paths: multiSourceIncluded,
-        expected_sources_reached: true
+        expected_sources_reached: true,
+        descriptor_fetch_match_count: matchingDescriptorPaths.length
+      },
+      revision_audit_capability: {
+        expected_source_count: multiSourceScenario.expected_paths.length,
+        audit_only_fetches_before: multiSourceScenario.expected_paths.length,
+        audit_only_fetches_after: 0,
+        write_guard_fetches_reduced: false
       }
     },
-    boundary: 'Measures MCP response size, calls, and local latency only. It does not measure answer quality, host-visible tokens, cost, or multi-source task success.'
+    boundary: 'Measures MCP response size, calls, local latency, and a counterfactual revision-audit-only fetch count. Fetches needed for content or a pre-write guard are not reduced. It does not measure answer quality, host-visible tokens, cost, or multi-source task success.'
   }, null, 2))
 } finally {
   await client.close().catch(() => undefined)

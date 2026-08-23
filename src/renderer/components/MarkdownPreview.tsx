@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import { parseFrontmatter } from '../../core/frontmatter'
 import { transformWikiLinksForPreview } from '../../core/links'
 import {
   basenameRelative,
@@ -141,10 +142,33 @@ export default function MarkdownPreview({
   attachments,
   onWikiLink
 }: MarkdownPreviewProps): React.JSX.Element {
-  const transformed = transformWikiLinksForPreview(content)
+  const frontmatter = parseFrontmatter(content)
+  const hasValidFrontmatter =
+    frontmatter.found && frontmatter.warnings.length === 0
+  const properties = hasValidFrontmatter
+    ? Object.entries(frontmatter.attributes)
+    : []
+  const transformed = transformWikiLinksForPreview(
+    hasValidFrontmatter ? frontmatter.body : content
+  )
 
   return (
     <article className="markdown-preview" aria-label="Markdownプレビュー">
+      {properties.length > 0 ? (
+        <section className="markdown-properties" aria-label="プロパティ">
+          <div className="markdown-properties-title" aria-hidden="true">
+            プロパティ
+          </div>
+          <dl className="markdown-properties-list">
+            {properties.map(([name, value]) => (
+              <div className="markdown-property" key={name}>
+                <dt>{name}</dt>
+                <dd>{value ?? '（空）'}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
       <ReactMarkdown
         components={{
           img: ({ src, alt, title }) =>

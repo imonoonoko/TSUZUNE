@@ -1,14 +1,19 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import {
   createMarkdown,
+  createPathAliasObject,
   downloadMarkdown,
   DriveChangeTokenInvalidError,
   ensureVaultRoot,
   getDriveStartPageToken,
   listDriveChanges,
+  listPathAliasObjects,
   listVaultFiles,
   listVaultRoots,
   moveMarkdown,
+  trashMarkdown,
+  trashPathAliasObject,
   updateMarkdown
 } from '../src/main/google-drive'
 
@@ -140,6 +145,100 @@ describe('listVaultFiles', () => {
     await expect(
       listVaultFiles('access-token', 'vault-alpha', fetchImpl)
     ).rejects.toThrow(/パス/)
+  })
+})
+
+describe('remote trash response verification', () => {
+  const markdownMetadata = {
+    id: 'note-1', name: '削除.md', mimeType: 'text/markdown', version: '3',
+    appProperties: { tsuzuneVaultId: 'vault-alpha', tsuzunePath: 'Inbox/削除.md' }
+  }
+
+  for (const response of [
+    { id: 'note-1', trashed: false },
+    { id: 'other-note', trashed: true }
+  ]) {
+    it(`rejects a Markdown trash response of ${JSON.stringify(response)}`, async () => {
+      let calls = 0
+      const fetchImpl: typeof fetch = async (_input) => {
+        calls += 1
+        return calls === 1
+          ? jsonResponse(markdownMetadata)
+          : jsonResponse(response)
+      }
+      await expect(trashMarkdown('access-token', {
+        fileId: 'note-1', vaultId: 'vault-alpha', path: 'Inbox/削除.md', expectedVersion: '3'
+      }, fetchImpl)).rejects.toThrow(/削除応答/)
+      expect(calls).toBe(2)
+    })
+  }
+
+  for (const response of [
+    { id: 'alias-1', trashed: false },
+    { id: 'other-alias', trashed: true }
+  ]) {
+    it(`rejects a Path Alias trash response of ${JSON.stringify(response)}`, async () => {
+      const bytes = Buffer.from('{"version":1}')
+      let calls = 0
+      const fetchImpl: typeof fetch = async (_input, init) => {
+        calls += 1
+        if (calls === 1) return jsonResponse({ files: [{ id: 'alias-1', parents: ['root-1'], version: '4', appProperties: { tsuzuneVaultId: 'vault-alpha', tsuzuneRole: 'pathAliases' } }] })
+        if (calls === 2) return new Response(bytes, { status: 200 })
+        return jsonResponse(response)
+      }
+      await expect(trashPathAliasObject('access-token', {
+        fileId: 'alias-1', vaultId: 'vault-alpha', parentId: 'root-1', expectedVersion: '4',
+        expectedContentHash: createHash('sha256').update(bytes).digest('hex')
+      }, fetchImpl)).rejects.toThrow(/削除応答/)
+      expect(calls).toBe(3)
+    })
+  }
+})
+
+describe('path alias adapter', () => {
+  it('pages through all active aliases before returning objects', async () => {
+    const requests: URL[] = []
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = new URL(String(input))
+      requests.push(url)
+      if (url.searchParams.get('alt') === 'media') {
+        return new Response(url.pathname.endsWith('alias-1') ? '{"aliases":[]}' : '{"aliases":[{"path":"x"}]}')
+      }
+      return requests.length === 1
+        ? jsonResponse({
+            nextPageToken: 'next-aliases',
+            files: [{ id: 'alias-1', parents: ['vault-root'], version: '1', appProperties: { tsuzuneVaultId: 'vault-a', tsuzuneRole: 'pathAliases' } }]
+          })
+        : jsonResponse({
+            files: [{ id: 'alias-2', parents: ['vault-root'], version: '2', appProperties: { tsuzuneVaultId: 'vault-a', tsuzuneRole: 'pathAliases' } }]
+          })
+    }
+
+    await expect(listPathAliasObjects('token', 'vault-a', fetchImpl)).resolves.toHaveLength(2)
+    expect(requests.find((url) => !url.searchParams.has('alt') && url.searchParams.has('pageToken'))?.searchParams.get('pageToken')).toBe('next-aliases')
+  })
+
+  it('creates an alias only from an absent baseline', async () => {
+    const requests: Request[] = []
+    const bytes = Buffer.from('{"aliases":[]}')
+    const fetchImpl: typeof fetch = async (input, init) => {
+      requests.push(new Request(input, init))
+      return requests.length === 1
+        ? jsonResponse({ files: [] })
+        : jsonResponse({ id: 'alias-1', parents: ['vault-root'], version: '1', md5Checksum: null, appProperties: { tsuzuneVaultId: 'vault-a', tsuzuneRole: 'pathAliases' } })
+    }
+    const created = await createPathAliasObject('token', { vaultId: 'vault-a', parentId: 'vault-root', bytes }, fetchImpl)
+    expect(created).toMatchObject({ id: 'alias-1', parentId: 'vault-root', version: '1', md5Checksum: null })
+    expect(created.contentHash).toBe(createHash('sha256').update(bytes).digest('hex'))
+    expect(requests[1].method).toBe('POST')
+  })
+
+  it('rejects creation when an active alias already exists', async () => {
+    let call = 0
+    const fetchImpl: typeof fetch = async () => call++ === 0
+      ? jsonResponse({ files: [{ id: 'alias-1', parents: ['vault-root'], version: '1', md5Checksum: null, appProperties: { tsuzuneVaultId: 'vault-a', tsuzuneRole: 'pathAliases' } }] })
+      : new Response('{}')
+    await expect(createPathAliasObject('token', { vaultId: 'vault-a', parentId: 'vault-root', bytes: Buffer.from('{}') }, fetchImpl)).rejects.toThrow('already exists')
   })
 })
 
@@ -675,6 +774,60 @@ describe('Markdown transfer', () => {
     ).rejects.toThrow(/確認し直/)
     expect(requests).toHaveLength(1)
     expect(requests[0].init?.method ?? 'GET').toBe('GET')
+  })
+
+  it('accepts an invisible Drive version change when the remote content is unchanged', async () => {
+    const content = '更新前'
+    const md5Checksum = createHash('md5').update(content).digest('hex')
+    const requests: Array<{ url: URL; init?: RequestInit }> = []
+    const fetchImpl: typeof fetch = async (input, init) => {
+      requests.push({ url: new URL(String(input)), init })
+      if (requests.length === 1) {
+        return jsonResponse({
+          id: 'existing-note',
+          name: '更新.md',
+          mimeType: 'text/markdown',
+          parents: ['root-1'],
+          version: '9',
+          md5Checksum,
+          appProperties: {
+            tsuzuneVaultId: 'vault-alpha',
+            tsuzunePath: 'Inbox/更新.md'
+          }
+        })
+      }
+      return jsonResponse({
+        id: 'existing-note',
+        name: '更新.md',
+        mimeType: 'text/markdown',
+        parents: ['root-1'],
+        version: '10',
+        md5Checksum: createHash('md5').update('更新後').digest('hex'),
+        appProperties: {
+          tsuzuneVaultId: 'vault-alpha',
+          tsuzunePath: 'Inbox/更新.md'
+        }
+      })
+    }
+
+    const note = await updateMarkdown(
+      'access-token',
+      {
+        fileId: 'existing-note',
+        vaultId: 'vault-alpha',
+        path: 'Inbox/更新.md',
+        expectedVersion: '8',
+        expectedMd5Checksum: md5Checksum,
+        expectedContentHash: createHash('sha256').update(content).digest('hex'),
+        content: '更新後'
+      },
+      fetchImpl
+    )
+
+    expect(note.version).toBe('10')
+    expect(requests).toHaveLength(2)
+    expect(requests[1].url.searchParams.get('alt')).toBeNull()
+    expect(requests[1].init?.method).toBe('PATCH')
   })
 
   it('rejects traversal paths before sending an upload request', async () => {

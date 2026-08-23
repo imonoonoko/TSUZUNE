@@ -11,6 +11,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const renameControl = vi.hoisted(() => ({
   failAtomicReplace: false,
   changeAfterTempWrite: false,
+  preserveExternalTime: false,
+  externalMtime: 0,
   externalTarget: '',
   externalContent: ''
 }))
@@ -34,7 +36,11 @@ vi.mock('node:fs/promises', async (importOriginal) => {
             renameControl.externalContent,
             'utf8'
           )
-          const changedTime = new Date(Date.now() + 10_000)
+          const changedTime = new Date(
+            renameControl.preserveExternalTime
+              ? renameControl.externalMtime
+              : Date.now() + 10_000
+          )
           await actual.utimes(
             renameControl.externalTarget,
             changedTime,
@@ -67,6 +73,8 @@ let vault: VaultService
 beforeEach(async () => {
   renameControl.failAtomicReplace = false
   renameControl.changeAfterTempWrite = false
+  renameControl.preserveExternalTime = false
+  renameControl.externalMtime = 0
   renameControl.externalTarget = ''
   renameControl.externalContent = ''
   rootPath = await mkdtemp(join(tmpdir(), 'tsuzune-atomic-test-'))
@@ -77,6 +85,7 @@ beforeEach(async () => {
 afterEach(async () => {
   renameControl.failAtomicReplace = false
   renameControl.changeAfterTempWrite = false
+  renameControl.preserveExternalTime = false
   await rm(rootPath, { recursive: true, force: true })
 })
 
@@ -138,5 +147,30 @@ describe('VaultService atomic save', () => {
     expect((await readdir(rootPath)).filter((name) => name.startsWith('.tsuzune-'))).toEqual(
       []
     )
+  })
+
+  it('rejects an external same-size edit when the expected content is unchanged in metadata', async () => {
+    await vault.createNote({
+      directory: '',
+      name: '同一時刻競合',
+      content: '1234567890'
+    })
+    const opened = await vault.readNote('同一時刻競合.md')
+    renameControl.externalTarget = join(rootPath, opened.path)
+    renameControl.externalContent = 'abcdefghij'
+    renameControl.changeAfterTempWrite = true
+    renameControl.preserveExternalTime = true
+    renameControl.externalMtime = opened.modifiedAt
+
+    await expect(
+      vault.saveNote({
+        path: opened.path,
+        content: 'TSUZUNE本文',
+        expectedModifiedAt: opened.modifiedAt,
+        expectedContent: opened.content
+      })
+    ).rejects.toMatchObject({ appError: { code: 'FILE_CHANGED' } })
+
+    expect(await readFile(renameControl.externalTarget, 'utf8')).toBe('abcdefghij')
   })
 })
