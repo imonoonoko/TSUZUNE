@@ -12,7 +12,8 @@
 
 ## 現在の開発
 
-- [改善・未達成項目 実行台帳](reports/tsuzune-improvement-ledger-2026-08-23.md) — する／しない／条件成立時だけを確定した現在の判断索引。製品Primaryは0で、次作業はRepository closeoutのread-only棚卸しに限定する。
+- [改善・未達成項目 実行台帳](reports/tsuzune-improvement-ledger-2026-08-23.md) — する／しない／条件成立時だけを確定した判断索引。現在のPrimary／Nextは[PLAN.mdのCurrent Decision](../PLAN.md#current-decision)を正本とし、ここでは可変状態を複製しない。
+- [Workflow Verification Harness Phase 1](reports/workflow-verification-harness-phase1-plan-2026-08-26.md) — 固定allowlist、fail-first、source不変性、JSON Receipt、public CLI fixture 4件と初回`mcp` dogfoodのsource／fixture証拠。現在のPrimary／Nextは[PLAN.mdのCurrent Decision](../PLAN.md#current-decision)を参照。
 - [Workspace Tabs R5 acceptance](reports/workspace-tabs-r5-2026-08-22.md) — keyboard／ARIA、roving tabindex、Ctrl+Tab／Ctrl+1..9／安全なCtrl+W、active close後focusを既存stateで実装し、770 PASS／1 SKIP、隔離Electron、本番10/10 checksを固定した受入証拠。
 - [Daily Workspace Phase B acceptance](reports/daily-workspace-phase-b-2026-08-22.md) — R4/R5反映済みinstalled binaryを100%表示、High Contrast、Narrator、主要focus境界で確認し、現在のdirty sourceとは分離した実機証拠。
 - [Daily Workspace Phase A acceptance](reports/daily-workspace-phase-a-2026-08-22.md) — production Vaultを開かない隔離・offscreen環境で3入口、FileTree、IME境界、720px幅、long/error/conflict、tabs baselineを確認したR4/R5前段証拠。

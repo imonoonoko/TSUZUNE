@@ -1,6 +1,6 @@
 # TSUZUNE Product Plan — 単一正本・現在状態コンパイラ
 
-更新日: 2026-08-23（JST）
+更新日: 2026-08-26（JST）
 
 この文書は、TSUZUNEを「ノートを増やすアプリ」から「根拠に基づく現在状態を安全に再構成し、必要な場合だけ一つの正本を遷移させる個人用知識基盤」へ発展させるための実行正本です。
 
@@ -24,12 +24,12 @@
 
 | 区分 | 現在地 |
 |---|---|
-| Complete | 既存Context Compiler、Temporal Memory、MCP revision、patch、AI履歴、Review proposal、保護領域、production gate。R0能力・owner候補・fixture Baseline棚卸し。1命題のState Packet比較。Compact Decision Envelopeの5-case盲検benchmark |
-| Next | **なし**。Envelopeはutility 10/10対8/10だったがexact traceに失敗し、通常文より約160.6%長いため採用しない |
-| Held | R1〜R10、Compact Decision Envelope、新DB、Vector DB、常駐Hook、全Vault ingestion、永続派生ビュー、BM25/cache、multi-note transaction、広域Graph拡張 |
-| Research | exclusionと完全修飾IDを機械検査でき、abnormal-only展開を通常文以下へ縮める最小transient形式、意味的no-op、owner候補支援、projection、event sourcing、background maintenance。明示選択または同型摩擦なしに実装へ昇格しない |
+| Complete | 既存Context Compiler、Temporal Memory、MCP revision、patch、AI履歴、Review proposal、保護領域、production gate。R0能力・owner候補・fixture Baseline棚卸し。1命題のState Packet比較。Compact Decision Envelopeの5-case盲検benchmark。Workflow Verification Harness Phase 1（固定allowlist、fail-first、source fingerprint、JSON Receipt、public CLI fixture 4件、`current-decision`／`typecheck`／`test`／`mcp` dogfood） |
+| Next | **自然利用観測**。Phase 1 Harnessを通常の開発taskで使い、Receiptで表せない同型の証拠欠落または手作業摩擦が独立2件以上反復するか観測する。新しい実装Primaryは置かない。[Phase 1実装・検証](docs/reports/workflow-verification-harness-phase1-plan-2026-08-26.md) |
+| Held | R1〜R10、Compact Decision Envelope、独立Harness runtime、新DB、Vector DB、常駐Hook、全Vault ingestion、永続派生ビュー、BM25/cache、multi-note transaction、広域Graph拡張 |
+| Research | exact rollout usageの明示添付、exclusionと完全修飾IDを機械検査できる最小transient形式、意味的no-op、owner候補支援、projection、event sourcing、background maintenance。Phase 1で同型摩擦が独立2件以上観測されるか、既存再開条件が成立するまで実装へ昇格しない |
 
-同時に進めるPrimary sliceは常に1件です。R0では防御可能な重複状態の実例とPilotを選定できず、kill criteriaが成立しました。その後のState Packet比較は長さgateに不合格でした。さらに最小化したCompact Decision Envelopeも、5-case盲検benchmarkでutilityは改善した一方、exact traceと総量gateに失敗しました。[R0 Baseline](docs/reports/current-state-compiler-r0-baseline-2026-08-23.md)、[R1再開可否比較](docs/reports/current-state-compiler-r1-state-packet-comparison-2026-08-23.md)、[5-case benchmark](docs/reports/compact-decision-envelope-benchmark-2026-08-23.md)を証拠とし、R1以降は開始しません。
+Workflow Verification Harness Phase 1は、新しいAgent runtimeを作らず、既存checkを再利用するread-onlyの証拠収集器として完了しました。初回の`mcp` dogfoodでもsource不変のままPASSし、Receiptで表せない摩擦はまだ0件です。現在は実装Primaryを置かず自然利用を観測し、R0／State Packet／Compact Decision Envelopeの不採用境界とR1以降のHeldを維持します。[Phase 1実装・検証](docs/reports/workflow-verification-harness-phase1-plan-2026-08-26.md)と既存の[R0 Baseline](docs/reports/current-state-compiler-r0-baseline-2026-08-23.md)を分離して扱います。
 
 ### Success Conditions
 
@@ -544,18 +544,12 @@ semantic no-op補助判定、owner candidate ranking、projection freshness、ev
 
 ## 11. Next Authorized Slice
 
-このPLANの作成とread-only比較はProgramの設計・反証承認であり、R1以降の実装承認ではありません。
+`Workflow Verification Harness Phase 1`の実装sliceは完了しました。現在承認済みの活動は、既存のHarnessを自然な開発taskで使うread-only観測であり、新しいcode sliceではありません。詳細Evidenceは[`docs/reports/workflow-verification-harness-phase1-plan-2026-08-26.md`](docs/reports/workflow-verification-harness-phase1-plan-2026-08-26.md)を参照します。
 
-現在、承認済みの次sliceはありません。R1〜R10とCompact Decision EnvelopeはHeldです。最小transient形式を再設計・再比較する場合も、利用者の明示選択または同型摩擦の反復に加え、完全修飾ID・明示除外の機械検査と通常文以下の総量を事前登録します。製品code、本番Vault本文、MCP surface、UIは変更しません。
-
-再開時は凍結入力、rubric、write-zero境界を再確認します。
+通常利用では、taskごとに必要な固定checkだけを選びます。
 
 ```powershell
-git status --short
-npm run typecheck
-npm test
-npm run check:mcp
-git diff --check
+npm run check:workflow -- --task <task-id> --checks current-decision,typecheck,test,mcp
 ```
 
-既知のdirty worktreeでのtest結果をinstalled productionの証明へ読み替えません。製品codeを本番へ反映するmilestoneだけ、最終的に`npm run production:update`を実行します。
+Phase 2は、独立した自然task 2件以上で同じ証拠欠落または手作業摩擦が反復し、既存checkとReceiptでは原因を特定できない場合だけ再契約します。R1〜R10、Compact Decision Envelope、独立Harness runtime、daemon、DB、Hook、cacheはHeldです。HarnessのPASSをpackaged／installed／live／利用者確認へ昇格せず、未検証層は`not_proven`として残します。

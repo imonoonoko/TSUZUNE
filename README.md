@@ -28,10 +28,10 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 | 対象 | 状態 |
 |---|---|
 | インストール済み本番 | [Project Status](PROJECT_STATUS.md)と最新production receiptを参照 |
-| 現在の開発slice | [Product Plan](PLAN.md)のActive Trackを参照 |
+| 現在の開発slice | [Product Plan](PLAN.md#current-decision)のCurrent Decisionを参照 |
 | Repository | [Public repository](https://github.com/imonoonoko/TSUZUNE) |
 
-本番commit、検証済み範囲、未証明境界、次の一手は[PROJECT_STATUS.md](PROJECT_STATUS.md)を正本とします。実行順は[PLAN.md](PLAN.md)、資料とEvidenceは[docs/INDEX.md](docs/INDEX.md)から辿れます。
+本番commit、検証済み範囲、未証明境界は[PROJECT_STATUS.md](PROJECT_STATUS.md)を正本とします。現在のPrimary／Nextと実行順は[PLAN.mdのCurrent Decision](PLAN.md#current-decision)、資料とEvidenceは[docs/INDEX.md](docs/INDEX.md)から辿れます。
 
 ## 使い始める
 
