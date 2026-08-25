@@ -531,7 +531,9 @@ export class VaultMcpService {
     return `sha256:${revisionRootSha256(source.vaultPath)}`
   }
 
-  private async snapshot(): Promise<{
+  private async snapshot(
+    { persistCreationTimes = true }: { persistCreationTimes?: boolean } = {}
+  ): Promise<{
     vault: VaultService
     snapshot: VaultSnapshot
     aiReviewPaths: string[]
@@ -541,7 +543,7 @@ export class VaultMcpService {
     await vault.setRootPath(source.vaultPath)
     return {
       vault,
-      snapshot: await vault.scan(source.userIgnoreFilters),
+      snapshot: await vault.scan(source.userIgnoreFilters, { persistCreationTimes }),
       aiReviewPaths: source.aiReviewPaths
     }
   }
@@ -628,7 +630,7 @@ export class VaultMcpService {
     limit = 10,
     includeHistory = false
   ): Promise<SearchOutput> {
-    const { snapshot } = await this.snapshot()
+    const { snapshot } = await this.snapshot({ persistCreationTimes: false })
     const notes = includeHistory
       ? snapshot.notes
       : snapshot.notes.filter(
@@ -737,7 +739,7 @@ export class VaultMcpService {
       throw new Error('Vault内のフォルダの相対パスを指定してください。')
     }
     const normalized = validation.normalized ?? ''
-    const { snapshot } = await this.snapshot()
+    const { snapshot } = await this.snapshot({ persistCreationTimes: false })
     const canonical = snapshot.directories.find(
       (directory) =>
         directory.toLocaleLowerCase() === normalized.toLocaleLowerCase()
@@ -823,7 +825,7 @@ export class VaultMcpService {
   }
 
   async fetch(id: string): Promise<FetchOutput> {
-    const { vault, snapshot } = await this.snapshot()
+    const { vault, snapshot } = await this.snapshot({ persistCreationTimes: false })
     const canonical = canonicalNote(snapshot, id)
     const note = await vault.readNote(canonical.path)
     const truncated = note.content.length > MAX_EDITABLE_CHARACTERS
@@ -1090,7 +1092,7 @@ export class VaultMcpService {
     includeHistory = false,
     after?: string
   ): Promise<BacklinksOutput> {
-    const { snapshot } = await this.snapshot()
+    const { snapshot } = await this.snapshot({ persistCreationTimes: false })
     const aliases = compilePathAliases(snapshot.pathAliases ?? {})
     const note = canonicalNote(snapshot, id, aliases)
     const backlinks = getBacklinks(note.path, snapshot.notes, aliases)
@@ -1125,7 +1127,7 @@ export class VaultMcpService {
     source: string,
     options: SuggestLinksOptions = {}
   ): Promise<SuggestLinksOutput> {
-    const { snapshot } = await this.snapshot()
+    const { snapshot } = await this.snapshot({ persistCreationTimes: false })
     const aliases = compilePathAliases(snapshot.pathAliases ?? {})
     const note = canonicalNote(snapshot, source, aliases)
     const candidates = suggestLinkCandidates(
@@ -1263,7 +1265,7 @@ export class VaultMcpService {
     maxCharacters = 15_000,
     options: BuildContextOptions = {}
   ): Promise<ContextOutput> {
-    const { snapshot } = await this.snapshot()
+    const { snapshot } = await this.snapshot({ persistCreationTimes: false })
     const aliases = compilePathAliases(snapshot.pathAliases ?? {})
     const note = canonicalNote(snapshot, id, aliases)
     const bundle = buildContextBundle(note.path, snapshot.notes, {

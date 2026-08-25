@@ -11,8 +11,14 @@ import {
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import {
+  assertExactReadOnlyCoverage,
+  assertNoTreeMutation
+} from './mcp-readonly-integrity.mjs'
 
 const vaultPath = await mkdtemp(join(tmpdir(), 'tsuzune-mcp-'))
+const profilePath = await mkdtemp(join(tmpdir(), 'tsuzune-mcp-profile-'))
+const settingsPath = join(profilePath, 'settings.json')
 const escapedPath = join(
   vaultPath,
   '..',
@@ -25,6 +31,8 @@ const transport = new StdioClientTransport({
     serverPath,
     '--vault',
     vaultPath,
+    '--settings',
+    settingsPath,
     '--drive-sync-state',
     join(vaultPath, 'missing-drive-sync-state.json')
   ],
@@ -44,6 +52,7 @@ try {
   await mkdir(join(vaultPath, 'Projects'))
   await mkdir(join(vaultPath, 'History'))
   await mkdir(join(vaultPath, 'Knowledge'))
+  await mkdir(join(vaultPath, '.tsuzune'))
   await mkdir(join(vaultPath, '50_履歴', 'AI更新'), { recursive: true })
   await writeFile(
     join(vaultPath, 'Home.md'),
@@ -131,6 +140,18 @@ try {
     throw new Error(`Unexpected tools: ${toolNames.join(', ')}`)
   }
   const toolsByName = new Map(listed.tools.map((tool) => [tool.name, tool]))
+  const requiredDescriptionTerms = {
+    search: ['Use first', 'note id is unknown', 'fetch', 'build_context'],
+    fetch: ['full Markdown', 'revision', 'build_context', 'one note'],
+    build_context: ['linked or temporal context', 'fetch', 'one note', 'included-source metadata'],
+    create_note: ['user directly asks', 'active project contract explicitly requires']
+  }
+  for (const [name, terms] of Object.entries(requiredDescriptionTerms)) {
+    const description = toolsByName.get(name)?.description ?? ''
+    if (terms.some((term) => !description.includes(term))) {
+      throw new Error(`${name} description lost its semantic contract.`)
+    }
+  }
   const contextInputSchema = toolsByName.get('build_context')?.inputSchema
   const contextQuerySchema = contextInputSchema?.properties?.query
   if (
@@ -242,7 +263,29 @@ try {
     throw new Error('patch_note must disclose that it modifies a note.')
   }
 
-  const runtimeInfo = await client.callTool({
+  const declaredReadOnlyToolNames = listed.tools
+    .filter((tool) => tool.annotations?.readOnlyHint === true)
+    .map((tool) => tool.name)
+    .sort()
+  const exercisedReadOnlyToolNames = new Set()
+  const readOnlyScopes = [
+    { name: 'vault', path: vaultPath },
+    { name: 'profile', path: profilePath }
+  ]
+  async function callReadOnlyTool(request) {
+    if (!declaredReadOnlyToolNames.includes(request.name)) {
+      throw new Error(`${request.name} is not declared read-only.`)
+    }
+    const result = await assertNoTreeMutation(
+      readOnlyScopes,
+      () => client.callTool(request),
+      `read-only MCP tool ${request.name}`
+    )
+    exercisedReadOnlyToolNames.add(request.name)
+    return result
+  }
+
+  const runtimeInfo = await callReadOnlyTool({
     name: 'runtime_info',
     arguments: {}
   })
@@ -260,7 +303,7 @@ try {
     throw new Error('runtime_info did not return the active runtime identity.')
   }
 
-  const deliveryInfo = await client.callTool({
+  const deliveryInfo = await callReadOnlyTool({
     name: 'delivery_info',
     arguments: {}
   })
@@ -281,7 +324,7 @@ try {
   try {
     const future = new Date(Date.now() + 60_000)
     await utimes(serverPath, future, future)
-    const staleRuntime = await client.callTool({
+    const staleRuntime = await callReadOnlyTool({
       name: 'runtime_info',
       arguments: {}
     })
@@ -302,7 +345,7 @@ try {
     throw new Error('add_link must disclose that it modifies a note.')
   }
 
-  const unavailableDrivePreview = await client.callTool({
+  const unavailableDrivePreview = await callReadOnlyTool({
     name: 'preview_drive_sync',
     arguments: {}
   })
@@ -315,7 +358,7 @@ try {
     throw new Error('preview_drive_sync did not fail closed without the app.')
   }
 
-  const search = await client.callTool({
+  const search = await callReadOnlyTool({
     name: 'search',
     arguments: { query: 'Local Markdown' }
   })
@@ -330,7 +373,7 @@ try {
     throw new Error('search did not return the expected note.')
   }
 
-  const fetched = await client.callTool({
+  const fetched = await callReadOnlyTool({
     name: 'fetch',
     arguments: { id: 'Projects/TSUZUNE.md' }
   })
@@ -341,12 +384,26 @@ try {
     throw new Error('fetch did not return the expected note.')
   }
 
-  const firstBacklinks = await client.callTool({
+  const suggested = await callReadOnlyTool({
+    name: 'suggest_links',
+    arguments: { source: 'Home.md' }
+  })
+  if (
+    suggested.isError ||
+    !Array.isArray(suggested.structuredContent?.candidates) ||
+    suggested.structuredContent.candidates.some(
+      (candidate) => candidate?.target === 'Projects/TSUZUNE.md'
+    )
+  ) {
+    throw new Error('suggest_links errored or returned an already-linked target.')
+  }
+
+  const firstBacklinks = await callReadOnlyTool({
     name: 'get_backlinks',
     arguments: { id: 'Projects/TSUZUNE.md', limit: 1 }
   })
   const nextAfter = firstBacklinks.structuredContent?.next_after
-  const secondBacklinks = await client.callTool({
+  const secondBacklinks = await callReadOnlyTool({
     name: 'get_backlinks',
     arguments: {
       id: 'Projects/TSUZUNE.md',
@@ -371,7 +428,7 @@ try {
   ) {
     throw new Error('get_backlinks did not page filtered sources correctly.')
   }
-  const backlinksWithHistory = await client.callTool({
+  const backlinksWithHistory = await callReadOnlyTool({
     name: 'get_backlinks',
     arguments: {
       id: 'Projects/TSUZUNE.md',
@@ -389,7 +446,7 @@ try {
     throw new Error('get_backlinks did not include history when requested.')
   }
 
-  const context = await client.callTool({
+  const context = await callReadOnlyTool({
     name: 'build_context',
     arguments: { id: 'Home.md', max_characters: 5_000 }
   })
@@ -417,7 +474,7 @@ try {
     )
   }
 
-  const queriedContext = await client.callTool({
+  const queriedContext = await callReadOnlyTool({
     name: 'build_context',
     arguments: {
       id: 'Home.md',
@@ -439,7 +496,7 @@ try {
     throw new Error('build_context did not pass query to the context builder.')
   }
 
-  const rejectedLongQuery = await client.callTool({
+  const rejectedLongQuery = await callReadOnlyTool({
     name: 'build_context',
     arguments: {
       id: 'Home.md',
@@ -450,7 +507,7 @@ try {
     throw new Error('build_context accepted a query longer than 500 characters.')
   }
 
-  const temporalContext = await client.callTool({
+  const temporalContext = await callReadOnlyTool({
     name: 'build_context',
     arguments: {
       id: 'Home.md',
@@ -491,7 +548,7 @@ try {
     )
   }
 
-  const knowledgeContext = await client.callTool({
+  const knowledgeContext = await callReadOnlyTool({
     name: 'build_context',
     arguments: {
       id: 'Home.md',
@@ -513,7 +570,7 @@ try {
     )
   }
 
-  const rejected = await client.callTool({
+  const rejected = await callReadOnlyTool({
     name: 'fetch',
     arguments: { id: '../outside.md' }
   })
@@ -540,7 +597,7 @@ try {
     throw new Error('create_directory accepted a path outside the Vault.')
   }
 
-  const listedDirectory = await client.callTool({
+  const listedDirectory = await callReadOnlyTool({
     name: 'list_directory',
     arguments: { path: 'Projects', depth: 1 }
   })
@@ -561,7 +618,7 @@ try {
     '# Changed after page',
     'utf8'
   )
-  const staleDirectoryPage = await client.callTool({
+  const staleDirectoryPage = await callReadOnlyTool({
     name: 'list_directory',
     arguments: {
       path: 'Projects',
@@ -603,7 +660,7 @@ try {
     throw new Error('create_note did not create the expected note.')
   }
 
-  const openedForUpdate = await client.callTool({
+  const openedForUpdate = await callReadOnlyTool({
     name: 'fetch',
     arguments: { id: 'Projects/AI-created.md' }
   })
@@ -732,19 +789,6 @@ try {
       content: '# Context\n\nAI AgentのContext-Sidecar構想。'
     }
   })
-  const suggested = await client.callTool({
-    name: 'suggest_links',
-    arguments: { source: 'Home.md' }
-  })
-  if (
-    suggested.isError ||
-    !Array.isArray(suggested.structuredContent?.candidates) ||
-    suggested.structuredContent.candidates.some(
-      (candidate) => candidate?.target === 'Projects/TSUZUNE.md'
-    )
-  ) {
-    throw new Error('suggest_links errored or returned an already-linked target.')
-  }
   const linked = await client.callTool({
     name: 'add_link',
     arguments: {
@@ -770,7 +814,7 @@ try {
     throw new Error('add_link did not write a note_link_add audit record.')
   }
 
-  const unavailableMovePreflight = await client.callTool({
+  const unavailableMovePreflight = await callReadOnlyTool({
     name: 'preflight_move_entry',
     arguments: {
       source: 'Projects/TSUZUNE.md',
@@ -803,8 +847,10 @@ try {
   ) {
     throw new Error('move_entry did not fail closed without the app.')
   }
-
-
+  assertExactReadOnlyCoverage(
+    declaredReadOnlyToolNames,
+    exercisedReadOnlyToolNames
+  )
   console.log('TSUZUNE MCP smoke check passed: 10 read tools and 8 write tools.')
 } catch (error) {
   if (stderr.trim()) {
@@ -814,5 +860,6 @@ try {
 } finally {
   await client.close().catch(() => undefined)
   await rm(vaultPath, { recursive: true, force: true })
+  await rm(profilePath, { recursive: true, force: true })
   await rm(escapedPath, { force: true })
 }

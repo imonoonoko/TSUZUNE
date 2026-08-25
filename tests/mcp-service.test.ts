@@ -11,6 +11,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { VaultService } from '../src/main/vault'
 import { VaultMcpService } from '../src/mcp/service'
 
 describe('MCP vault service', () => {
@@ -47,6 +48,34 @@ describe('MCP vault service', () => {
       'utf8'
     )
   }
+
+  async function persistCreationTimes(): Promise<void> {
+    const vault = new VaultService()
+    await vault.setRootPath(root)
+    await vault.scan()
+  }
+
+  it('does not create creation-time metadata during a read-only search', async () => {
+    await service.search('AI連携')
+
+    await expect(stat(join(root, '.tsuzune'))).rejects.toMatchObject({
+      code: 'ENOENT'
+    })
+  })
+
+  it('does not repair malformed creation-time metadata during a read-only fetch', async () => {
+    const sidecarPath = join(root, '.tsuzune', 'graph-file-times.json')
+    await mkdir(join(root, '.tsuzune'))
+    await writeFile(sidecarPath, '{ malformed', 'utf8')
+    const fixedTime = new Date('2001-01-01T00:00:00.000Z')
+    await utimes(sidecarPath, fixedTime, fixedTime)
+    const before = await stat(sidecarPath)
+
+    await service.fetch('Home.md')
+
+    expect(await readFile(sidecarPath, 'utf8')).toBe('{ malformed')
+    expect((await stat(sidecarPath)).mtimeMs).toBe(before.mtimeMs)
+  })
 
   it('searches, fetches, follows backlinks, and builds context', async () => {
     const search = await service.search('AI連携')
@@ -1184,6 +1213,7 @@ describe('MCP vault service', () => {
     const fixedTime = new Date('2001-01-01T00:00:00.000Z')
 
     await utimes(targetPath, fixedTime, fixedTime)
+    await persistCreationTimes()
     const opened = await service.fetch('Projects/TSUZUNE.md')
     const targetContents = await readFile(targetPath, 'utf8')
     const sidecarContents = await readFile(sidecarPath, 'utf8')
@@ -1286,6 +1316,7 @@ describe('MCP vault service', () => {
     const targetPath = join(root, 'Projects', 'TSUZUNE.md')
     const sidecarPath = join(root, '.tsuzune', 'graph-file-times.json')
     const historyDirectory = join(root, '50_履歴', 'AI更新')
+    await persistCreationTimes()
     const opened = await service.fetch('Projects/TSUZUNE.md')
 
     await writeFile(targetPath, '# TSUZUNE\n\n外部更新。', 'utf8')

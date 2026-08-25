@@ -614,7 +614,10 @@ export class VaultService {
     )
   }
 
-  async scan(userIgnoreFilters: readonly string[] = []): Promise<VaultSnapshot> {
+  async scan(
+    userIgnoreFilters: readonly string[] = [],
+    { persistCreationTimes = true }: { persistCreationTimes?: boolean } = {}
+  ): Promise<VaultSnapshot> {
     const root = this.requireRoot()
     const revision = this.rootRevision
     const directories: string[] = ['']
@@ -690,21 +693,23 @@ export class VaultService {
     }
 
     const pathAliases = await this.readPathAliases(root)
-    const [creationTimes, bookmarks] = await Promise.all([
-      this.updateCreationTimes(
-        root,
-        revision,
-        (current) => {
-          const next: CreationTimeRegistry = {}
-          for (const item of [...notes, ...attachments]) {
-            const timestamp = current[item.path] ?? item.createdAt
-            if (validCreationTime(timestamp)) {
-              next[item.path] = timestamp
-            }
-          }
-          return next
+    const reconcileCreationTimes = (
+      current: CreationTimeRegistry
+    ): CreationTimeRegistry => {
+      const next: CreationTimeRegistry = {}
+      for (const item of [...notes, ...attachments]) {
+        const timestamp = current[item.path] ?? item.createdAt
+        if (validCreationTime(timestamp)) {
+          next[item.path] = timestamp
         }
-      ),
+      }
+      return next
+    }
+    const creationTimesPromise = persistCreationTimes
+      ? this.updateCreationTimes(root, revision, reconcileCreationTimes)
+      : this.readCreationTimes(root).then(reconcileCreationTimes)
+    const [creationTimes, bookmarks] = await Promise.all([
+      creationTimesPromise,
       this.readBookmarks(root)
     ])
 

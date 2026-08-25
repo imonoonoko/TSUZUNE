@@ -10,6 +10,9 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const catalog = JSON.parse(
   await readFile(join(repositoryRoot, 'src', 'mcp', 'tool-catalog.json'), 'utf8')
 )
+const packageJson = JSON.parse(
+  await readFile(join(repositoryRoot, 'package.json'), 'utf8')
+)
 const commonTools = catalog.common
 const directTools = [...commonTools, ...catalog.directOnly]
 
@@ -89,6 +92,11 @@ try {
 const readme = (await readFile(join(repositoryRoot, 'README.md'), 'utf8')).replaceAll(
   '\r\n',
   '\n'
+)
+assert(
+  readme.includes(`現在のrepository／package versionは\`${packageJson.version}\`です。`) &&
+    readme.includes(`/releases/tag/v${packageJson.version}`),
+  `README version references must match package.json ${packageJson.version}.`
 )
 assert(
   readme.includes(`Codex Desktopへ登録するMCP toolは${commonTools.length}個です。`),

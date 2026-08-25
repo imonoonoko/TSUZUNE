@@ -209,9 +209,15 @@ async function assertFreshRuntime(): Promise<void> {
   try {
     freshness = await runtimeFreshness()
   } catch {
-    throw new Error('RUNTIME_FRESHNESS_UNAVAILABLE')
+    throw new Error(
+      'RUNTIME_FRESHNESS_UNAVAILABLE: Cannot verify the active MCP build. Rebuild the MCP server (Codex: run npm run mcp:register), then restart the MCP client before retrying writes.'
+    )
   }
-  if (freshness.stale) throw new Error('STALE_RUNTIME_WRITE_BLOCKED')
+  if (freshness.stale) {
+    throw new Error(
+      'STALE_RUNTIME_WRITE_BLOCKED: The registered MCP server is stale. Rebuild the MCP server (Codex: run npm run mcp:register), then restart the MCP client before retrying writes.'
+    )
+  }
 }
 
 async function runtimeInfo(
@@ -300,7 +306,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEノート検索',
       description:
-        'Search the active TSUZUNE Vault by note title, relative path, and Markdown content. Space-separated terms use implicit AND; natural Japanese sentences are split on particles/punctuation and ranked by how many segmented terms match (not all terms are required); quoted phrases, -negation, tag:, path:, and file: filters are supported. 50_履歴 (audit history) notes are excluded by default; pass include_history: true to include them.',
+        'Use first when the note id is unknown. Search the active TSUZUNE Vault by title, relative path, and Markdown content, then use fetch for one note or build_context for linked or temporal context. Space-separated terms use implicit AND; natural Japanese sentences are segmented and ranked; quoted phrases, -negation, tag:, path:, and file: filters are supported. 50_履歴 is excluded by default; pass include_history: true to include it.',
       inputSchema: {
         query: z.string().min(1).describe('Search query'),
         limit: z.number().int().min(1).max(50).optional().default(10),
@@ -336,7 +342,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEノート取得',
       description:
-        'Fetch one Markdown note by the relative-path id returned from search.',
+        'Fetch one note by the relative-path id returned from search. Use when the full Markdown and revision of one note are needed; use build_context instead for linked or temporal context.',
       inputSchema: {
         id: z.string().min(1).describe('Relative note path returned by search')
       },
@@ -438,7 +444,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEノート作成',
       description:
-        'Create a new Markdown note in an existing Vault folder. Never overwrites an existing note. Use only when the user asks to create a note.',
+        'Create a new Markdown note in an existing Vault folder. Never overwrites an existing note. Use only when the user directly asks or the active project contract explicitly requires a durable note.',
       inputSchema: {
         path: z
           .string()
@@ -919,7 +925,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEコンテキスト作成',
       description:
-        'Build a bounded Markdown context bundle from one note, its linked notes, and related temporal state or event notes.',
+        'Build a bounded Markdown bundle from one note, linked notes, and related temporal state or event notes. Use after search when linked or temporal context is needed; use fetch for one note only. Returns Markdown plus included-source metadata.',
       inputSchema: {
         id: z.string().min(1).describe('Relative note path'),
         query: z
