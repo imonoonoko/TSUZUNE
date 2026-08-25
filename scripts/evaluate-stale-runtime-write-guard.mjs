@@ -371,6 +371,8 @@ async function run() {
       const message = String(result.content?.[0]?.text ?? '')
       assert.equal(result.isError, true, `${name} was not rejected`)
       assert(message.includes('STALE_RUNTIME_WRITE_BLOCKED'), `${name} used the wrong error`)
+      assert(message.includes('npm run mcp:register'), `${name} omitted the recovery command`)
+      assert(message.includes('restart the MCP client'), `${name} omitted the restart step`)
       staleErrors.push(name)
     }
     const afterStaleWrites = await snapshotMutationState(vaultPath, mutationStatePaths)
@@ -431,6 +433,14 @@ async function run() {
     assert(
       String(missingBuildWrite.content?.[0]?.text ?? '').includes(
         'RUNTIME_FRESHNESS_UNAVAILABLE'
+      )
+    )
+    assert(
+      String(missingBuildWrite.content?.[0]?.text ?? '').includes('npm run mcp:register')
+    )
+    assert(
+      String(missingBuildWrite.content?.[0]?.text ?? '').includes(
+        'restart the MCP client'
       )
     )
     assert.equal(

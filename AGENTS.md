@@ -11,7 +11,7 @@
 
 ## Production TSUZUNE Dogfood
 
-- Use the registered TSUZUNE MCP against the active production Vault at the start of project work: search for the project note, fetch it, and build only the relevant context before relying on chat recollection.
+- Classify project work before using the production Vault: use **No-TSUZUNE** for self-contained lightweight work, **read-only** for non-trivial work that depends on prior decisions or constraints, and **read-write** only when canonical state, decisions, verification, or restart conditions change for later reuse. For read-only/read-write work, search narrowly, fetch only the relevant project context, and use `build_context` only when linked or temporal context is required.
 - For one user-approved work item, accumulate intermediate results and write back only at its final verified boundary. Create at most one concise source note, then update each affected existing project note, MOC, or ledger at most once with the evidence path, current status, remaining boundary, and next step. Fetch immediately before the final revision-checked update; if the rendered content is identical, do not write. Do not patch hubs or MOCs after every sub-step.
 - Keep the production Vault's `00_入口/TSUZUNE運用・開発資料`, `30_知識/TSUZUNE運用標準`, `30_知識/TSUZUNEシステム設計`, `30_知識/TSUZUNE開発ロードマップ`, `30_知識/TSUZUNE知識シナジー地図`, and dated development-material ledger synchronized only when the final verified boundary changes their operations, architecture, evidence, priority, or a tested cross-domain insight. The repository remains implementation truth; these MOCs are dated navigation and operational synthesis. Update the affected atomic note first, then each affected MOC once; do not expand a MOC into a duplicate specification or copy secrets into it.
 - A verified milestone that changes shipped product code is not complete until `npm run production:update` installs and verifies that working tree on this PC. Research-only and documentation-only checkpoints do not require reinstalling an unchanged binary.
@@ -22,13 +22,15 @@
 
 ## User-Facing Result Reports
 
-- Lead the final response with one plain-language paragraph that answers: what changed, what it means for the user, and how far it is actually complete. Do not lead with file names, test counts, hashes, tools, Skills, or implementation terminology.
-- Report in this order: `結局どうなった` -> `変更前 -> 変更後` -> `利用者への効果` -> `現在地` -> `残っていること／停止線` -> `技術証拠`. Omit sections that add no useful information, but never omit the outcome or current state.
-- If behavior or appearance did not change, say so explicitly. Explain the practical reason for an internal refactor, such as making later changes safer or limiting the area affected by failures.
-- Use status terms precisely: `未着手`, `作業中`, `実装済み`, `本番反映済み`, `動作確認済み`, `利用者確認済み`. Tests or automated smoke checks may prove `動作確認済み`; only direct user confirmation may prove `利用者確認済み`.
-- Distinguish source implementation, installed production, live runtime verification, and Git delivery. Never let `tests passed`, `production installed`, `committed`, `pushed`, or `merged` imply one another.
-- Put detailed verification last and keep it compact. Translate unavoidable technical terms into their practical meaning instead of presenting raw evidence as the result.
-- When reporting project status, separate current verified facts, historical evidence, items requiring recheck, and the reason the current state was adopted.
+- Optimize for clarity and forward movement, not minimum length. Be concise without making the conversation abrupt, mechanical, or closed prematurely.
+- Use a short completion report only when the requested work is genuinely complete, no user decision is pending, and there is no useful in-scope continuation. State what finished, what changed for the user, and whether they need to act; do not enforce an arbitrary sentence limit.
+- Do not apply the completion-report shape to discussion, feedback, planning, review, diagnosis, status questions, clarification, brainstorming, or a request to continue. In those cases, answer directly, explain enough reasoning and tradeoffs to be useful, and advance the conversation with the most relevant next step.
+- Match the user's tone and preserve a natural collaborative voice. Avoid canned closure phrases and do not replace a substantive answer with a terse status line.
+- Say `あなたが追加で行うことはありません。` only at a true terminal boundary when the user has no action and no useful continuation remains. Never use it merely because one subtask finished.
+- Keep technical evidence out of the opening. Add file counts, commit hashes, test counts, tool or Skill names, internal workflow, and implementation details only when the user asks, when failure or risk makes them relevant, or when they materially affect what the user can trust or do next.
+- Mention remaining work only when it is inside the requested scope or requires the user's action. Do not present unrelated Held items, future candidates, or intentionally excluded work as unfinished work.
+- Distinguish source implementation, installed production, live runtime verification, Git delivery, and user confirmation when the distinction changes the practical conclusion. When needed, use the precise terms `未着手`, `作業中`, `実装済み`, `本番反映済み`, `動作確認済み`, `利用者確認済み`.
+- If behavior or appearance did not change, say so plainly and explain the practical reason in proportion to the task.
 
 ## GitHub Delivery
 
