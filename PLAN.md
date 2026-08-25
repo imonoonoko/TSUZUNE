@@ -24,12 +24,12 @@
 
 | 区分 | 現在地 |
 |---|---|
-| Complete | 既存Context Compiler、Temporal Memory、MCP revision、patch、AI履歴、Review proposal、保護領域、production gate。R0能力・owner候補・fixture Baseline棚卸し。1命題のState Packet比較。Compact Decision Envelopeの5-case盲検benchmark。Workflow Verification Harness Phase 1（固定allowlist、fail-first、source fingerprint、JSON Receipt、public CLI fixture 4件、`current-decision`／`typecheck`／`test`／`mcp` dogfood） |
+| Complete | 既存Context Compiler、Temporal Memory、MCP revision、patch、AI履歴、Review proposal、保護領域、production gate。R0能力・owner候補・fixture Baseline棚卸し。1命題のState Packet比較。Compact Decision Envelopeの5-case盲検benchmark。Workflow Verification Harness Phase 1（固定allowlist、fail-first、source fingerprint、JSON Receipt、public CLI fixture 4件、`current-decision`／`typecheck`／`test`／`mcp` dogfood）。Executable Policy Pilot 1（宣言済みread-only MCP 10件の通常Vault／隔離profile不変性と完全coverage）。MCP read-only完全化（cold／malformed／noncanonicalなcreation-time sidecarを含むVault／profile全体の無書込み。通常scanとwrite経路のrepairは維持） |
 | Next | **自然利用観測**。Phase 1 Harnessを通常の開発taskで使い、Receiptで表せない同型の証拠欠落または手作業摩擦が独立2件以上反復するか観測する。新しい実装Primaryは置かない。[Phase 1実装・検証](docs/reports/workflow-verification-harness-phase1-plan-2026-08-26.md) |
 | Held | R1〜R10、Compact Decision Envelope、独立Harness runtime、新DB、Vector DB、常駐Hook、全Vault ingestion、永続派生ビュー、BM25/cache、multi-note transaction、広域Graph拡張 |
-| Research | exact rollout usageの明示添付、exclusionと完全修飾IDを機械検査できる最小transient形式、意味的no-op、owner候補支援、projection、event sourcing、background maintenance。Phase 1で同型摩擦が独立2件以上観測されるか、既存再開条件が成立するまで実装へ昇格しない |
+| Research | exact rollout usageの明示添付、exclusionと完全修飾IDを機械検査できる最小transient形式、意味的no-op、owner候補支援、projection、event sourcing、background maintenance。Phase 1で同型摩擦が独立2件以上観測されるまで実装へ昇格しない |
 
-Workflow Verification Harness Phase 1は、新しいAgent runtimeを作らず、既存checkを再利用するread-onlyの証拠収集器として完了しました。初回の`mcp` dogfoodでもsource不変のままPASSし、Receiptで表せない摩擦はまだ0件です。現在は実装Primaryを置かず自然利用を観測し、R0／State Packet／Compact Decision Envelopeの不採用境界とR1以降のHeldを維持します。[Phase 1実装・検証](docs/reports/workflow-verification-harness-phase1-plan-2026-08-26.md)と既存の[R0 Baseline](docs/reports/current-state-compiler-r0-baseline-2026-08-23.md)を分離して扱います。
+Workflow Verification Harness Phase 1は、新しいAgent runtimeを作らず、既存checkを再利用するread-onlyの証拠収集器として完了しました。Executable Policy Pilot 1で確認した`.tsuzune` creation-time sidecarの別境界は、利用者の明示選択を受けて製品sliceとして閉じました。MCP read-only経路はsidecarを読み取って論理creation timeを維持しますが、cold時の作成、malformed時のrepair、noncanonical JSONの正規化を行いません。通常scanとwrite経路は従来どおりrepairします。Harnessは`.tsuzune`除外を撤去し、宣言済みread-only tool 10件についてVault／profile全体のbyte／metadata／directory不変性と完全coverageを検査します。新しい実装Primaryは置かず、次は自然利用を観測します。[MCP read-only完全化](docs/reports/mcp-readonly-zero-write-2026-08-26.md)、[Pilot 1実装・検証](docs/reports/executable-policy-pilot-1-2026-08-26.md)、[Phase 1実装・検証](docs/reports/workflow-verification-harness-phase1-plan-2026-08-26.md)、既存の[R0 Baseline](docs/reports/current-state-compiler-r0-baseline-2026-08-23.md)を分離して扱います。
 
 ### Success Conditions
 
@@ -544,7 +544,7 @@ semantic no-op補助判定、owner candidate ranking、projection freshness、ev
 
 ## 11. Next Authorized Slice
 
-`Workflow Verification Harness Phase 1`の実装sliceは完了しました。現在承認済みの活動は、既存のHarnessを自然な開発taskで使うread-only観測であり、新しいcode sliceではありません。詳細Evidenceは[`docs/reports/workflow-verification-harness-phase1-plan-2026-08-26.md`](docs/reports/workflow-verification-harness-phase1-plan-2026-08-26.md)を参照します。
+`Workflow Verification Harness Phase 1`、`Executable Policy Pilot 1`、MCP read-only完全化の実装sliceは完了しました。既存`mcp` checkは除外なしで、宣言済みread-only tool 10件のVault／隔離profile不変性と完全coverageを検査します。現在承認済みの活動は、既存Harnessを自然な開発taskで使うread-only観測であり、新しいcode sliceではありません。詳細Evidenceは[`docs/reports/mcp-readonly-zero-write-2026-08-26.md`](docs/reports/mcp-readonly-zero-write-2026-08-26.md)を参照します。
 
 通常利用では、taskごとに必要な固定checkだけを選びます。
 
@@ -552,4 +552,4 @@ semantic no-op補助判定、owner candidate ranking、projection freshness、ev
 npm run check:workflow -- --task <task-id> --checks current-decision,typecheck,test,mcp
 ```
 
-Phase 2は、独立した自然task 2件以上で同じ証拠欠落または手作業摩擦が反復し、既存checkとReceiptでは原因を特定できない場合だけ再契約します。R1〜R10、Compact Decision Envelope、独立Harness runtime、daemon、DB、Hook、cacheはHeldです。HarnessのPASSをpackaged／installed／live／利用者確認へ昇格せず、未検証層は`not_proven`として残します。
+Phase 2は、独立した自然task 2件以上で同じ証拠欠落または手作業摩擦が反復し、既存checkとReceiptでは原因を特定できない場合だけ再契約します。`.tsuzune` cold／malformed／noncanonical境界を含むliteralなMCP read-only環境不変はこのsliceで閉じました。R1〜R10、Compact Decision Envelope、独立Harness runtime、daemon、DB、Hook、cacheはHeldです。HarnessのPASSをpackaged／installed／live／利用者確認へ昇格せず、未検証層は`not_proven`として残します。

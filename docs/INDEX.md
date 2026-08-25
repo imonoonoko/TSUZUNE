@@ -1,6 +1,6 @@
 # TSUZUNE Documentation Index
 
-更新日: 2026-08-23
+更新日: 2026-08-26
 
 ## まず読む
 
@@ -14,6 +14,8 @@
 
 - [改善・未達成項目 実行台帳](reports/tsuzune-improvement-ledger-2026-08-23.md) — する／しない／条件成立時だけを確定した判断索引。現在のPrimary／Nextは[PLAN.mdのCurrent Decision](../PLAN.md#current-decision)を正本とし、ここでは可変状態を複製しない。
 - [Workflow Verification Harness Phase 1](reports/workflow-verification-harness-phase1-plan-2026-08-26.md) — 固定allowlist、fail-first、source不変性、JSON Receipt、public CLI fixture 4件と初回`mcp` dogfoodのsource／fixture証拠。現在のPrimary／Nextは[PLAN.mdのCurrent Decision](../PLAN.md#current-decision)を参照。
+- [Executable Policy Pilot 1](reports/executable-policy-pilot-1-2026-08-26.md) — 宣言済みread-only MCP 10件の通常Vault／隔離profile不変性と完全coverageを既存`mcp` checkへ接続したsource／fixture証拠。`.tsuzune`内部台帳repairとliteralな環境全体zero writeを分離する。
+- [MCP read-only完全化](reports/mcp-readonly-zero-write-2026-08-26.md) — Pilotで分離したcreation-time sidecar境界を製品sliceとして閉じ、cold／malformed／noncanonicalを含むVault／profile全体の無書込みと通常scanのrepair維持を固定した証拠。
 - [Workspace Tabs R5 acceptance](reports/workspace-tabs-r5-2026-08-22.md) — keyboard／ARIA、roving tabindex、Ctrl+Tab／Ctrl+1..9／安全なCtrl+W、active close後focusを既存stateで実装し、770 PASS／1 SKIP、隔離Electron、本番10/10 checksを固定した受入証拠。
 - [Daily Workspace Phase B acceptance](reports/daily-workspace-phase-b-2026-08-22.md) — R4/R5反映済みinstalled binaryを100%表示、High Contrast、Narrator、主要focus境界で確認し、現在のdirty sourceとは分離した実機証拠。
 - [Daily Workspace Phase A acceptance](reports/daily-workspace-phase-a-2026-08-22.md) — production Vaultを開かない隔離・offscreen環境で3入口、FileTree、IME境界、720px幅、long/error/conflict、tabs baselineを確認したR4/R5前段証拠。
@@ -127,6 +129,7 @@ HTMLは閲覧用、`.artifact.json`と`assets/**/*.json`は機械可読な証拠
 
 ## 歴史資料
 
+- [Codex session handoff archive](codex-handoffs/README.md) — 2026-08-11〜14の継続packet索引。各Reactivation Prompt／Current／Next Stepsは作成時点のsnapshotであり、現行指示には使わない。
 - [v0.1 Scope](v0.1-scope.md) — 初期MVPの凍結記録。現行仕様ではない。
 - `reports/graph-explorer-p0-2-*`
 - `reports/graph-explorer-p0-3-*`

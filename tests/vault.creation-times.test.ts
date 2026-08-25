@@ -73,6 +73,24 @@ describe('VaultService logical creation times', () => {
     expect((await stat(registryPath)).mtimeMs).toBe(before.mtimeMs)
   })
 
+  it('reads logical creation times without normalizing the sidecar when persistence is disabled', async () => {
+    const logicalCreatedAt = 1_700_000_000_000
+    await mkdir(absolute('.tsuzune'))
+    await writeFile(absolute('継続.md'), '本文', 'utf8')
+    const registryPath = absolute('.tsuzune/graph-file-times.json')
+    const registryContents = JSON.stringify({ '継続.md': logicalCreatedAt })
+    await writeFile(registryPath, registryContents, 'utf8')
+    const fixedTimestamp = new Date('2001-01-01T00:00:00.000Z')
+    await utimes(registryPath, fixedTimestamp, fixedTimestamp)
+    const before = await stat(registryPath)
+
+    const snapshot = await vault.scan([], { persistCreationTimes: false })
+
+    expect(snapshot.notes[0].createdAt).toBe(logicalCreatedAt)
+    expect(await readFile(registryPath, 'utf8')).toBe(registryContents)
+    expect((await stat(registryPath)).mtimeMs).toBe(before.mtimeMs)
+  })
+
   it('records the pre-replace creation time when a note is saved before any scan', async () => {
     await writeFile(absolute('直接保存.md'), '保存前', 'utf8')
     const opened = await vault.readNote('直接保存.md')
