@@ -1,6 +1,6 @@
 # TSUZUNE Project Status
 
-更新日: 2026-08-23（JST）
+更新日: 2026-08-26（JST）
 
 この文書は、TSUZUNEの「今」を一枚で確認するための入口です。実行順と将来計画は[PLAN.md](PLAN.md)、製品の不変条件は[PRODUCT.md](PRODUCT.md)、画面・ブランド規約は[DESIGN.md](DESIGN.md)を正本とします。完了証拠は[docs/INDEX.md](docs/INDEX.md)から辿ります。
 
@@ -13,7 +13,7 @@
 | 公開配布 | PR #1をmerge commit `4854bdd`で`main`へ統合し、`v0.5.0`を公開Releaseとして配布済み。installer、blockmap、`latest.yml`の匿名HTTP取得、digest、public updater feedを確認。未署名のためSmartScreen警告は残る | [public repository readiness](docs/reports/public-repository-readiness-2026-08-15.md) |
 | Graph直近slice | CP1-B-02で実在Markdownノートにも`フォルダで表示`を接続。公式production updateの全529 tests／10 checksを通して本番反映済み | [CP1-B-02](docs/reports/cp1-b-02-note-folder-reveal-2026-08-13.md) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
-| 最優先Track | 現役Primary Trackは0。P0-1 Quick Switcher、P0-2 Command Palette、P0-3/R3 Full-text Search、P0-4/R4 FileTree keyboard／ARIA、R5 Workspace Tabs keyboard／ARIAは本番受入済み。現在状態コンパイラR1〜R10とCompact Decision EnvelopeはHeldで、承認済みの次sliceはない | [PLAN.md](PLAN.md#current-decision) |
+| 最優先Track | 製品Primary Trackは0。developer workflowのWorkflow Verification Harness Phase 1はsource／fixture実装と初回`mcp` dogfoodまで完了し、次は自然利用観測。製品runtimeは変更しておらず、現在状態コンパイラR1〜R10、Compact Decision Envelope、独立Harness runtimeはHeld | [PLAN.md](PLAN.md#current-decision)／[Harness evidence](docs/reports/workflow-verification-harness-phase1-plan-2026-08-26.md) |
 | 直近4項目 | 左右sidebar独立開閉、既定offのDrive削除伝播、AI履歴止血／将来連鎖metadata、明示5ノート分類applyを完了。旧履歴の圧縮だけは安全条件未達のため未実施 | [Drive deletion](docs/reports/drive-deletion-propagation-acceptance-2026-08-17.md)／[history](docs/reports/history-compaction-preview-2026-08-16.md)／[classification](docs/reports/classification-production-gate-2026-08-17.md) |
 | 直近UX区切り | R4でFileTreeのtreeitem／roving tabindex／Arrow・Home・End・typeahead／IME境界を、R5でWorkspace Tabsのkeyboard／ARIA／close後focusを本番反映。Daily Workspace Phase Bで100%表示、High Contrast、Narrator、主要focus境界もinstalled binary上で確認した | [R4 evidence](docs/reports/daily-workspace-phase-a-2026-08-22.md)／[R5 acceptance](docs/reports/workspace-tabs-r5-2026-08-22.md)／[Phase B](docs/reports/daily-workspace-phase-b-2026-08-22.md) |
 | Quick Switcher P0-1 | `Ctrl+O`、session MRU、タイトル／path／本文検索、重複path表示、Arrow／Home／End、Enter／Ctrl+Enter、作成先確認、Escape focus復帰を本番反映。10,000ノート30 queryでp95 26.1ms、隔離Electron 2 viewport、Markdown不変を確認 | [acceptance](docs/reports/quick-switcher-2026-08-17.md)／[performance](docs/reports/assets/quick-switcher-2026-08-17/performance-result.json) |
@@ -154,7 +154,7 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 
 ## 優先キュー
 
-現在の候補整理は[改善・未達成項目 実行台帳](docs/reports/tsuzune-improvement-ledger-2026-08-23.md)を参照します。製品Primaryはありません。日常利用観測を自然利用内で続け、次作業はRepository closeoutのread-only棚卸しに限定します。削除・commit・push・production updateは未承認で、その他は再開条件付きHeldまたはResearchです。
+現在のPrimary／Nextは[PLAN.mdのCurrent Decision](PLAN.md#current-decision)を正本とします。候補の評価履歴は[改善・未達成項目 実行台帳](docs/reports/tsuzune-improvement-ledger-2026-08-23.md)を参照し、この節では可変なNextを複製しません。
 
 1. **P0 completed delivery:** frozen 245-file inventoryをC0〜C4、C5 exact-pin復旧、4 mixed-path解消、C6/C9 documentation、H1不採用削除へ分離してpushし、clean source `b2fd6bf`を公式`production:update`で本番受入した。
 2. **P1 completed acceptance:** Drive Sync S1を本番反映し、旧ledger warm-up後の差分なし再確認が実機で約1〜2秒となりPASS。
