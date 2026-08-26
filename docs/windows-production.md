@@ -104,7 +104,7 @@ Vaultと設定はインストール先の外にあるため、本体ファイル
 npm run check:packaged -- "$env:LOCALAPPDATA\Programs\tsuzune\TSUZUNE.exe"
 ```
 
-## 2026-08-15の最新実機結果
+## 2026-08-15のv0.5.0実機結果
 
 - `TSUZUNE-Setup-0.5.0.exe`: 103,607,215 bytes、SHA-256 `01a3ee9002f4d29bc4fc9c0df0e7ad00fb84f64f5964cfa7be14dbeb967bd6c7`
 - blockmap: 108,962 bytes
@@ -123,6 +123,6 @@ npm run check:packaged -- "$env:LOCALAPPDATA\Programs\tsuzune\TSUZUNE.exe"
 ## 未完了の本番リスク
 
 - **コード署名**: 現在は未署名。Windows SmartScreenで発行元不明と表示され得る。一般配布前にはWindowsコード署名証明書を設定する。
-- **二版間の実更新**: 0.5.0は更新機能を持つ最初の公開インストール版。0.5.1以降を公開Releaseへ出し、確認、取得、保存、再起動、版更新を一度通して最終受入する。
+- **二版間の実更新**: v0.6.0の公開Release、匿名latest API、3 assetのHTTP 200とdigest一致までは確認済み。このPCには本番と分離できるWindows Sandbox／VMがないため、v0.5.0からの検出、取得、保存、再起動、版更新は未実施。別Windows PC、専用VM、または本番と分離したWindows user／install環境を用意した時だけ再開する。
 - **アプリアイコン**: 編み込まれた鈴を表す `tsuzune-app-icon.png` をWindows packageへ設定し、installer gateでElectron既定アイコンへの退行を検査する。通知領域には小サイズ専用の `tsuzune-tray-icon.png` を使う。
-- **公開GitHub配信**: 更新確認とasset取得は匿名で行う。Release作成時だけmaintainerのGitHub認証を使用し、tokenをアプリ設定やVaultへ保存しない。
+- **公開GitHub配信**: 更新確認とasset取得は匿名で行う。v0.6.0でtokenなしの更新確認を回帰testへ固定し、公開Release page／latest API／3 assetの匿名HTTP 200を確認済み。Release作成時だけmaintainerのGitHub認証を使用し、tokenをアプリ設定やVaultへ保存しない。

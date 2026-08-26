@@ -1,14 +1,14 @@
 {
   "status": "installed-and-verified",
-  "verifiedAt": "2026-08-26T03:21:52.215Z",
+  "verifiedAt": "2026-08-26T03:33:22.375Z",
   "packageVersion": "0.6.0",
   "git": {
-    "commit": "f9123910ad97aa0bf7baf233630839aea61ac81e",
+    "commit": "6a519865eaac6813a6c82072101794504dc08323",
     "dirty": true
   },
   "sourceFingerprint": {
-    "fileCount": 1129,
-    "digest": "25a3995ea1213a8fb9350b7fb3038792d6a67fc671e9e68a4ba0eb6f78b72889",
+    "fileCount": 1130,
+    "digest": "f0a22c8d4b63de636bb91f38fd402e58bdc7a5a31531e146060ae6cc413d7299",
     "excludedPaths": [
       "docs/reports/production-update-latest.json"
     ]
@@ -16,7 +16,7 @@
   "oauthBuildSource": "installed-bundle",
   "installer": {
     "path": "dist/TSUZUNE-Setup-0.6.0.exe",
-    "sha256": "b04420224b7f334088fb43d8041f3bd91b7e929c79904ec2a01fea8ef33e394b"
+    "sha256": "6cc6030725ec5ccebf93e6a7b30b5cd76aaaba74cc5dca6e48b784146b6ee5fe"
   },
   "built": {
     "executableSha256": "9c1f828a2919b659bd39d409d45c196c4aadd4b52e55af36c745630419571de6",

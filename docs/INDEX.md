@@ -13,6 +13,7 @@
 ## 現在の開発
 
 - [改善・未達成項目 実行台帳](reports/tsuzune-improvement-ledger-2026-08-23.md) — する／しない／条件成立時だけを確定した判断索引。現在のPrimary／Nextは[PLAN.mdのCurrent Decision](../PLAN.md#current-decision)を正本とし、ここでは可変状態を複製しない。
+- [v0.6.0 公開Release・本番受入](reports/v0.6.0-public-release-2026-08-26.md) — verified commit/tag、Latest Release、3 assetsの匿名HTTP到達性とdigest、本番10/10、profile不変、匿名updater修正、隔離Windows待ちの二版間更新境界を固定。
 - [Workflow Verification Harness Phase 1](reports/workflow-verification-harness-phase1-plan-2026-08-26.md) — 固定allowlist、fail-first、source不変性、JSON Receipt、public CLI fixture 4件と初回`mcp` dogfoodのsource／fixture証拠。現在のPrimary／Nextは[PLAN.mdのCurrent Decision](../PLAN.md#current-decision)を参照。
 - [Executable Policy Pilot 1](reports/executable-policy-pilot-1-2026-08-26.md) — 宣言済みread-only MCP 10件の通常Vault／隔離profile不変性と完全coverageを既存`mcp` checkへ接続したsource／fixture証拠。`.tsuzune`内部台帳repairとliteralな環境全体zero writeを分離する。
 - [MCP read-only完全化](reports/mcp-readonly-zero-write-2026-08-26.md) — Pilotで分離したcreation-time sidecar境界を製品sliceとして閉じ、cold／malformed／noncanonicalを含むVault／profile全体の無書込みと通常scanのrepair維持を固定した証拠。
