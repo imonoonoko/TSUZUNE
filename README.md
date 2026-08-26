@@ -35,7 +35,7 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 
 ## 使い始める
 
-現在のrepository／package versionは`0.5.0`です。[TSUZUNE v0.5.0](https://github.com/imonoonoko/TSUZUNE/releases/tag/v0.5.0)からWindows x64 installerを取得できます。sourceから起動する場合は下記の開発手順を使用してください。
+現在のrepository／package versionは`0.6.0`です。[TSUZUNE v0.6.0](https://github.com/imonoonoko/TSUZUNE/releases/tag/v0.6.0)からWindows x64 installerを取得できます。sourceから起動する場合は下記の開発手順を使用してください。
 
 インストール済みbinaryを使う場合:
 

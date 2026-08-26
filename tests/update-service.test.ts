@@ -99,6 +99,45 @@ describe('UpdateService', () => {
     }
   })
 
+  it('checks a public GitHub feed without a token', async () => {
+    const client = new FakeUpdateClient()
+    client.checkForUpdates.mockImplementation(async () => {
+      client.emit('checking-for-update')
+      client.emit('update-not-available')
+      return null
+    })
+    const tokenProvider = vi.fn(async () => null)
+    const previousToken = process.env.GH_TOKEN
+    delete process.env.GH_TOKEN
+
+    try {
+      const service = new UpdateService({
+        isPackaged: true,
+        currentVersion: '0.5.0',
+        client,
+        tokenProvider,
+        approveInstall: vi.fn()
+      })
+
+      expect(await service.checkForUpdates()).toEqual({
+        phase: 'up-to-date',
+        currentVersion: '0.5.0',
+        availableVersion: null,
+        downloadPercent: null,
+        message: 'TSUZUNEは最新です。'
+      })
+      expect(tokenProvider).toHaveBeenCalledTimes(1)
+      expect(client.checkForUpdates).toHaveBeenCalledTimes(1)
+      expect(process.env.GH_TOKEN).toBeUndefined()
+    } finally {
+      if (previousToken === undefined) {
+        delete process.env.GH_TOKEN
+      } else {
+        process.env.GH_TOKEN = previousToken
+      }
+    }
+  })
+
   it('downloads explicitly and approves shutdown before installing', async () => {
     const client = new FakeUpdateClient()
     client.checkForUpdates.mockImplementation(async () => {

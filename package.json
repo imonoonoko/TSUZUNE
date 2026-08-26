@@ -1,6 +1,6 @@
 {
   "name": "tsuzune",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "書いて、つないで、あとで尋ねる。ローカルMarkdownとWikiリンクのWindowsメモ帳。",
   "private": true,
   "type": "module",

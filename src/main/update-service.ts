@@ -149,17 +149,10 @@ export class UpdateService {
       return this.getStatus()
     }
     const token = await this.options.tokenProvider()
-    if (!token) {
-      this.setStatus({
-        ...this.status,
-        phase: 'error',
-        message: 'GitHubにログインすると更新を確認できます。'
-      })
-      return this.getStatus()
-    }
-
     const previousToken = process.env.GH_TOKEN
-    process.env.GH_TOKEN = token
+    if (token) {
+      process.env.GH_TOKEN = token
+    }
     try {
       await this.options.client.checkForUpdates()
     } catch {
@@ -169,10 +162,12 @@ export class UpdateService {
         message: '更新の確認に失敗しました。'
       })
     } finally {
-      if (previousToken === undefined) {
-        delete process.env.GH_TOKEN
-      } else {
-        process.env.GH_TOKEN = previousToken
+      if (token) {
+        if (previousToken === undefined) {
+          delete process.env.GH_TOKEN
+        } else {
+          process.env.GH_TOKEN = previousToken
+        }
       }
     }
     return this.getStatus()
