@@ -4,13 +4,13 @@
 
 P0-7の参照元リンク追従を実装・source検証済み。単一Markdownノートの名前変更・移動にWiki／Markdown／frontmatter参照が追従し、別名・見出し・コメント・BOM・改行を保持する。32件の安全性test、実画面の4操作と再起動後の全file一致、隔離先userData／sessionDataの実測、本番profile 273 files不変を確認した。独立reviewのblocking findingは解消済み。本番反映の完了は、このsource fingerprintに対応する最新production receiptとinstalled実画面検証を記録した既存Vault campaignを正本とする。repo内記録はgate前に確定し、gate後に結果を重複追記しない。P0-6のprofile差分は原因未特定の過去証拠として保持する。 [実装・検証証拠](.agent/requirements/20260905-obsidian-compatibility-program/results/p0-7-lossless-link-maintenance.md)。以下は各区切りの記録。
 
-更新日: 2026-09-05（JST）
+更新日: 2026-09-06（JST）
 
 この文書は、TSUZUNEの「今」を一枚で確認するための入口です。実行順と将来計画は[PLAN.md](PLAN.md)、製品の不変条件は[PRODUCT.md](PRODUCT.md)、画面・ブランド規約は[DESIGN.md](DESIGN.md)を正本とします。完了証拠は[docs/INDEX.md](docs/INDEX.md)から辿ります。
 
 ## 現在地
 
-P0-4の実機比較・ローカル記録・Vault同期は完了。再起動後に既存campaignと3入口をrevision付きで更新し、read-backの完全一致・一意検索・backlinkを確認した。[同期証拠](.agent/requirements/20260905-obsidian-compatibility-program/results/p0-4-pending-tsuzune-writeback.json)
+Obsidian互換性はP0-7までの選択済み範囲を本番反映・隔離installed受入済み。2026-09-06にGitHub main統合と、レビューで選んだ保守へ進んだ。保守のsource証拠は[保守結果](docs/reports/review-maintenance-2026-09-06.md)、本番完了はそれに対応する最新receipt・Vault実施記録を参照する。
 
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
@@ -24,8 +24,8 @@ P0-4の実機比較・ローカル記録・Vault同期は完了。再起動後�
 | 公開配布 | commit `6a51986`をtag `v0.6.0`としてLatest Releaseへ公開。installer、blockmap、`latest.yml`の匿名HTTP 200とdigest一致、本番10/10、installed 0.6.0、profile 58 files不変を確認。public feedのtoken必須gateは修正済み。未署名のSmartScreen警告と、隔離Windowsを要するv0.5.0→v0.6.0実更新受入は残る | [v0.6.0 release](docs/reports/v0.6.0-public-release-2026-08-26.md) |
 | Graph直近slice | CP1-B-02で実在Markdownノートにも`フォルダで表示`を接続。公式production updateの全529 tests／10 checksを通して本番反映済み | [CP1-B-02](docs/reports/cp1-b-02-note-folder-reveal-2026-08-13.md) |
 | 直近の性能評価 | 同じ起点3件でTSUZUNEなし／ありを比較。固定4問は1/4→4/4、出典追跡0/3→3/3。Context構築medianは0.021ms→149.685msで、絶対追加約150ms | [benchmark](docs/reports/tsuzune-with-without-benchmark-2026-08-09.md) |
-| 最優先Track | Obsidian互換性。達成境界は同じlocal Vaultを内容・metadata非破壊で開き、日常の作成・編集・検索・再開ができること。工房主承認順は (1) データを壊さない互換性、(2) 毎日の操作互換性、(3) 構造表現の互換性、(4) 選択した拡張だけの互換性。P0-1〜3（Excluded filesと文字列／数値／単純list Properties）はsource検証済み。P0-5のチェックボックス型Propertiesは追加・切替・削除・preview・保存・再読込をsource実装し、全体1124 tests PASS（1 SKIP）、隔離した固定Obsidian 1.13.4との実機26検査をPASSした。真偽値の切替・再起動後の状態は一致。新規未チェック値（TSUZUNE=false／Obsidian=空欄）とコメント／BOM／改行の保存は異なり、TSUZUNEの非破壊保存を維持する。再起動後にMCPの記録同期を完了し、既存campaignと3入口をrevision付きで更新、読み戻し・一意検索・相互リンクを確認した。Ownerが2026-09-05に現source全体を既存の検証・更新手順で導入することを明示承認した。対象はExcluded files、各型Properties編集、Context利用・状態由来レシートを含む現tree。導入結果はdocs/reports/production-update-latest.jsonの本承認後のreceiptとdelivery_infoを正本にし、既存campaignへ受入証拠を保存する。新機能やGit公開は自動着手しない。観測宙域は利用者が再選択するまで保留 | [PLAN.md](PLAN.md#current-decision)／[互換性台帳](.agent/requirements/20260905-obsidian-compatibility-program/compatibility-ledger.md) |
-| Obsidian plugin候補検出 | `.obsidian/plugins/*/manifest.json`だけを信頼IPC経由でread-only検出し、Settingsにmanifest状態、`main.js`／`styles.css`の有無、desktop境界を表示する。plugin codeは読込・実行せず、完全互換とは表示しない。active Vaultの2026-08-29観測は候補0件。無改造community plugin runtimeはHeld | [scanner](src/main/obsidian-plugins.ts)／[tests](tests/obsidian-plugins.test.ts)／[receipt](docs/reports/production-update-latest.json) |
+| 最優先Track | 現在のPrimary／Nextと実行順は[PLAN.mdのCurrent Decision](PLAN.md#current-decision)を参照する。P0-1〜P0-7の選択済み範囲は2026-09-05本番受入済み。以下の機能別件数・日付は各区切りの証拠として扱う | [互換性台帳](.agent/requirements/20260905-obsidian-compatibility-program/compatibility-ledger.md) |
+| Obsidian plugin候補検出 | `.obsidian/plugins/*/manifest.json`だけを信頼IPC経由でread-only検出し、Settingsにmanifest状態、`main.js`／`styles.css`の有無、desktop境界を表示する。この候補scannerはplugin codeを読込・実行しない。別の明示選択済み経路として、固定Calendar 1.5.10だけをhash検証・sandbox・限定bridgeで提供する。汎用互換とは表示しない。active Vaultの2026-08-29観測は候補0件。無改造community plugin runtimeはHeld | [scanner](src/main/obsidian-plugins.ts)／[tests](tests/obsidian-plugins.test.ts)／[receipt](docs/reports/production-update-latest.json) |
 | 直近4項目 | 左右sidebar独立開閉、既定offのDrive削除伝播、通常更新の履歴生成停止／legacy履歴保護、明示5ノート分類applyを完了。旧履歴の圧縮は行わず、不活性なlegacyデータとして扱う | [Drive deletion](docs/reports/drive-deletion-propagation-acceptance-2026-08-17.md)／[history evidence](docs/reports/history-compaction-preview-2026-08-16.md)／[classification](docs/reports/classification-production-gate-2026-08-17.md) |
 | 直近UX区切り | R4でFileTreeのtreeitem／roving tabindex／Arrow・Home・End・typeahead／IME境界を、R5でWorkspace Tabsのkeyboard／ARIA／close後focusを本番反映。Daily Workspace Phase Bで100%表示、High Contrast、Narrator、主要focus境界もinstalled binary上で確認した | [R4 evidence](docs/reports/daily-workspace-phase-a-2026-08-22.md)／[R5 acceptance](docs/reports/workspace-tabs-r5-2026-08-22.md)／[Phase B](docs/reports/daily-workspace-phase-b-2026-08-22.md) |
 | Quick Switcher P0-1 | `Ctrl+O`、session MRU、タイトル／path／本文検索、重複path表示、Arrow／Home／End、Enter／Ctrl+Enter、作成先確認、Escape focus復帰を本番反映。10,000ノート30 queryでp95 26.1ms、隔離Electron 2 viewport、Markdown不変を確認 | [acceptance](docs/reports/quick-switcher-2026-08-17.md)／[performance](docs/reports/assets/quick-switcher-2026-08-17/performance-result.json) |
@@ -51,7 +51,7 @@ P0-4の実機比較・ローカル記録・Vault同期は完了。再起動後�
 - Local／Global Graph、円形node、Canvas edge、Force runtime、Graph設定、Groups、検索、Animate、状態復元のcheckpoint実装。
 - Google OAuth、基本profile、Google Drive手動同期。
 - Windows installer、アプリ内更新、本番更新gate、installed hash検証、MCP再登録。
-- Obsidian pluginのmanifest-only候補検出。Settingsで候補と不足を確認できるが、`main.js`の読込・実行、Obsidian API互換、plugin有効化は提供しない。
+- Obsidian pluginのmanifest-only候補検出と、明示選択済みの固定Calendar 1.5.10互換経路。後者はhash検証・sandbox・限定bridgeを使用する。任意main.jsや汎用Obsidian API互換は提供しない。
 - `90_テンプレート`のMarkdown雛形、custom template追加、filesystem最終更新日／`review_after`による非破壊の鮮度表示（本番反映済み）。
 - 通常ノートのアプリ内新規作成、Daily／Ideaのテンプレート集約、定型Markdownの安全なフォーム再編集、最小Markdown書式ツールバー（本番反映済み）。
 - アプリ内名前変更ダイアログと影響確認、Graphのzoom／fit操作、添付の既定アプリ／フォルダ表示を既存の安全なIPC経路で提供（本番反映済み）。

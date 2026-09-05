@@ -23,3 +23,9 @@ output/playwright/
 .DS_Store
 Thumbs.db
 /undefined/Local State
+
+# Extracted local bundles and private Vault reorganization inputs.
+/index.js
+/index-*.js
+/.agent/requirements/20260902-vault-inbox-taxonomy/
+/.workflow/tsuzune-full-knowledge-reorganization-2026-09-02/

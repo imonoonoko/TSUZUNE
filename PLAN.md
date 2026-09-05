@@ -4,7 +4,7 @@
 
 P0-7の参照元リンク追従を実装・source検証済み。単一Markdownノートの名前変更・移動にWiki／Markdown／frontmatter参照が追従し、別名・見出し・コメント・BOM・改行を保持する。32件の安全性test、実画面の4操作と再起動後の全file一致、隔離先userData／sessionDataの実測、本番profile 273 files不変を確認した。独立reviewのblocking findingは解消済み。本番反映の完了は、このsource fingerprintに対応する最新production receiptとinstalled実画面検証を記録した既存Vault campaignを正本とする。repo内記録はgate前に確定し、gate後に結果を重複追記しない。P0-6のprofile差分は原因未特定の過去証拠として保持する。 [実装・検証証拠](.agent/requirements/20260905-obsidian-compatibility-program/results/p0-7-lossless-link-maintenance.md)。以下は各区切りの記録。
 
-更新日: 2026-09-05（JST）
+更新日: 2026-09-06（JST）
 
 この文書は、TSUZUNEを「ノートを増やすアプリ」から「根拠に基づく現在状態を安全に再構成し、必要な場合だけ一つの正本を遷移させる個人用知識基盤」へ発展させるための実行正本です。
 
@@ -28,10 +28,14 @@ P0-7の参照元リンク追従を実装・source検証済み。単一Markdown�
 
 | 区分 | 現在地 |
 |---|---|
-| Complete | 既存Context Compiler、Temporal Memory、MCP revision、patch、通常更新の履歴生成停止とlegacy保護、Review proposal、保護領域、production gate。R0能力・owner候補・fixture Baseline棚卸し。1命題のState Packet比較。Compact Decision Envelopeの5-case盲検benchmark。Workflow Verification Harness Phase 1。Executable Policy Pilot 1。MCP read-only完全化。Obsidian plugin manifest-only候補検出。分類不要のInbox capture。Readability本文抽出と、ページ内三経路＋取得不能／途中時のローカル`yt-dlp`を備えたBrowser Clipper。原典を変更せずAI Reviewへ登録するcategory-aware派生知識proposal、exact `category:`／`topic:`検索、知識／情報源／受信箱／その他の排他的表示。観測宙域MVP R2のsource実装とbuild-bound機械受入（局所two-hop tree、最大9星／8本、dense／singleton PASS。利用者鑑賞受入待ち、本番未反映） |
-| Next | **Obsidian互換性 第1層: データを壊さない互換性**。文字列・数値・単純listのProperties追加／編集／削除・保存・再読込はsource検証済み。P0-5のチェックボックス型Propertiesは追加・切替・削除・preview・保存・再読込をsource実装し、全体1124 tests PASS（1 SKIP）、隔離した固定Obsidian 1.13.4との実機26検査をPASSした。真偽値の切替・再起動後の状態は一致。新規未チェック値（TSUZUNE=false／Obsidian=空欄）とコメント／BOM／改行の保存は異なり、TSUZUNEの非破壊保存を維持する。再起動後にMCPの記録同期を完了し、既存campaignと3入口をrevision付きで更新、読み戻し・一意検索・相互リンクを確認した。Ownerが2026-09-05に現source全体を既存の検証・更新手順で導入することを明示承認した。対象はExcluded files、各型Properties編集、Context利用・状態由来レシートを含む現tree。導入結果はdocs/reports/production-update-latest.jsonの本承認後のreceiptとdelivery_infoを正本にし、既存campaignへ受入証拠を保存する。新機能やGit公開は自動着手しない。その後は毎日の操作 → 構造表現 → 工房主が選択した拡張の順。[公開挙動台帳](.agent/requirements/20260905-obsidian-compatibility-program/compatibility-ledger.md)を正本とする。本番反映は別判断。 |
+| Complete | Context Compiler、Temporal Memory、MCP revision／patch／read-only、保護領域、通常更新の履歴生成停止、Review proposal、Inbox capture、Browser Clipper、category-aware派生知識proposalと検索facets、production gate。Obsidian互換性P0-1〜P0-7の選択済み範囲（Excluded files、各型Properties、単一Markdown rename／moveと参照元リンクの非破壊追従）は2026-09-05に本番反映・隔離installed受入済み。GitHub mainへの統合も完了。正確な受入時点と範囲は最新receipt・既存Vault campaign・[互換性台帳](.agent/requirements/20260905-obsidian-compatibility-program/compatibility-ledger.md)で確認する |
+| Next | **2026-09-06承認済み保守のsource検証を完了**: 公開対象外ファイル保護、推移依存3件更新、現在欄と本番source archiveを整備した。本番完了は[保守結果](docs/reports/review-maintenance-2026-09-06.md)に対応する最新production receiptと最終Vault実施記録で判定し、gate後にこのsourceを追記変更しない。既存PrimaryはObsidian互換性のまま、次の機能はデータ非破壊 → 毎日の操作 → 構造表現 → 選択済み拡張の順で別途選択する |
 | Held | R1〜R10、Compact Decision Envelope、独立Harness runtime、新DB、Vector DB、全Vault ingestion、永続派生ビュー、BM25/cache、multi-note transaction、広域Graph拡張、無改造Obsidian community pluginの実行runtime／API shim／任意`main.js`読込、独立review queue、全Vault batch整理、既存ノートへのbulk分類write、AI整理の自動承認、原典の移動／削除、fact-only Hook実装、schedule作成、semantic Codex Lifecycle Hook、観測宙域R2の鑑賞受入／本番反映、観測宙域の常時Force movement、LLM／embeddingによる再編、Idea Proposal、自律書込み |
 | Research | exact rollout usageの明示添付、exclusionと完全修飾IDを機械検査できる最小transient形式、意味的no-op、owner候補支援、projection、event sourcing、background maintenance。Phase 1で同型摩擦が独立2件以上観測されるまで実装へ昇格しない |
+
+### 過去の区切りと証拠（各記載日の状態）
+
+以下の未実施・Next・test件数は当時の記録であり、現在の実行指示ではない。現在は上のCurrent Decisionと最新receiptを参照する。
 
 Workflow Verification Harness Phase 1は、新しいAgent runtimeを作らず、既存checkを再利用するread-onlyの証拠収集器として完了しました。Executable Policy Pilot 1で確認した`.tsuzune` creation-time sidecarの別境界は、利用者の明示選択を受けて製品sliceとして閉じました。MCP read-only経路はsidecarを読み取って論理creation timeを維持しますが、cold時の作成、malformed時のrepair、noncanonical JSONの正規化を行いません。通常scanとwrite経路は従来どおりrepairします。Harnessは`.tsuzune`除外を撤去し、宣言済みread-only tool 10件についてVault／profile全体のbyte／metadata／directory不変性と完全coverageを検査します。新しい実装Primaryは置かず、次は自然利用を観測します。[MCP read-only完全化](docs/reports/mcp-readonly-zero-write-2026-08-26.md)、[Pilot 1実装・検証](docs/reports/executable-policy-pilot-1-2026-08-26.md)、[Phase 1実装・検証](docs/reports/workflow-verification-harness-phase1-plan-2026-08-26.md)、既存の[R0 Baseline](docs/reports/current-state-compiler-r0-baseline-2026-08-23.md)を分離して扱います。
 

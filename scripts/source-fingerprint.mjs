@@ -1,8 +1,8 @@
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
-import { relative, resolve } from 'node:path'
+import { copyFile, mkdir, readFile } from 'node:fs/promises'
+import { constants, existsSync } from 'node:fs'
+import { dirname, relative, resolve } from 'node:path'
 
 export const SOURCE_RECEIPT_RELATIVE_PATH =
   'docs/reports/production-update-latest.json'
@@ -35,7 +35,7 @@ function gitTopLevel(repositoryRoot) {
   return resolve(result.stdout.trim())
 }
 
-export async function snapshotSourceTree(repositoryRoot) {
+export async function snapshotSourceTree(repositoryRoot, archiveDirectory) {
   const root = resolve(repositoryRoot)
   if (gitTopLevel(root) !== root) throw new Error('repository root mismatch')
   const result = spawnSync(
@@ -50,8 +50,22 @@ export async function snapshotSourceTree(repositoryRoot) {
     .filter((path) => path.replaceAll('\\', '/') !== SOURCE_RECEIPT_RELATIVE_PATH)
     .map((path) => resolve(root, path))
     .filter((path) => existsSync(path))
+  const fingerprint = await fingerprintFiles(root, paths)
+  if (archiveDirectory) {
+    const archivedPaths = []
+    for (const path of paths) {
+      const archived = resolve(archiveDirectory, relative(root, path))
+      await mkdir(dirname(archived), { recursive: true })
+      await copyFile(path, archived, constants.COPYFILE_EXCL)
+      archivedPaths.push(archived)
+    }
+    const archiveFingerprint = await fingerprintFiles(archiveDirectory, archivedPaths)
+    if (archiveFingerprint.digest !== fingerprint.digest) {
+      throw new Error('Source archive does not match the source fingerprint')
+    }
+  }
   return {
-    ...(await fingerprintFiles(root, paths)),
+    ...fingerprint,
     excludedPaths: [SOURCE_RECEIPT_RELATIVE_PATH]
   }
 }
