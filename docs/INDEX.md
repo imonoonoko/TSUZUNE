@@ -1,6 +1,6 @@
 # TSUZUNE Documentation Index
 
-更新日: 2026-08-26
+更新日: 2026-09-06
 
 ## まず読む
 
@@ -14,6 +14,8 @@
 ## 現在の開発
 
 - [改善・未達成項目 実行台帳](reports/tsuzune-improvement-ledger-2026-08-23.md) — する／しない／条件成立時だけを確定した判断索引。現在のPrimary／Nextは[PLAN.mdのCurrent Decision](../PLAN.md#current-decision)を正本とし、ここでは可変状態を複製しない。
+- [レビュー後の保守 2026-09-06](reports/review-maintenance-2026-09-06.md) — 公開対象保護、依存3件更新、LF方針と本番source archive、現在欄の整合。受入結果は対応する最新receiptとVault実施記録。
+- [プロジェクトレビュー 2026-09-06](reports/project-review-2026-09-06.md) — 本番・Git・公開Release・計画の照合、公開対象保護と依存更新候補、現在欄のずれ、限定source review。新機能の採用は含まない。
 - [v0.6.0 公開Release・本番受入](reports/v0.6.0-public-release-2026-08-26.md) — verified commit/tag、Latest Release、3 assetsの匿名HTTP到達性とdigest、本番10/10、profile不変、匿名updater修正、隔離Windows待ちの二版間更新境界を固定。
 - [Workflow Verification Harness Phase 1](reports/workflow-verification-harness-phase1-plan-2026-08-26.md) — 固定allowlist、fail-first、source不変性、JSON Receipt、public CLI fixture 4件と初回`mcp` dogfoodのsource／fixture証拠。現在のPrimary／Nextは[PLAN.mdのCurrent Decision](../PLAN.md#current-decision)を参照。
 - [Executable Policy Pilot 1](reports/executable-policy-pilot-1-2026-08-26.md) — 宣言済みread-only MCP 10件の通常Vault／隔離profile不変性と完全coverageを既存`mcp` checkへ接続したsource／fixture証拠。`.tsuzune`内部台帳repairとliteralな環境全体zero writeを分離する。

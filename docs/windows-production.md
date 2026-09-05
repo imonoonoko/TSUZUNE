@@ -1,6 +1,6 @@
 # Windows本番運用ガイド
 
-更新日: 2026-08-15
+更新日: 2026-09-06
 
 対象: 個人用Windows PC / 公開GitHubリポジトリ`imonoonoko/TSUZUNE`
 
@@ -51,14 +51,18 @@ npm run production:update
 
 このコマンドは順番に次を行う。
 
-1. 本番TSUZUNEが終了していること、merge conflictがないこと、`git diff --check`が通ることを確認する。
-2. source treeと`%APPDATA%\TSUZUNE`のfingerprintを取得する。
+1. 本番TSUZUNEが終了していること、merge conflictがないこと、staged／unstagedの両方を含む`git diff --check HEAD`が通ることを確認する。
+2. source treeと`%APPDATA%\TSUZUNE`のfingerprintを取得する。検証対象sourceは`work/production-source-*`へbyteを変えずコピーし、コピー先のfingerprintも照合する。
 3. typecheck、2 workersの全テスト、MCP検査、NSIS生成、installer検査を行う。
 4. 一時`--user-data-dir`でpackaged版を起動し、renderer-readyを確認する。
 5. sourceが処理中に変化していない場合だけ、installerを`/S`で実行する。
 6. installed版も一時profileで起動し、version、実行ファイル、`app.asar`をbuild成果物と照合する。
 7. production profileが完全に不変であることを確認し、Codex MCP登録を現行tool一覧へ更新する。
 8. 秘密値を含まないreceiptを`docs/reports/production-update-latest.json`へ保存する。
+
+sourceのテキストcheckoutは`.gitattributes`でLFに統一する。これはrepositoryの方針であり、利用者Vault内のBOM・改行の保存契約は変更しない。本番更新前に関連するplan・status・workflow文書を確定し、更新中や成功後にfingerprint対象を編集しない。最新receiptの`sourceArchive.path`は検証したsourceの完全コピーを指すローカル証拠で、Git公開対象ではない。snapshotを削除するとbyte単位の復元証拠を失うため、対応する本番境界が必要な間は保持する。失敗したgateのarchiveも本番成功の証明にはしない。
+
+Git checkout・commit・文書更新の後はsourceの完全一致を再確認する。mismatch時に比較を緩めたり、受入済みと表示したりしない。保存したarchiveとのpath／hash比較で差を特定し、必要な更新を通常gateで再検証する。archiveを現在のworktreeへ一括上書きする操作は行わず、未commit変更を保護する。
 
 自動smokeはactive Vaultを開かない。本番TSUZUNEが起動中の場合も強制終了せず中止するため、利用者が保存して閉じた後に再実行する。
 

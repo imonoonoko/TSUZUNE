@@ -1,0 +1,2 @@
+# Keep checkout bytes stable across Windows Git configurations.
+* text=auto eol=lf

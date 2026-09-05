@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
   mkdir,
+  mkdtemp,
   readFile,
   readdir,
   stat,
@@ -262,9 +263,11 @@ async function main() {
     '--diff-filter=U'
   ]).trim()
   if (unmerged) throw new Error('Resolve unmerged files before updating production')
-  runChecked('git', ['diff', '--check'])
+  runChecked('git', ['diff', '--check', 'HEAD'])
 
-  const sourceBefore = await snapshotSourceTree(root)
+  await mkdir(join(root, 'work'), { recursive: true })
+  const sourceArchive = await mkdtemp(join(root, 'work', 'production-source-'))
+  const sourceBefore = await snapshotSourceTree(root, sourceArchive)
   const profileBefore = await snapshotDirectory(productionProfile)
   const oauth = resolveGoogleOAuthBuildEnvironment(installedAsar)
 
@@ -316,6 +319,7 @@ async function main() {
     packageVersion: manifest.version,
     git: { commit, dirty },
     sourceFingerprint: sourceAfter,
+    sourceArchive: { path: relative(root, sourceArchive).replaceAll('\\', '/') },
     oauthBuildSource: oauth.source,
     installer: {
       path: relative(root, installer).replaceAll('\\', '/'),
