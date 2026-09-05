@@ -1,0 +1,37 @@
+{
+  "title": "TSUZUNE",
+  "brand": "TSUZUNE",
+  "brandMark": true,
+  "iconCount": 18,
+  "selectedNote": "00_Home",
+  "viewport": {
+    "width": 1424,
+    "height": 861
+  },
+  "moveDialog": {
+    "title": "ファイルを移動",
+    "focused": "SELECT",
+    "backgroundInert": true
+  },
+  "previewImageReady": true,
+  "outline": {
+    "selected": "true",
+    "count": 1,
+    "first": "Home"
+  },
+  "compactLayout": {
+    "viewportWidth": 900,
+    "narrowMatches": false,
+    "leftExpanded": "true",
+    "rightExpanded": "false",
+    "overflow": false
+  },
+  "narrowLayout": {
+    "viewportWidth": 720,
+    "narrowMatches": true,
+    "leftExpanded": "false",
+    "rightExpanded": "false",
+    "rail": true,
+    "overflow": false
+  }
+}

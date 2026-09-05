@@ -1,12 +1,36 @@
 import type { NoteDocument, SearchResult } from '../shared/types'
 import { extractMarkdownTags } from './tags'
+import { parseFrontmatter } from './frontmatter'
 
 function normalized(value: string): string {
   return value.toLocaleLowerCase()
 }
 
+function parseInlineTopics(value: string | null | undefined): string[] {
+  if (!value) return []
+
+  const trimmed = value.trim()
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(trimmed) as unknown
+      if (Array.isArray(parsed) && parsed.every((topic) => typeof topic === 'string')) {
+        return parsed.map((topic) => topic.trim()).filter(Boolean)
+      }
+    } catch {
+      // Continue with the existing plain-YAML list form, such as [design, ui].
+    }
+  }
+
+  return trimmed
+    .replace(/^\[/, '')
+    .replace(/\]$/, '')
+    .split(',')
+    .map((topic) => topic.trim().replace(/^['"]|['"]$/g, ''))
+    .filter(Boolean)
+}
+
 export interface RendererSearchClause {
-  kind: 'term' | 'tag' | 'path' | 'file'
+  kind: 'term' | 'tag' | 'path' | 'file' | 'category' | 'topic' | 'type' | 'role' | 'lifecycle'
   value: string
   negated: boolean
 }
@@ -32,7 +56,7 @@ export function parseRendererSearchQuery(rawQuery: string): RendererSearchClause
     const tokenStart = index
     const negated = rawQuery[index] === '-' && index + 1 < rawQuery.length && !/\s/.test(rawQuery[index + 1])
     const valueStart = negated ? index + 1 : index
-    const field = /^(tag|path|file):/i.exec(rawQuery.slice(valueStart))
+    const field = /^(tag|path|file|category|topic|type|role|lifecycle):/i.exec(rawQuery.slice(valueStart))
 
     if (field) {
       let fieldValueStart = valueStart + field[0].length
@@ -47,7 +71,7 @@ export function parseRendererSearchQuery(rawQuery: string): RendererSearchClause
             (closingQuote + 1 === rawQuery.length || /\s/.test(rawQuery[closingQuote + 1]))
           ) {
             clauses.push({
-              kind: field[1].toLocaleLowerCase() as 'tag' | 'path' | 'file',
+              kind: field[1].toLocaleLowerCase() as RendererSearchClause['kind'],
               value: rawQuery.slice(fieldValueStart + 1, closingQuote),
               negated
             })
@@ -57,7 +81,7 @@ export function parseRendererSearchQuery(rawQuery: string): RendererSearchClause
         } else {
           const end = plainTokenEnd(rawQuery, fieldValueStart)
           clauses.push({
-            kind: field[1].toLocaleLowerCase() as 'tag' | 'path' | 'file',
+            kind: field[1].toLocaleLowerCase() as RendererSearchClause['kind'],
             value: rawQuery.slice(fieldValueStart, end),
             negated
           })
@@ -188,6 +212,18 @@ function matchesRendererClause(note: NoteDocument, clause: RendererSearchClause)
     return normalized(note.path.split('/').at(-1) ?? note.name).includes(value)
   }
 
+  const attributes = parseFrontmatter(note.content).attributes
+  if (clause.kind === 'category') {
+    return normalized(attributes.category ?? '') === value
+  }
+  if (clause.kind === 'type' || clause.kind === 'role' || clause.kind === 'lifecycle') {
+    return normalized(attributes[clause.kind] ?? '') === value
+  }
+  if (clause.kind === 'topic') {
+    const topics = parseInlineTopics(attributes.topics)
+    return topics.some((topic) => normalized(topic) === value)
+  }
+
   const tag = value.startsWith('#') ? value : `#${value}`
   return extractMarkdownTags(note.content).some((candidate) => {
     const normalizedCandidate = normalized(candidate)
@@ -261,29 +297,37 @@ export function searchRendererRanked(notes: NoteDocument[], rawQuery: string): S
           (clause) => clause.kind !== 'term' || clause.negated
         )
         if (!hasRestriction) return null
+        const metadata = parseFrontmatter(note.content).attributes
+        const topics = parseInlineTopics(metadata.topics)
         return {
           path: note.path,
           name: note.name,
           excerpt: excerptFor(note.content, excerptQuery),
           modifiedAt: note.modifiedAt,
-          score: 1
+          score: 1,
+          ...(metadata.category ? { category: metadata.category } : {}),
+          ...(topics.length ? { topics } : {})
         }
       }
 
-      const terms = positiveClauses.flatMap((clause) =>
+      const groupTerms = positiveClauses.map((clause) =>
         /\s/.test(clause.value)
           ? [normalized(clause.value)]
           : segmentJapaneseQuery(clause.value)
       )
-      const score = terms.reduce((sum, term) => sum + scoreTerm(note, term), 0)
-      if (score === 0) return null
+      if (groupTerms.some((terms) => !terms.some((term) => scoreTerm(note, term) > 0))) return null
+      const score = groupTerms.flat().reduce((sum, term) => sum + scoreTerm(note, term), 0)
 
+      const metadata = parseFrontmatter(note.content).attributes
+      const topics = parseInlineTopics(metadata.topics)
       return {
         path: note.path,
         name: note.name,
         excerpt: excerptFor(note.content, excerptQuery),
         modifiedAt: note.modifiedAt,
-        score
+        score,
+        ...(metadata.category ? { category: metadata.category } : {}),
+        ...(topics.length ? { topics } : {})
       }
     })
     .filter((result): result is SearchResult => result !== null)

@@ -13,18 +13,32 @@ import type {
 } from '../src/shared/types'
 
 vi.mock('../src/renderer/components/MarkdownEditor', async () => {
-  const React = await import('react')
+  const ReactApi = await import('react')
   return {
-    default: ({
-      value,
-      onChange,
-      readOnly
-    }: {
-      value: string
-      onChange: (value: string) => void
-      readOnly?: boolean
-    }) =>
-      React.createElement('textarea', {
+    default: ReactApi.forwardRef(function MockMarkdownEditor(
+      {
+        value,
+        onChange,
+        readOnly
+      }: {
+        value: string
+        onChange: (value: string) => void
+        readOnly?: boolean
+      },
+      ref: React.ForwardedRef<{ scrollToOffset: (offset: number) => void }>
+    ) {
+      const inputRef = ReactApi.useRef<HTMLTextAreaElement | null>(null)
+      ReactApi.useImperativeHandle(ref, () => ({
+        scrollToOffset: (offset: number) => {
+          const input = inputRef.current
+          if (!input) return
+          const clamped = Math.max(0, Math.min(offset, input.value.length))
+          input.setSelectionRange(clamped, clamped)
+          input.focus()
+        }
+      }), [])
+      return ReactApi.createElement('textarea', {
+        ref: inputRef,
         'aria-label': 'Markdown編集欄',
         value,
         readOnly,
@@ -33,6 +47,7 @@ vi.mock('../src/renderer/components/MarkdownEditor', async () => {
           : (event: React.ChangeEvent<HTMLTextAreaElement>) =>
               onChange(event.target.value)
       })
+    })
   }
 })
 
@@ -144,6 +159,18 @@ beforeEach(() => {
     setAiReviewPaths: vi.fn(() => ok(null)),
     setTemplateSettings: vi.fn(() => ok(null)),
     listAiReviewProposals: vi.fn(() => ok([])),
+    listObsidianPluginCandidates: vi.fn(() => ok([])),
+    getCalendarPluginStatus: vi.fn(() =>
+      ok({
+        state: 'missing' as const,
+        id: 'calendar' as const,
+        version: '1.5.10' as const,
+        mainSha256: '',
+        manifestSha256: '',
+        reason: null
+      })
+    ),
+    setCalendarPluginSettings: vi.fn(() => ok(null)),
     approveAiReviewProposal: vi.fn((id: string) => ok({ path: id })),
     cancelAiReviewProposal: vi.fn(() => ok(null)),
     setGraphForces: vi.fn(() => ok(null)),
@@ -261,12 +288,17 @@ beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
     () =>
       ({
+        arc: vi.fn(),
         beginPath: vi.fn(),
         clearRect: vi.fn(),
         closePath: vi.fn(),
+        createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+        createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
         fill: vi.fn(),
         lineTo: vi.fn(),
         moveTo: vi.fn(),
+        restore: vi.fn(),
+        save: vi.fn(),
         setTransform: vi.fn(),
         stroke: vi.fn()
       }) as unknown as CanvasRenderingContext2D
@@ -276,6 +308,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 describe('App data-loss guards', () => {
@@ -287,7 +320,7 @@ describe('App data-loss guards', () => {
     )
     render(<App />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'フォルダ' }))
+    fireEvent.click(await screen.findByRole('button', { name: '新規フォルダ' }))
     const input = screen.getByRole('textbox', {
       name: 'Vaultに作るフォルダー名'
     })
@@ -636,7 +669,7 @@ describe('App data-loss guards', () => {
     )
 
     render(<App />)
-    fireEvent.click(await screen.findByRole('button', { name: 'ノート' }))
+    fireEvent.click(await screen.findByRole('button', { name: '新規ノート' }))
 
     await waitFor(() => expect(api.createNote).toHaveBeenCalledTimes(1))
     expect(api.createNote).toHaveBeenCalledWith({
@@ -894,6 +927,60 @@ describe('App data-loss guards', () => {
     )
   })
 
+  it('opens an existing daily note from the calendar without creating a duplicate', async () => {
+    const now = new Date()
+    const day = now.getDate() === 2 ? 3 : 2
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const dailyNote: NoteDocument = {
+      path: `02_デイリー/${date}.md`,
+      name: date,
+      content: '# カレンダーから開いたノート',
+      modifiedAt: Date.now(),
+      size: 16
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue(
+      await ok({
+        ...snapshot,
+        directories: ['', '02_デイリー'],
+        notes: [...snapshot.notes, dailyNote]
+      })
+    )
+    vi.mocked(api.readNote).mockImplementation((path) =>
+      path === dailyNote.path ? ok(dailyNote) : ok(noteA)
+    )
+
+    render(<App />)
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: `${now.getFullYear()}年${now.getMonth() + 1}月${day}日、ノートあり`
+      })
+    )
+
+    await waitFor(() => expect(api.setLastNote).toHaveBeenCalledWith(dailyNote.path))
+    expect(api.createNote).not.toHaveBeenCalled()
+    expect(await screen.findByRole('heading', { name: 'カレンダーから開いたノート' })).toBeTruthy()
+  })
+
+  it('keeps the current note and explains when a calendar date has no daily note', async () => {
+    const now = new Date()
+    const day = now.getDate() === 4 ? 5 : 4
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const path = `02_デイリー/${date}.md`
+
+    render(<App />)
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: `${now.getFullYear()}年${now.getMonth() + 1}月${day}日、ノートなし`
+      })
+    )
+
+    expect(await screen.findByText(`${now.getMonth() + 1}月${day}日のノートはまだありません。`)).toBeTruthy()
+    expect(api.createNote).not.toHaveBeenCalled()
+    expect(api.readNote).not.toHaveBeenCalledWith(path)
+    expect(api.setLastNote).not.toHaveBeenCalledWith(path)
+    expect(await screen.findByText('Aの本文')).toBeTruthy()
+  })
+
   it('round-trips a generated daily note through the plain form', async () => {
     const dailyNote: NoteDocument = {
       path: '02_デイリー/2026-08-08.md',
@@ -1047,7 +1134,7 @@ describe('App data-loss guards', () => {
 
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: '編集' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'ノート' }))
+    fireEvent.click(await screen.findByRole('button', { name: '新規ノート' }))
     expect(await screen.findByText('ノートを作成できませんでした。')).toBeTruthy()
     expect((screen.getByLabelText('Markdown編集欄') as HTMLTextAreaElement).value).toBe(
       noteA.content
@@ -1150,9 +1237,8 @@ describe('App data-loss guards', () => {
 
     fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
 
-    expect(document.activeElement).toBe(
-      screen.getByPlaceholderText('内容を検索')
-    )
+    const search = await screen.findByPlaceholderText('内容を検索')
+    await waitFor(() => expect(document.activeElement).toBe(search))
   })
 
   it('reveals and focuses Vault search with Ctrl+Shift+F', async () => {
@@ -1167,26 +1253,43 @@ describe('App data-loss guards', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: '左サイドバーを閉じる' })).toBeTruthy()
     })
-    expect(document.activeElement).toBe(screen.getByPlaceholderText('内容を検索'))
+    const search = screen.getByPlaceholderText('内容を検索')
+    await waitFor(() => expect(document.activeElement).toBe(search))
   })
 
   it('labels content search distinctly and explains its operators', async () => {
     render(<App />)
     await screen.findByText('Aの本文')
 
-    const search = screen.getByRole('textbox', { name: '内容を検索' })
+    fireEvent.click(screen.getByRole('button', { name: '内容を検索' }))
+    const search = await screen.findByRole('textbox', { name: '内容を検索' })
+    expect(screen.getByRole('heading', { name: '内容を検索' })).toBeTruthy()
     expect(search.getAttribute('aria-keyshortcuts')).toBe(
       'Control+Shift+F Meta+Shift+F Control+K Meta+K'
     )
-    expect(screen.getByText(/条件: tag:/).textContent?.replace(/\s+/gu, ' ')).toBe(
-      '条件: tag: / path: / file: 除外: -語 語句: "複数語"'
+    expect(screen.getByRole('region', { name: '検索を開始' })).toBeTruthy()
+    expect(screen.queryByRole('tree', { name: 'Vaultファイル' })).toBeNull()
+    expect(screen.getByText('tag:').textContent).toBe('tag:')
+    expect(screen.getByText('category:').textContent).toBe('category:')
+    expect(screen.getByText('type:').textContent).toBe('type:')
+    expect(screen.getByText('role:').textContent).toBe('role:')
+    expect(screen.getByText('"複数語"').textContent).toBe('"複数語"')
+    expect(screen.getByText('完全一致')).toBeTruthy()
+
+    fireEvent.change(search, { target: { value: 'Aの本文' } })
+
+    const results = await screen.findByLabelText('検索結果')
+    const resultCount = within(results).getAllByRole('button').length
+    expect(within(results).getByRole('status').textContent?.replace(/\s+/gu, ' ')).toBe(
+      `検索結果 ${resultCount}件`
     )
+    expect(screen.queryByRole('region', { name: '検索を開始' })).toBeNull()
   })
 
   it('opens the Quick Switcher with Ctrl+O and restores focus after Escape', async () => {
     const { container } = render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: '編集' }))
-    expect(screen.getByRole('button', { name: '開く' }).getAttribute('aria-keyshortcuts')).toBe(
+    expect(screen.getByRole('button', { name: 'ノートを開く' }).getAttribute('aria-keyshortcuts')).toBe(
       'Control+O Meta+O'
     )
     const editor = await screen.findByLabelText('Markdown編集欄')
@@ -1209,7 +1312,30 @@ describe('App data-loss guards', () => {
     expect(container.querySelector('.workspace')?.hasAttribute('inert')).toBe(false)
   })
 
-  it('opens the Command Palette with Ctrl+P and restores focus after Escape', async () => {
+  it('restores focus after Quick Switcher and Command Palette backdrop clicks', async () => {
+    const { container } = render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
+    const editor = await screen.findByLabelText('Markdown編集欄')
+    editor.focus()
+
+    fireEvent.keyDown(window, { key: 'o', ctrlKey: true })
+    await screen.findByRole('dialog', { name: 'ノートを開く' })
+    fireEvent.click(container.querySelector('.quick-switcher-backdrop') as HTMLElement)
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'ノートを開く' })).toBeNull()
+      expect(document.activeElement).toBe(editor)
+    })
+
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    await screen.findByRole('dialog', { name: '操作を実行' })
+    fireEvent.click(container.querySelector('.command-palette-backdrop') as HTMLElement)
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: '操作を実行' })).toBeNull()
+      expect(document.activeElement).toBe(editor)
+    })
+  })
+
+  it('opens the Command Palette with Ctrl+P and restores focus after its close button', async () => {
     const { container } = render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: '編集' }))
     expect(
@@ -1226,7 +1352,7 @@ describe('App data-loss guards', () => {
     expect(dialog.getAttribute('aria-modal')).toBe('true')
     expect(container.querySelector('.workspace')?.hasAttribute('inert')).toBe(true)
 
-    fireEvent.keyDown(input, { key: 'Escape' })
+    fireEvent.click(within(dialog).getByRole('button', { name: '閉じる' }))
 
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: '操作を実行' })).toBeNull()
@@ -1244,6 +1370,7 @@ describe('App data-loss guards', () => {
     const input = within(dialog).getByRole('combobox', { name: 'コマンドを検索' })
     const labels = [
       '新規ノートを作成',
+      '受信箱へメモを作成',
       '今日のノート',
       'ノートを開く',
       '内容を検索',
@@ -1259,10 +1386,54 @@ describe('App data-loss guards', () => {
     for (const label of labels) {
       expect(within(dialog).getByRole('option', { name: new RegExp(`^${label}`) })).toBeTruthy()
     }
+    expect(within(dialog).queryByRole('option', { name: /知識の時間/ })).toBeNull()
     expect(within(dialog).getByText(/Ctrl\+O|Meta\+O/)).toBeTruthy()
     fireEvent.change(input, { target: { value: 'sidebar' } })
     expect(within(dialog).getByRole('option', { name: /左サイドバー/ })).toBeTruthy()
     expect(within(dialog).queryByRole('option', { name: /今日のノート/ })).toBeNull()
+  })
+
+  it('creates an untitled note in the Inbox from the command palette', async () => {
+    const inboxNote: NoteDocument = {
+      path: '01_受信箱/無題のノート.md',
+      name: '無題のノート',
+      content: '',
+      modifiedAt: 400,
+      size: 0
+    }
+    const inboxSnapshot: VaultSnapshot = {
+      ...snapshot,
+      directories: ['', '01_受信箱'],
+      notes: [...snapshot.notes, inboxNote]
+    }
+    const createdNote: NoteDocument = {
+      path: '01_受信箱/無題のノート 1.md',
+      name: '無題のノート 1',
+      content: '',
+      modifiedAt: 500,
+      size: 0
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok(inboxSnapshot))
+    vi.mocked(api.getSnapshot).mockResolvedValue(
+      await ok({ ...inboxSnapshot, notes: [...inboxSnapshot.notes, createdNote] })
+    )
+    vi.mocked(api.createNote).mockResolvedValue(await ok({ path: createdNote.path }))
+
+    render(<App />)
+    await screen.findByText('Aの本文')
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    const dialog = await screen.findByRole('dialog', { name: '操作を実行' })
+    fireEvent.click(within(dialog).getByRole('option', { name: '受信箱へメモを作成' }))
+
+    await waitFor(() => {
+      expect(api.createNote).toHaveBeenCalledWith({
+        directory: '01_受信箱',
+        name: '無題のノート 1',
+        content: undefined
+      })
+    })
+    const editor = await screen.findByLabelText('Markdown編集欄')
+    expect((editor as HTMLTextAreaElement).value).toBe('')
   })
 
   it('keeps note-view commands disabled with a reason when no note is selected', async () => {
@@ -1503,7 +1674,7 @@ describe('App data-loss guards', () => {
     fireEvent.click(await screen.findByRole('button', { name: '編集' }))
 
     fireEvent.click(
-      await screen.findByRole('button', { name: '更新を確認' })
+      await screen.findByRole('button', { name: '更新' })
     )
     await waitFor(() => {
       expect(api.checkForUpdates).toHaveBeenCalledTimes(1)
@@ -1522,7 +1693,7 @@ describe('App data-loss guards', () => {
       target: { value: '更新前に保存する本文' }
     })
     fireEvent.click(
-      await screen.findByRole('button', { name: 'TSUZUNE 0.5.0を適用' })
+      await screen.findByRole('button', { name: '更新' })
     )
 
     await waitFor(() => {
@@ -1552,7 +1723,7 @@ describe('App data-loss guards', () => {
       target: { value: 'まだ保存できていない本文' }
     })
     fireEvent.click(
-      await screen.findByRole('button', { name: 'TSUZUNE 0.5.0を適用' })
+      await screen.findByRole('button', { name: '更新' })
     )
 
     await waitFor(() => {
@@ -1638,12 +1809,81 @@ describe('App data-loss guards', () => {
     const graph = await screen.findByRole('region', { name: 'ローカルグラフ' })
     expect(within(graph).queryByRole('button', { name: /A-history/ })).toBeNull()
 
-    fireEvent.change(screen.getByPlaceholderText('内容を検索'), {
+    fireEvent.click(screen.getByRole('button', { name: '内容を検索' }))
+    fireEvent.change(await screen.findByPlaceholderText('内容を検索'), {
       target: { value: 'audit-only-token' }
     })
     expect(
       within(screen.getByLabelText('検索結果')).getByText(
         '「audit-only-token」は見つかりませんでした。'
+      )
+    ).toBeTruthy()
+  })
+
+  it('keeps excluded files in the explorer while hiding them from Search and Graph', async () => {
+    const visibleWithLinks: NoteDocument = {
+      ...noteA,
+      content: '[[80_excluded/Hidden]] [[Missing Note]]'
+    }
+    const hiddenNote: NoteDocument = {
+      path: '80_excluded/Hidden.md',
+      name: 'Hidden',
+      content: 'hidden-secret-token',
+      modifiedAt: 400,
+      size: 19
+    }
+    const excludedSnapshot: VaultSnapshot = {
+      ...snapshot,
+      directories: ['', '80_excluded'],
+      notes: [visibleWithLinks, noteB, noteC, hiddenNote]
+    }
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok(excludedSnapshot))
+    vi.mocked(api.getSettings).mockResolvedValue(
+      await ok({
+        lastVaultPath: snapshot.rootPath,
+        lastNotePath: noteA.path,
+        userIgnoreFilters: ['80_excluded/'],
+        graphForces: DEFAULT_GRAPH_FORCE_SETTINGS,
+        graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
+        graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
+        graphGroups: DEFAULT_GRAPH_GROUPS,
+        graphViewStates: DEFAULT_GRAPH_VIEW_STATES
+      })
+    )
+    vi.mocked(api.readNote).mockImplementation((path) => {
+      const note = excludedSnapshot.notes.find((candidate) => candidate.path === path)
+      return note
+        ? ok(note)
+        : Promise.resolve({
+            ok: false,
+            error: { code: 'NOT_FOUND', message: '見つかりません。' }
+          })
+    })
+
+    render(<App />)
+    const tree = within(await screen.findByRole('tree', { name: 'Vaultファイル' }))
+    const hiddenFile = tree.getByRole('treeitem', { name: hiddenNote.path })
+    expect(tree.getByRole('treeitem', { name: '80_excluded' })).toBeTruthy()
+    fireEvent.click(hiddenFile)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
+    expect(
+      (await screen.findByLabelText('Markdown編集欄') as HTMLTextAreaElement).value
+    ).toBe(hiddenNote.content)
+
+    fireEvent.click(tree.getByRole('treeitem', { name: noteA.path }))
+    await waitFor(() => expect(api.setLastNote).toHaveBeenCalledWith(noteA.path))
+    fireEvent.click(screen.getByRole('button', { name: 'ローカルグラフ' }))
+    const graph = await screen.findByRole('region', { name: 'ローカルグラフ' })
+    expect(within(graph).queryByRole('button', { name: /Hidden/ })).toBeNull()
+    expect(within(graph).getByRole('button', { name: /Missing Note/ })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '内容を検索' }))
+    fireEvent.change(await screen.findByPlaceholderText('内容を検索'), {
+      target: { value: 'hidden-secret-token' }
+    })
+    expect(
+      within(screen.getByLabelText('検索結果')).getByText(
+        '「hidden-secret-token」は見つかりませんでした。'
       )
     ).toBeTruthy()
   })
@@ -1831,6 +2071,8 @@ describe('App data-loss guards', () => {
 
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: '設定' }))
+    const settingsDialog = await screen.findByRole('dialog', { name: '設定' })
+    fireEvent.click(within(settingsDialog).getByRole('button', { name: 'テンプレート' }))
     fireEvent.change(screen.getByRole('combobox', { name: 'テンプレートフォルダ' }), {
       target: { value: '雛形' }
     })
@@ -1845,9 +2087,64 @@ describe('App data-loss guards', () => {
     })
   })
 
+  it('keeps generic Obsidian plugins manifest-only while describing the Calendar exception', async () => {
+    vi.mocked(api.listObsidianPluginCandidates).mockResolvedValue(
+      await ok([
+        {
+          id: 'calendar',
+          name: 'Calendar',
+          version: '1.5.10',
+          description: 'Calendar view',
+          author: 'Example',
+          minAppVersion: '1.0.0',
+          isDesktopOnly: false,
+          hasMain: true,
+          hasStyles: true,
+          status: 'detected',
+          reason: null
+        },
+        {
+          id: 'incomplete-plugin',
+          name: 'Incomplete Plugin',
+          version: '0.1.0',
+          description: '',
+          author: 'Example',
+          minAppVersion: '1.0.0',
+          isDesktopOnly: true,
+          hasMain: false,
+          hasStyles: false,
+          status: 'incomplete',
+          reason: 'main.jsがありません'
+        }
+      ])
+    )
+
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '設定' }))
+    const settingsDialog = await screen.findByRole('dialog', { name: '設定' })
+    fireEvent.click(
+      within(settingsDialog).getByRole('button', { name: 'Obsidianプラグイン' })
+    )
+
+    expect(
+      await within(settingsDialog).findByText(
+        '一般のプラグインは候補検出のみで、main.jsを実行しません。Calendar 1.5.10だけは専用の隔離互換層で扱います。'
+      )
+    ).toBeTruthy()
+    expect(within(settingsDialog).getByText('Calendar', { selector: 'strong' })).toBeTruthy()
+    expect(within(settingsDialog).getByText('manifest確認済み')).toBeTruthy()
+    expect(within(settingsDialog).getByText('Incomplete Plugin')).toBeTruthy()
+    expect(within(settingsDialog).getByText('ファイル不足')).toBeTruthy()
+    expect(within(settingsDialog).getByText('Calendar画面で公式配布物のSHA-256を追加検証します。')).toBeTruthy()
+    expect(within(settingsDialog).getByText('main.jsがありません')).toBeTruthy()
+    expect(api.listObsidianPluginCandidates).toHaveBeenCalledOnce()
+  })
+
   it('does not expose retired additional AI immutable paths in settings', async () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: '設定' }))
+    const settingsDialog = await screen.findByRole('dialog', { name: '設定' })
+    fireEvent.click(within(settingsDialog).getByRole('button', { name: 'AIとレビュー' }))
 
     expect(
       screen.queryByRole('textbox', { name: 'AIから変更させないパス' })
@@ -1888,6 +2185,8 @@ describe('App data-loss guards', () => {
 
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: '設定' }))
+    const settingsDialog = await screen.findByRole('dialog', { name: '設定' })
+    fireEvent.click(within(settingsDialog).getByRole('button', { name: 'AIとレビュー' }))
 
     expect(
       (await screen.findByRole('textbox', {
@@ -2151,6 +2450,295 @@ describe('App data-loss guards', () => {
     expect(screen.getByRole('button', { name: 'グラフビュー' }).closest('.left-panel')).not.toBeNull()
   })
 
+  it('上部シェルを静かなワークスペースにし、主要操作をActivity Railへ集約する', async () => {
+    render(<App />)
+
+    expect(screen.queryByText('書いて、つないで、あとで尋ねる。')).toBeNull()
+
+    const rail = await screen.findByRole('navigation', { name: '主なナビゲーション' })
+    expect(within(rail).getByRole('button', { name: '更新' })).not.toBeNull()
+    expect(within(rail).getByRole('button', { name: '設定' })).not.toBeNull()
+    expect(within(rail).getByRole('button', { name: 'Google / 同期' })).not.toBeNull()
+    expect(within(rail).getByRole('button', { name: 'Vaultを切り替える: Vault' })).not.toBeNull()
+  })
+
+  it('設定をカテゴリで切り替え、Escapeで起点へフォーカスを戻す', async () => {
+    render(<App />)
+    const rail = await screen.findByRole('navigation', { name: '主なナビゲーション' })
+    const opener = within(rail).getByRole('button', { name: '設定' })
+    opener.focus()
+    fireEvent.click(opener)
+
+    const dialog = await screen.findByRole('dialog', { name: '設定' })
+    const categories = within(dialog).getByRole('navigation', { name: '設定カテゴリ' })
+    const files = within(categories).getByRole('button', { name: 'ファイルとリンク' })
+    const templates = within(categories).getByRole('button', { name: 'テンプレート' })
+    const ai = within(categories).getByRole('button', { name: 'AIとレビュー' })
+
+    expect(files.getAttribute('aria-current')).toBe('page')
+    expect(within(dialog).getByRole('textbox', { name: '除外するファイル' })).not.toBeNull()
+    expect(within(dialog).queryByRole('combobox', { name: 'テンプレートフォルダ' })).toBeNull()
+
+    fireEvent.click(templates)
+    expect(templates.getAttribute('aria-current')).toBe('page')
+    expect(within(dialog).getByRole('combobox', { name: 'テンプレートフォルダ' })).not.toBeNull()
+    expect(within(dialog).queryByRole('textbox', { name: '除外するファイル' })).toBeNull()
+
+    fireEvent.click(ai)
+    expect(ai.getAttribute('aria-current')).toBe('page')
+    expect(within(dialog).getByRole('textbox', { name: 'AI変更を承認制にするパス' })).not.toBeNull()
+    expect(within(dialog).queryByRole('combobox', { name: 'テンプレートフォルダ' })).toBeNull()
+
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: '設定' })).toBeNull()
+      expect(document.activeElement).toBe(opener)
+    })
+  })
+
+  it('未保存の設定変更を背景クリックで誤って破棄しない', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '設定' }))
+
+    const dialog = await screen.findByRole('dialog', { name: '設定' })
+    const backdrop = screen.getByTestId('settings-backdrop')
+    const excluded = within(dialog).getByRole('textbox', {
+      name: '除外するファイル'
+    }) as HTMLTextAreaElement
+    fireEvent.change(excluded, { target: { value: '90_Archive' } })
+    expect(within(dialog).getByRole('status').textContent).toBe('未保存の変更があります')
+    fireEvent.click(dialog)
+    expect(confirmSpy).not.toHaveBeenCalled()
+    fireEvent.click(backdrop)
+
+    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('未保存'))
+    expect(screen.getByRole('dialog', { name: '設定' })).toBe(dialog)
+    expect(excluded.value).toBe('90_Archive')
+
+    confirmSpy.mockReturnValue(true)
+    fireEvent.click(backdrop)
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: '設定' })).toBeNull()
+    })
+  })
+
+  it('設定保存の失敗を開いているダイアログ内で伝える', async () => {
+    vi.mocked(api.setUserIgnoreFilters).mockResolvedValue({
+      ok: false,
+      error: { code: 'SAVE_FAILED', message: '除外設定を保存できません。' }
+    })
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '設定' }))
+
+    const dialog = await screen.findByRole('dialog', { name: '設定' })
+    const excluded = within(dialog).getByRole('textbox', {
+      name: '除外するファイル'
+    }) as HTMLTextAreaElement
+    fireEvent.change(excluded, { target: { value: '90_Archive' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: '設定を保存' }))
+
+    expect((await within(dialog).findByRole('alert')).textContent).toBe(
+      '除外設定を保存できません。'
+    )
+    expect(excluded.value).toBe('90_Archive')
+    expect(api.setAiReviewPaths).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: '設定' })).toBe(dialog)
+
+    fireEvent.change(excluded, { target: { value: '80_Archive' } })
+    expect(within(dialog).queryByRole('alert')).toBeNull()
+    expect(within(dialog).getByRole('status').textContent).toBe('未保存の変更があります')
+  })
+
+  it('設定の部分保存後は保存済みと未保存のカテゴリを正しく保つ', async () => {
+    vi.mocked(api.setAiReviewPaths).mockResolvedValue({
+      ok: false,
+      error: { code: 'SAVE_FAILED', message: 'AIレビュー設定を保存できません。' }
+    })
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '設定' }))
+
+    let dialog = await screen.findByRole('dialog', { name: '設定' })
+    fireEvent.change(within(dialog).getByRole('textbox', { name: '除外するファイル' }), {
+      target: { value: ' 90_Archive ' }
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'AIとレビュー' }))
+    fireEvent.change(
+      within(dialog).getByRole('textbox', { name: 'AI変更を承認制にするパス' }),
+      { target: { value: '30_知識' } }
+    )
+    fireEvent.click(within(dialog).getByRole('button', { name: '設定を保存' }))
+
+    expect((await within(dialog).findByRole('alert')).textContent).toContain(
+      'ファイルとリンクは保存済みです'
+    )
+    fireEvent.click(within(dialog).getByRole('button', { name: 'キャンセル' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '設定' })).toBeNull())
+    expect(confirmSpy).toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: '設定' }))
+    dialog = await screen.findByRole('dialog', { name: '設定' })
+    expect(
+      (within(dialog).getByRole('textbox', { name: '除外するファイル' }) as HTMLTextAreaElement)
+        .value
+    ).toBe('90_Archive')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'AIとレビュー' }))
+    expect(
+      (within(dialog).getByRole('textbox', {
+        name: 'AI変更を承認制にするパス'
+      }) as HTMLTextAreaElement).value
+    ).toBe('')
+  })
+
+  it('設定ダイアログ内でTabとShift+Tabを循環させる', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '設定' }))
+
+    const closeButton = await screen.findByRole('button', { name: '設定を閉じる' })
+    const saveButton = screen.getByRole('button', { name: '設定を保存' })
+
+    closeButton.focus()
+    fireEvent.keyDown(closeButton, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(saveButton)
+
+    fireEvent.keyDown(saveButton, { key: 'Tab' })
+    expect(document.activeElement).toBe(closeButton)
+  })
+
+  it('keeps the primary workspace actions available in one persistent activity rail', async () => {
+    render(<App />)
+
+    const rail = await screen.findByRole('navigation', { name: '主なナビゲーション' })
+    const fileButton = within(rail).getByRole('button', { name: 'ファイル' })
+    const searchButton = within(rail).getByRole('button', { name: '内容を検索' })
+    const openButton = within(rail).getByRole('button', { name: 'ノートを開く' })
+    const noteButton = within(rail).getByRole('button', { name: '新規ノート' })
+    const folderButton = within(rail).getByRole('button', { name: '新規フォルダ' })
+    const todayButton = within(rail).getByRole('button', { name: '今日のノート' })
+    const ideaButton = within(rail).getByRole('button', { name: 'アイデアを追加' })
+    const graphButton = within(rail).getByRole('button', { name: 'グラフビュー' })
+    const observatoryButton = within(rail).getByRole('button', { name: '観測宙域' })
+    const bookmarkButton = within(rail).getByRole('button', { name: 'ブックマーク' })
+    const commandButton = within(rail).getByRole('button', { name: '操作' })
+
+    expect(searchButton.getAttribute('aria-keyshortcuts')).toBe(
+      'Control+Shift+F Meta+Shift+F Control+K Meta+K'
+    )
+    expect(openButton.getAttribute('aria-keyshortcuts')).toBe('Control+O Meta+O')
+    expect(noteButton).toBeTruthy()
+    expect(folderButton).toBeTruthy()
+    expect(todayButton).toBeTruthy()
+    expect(ideaButton).toBeTruthy()
+    expect(document.querySelector('.tree-toolbar')).toBeNull()
+    expect(screen.queryByRole('textbox', { name: '内容を検索' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'グラフビュー' })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'ブックマーク' })).toHaveLength(1)
+    expect(within(rail).queryByRole('button', { name: '知識の時間' })).toBeNull()
+
+    fireEvent.click(bookmarkButton)
+    expect(screen.getByRole('region', { name: 'ブックマーク一覧' })).toBeTruthy()
+
+    fireEvent.click(fileButton)
+    expect(screen.queryByRole('region', { name: 'ブックマーク一覧' })).toBeNull()
+
+    fireEvent.click(searchButton)
+    const searchInput = await screen.findByRole('textbox', { name: '内容を検索' })
+    await waitFor(() => expect(document.activeElement).toBe(searchInput))
+
+    fireEvent.click(graphButton)
+    expect(await screen.findByRole('tab', { name: 'グラフビュー' })).toBeTruthy()
+
+    fireEvent.click(observatoryButton)
+    expect(await screen.findByRole('tab', { name: '観測宙域' })).toBeTruthy()
+    expect(screen.getByRole('region', { name: '観測宙域' })).toBeTruthy()
+
+    fireEvent.click(within(rail).getByRole('button', { name: '左サイドバーを閉じる' }))
+    expect(screen.getByRole('navigation', { name: '主なナビゲーション' })).toBe(rail)
+    expect(within(rail).getByRole('button', { name: '左サイドバーを開く' })).toBeTruthy()
+
+    fireEvent.click(commandButton)
+    expect(await screen.findByRole('dialog', { name: '操作を実行' })).toBeTruthy()
+  })
+
+  it('jumps from the outline in Preview and Edit without saving the note', async () => {
+    const headingContent = '# 章\n本文\n## 節'
+    vi.mocked(api.openLastVault).mockResolvedValue(
+      await ok({
+        ...snapshot,
+        notes: [{ ...noteA, content: headingContent }, noteB, noteC]
+      })
+    )
+
+    render(<App />)
+
+    const outlineTab = await screen.findByRole('tab', { name: 'アウトライン 2件' })
+    fireEvent.click(outlineTab)
+    const previewHeading = screen.getByRole('heading', { name: '節' })
+    const scrollIntoView = vi.fn()
+    previewHeading.scrollIntoView = scrollIntoView
+
+    fireEvent.click(screen.getByRole('button', { name: '節' }))
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start' })
+    expect(document.activeElement).toBe(previewHeading)
+    expect(api.saveNote).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: '編集' }))
+    const editor = await screen.findByRole('textbox', { name: 'Markdown編集欄' }) as HTMLTextAreaElement
+    fireEvent.click(screen.getByRole('button', { name: '節' }))
+    expect(editor.selectionStart).toBe(headingContent.indexOf('## 節'))
+    expect(document.activeElement).toBe(editor)
+    expect(editor.value).toBe(headingContent)
+    expect(api.saveNote).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'ローカルグラフ' }))
+    expect(await screen.findByRole('tab', { name: 'アウトライン 0件' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '節' })).toBeNull()
+  })
+
+  it('collapses context panes as the viewport crosses 900px and 720px', async () => {
+    let width = 1200
+    const listeners = new Set<(event: MediaQueryListEvent) => void>()
+    const matches = (query: string): boolean =>
+      query === '(max-width: 720px)' ? width <= 720 : width <= 900
+
+    vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+      get matches() {
+        return matches(query)
+      },
+      media: query,
+      onchange: null,
+      addEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) =>
+        listeners.add(listener),
+      removeEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) =>
+        listeners.delete(listener),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    })))
+
+    render(<App />)
+    expect(await screen.findByRole('button', { name: '左サイドバーを閉じる' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '右サイドバーを閉じる' })).toBeTruthy()
+
+    act(() => {
+      width = 900
+      listeners.forEach((listener) => listener({ matches: true } as MediaQueryListEvent))
+    })
+    expect(screen.getByRole('button', { name: '左サイドバーを閉じる' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '右サイドバーを開く' })).toBeTruthy()
+
+    act(() => {
+      width = 720
+      listeners.forEach((listener) => listener({ matches: true } as MediaQueryListEvent))
+    })
+    expect(screen.getByRole('button', { name: '左サイドバーを開く' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '右サイドバーを開く' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '左サイドバーを開く' }))
+    expect(document.getElementById('left-sidebar-content')?.hasAttribute('hidden')).toBe(false)
+  })
+
   it('collapses and restores each sidebar independently while preserving the note pane', async () => {
     render(<App />)
 
@@ -2162,6 +2750,7 @@ describe('App data-loss guards', () => {
     expect(rightToggle.getAttribute('aria-expanded')).toBe('true')
     expect(leftToggle.getAttribute('title')).toBe('左サイドバーを閉じる')
     expect(rightToggle.getAttribute('title')).toBe('右サイドバーを閉じる')
+    expect(screen.getByRole('region', { name: 'デイリーカレンダー' })).toBeTruthy()
 
     fireEvent.click(leftToggle)
     const leftReopen = screen.getByRole('button', { name: '左サイドバーを開く' })
@@ -2178,12 +2767,14 @@ describe('App data-loss guards', () => {
       '右サイドバーを開く'
     )
     expect(document.getElementById('right-sidebar-content')?.hasAttribute('hidden')).toBe(true)
+    expect(screen.queryByRole('region', { name: 'デイリーカレンダー' })).toBeNull()
     expect(screen.getByText('Aの本文')).toBe(noteBody)
 
     fireEvent.click(screen.getByRole('button', { name: '左サイドバーを開く' }))
     fireEvent.click(screen.getByRole('button', { name: '右サイドバーを開く' }))
     expect(document.getElementById('left-sidebar-content')?.hasAttribute('hidden')).toBe(false)
     expect(document.getElementById('right-sidebar-content')?.hasAttribute('hidden')).toBe(false)
+    expect(screen.getByRole('region', { name: 'デイリーカレンダー' })).toBeTruthy()
   })
 
   it('shows unresolved Wiki links until the existing-files-only filter is enabled and persisted', async () => {
@@ -2263,7 +2854,7 @@ describe('App data-loss guards', () => {
     fireEvent.click(tagNode)
 
     expect(
-      (screen.getByRole('textbox', { name: '内容を検索' }) as HTMLInputElement)
+      (await screen.findByRole('textbox', { name: '内容を検索' }) as HTMLInputElement)
         .value
     ).toBe('tag:#project/tsuzune')
     expect(api.setGraphFilters).toHaveBeenCalledWith({
@@ -3178,7 +3769,7 @@ describe('App data-loss guards', () => {
       expect(dialog.contains(document.activeElement)).toBe(true)
     })
     expect(dialog.getAttribute('aria-modal')).toBe('true')
-    expect(container.querySelector('.app-header')?.hasAttribute('inert')).toBe(true)
+    expect(container.querySelector('.workspace')?.hasAttribute('inert')).toBe(true)
 
     fireEvent.keyDown(dialog, { key: 'Escape' })
 
@@ -3186,7 +3777,52 @@ describe('App data-loss guards', () => {
       expect(screen.queryByRole('dialog', { name: 'Google Drive同期' })).toBeNull()
     })
     expect(document.activeElement).toBe(opener)
-    expect(container.querySelector('.app-header')?.hasAttribute('inert')).toBe(false)
+    expect(container.querySelector('.workspace')?.hasAttribute('inert')).toBe(false)
+  })
+
+  it('ignores Google backdrop clicks while busy and closes from the backdrop afterward', async () => {
+    type GoogleStatusResult = Awaited<ReturnType<TsuzuneApi['getGoogleDriveStatus']>>
+    let finishStatus: (() => void) | null = null
+    api.getGoogleDriveStatus = vi.fn(
+      () =>
+        new Promise<GoogleStatusResult>((resolve) => {
+          finishStatus = () =>
+            resolve({
+              ok: true,
+              value: {
+                configured: true,
+                connected: true,
+                account: {
+                  sub: 'google-user',
+                  name: 'TSUZUNE User',
+                  email: 'user@example.com',
+                  picture: null
+                },
+                authorizedFeatures: ['drive_sync'],
+                lastSyncAt: null,
+                vaultFolderUrl: null
+              }
+            })
+        })
+    )
+
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Google / 同期' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Google Drive同期' })
+    const backdrop = screen.getByTestId('google-sync-backdrop')
+    fireEvent.click(dialog)
+    fireEvent.click(backdrop)
+    expect(screen.getByRole('dialog', { name: 'Google Drive同期' })).toBe(dialog)
+
+    expect(finishStatus).not.toBeNull()
+    finishStatus!()
+    await screen.findByText('user@example.com')
+    fireEvent.click(backdrop)
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Google Drive同期' })).toBeNull()
+    })
   })
 
   it('traps Tab and Shift+Tab within the Google dialog', async () => {
@@ -3333,4 +3969,5 @@ describe('App data-loss guards', () => {
       'Bの本文'
     )
   })
+
 })

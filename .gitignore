@@ -17,6 +17,7 @@ coverage/
 /scripts/measure-large-vault-core.d.ts
 work/
 .playwright-cli/
+.firecrawl/
 output/playwright/
 *.log
 .DS_Store

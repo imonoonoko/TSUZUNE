@@ -1,6 +1,6 @@
 # TSUZUNE Obsidian級Daily Workspace: UI Design Brief
 
-Status: direction approved by the user on 2026-08-17; Quick Switcher and Command Palette are implemented and installed, remaining surfaces stay staged
+Status: direction approved; the 2026-08-27 top-shell/settings continuation is source-verified and awaiting production acceptance
 
 ## 1. Feature Summary
 
@@ -26,25 +26,23 @@ TSUZUNEの既存3ペインを、日常的に迷わず使えるWindows knowledge 
 - Breadth: whole daily workspace, delivered in independent slices。
 - Interactivity: production behavior, keyboard and pointer parity。
 - Time intent: P0を優先して出荷し、P1／P2はdogfood evidenceで順番を調整する。
-- This artifact: design and requirements only。製品コードの変更は行わない。
+- This artifact: the durable design contract for the selected shell/settings implementation and its later independent slices.
 
 ## 5. Layout Strategy
 
 ```text
-+--------------------------------------------------------------------------------+
-| Interwoven Bell | Vault name | current path/state        Sync  Settings  More  |
 +------------------------+------------------------------------+------------------+
 | LEFT: PLACE            | CENTER: WORK                       | RIGHT: CONTEXT   |
 |                        |                                    |                  |
-| [Search contents]      | [Tab] [Tab] [Tab]                  | [Outline]        |
-| [New note] [Today]     | Note title           Saved         | [Links]          |
+| [Activity Rail]        | [Tab] [Tab] [Tab]                  | [Outline]        |
+| [Files/Search/Create]  | Note title           Saved         | [Links]          |
 | Files | Bookmarks      | [Edit | Preview] [This note graph] | [Backlinks]      |
 |                        |                                    | [Time]           |
 | ▼ 00_入口              |       readable 65–75ch             |                  |
 |   今やること           |       Markdown surface             | current tab body |
 | ▶ 10_プロジェクト      |                                    |                  |
 |                        |                                    |                  |
-| Vault-wide graph   …   | path / word count / feedback       |                  |
+| [Sync/Vault/Settings]  | path / word count / feedback       |                  |
 +------------------------+------------------------------------+------------------+
 
 Ctrl+O layer: ノートを開く
@@ -75,7 +73,7 @@ Ctrl+P layer: 操作を実行
 4. Vault navigation。
 5. Sync、Settings、Graph settings、rare actions。
 
-Low-frequency controls may move into a familiar More menu, but no existing operation becomes unreachable or icon-only without explanation.
+Low-frequency application controls live in the pinned Activity Rail footer. Each remains reachable by accessible name and tooltip; no existing operation receives a second implementation.
 
 ## 6. Primary Components and States
 

@@ -259,7 +259,13 @@ export default function HumanNoteCaptureDialog({
   const titleId = `${kind}-capture-title`
 
   return (
-    <div className="modal-backdrop" role="presentation">
+    <div
+      className="modal-backdrop"
+      role="presentation"
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !submitting) onCancel()
+      }}
+    >
       <section
         className="modal human-note-capture-modal"
         role="dialog"

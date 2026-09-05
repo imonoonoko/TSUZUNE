@@ -9,6 +9,7 @@
 - [Product Definition](../PRODUCT.md) — 製品目的、原則、非目標。
 - [Design System](../DESIGN.md) — UI、ブランド、アクセシビリティ。
 - [Working Agreement](../AGENTS.md) — 開発と本番dogfoodの運用規約。
+- [Browser Clipper](browser-clipper.md) — Chrome／EdgeからWebページとYouTubeを`01_受信箱`へ受け取る方法、出典情報、安全境界。
 
 ## 現在の開発
 
@@ -40,6 +41,7 @@
 - [TSUZUNE Icon Refresh](reports/tsuzune-icon-refresh-2026-08-14.md) — Interwoven Bellのapp／tray専用asset、16–32px確認、runtime接続、検証と本番反映証拠。
 - [Current-state consolidation 2026-08-13](reports/tsuzune-consolidation-2026-08-13.md) — 製品中心、installed／source境界、96-entry working tree、完了／保留、優先順を一枚に固定。
 - [Product Plan](../PLAN.md) — 現在の実行順、受入条件、保留Track、長期roadmap。
+- [AI文脈エンジン／派生知識整理](mcp-integration.md#受信箱を整理する時) — Inbox原典を残し、1原典を0〜複数のconcept keyへ分解して直接知識化する現行契約。処理済みrevisionと保留は受信箱地図の現在状態で管理する。
 - [O2-P3 test-only migration prototype](reports/cp1-c-02-o2-p3-prototype-2026-08-13.md) — 匿名一時Vaultで4段階mutation、失敗注入、自動rollback、exact-byte復元を固定。本番applyではない。
 - [O2-P4 Drive Path Alias contract](reports/cp1-c-03-drive-path-alias-contract-2026-08-13.md) — P4A sidecar同期とP4B remote relocationを分離し、次をP4Aだけに限定。
 - [O2-P4A test-only sidecar sync prototype](reports/cp1-c-04-o2-p4a-sidecar-sync-prototype-2026-08-13.md) — fake remoteでexact bytes、ownership、ledger、conflict、local rollbackを固定した当時の境界。後続の[Drive Vault roundtrip acceptance](reports/drive-vault-roundtrip-acceptance-2026-08-16.md)と[production gate](reports/classification-production-gate-2026-08-17.md)でlive Drive／本番applyを完了。
@@ -56,7 +58,7 @@
 - [Obsidian Graph Parity Reference](obsidian-graph-parity-reference.md) — 固定比較対象と受入契約。
 - [GP0-3b-n Attachment Default App Requirements](../.agent/requirements/20260810-1941-attachment-default-app/4_requirements.md) — 実外部アプリを起動せず、添付の既定アプリ要求を一項目だけ比較した設計、安全境界、停止条件。
 - [GP0-3b-p Attachment File Explorer Reveal Requirements](../.agent/requirements/20260811-0257-attachment-file-explorer-reveal/4_requirements.md) — `ファイルエクスプローラでファイルを表示`の意味を推測せず、内部File ExplorerかOS境界かを一項目・一添付で確定する設計、安全境界、停止条件。
-- [MCP Integration](mcp-integration.md) — Codex Desktopの16ツール登録、direct server 18ツール、Drive同期bridgeと書込境界。
+- [MCP Integration](mcp-integration.md) — Codex Desktopの19ツール登録、direct server 21ツール、派生知識の自動作成・明示時の受信箱trash、Drive同期bridgeと書込境界。
 - [Drive Sync MCP Bridge](reports/drive-sync-mcp-bridge-2026-08-14.md) — 起動中のTSUZUNE本体が持つ既存同期serviceをpreview／applyへ接続し、Google tokenをMCPへ渡さない実装・検証記録。
 - [Compact Context Requirements](../.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md) — X1-M1 MOC Title Routerの実装契約と、未実装のquery選定・MCP二重搬送削減を分離して記録。
 - [X1-T1 Structured-only Transport Measurement Protocol](../.agent/requirements/20260810-0440-query-aware-compact-context/7_x1-t1-model-visible-token-benchmark.md) — `build_context`の二重搬送を、wire bytesとmodel-visible tokenを混同せずに実測するgate。

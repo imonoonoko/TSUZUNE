@@ -38,7 +38,7 @@ const BUILTIN_TEMPLATES: readonly NoteDocument[] = [
     path: `${TEMPLATE_DIRECTORY}/学びメモ.md`,
     name: '学びメモ',
     content:
-      '# {{title}}\n\n## 要点\n\n## 使えそうな場面\n\n## 関連ノート\n\n',
+      '# {{title}}\n\n## 原典・根拠・時点\n\n## 自分の理解\n\n## 再利用できる主張\n\n## 関連ノート\n\n## 使う場面\n\n## 見直す条件\n\n',
     modifiedAt: 0,
     size: 0
   }

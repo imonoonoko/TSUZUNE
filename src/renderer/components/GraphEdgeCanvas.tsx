@@ -47,6 +47,29 @@ export interface GraphViewportTransform {
 
 export const GRAPH_NODE_RADIUS = 8
 
+export interface GraphThemePalette {
+  edge: string
+  edgeActive: string
+}
+
+const DEFAULT_GRAPH_THEME: GraphThemePalette = {
+  edge: '#64766F',
+  edgeActive: '#78BFB2'
+}
+
+export function resolveGraphThemePalette(
+  styles: Pick<CSSStyleDeclaration, 'getPropertyValue'>
+): GraphThemePalette {
+  const read = (name: string, fallback: string): string => {
+    const value = styles.getPropertyValue(name).trim()
+    return value || fallback
+  }
+  return {
+    edge: read('--graph-edge', '#64766F'),
+    edgeActive: read('--graph-edge-active', '#78BFB2')
+  }
+}
+
 export function graphPointToViewport(
   point: PixelPoint,
   viewport: GraphViewportTransform
@@ -64,7 +87,8 @@ export function graphRadiusToViewport(radius: number, zoom: number): number {
 export function buildGraphEdgeDrawCommands(
   graph: WikiGraph,
   positions: Map<string, GraphPosition>,
-  activePath: string | null
+  activePath: string | null,
+  palette: GraphThemePalette = DEFAULT_GRAPH_THEME
 ): GraphEdgeDrawCommand[] {
   return deduplicateGraphGeometryEdges(graph.edges).flatMap(
     (edge): GraphEdgeDrawCommand[] => {
@@ -81,7 +105,7 @@ export function buildGraphEdgeDrawCommands(
           ...edge,
           source,
           target,
-          color: emphasized ? '#7c5cf0' : '#dadada',
+          color: emphasized ? palette.edgeActive : palette.edge,
           lineWidth: emphasized ? 1.8 : 1,
           opacity: activePath && !emphasized ? 0.16 : 1
         }
@@ -95,7 +119,8 @@ export function buildGraphArrowDrawCommands(
   positions: Map<string, GraphPosition>,
   activePath: string | null,
   zoom: number,
-  lineSizeMultiplier: number
+  lineSizeMultiplier: number,
+  palette: GraphThemePalette = DEFAULT_GRAPH_THEME
 ): GraphArrowDrawCommand[] {
   const seen = new Set<string>()
   const zoomAlpha = Math.min(1, Math.max(0, 2 * (zoom - 0.3)))
@@ -122,7 +147,7 @@ export function buildGraphArrowDrawCommands(
         ...edge,
         source,
         target,
-        color: emphasized ? '#7c5cf0' : '#5c5c5c',
+        color: emphasized ? palette.edgeActive : palette.edge,
         lineWidth: emphasized ? 1.8 : 1,
         opacity: relationAlpha * zoomAlpha * 0.5,
         localScale
@@ -212,6 +237,8 @@ export default function GraphEdgeCanvas({
       return
     }
 
+    const palette = resolveGraphThemePalette(getComputedStyle(canvas))
+
     const draw = (): void => {
       const currentPositions = simulation?.positions() ?? positions
       const zoomGeometry = calculateGraphZoomGeometry(
@@ -221,7 +248,8 @@ export default function GraphEdgeCanvas({
       const commands = buildGraphEdgeDrawCommands(
         graph,
         currentPositions,
-        activePath
+        activePath,
+        palette
       )
       const arrowCommands = showArrows
         ? buildGraphArrowDrawCommands(
@@ -229,7 +257,8 @@ export default function GraphEdgeCanvas({
             currentPositions,
             activePath,
             zoom,
-            lineSizeMultiplier
+            lineSizeMultiplier,
+            palette
           )
         : []
       const bounds = canvas.getBoundingClientRect()

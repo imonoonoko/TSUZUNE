@@ -384,38 +384,3 @@ export function assertOnlyLinkInserted(
     throw new Error('リンク挿入以外の本文変更を検出しました。')
   }
 }
-
-/** 既存の ai_revision / note_move と同形式の監査記録を作る。 */
-export function renderLinkAddRecord(
-  sourcePath: string,
-  targetPath: string,
-  link: string,
-  previousRevision: string,
-  newRevision: string,
-  reason: string,
-  sourceRefs: string[]
-): string {
-  return [
-    '---',
-    'kind: note_link_add',
-    `source: ${sourcePath}`,
-    `target: ${targetPath}`,
-    `link: ${link}`,
-    'actor: ai',
-    `reason: ${JSON.stringify(reason)}`,
-    'source_refs:',
-    ...(sourceRefs.length > 0
-      ? sourceRefs.map((sourceRef) => `  - ${JSON.stringify(sourceRef)}`)
-      : ['  - none']),
-    `previous_revision: ${previousRevision}`,
-    `new_revision: ${newRevision}`,
-    `recorded_at: ${new Date().toISOString()}`,
-    '---',
-    '',
-    '# Link add audit',
-    '',
-    `- 起点: ${sourcePath}`,
-    `- 追加リンク: ${link} (${targetPath})`,
-    '- それ以外の本文は不変'
-  ].join('\n')
-}

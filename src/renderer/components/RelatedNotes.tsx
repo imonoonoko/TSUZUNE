@@ -1,15 +1,19 @@
 import { useState } from 'react'
 import type { NoteDocument, ResolvedWikiLink } from '../../shared/types'
+import type { MarkdownHeading } from '../../core/markdown-headings'
 
 interface RelatedNotesProps {
   outgoing: ResolvedWikiLink[]
   backlinks: NoteDocument[]
   temporal: React.ReactNode
+  selectedNoteName?: string
+  headings?: MarkdownHeading[]
+  onHeadingSelect?: (heading: MarkdownHeading) => void
   onOpen: (path: string) => void
   onMissing: (target: string) => void
 }
 
-const contextTabs = ['links', 'backlinks', 'temporal'] as const
+const contextTabs = ['outline', 'links', 'backlinks', 'temporal'] as const
 type ContextTab = (typeof contextTabs)[number]
 
 function Section({
@@ -33,6 +37,9 @@ export default function RelatedNotes({
   outgoing,
   backlinks,
   temporal,
+  selectedNoteName,
+  headings = [],
+  onHeadingSelect = () => undefined,
   onOpen,
   onMissing
 }: RelatedNotesProps): React.JSX.Element {
@@ -74,49 +81,84 @@ export default function RelatedNotes({
   }
 
   return (
-    <aside className="related-panel" aria-label="ノートの文脈">
-      <div className="related-panel-tabs" role="tablist" aria-label="ノートの文脈">
-        <button
-          type="button"
-          id="context-tab-links"
-          className="related-panel-tab"
-          role="tab"
-          aria-label={`リンク ${outgoing.length}件`}
-          aria-selected={activeTab === 'links'}
-          aria-controls="context-panel-links"
-          tabIndex={activeTab === 'links' ? 0 : -1}
-          onClick={() => setActiveTab('links')}
-          onKeyDown={selectTabFromKeyboard}
-        >
-          リンク <span aria-hidden="true">{outgoing.length}</span>
-        </button>
-        <button
-          type="button"
-          id="context-tab-backlinks"
-          className="related-panel-tab"
-          role="tab"
-          aria-label={`バックリンク ${backlinks.length}件`}
-          aria-selected={activeTab === 'backlinks'}
-          aria-controls="context-panel-backlinks"
-          tabIndex={activeTab === 'backlinks' ? 0 : -1}
-          onClick={() => setActiveTab('backlinks')}
-          onKeyDown={selectTabFromKeyboard}
-        >
-          バックリンク <span aria-hidden="true">{backlinks.length}</span>
-        </button>
-        <button
-          type="button"
-          id="context-tab-temporal"
-          className="related-panel-tab"
-          role="tab"
-          aria-selected={activeTab === 'temporal'}
-          aria-controls="context-panel-temporal"
-          tabIndex={activeTab === 'temporal' ? 0 : -1}
-          onClick={() => setActiveTab('temporal')}
-          onKeyDown={selectTabFromKeyboard}
-        >
-          時間
-        </button>
+    <aside className="related-panel" aria-labelledby="related-panel-title">
+      <div className="related-panel-sticky">
+        <header className="related-panel-heading">
+          <h2 id="related-panel-title">ノートの文脈</h2>
+          <p title={selectedNoteName}>{selectedNoteName ?? '選択中のノートを整理'}</p>
+        </header>
+        <div className="related-panel-tabs" role="tablist" aria-label="ノートの文脈">
+          <button
+            type="button"
+            id="context-tab-outline"
+            className="related-panel-tab"
+            role="tab"
+            aria-label={`アウトライン ${headings.length}件`}
+            aria-selected={activeTab === 'outline'}
+            aria-controls="context-panel-outline"
+            tabIndex={activeTab === 'outline' ? 0 : -1}
+            onClick={() => setActiveTab('outline')}
+            onKeyDown={selectTabFromKeyboard}
+          >
+            アウトライン <span aria-hidden="true">{headings.length}</span>
+          </button>
+          <button
+            type="button"
+            id="context-tab-links"
+            className="related-panel-tab"
+            role="tab"
+            aria-label={`リンク ${outgoing.length}件`}
+            aria-selected={activeTab === 'links'}
+            aria-controls="context-panel-links"
+            tabIndex={activeTab === 'links' ? 0 : -1}
+            onClick={() => setActiveTab('links')}
+            onKeyDown={selectTabFromKeyboard}
+          >
+            リンク <span aria-hidden="true">{outgoing.length}</span>
+          </button>
+          <button
+            type="button"
+            id="context-tab-backlinks"
+            className="related-panel-tab"
+            role="tab"
+            aria-label={`バックリンク ${backlinks.length}件`}
+            aria-selected={activeTab === 'backlinks'}
+            aria-controls="context-panel-backlinks"
+            tabIndex={activeTab === 'backlinks' ? 0 : -1}
+            onClick={() => setActiveTab('backlinks')}
+            onKeyDown={selectTabFromKeyboard}
+          >
+            バックリンク <span aria-hidden="true">{backlinks.length}</span>
+          </button>
+          <button
+            type="button"
+            id="context-tab-temporal"
+            className="related-panel-tab"
+            role="tab"
+            aria-selected={activeTab === 'temporal'}
+            aria-controls="context-panel-temporal"
+            tabIndex={activeTab === 'temporal' ? 0 : -1}
+            onClick={() => setActiveTab('temporal')}
+            onKeyDown={selectTabFromKeyboard}
+          >
+            時間
+          </button>
+        </div>
+      </div>
+
+      <div id="context-panel-outline" className="related-tab-panel" role="tabpanel"
+        aria-labelledby="context-tab-outline" hidden={activeTab !== 'outline'}>
+        <Section title="アウトライン" empty={headings.length === 0}>
+          <div className="outline-list">
+            {headings.map((heading) => (
+              <button type="button" className="outline-item" key={heading.id}
+                style={{ paddingInlineStart: `${Math.max(0, heading.level - 1) * 0.75 + 0.5}rem` }}
+                onClick={() => onHeadingSelect(heading)}>
+                {heading.title}
+              </button>
+            ))}
+          </div>
+        </Section>
       </div>
 
       <div

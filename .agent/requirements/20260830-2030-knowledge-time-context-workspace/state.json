@@ -1,0 +1,30 @@
+{
+  "workflow": "knowledge-time-context-workspace",
+  "lane": "orchestrated",
+  "status": "complete",
+  "primary": true,
+  "approvedDirection": "B-dedicated-workspace",
+  "currentStep": "complete",
+  "success": [
+    "read-only-context-workspace-renders-explainable-temporal-evidence",
+    "public-ux-and-accessibility-states-pass",
+    "production-and-live-acceptance-pass"
+  ],
+  "constraints": {
+    "noteMutation": false,
+    "newDependency": false,
+    "newDatabase": false,
+    "backgroundHooks": false,
+    "forceCloseProduction": false
+  },
+  "productionAcceptance": "passed-10-of-10",
+  "writeback": {
+    "status": "verified",
+    "note": "30_知識/TSUZUNE-知識の時間Context Workspace実装・本番受入-2026-08-30.md",
+    "deliveryInfo": "mismatch",
+    "runtimeFresh": true,
+    "backlinks": 4,
+    "entryLinkCount": 1
+  },
+  "updatedAt": "2026-08-30T21:31:00+09:00"
+}

@@ -1,0 +1,126 @@
+{
+  "workItem": "tsuzune-properties-paired-gui-20260905",
+  "status": "applied-and-verified",
+"resolution": {
+  "completedAt": "2026-09-05T06:01:29+09:00",
+  "status": "applied-and-verified",
+  "targets": [
+    {
+      "id": "30_知識/TSUZUNE-Obsidian互換性P0-1-Excluded-files-実施記録-2026-09-05.md",
+      "revision": "sha256:62d5eb741bb9ebad66471d339a8d28c43d533ffc1165926369f1c0efcd61a2de",
+      "revisionMatches": true,
+      "contentMatches": true,
+      "truncated": false
+    },
+    {
+      "id": "10_プロジェクト/TSUZUNE.md",
+      "revision": "sha256:8ac6d18d29b7089dfcb2778e042b219af4b523146b2b0acf96c17ef155f53f66",
+      "revisionMatches": true,
+      "contentMatches": true,
+      "truncated": false
+    },
+    {
+      "id": "30_知識/TSUZUNE開発ロードマップ.md",
+      "revision": "sha256:84d3ec881c8b4496280f1d26fc4c8556b7ba1538f3a481132371a1748d28fdd1",
+      "revisionMatches": true,
+      "contentMatches": true,
+      "truncated": false
+    },
+    {
+      "id": "00_入口/今やること.md",
+      "revision": "sha256:1b973cefc1cba3816d438fa728e5aadc000ab09572fb2ad701053d6973abf5ab",
+      "revisionMatches": true,
+      "contentMatches": true,
+      "truncated": false
+    }
+  ],
+  "uniqueCampaignMatches": 1,
+  "backlinks": [
+    "00_入口/TSUZUNE運用・開発資料.md",
+    "00_入口/今やること.md",
+    "10_プロジェクト/AI組織化-管理DB.md",
+    "10_プロジェクト/TSUZUNE.md",
+    "30_知識/TSUZUNEシステム設計.md",
+    "30_知識/TSUZUNE開発ロードマップ.md",
+    "30_知識/TSUZUNE現在地・証拠地図.md"
+  ],
+  "expectedThreeHubBacklinksConfirmed": true,
+  "appliedOperationAdjustments": [
+    "campaign observed_at rebased to 2026-09-05T06:00:00+09:00",
+    "campaign P0-4 section includes the restart/revision-check continuation"
+  ],
+  "remainingWriteback": false
+},
+  "asOf": "2026-09-05T05:44:00+09:00",
+  "blockingTool": "mcp__tsuzune__patch_note",
+  "initialBlockingError": [
+    {
+      "type": "text",
+      "text": "STALE_RUNTIME_WRITE_BLOCKED: The registered MCP server is stale. Rebuild the MCP server (Codex: run npm run mcp:register), then restart the MCP client before retrying writes."
+    }
+  ],
+  "confirmedUnchangedCampaignRevision": "sha256:a3ab372881e31b2062adcf0b29dd3aa471ae712fd456024d528363b61e19b4f3",
+  "historicalResumeProcedure": [
+    "Use the established MCP registration and client reconnect procedure only when that runtime/configuration scope is authorized. Do not bypass the stale-runtime write guard or write the Vault through the filesystem.",
+    "After reconnecting, fetch every target again. Treat observed_revision below as historical; rebase these intended edits on current contents, preserving later owner decisions and historical P0-2/P0-3 sections. Do not blindly replay this JSON.",
+    "Apply the campaign record first, then the three affected hubs at most once each. Read back, narrowly search the campaign title for uniqueness, and verify its backlinks.",
+    "After verified synchronization, update the existing task state and report. The comparison is already finished; do not rerun the real-app cases or start checkbox implementation merely to resume writeback."
+  ],
+  "proposals": [
+    {
+      "id": "30_知識/TSUZUNE-Obsidian互換性P0-1-Excluded-files-実施記録-2026-09-05.md",
+      "observed_revision": "sha256:a3ab372881e31b2062adcf0b29dd3aa471ae712fd456024d528363b61e19b4f3",
+      "operations": [
+        {
+          "find": "observed_at: 2026-09-05T05:10:00+09:00",
+          "replace": "observed_at: 2026-09-05T05:42:00+09:00"
+        },
+        {
+          "find": "- **P0-2〜3 source実装済み:** 文字列／数値／単純list Propertiesの追加・編集・削除・保存・再読込を検証した。本番未反映。次は実装済みの文字列／数値／listを隔離fixtureでObsidianと対にして比較し、具体的な残差を固定する。",
+          "replace": "- **P0-2〜3 source実装済み・P0-4比較完了:** 文字列／数値／単純list Propertiesの追加・編集・削除・保存・再読込を検証した。本番未反映。P0-4の隔離実機対比較は完了。文字列・通常小数・文字列listの最終値は一致し、混在listの型とコメント／数値字面の保存は異なる。TSUZUNEの非破壊保存を維持し、次の候補は真偽値（checkbox）の無損失フォーム編集とする。工房主の選択後に一件だけ着手する。"
+        },
+        {
+          "find": "- **次のslice:** 第1層の文字列／数値／単純list Propertiesはsource検証済み。次は実装済みの文字列／数値／listを隔離fixtureでObsidianと対にして比較し、具体的な残差を固定する。第2〜4層は同時着手しない。",
+          "replace": "- **次のslice:** P0-4の隔離実機対比較は完了。文字列・通常小数・文字列listの最終値は一致し、混在listの型とコメント／数値字面の保存は異なる。TSUZUNEの非破壊保存を維持し、次の候補は真偽値（checkbox）の無損失フォーム編集とする。工房主の選択後に一件だけ着手する。 第2〜4層は同時着手しない。"
+        },
+        {
+          "find": "## Evidenceと関係",
+          "replace": "## 2026-09-05 P0-4 Properties隔離実機対比較の完了境界\n\n- **成果:** 公式配布物を展開した固定参照Obsidian 1.13.4と、現在sourceからbuildしたTSUZUNE Electronで、同一byteの匿名5ケースを別Vault／profileへ複製し、フォーム操作・保存・別PID再起動を比較した。文字列、通常小数、文字列listの最終値は一致。混在listの型、コメント、数値字面、BOM／改行は異なり、Properties全体はdifferentを維持する。\n- **具体差:** TSUZUNEは巨大小数の全桁表示と編集後の末尾ゼロ、list内の数値型、コメント文言、BOM／CRLF、対象外フィールドと本文を保持した。list項目コメントは独立行へ移り関連付けは保持しない。Obsidianは巨大小数の表示を丸めるが未編集openでは元byteを保持。混在listはunknownからlistへの選択・確認が必要で、最初の編集時に未編集数値も文字列化した。編集後はコメント除去やBOM除去／LF化も観測した。text listの追加・項目編集／削除・property削除は両者で同じ最終値になった。\n- **採用判断:** Obsidianの型変換・丸め・コメント除去へ追従せず、TSUZUNEの非破壊保存を維持する。今回の観測対象だけの一致であり、全面互換、最新Obsidian、cross-app交互編集、installed TSUZUNEの受入ではない。\n- **検証:** build（typecheck含む）PASS、親の33機械検査33/33 PASS。両appの6ファイル保存hashは別PIDでの再起動後も一致した。製品3ファイルhashはP0-3の最終値と一致。選択した本番settingsと既存obsidian protocol登録は前後同一。本番TSUZUNEは稼働継続、比較processとCDP listenerは終了。active Vaultを自動test対象にせず、全本番profile／Vaultのhash監査は行っていない。製品code変更がないためfull testとproduction gateは再実行しない。\n- **委譲・採否:** paired_harness_scout／Euler（Luna・low）は既存harnessと副作用のread-only調査、paired_matrix_review／Leibniz（Luna・low）は比較ケース提案と最終証拠reviewを所有。両者にruntime操作・source／Vault write・Gitを禁止した。親は実機操作、統合、未提示33項目検証、本番Vault書戻しを担当。成果を採用したが、reviewのcase05中間stage混同は不採用とし、最終saved-filesとrestartで訂正した。親modelとcostは推測しない。\n- **改善判断:** 調査と証拠reviewの分離は維持。startup scriptがinitial snapshotを再起動時に上書きしたため、元入力はinitial-fixtures.jsonだけを正本とし、上書きsnapshotを初回証拠から除外した。次回は初回／中間／最終stage名を分離する。Windows ESM path、環境変数、非表示window captureの再作業はtask harnessのみで解消し、製品failureに含めない。\n- **Evidence:** repository `.agent/requirements/20260905-obsidian-compatibility-program/results/p0-4-properties-paired-comparison.md`。exact hash／保存内容／再起動／保護対象／cleanupは `output/playwright/p0-4-properties-20260905/`。Raw logと使用量台帳はVaultへ複製しない。使用Skillはorchestrate-skills、ai-coding-operator、codex-dynamic-workflows、playwright、ponytail、tsuzune、tsuzune-execution-record。\n- **現在と次:** P0-4の隔離実機対比較は完了。文字列・通常小数・文字列listの最終値は一致し、混在listの型とコメント／数値字面の保存は異なる。TSUZUNEの非破壊保存を維持し、次の候補は真偽値（checkbox）の無損失フォーム編集とする。工房主の選択後に一件だけ着手する。 製品code、本番反映、Git deliveryは今回変更していない。実装候補と第2〜4層を自動着手しない。\n\n## Evidenceと関係"
+        }
+      ]
+    },
+    {
+      "id": "10_プロジェクト/TSUZUNE.md",
+      "observed_revision": "sha256:efd57421af7a0c1970cd328f7cccc90fcc948a747b6f173165cfa1cfc2535e70",
+      "operations": [
+        {
+          "find": "次は実装済みの文字列／数値／listを隔離fixtureでObsidianと対にして比較し、具体的な残差を固定する。",
+          "replace": "P0-4の隔離実機対比較は完了。文字列・通常小数・文字列listの最終値は一致し、混在listの型とコメント／数値字面の保存は異なる。TSUZUNEの非破壊保存を維持し、次の候補は真偽値（checkbox）の無損失フォーム編集とする。工房主の選択後に一件だけ着手する。",
+          "replace_all": true
+        }
+      ]
+    },
+    {
+      "id": "30_知識/TSUZUNE開発ロードマップ.md",
+      "observed_revision": "sha256:8d38994759d17bcfb147c0c5ceb8dce1062d7d500f8675c9f61b9960ee0cedad",
+      "operations": [
+        {
+          "find": "次は実装済みの文字列／数値／listを隔離fixtureでObsidianと対にして比較し、具体的な残差を固定する。",
+          "replace": "P0-4の隔離実機対比較は完了。文字列・通常小数・文字列listの最終値は一致し、混在listの型とコメント／数値字面の保存は異なる。TSUZUNEの非破壊保存を維持し、次の候補は真偽値（checkbox）の無損失フォーム編集とする。工房主の選択後に一件だけ着手する。",
+          "replace_all": true
+        }
+      ]
+    },
+    {
+      "id": "00_入口/今やること.md",
+      "observed_revision": "sha256:8b257b65baa6d6a87efe176e29594da87ef769b58a5bfa15b68e1b51c5460857",
+      "operations": [
+        {
+          "find": "次は実装済みの文字列／数値／listを隔離fixtureでObsidianと対にして比較し、具体的な残差を固定する。",
+          "replace": "P0-4の隔離実機対比較は完了。文字列・通常小数・文字列listの最終値は一致し、混在listの型とコメント／数値字面の保存は異なる。TSUZUNEの非破壊保存を維持し、次の候補は真偽値（checkbox）の無損失フォーム編集とする。工房主の選択後に一件だけ着手する。",
+          "replace_all": true
+        }
+      ]
+    }
+  ]
+}

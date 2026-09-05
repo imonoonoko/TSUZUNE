@@ -1,0 +1,89 @@
+{
+  "temporaryRoot": "C:\\Users\\Humin\\AppData\\Local\\Temp\\tsuzune-knowledge-time-7AlfeF",
+  "rightContext": {
+    "viewport": {
+      "width": 1265,
+      "height": 792
+    },
+    "heading": "ノートの文脈",
+    "selectedNoteName": "00_Home",
+    "tabCount": 4,
+    "tabRows": 2,
+    "panelOverflow": false,
+    "legend": "ノート活動日付の印を押すと一覧＋作成•更新",
+    "legendPassive": true
+  },
+  "rightContextScrolled": {
+    "scrollable": true,
+    "scrollTop": 141,
+    "stickyPosition": "sticky",
+    "headingVisible": true,
+    "tabsVisible": true
+  },
+  "captures": [
+    {
+      "viewport": {
+        "width": 1456,
+        "height": 939
+      },
+      "documentOverflow": false,
+      "workspaceOverflow": false,
+      "workspaceScrollable": false,
+      "controlColumns": "232.047px 309.422px 296.531px",
+      "controlColumnCount": 3,
+      "bodyColumns": "190px 724px",
+      "bodyScrollable": false,
+      "heading": "知識の時間",
+      "evidenceCount": 4,
+      "rightPanelPresent": true
+    },
+    {
+      "viewport": {
+        "width": 1265,
+        "height": 792
+      },
+      "documentOverflow": false,
+      "workspaceOverflow": false,
+      "workspaceScrollable": false,
+      "controlColumns": "329.5px 329.5px",
+      "controlColumnCount": 2,
+      "bodyColumns": "190px 533px",
+      "bodyScrollable": false,
+      "heading": "知識の時間",
+      "evidenceCount": 4,
+      "rightPanelPresent": true
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "documentOverflow": false,
+      "workspaceOverflow": false,
+      "workspaceScrollable": false,
+      "controlColumns": "209px 209px",
+      "controlColumnCount": 2,
+      "bodyColumns": "467px",
+      "bodyScrollable": true,
+      "heading": "知識の時間",
+      "evidenceCount": 4,
+      "rightPanelPresent": true
+    },
+    {
+      "viewport": {
+        "width": 720,
+        "height": 768
+      },
+      "documentOverflow": false,
+      "workspaceOverflow": false,
+      "workspaceScrollable": true,
+      "controlColumns": "593px",
+      "controlColumnCount": 1,
+      "bodyColumns": "629px",
+      "bodyScrollable": false,
+      "heading": "知識の時間",
+      "evidenceCount": 4,
+      "rightPanelPresent": true
+    }
+  ]
+}

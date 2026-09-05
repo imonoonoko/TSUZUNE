@@ -1,0 +1,17 @@
+{
+  "title": "TSUZUNE",
+  "brand": "TSUZUNE",
+  "brandMark": true,
+  "iconCount": 15,
+  "selectedNote": "00_Home",
+  "viewport": {
+    "width": 1424,
+    "height": 861
+  },
+  "moveDialog": {
+    "title": "ファイルを移動",
+    "focused": "SELECT",
+    "backgroundInert": true
+  },
+  "previewImageReady": true
+}

@@ -1,0 +1,120 @@
+{
+  "protocolVersion": "laf-proof-v1",
+  "snapshotDigest": "ed137cb77ccce737b432cd52838d596e7765a97fa074ecac66d2c4812319d8c5",
+  "seed": 1369952969,
+  "runKind": "frozen-acceptance",
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "visibility": "visible",
+    "canvas": [
+      1280,
+      720
+    ]
+  },
+  "captures": [
+    {
+      "name": "candidate-000s",
+      "path": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\.agent\\requirements\\20260904-living-archive-field-proof\\evidence\\final\\candidate-000s.png",
+      "size": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "name": "candidate-030s",
+      "path": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\.agent\\requirements\\20260904-living-archive-field-proof\\evidence\\final\\candidate-030s.png",
+      "size": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "name": "candidate-090s",
+      "path": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\.agent\\requirements\\20260904-living-archive-field-proof\\evidence\\final\\candidate-090s.png",
+      "size": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "name": "candidate-240s",
+      "path": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\.agent\\requirements\\20260904-living-archive-field-proof\\evidence\\final\\candidate-240s.png",
+      "size": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "name": "candidate-480s",
+      "path": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\.agent\\requirements\\20260904-living-archive-field-proof\\evidence\\final\\candidate-480s.png",
+      "size": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "name": "candidate-720s",
+      "path": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\.agent\\requirements\\20260904-living-archive-field-proof\\evidence\\final\\candidate-720s.png",
+      "size": {
+        "width": 1280,
+        "height": 720
+      }
+    }
+  ],
+  "frameCount": 161553,
+  "sampleCount": 6,
+  "controlComparison": {
+    "seconds": 90,
+    "sameWorldIdentity": true,
+    "meanPixelDifference": 0.010465910380355846,
+    "candidatePath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\.agent\\requirements\\20260904-living-archive-field-proof\\evidence\\final\\candidate-control-90s.png",
+    "controlPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\.agent\\requirements\\20260904-living-archive-field-proof\\evidence\\final\\control-90s.png"
+  },
+  "reducedMotionPass": true,
+  "contextLossPass": true,
+  "consoleErrors": [],
+  "kind": "living-archive-field-technical-report",
+  "pass": false,
+  "technicalPass": true,
+  "gates": {
+    "duration": true,
+    "macroCompositions": true,
+    "noBlackout": true,
+    "noFullSaturation": true,
+    "noFixedCentralAttractor": true,
+    "noShortReplay": true,
+    "framePerformance": true,
+    "webglErrors": true,
+    "unrecoveredContextLoss": true,
+    "cameraContinuity": true,
+    "worldIdentityStable": true
+  },
+  "metrics": {
+    "durationSeconds": 720.619900000823,
+    "frameIntervals": {
+      "p95": 3.7,
+      "over50Fraction": 0.00915930446726813,
+      "eligibleCount": 160165,
+      "pass": true
+    },
+    "compositions": {
+      "distinctCount": 6,
+      "signatures": [
+        "witness:sprouting:d6f17028+membrane:atmosphere:c93d9564+witness:confluence:5cfead68|4.5,1.5,3>0,0,0|witness:sprouting:d6f17028+witness:sprouting:bfb673d9+filament:recurrence:b69bfc59+filament:recurrence:41c90ab5+membrane:atmosphere:d6f17028",
+        "filament:recurrence:b69bfc59+witness:confluence:5cfead68+witness:sprouting:bfb673d9|4.5,1.5,3.5>0,0,0|witness:sprouting:d6f17028+witness:sprouting:bfb673d9+filament:recurrence:b69bfc59+filament:recurrence:41c90ab5+filament:recurrence:d28459f3",
+        "witness:confluence:4cb47d09+witness:sprouting:c93d9564+filament:recurrence:41c90ab5|3.5,2,4>0,0,0|witness:sprouting:d6f17028+witness:sprouting:bfb673d9+filament:recurrence:b69bfc59+filament:recurrence:41c90ab5+filament:recurrence:d28459f3",
+        "witness:confluence:4cb47d09+witness:sprouting:c93d9564+membrane:atmosphere:bfb673d9|1,2,5>0.5,0,0|witness:sprouting:d6f17028+witness:sprouting:bfb673d9+witness:sprouting:c93d9564+filament:recurrence:b69bfc59+filament:recurrence:41c90ab5",
+        "filament:recurrence:b69bfc59+witness:confluence:5cfead68+witness:sprouting:d6f17028|-3,1,4>0.5,0,0|witness:sprouting:bfb673d9+witness:sprouting:c93d9564+filament:recurrence:b69bfc59+filament:recurrence:41c90ab5+filament:recurrence:d28459f3",
+        "filament:recurrence:d28459f3+witness:confluence:cd48e411+membrane:atmosphere:bfb673d9|-5.5,0,1>0,0,0|witness:sprouting:c93d9564+filament:recurrence:b69bfc59+filament:recurrence:41c90ab5+filament:recurrence:d28459f3+membrane:atmosphere:d6f17028"
+      ],
+      "noFixedCentralAttractor": true,
+      "pass": true
+    }
+  },
+  "missingEvidence": [],
+  "pendingHumanGates": [
+    "blindControl",
+    "aestheticOwnerQuestions"
+  ]
+}

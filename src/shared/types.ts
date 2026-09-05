@@ -1,3 +1,8 @@
+import type { ObsidianPluginCandidate } from './obsidian-plugins'
+import type { CalendarPluginSettings } from './calendar-plugin-settings'
+export type { ObsidianPluginCandidate } from './obsidian-plugins'
+export type { CalendarPluginSettings } from './calendar-plugin-settings'
+
 export type Result<T> =
   | {
       ok: true
@@ -126,6 +131,16 @@ export interface AppSettings {
   graphViewStates: GraphViewStates
   templateDirectory?: string
   showBuiltInTemplates?: boolean
+  calendarPlugin?: CalendarPluginSettings
+}
+
+export interface CalendarPluginRuntimeStatus {
+  state: 'ready' | 'missing' | 'rejected'
+  id: 'calendar'
+  version: '1.5.10'
+  mainSha256: string
+  manifestSha256: string
+  reason: string | null
 }
 
 export interface TemplateSettings {
@@ -143,6 +158,12 @@ export interface AiWriteReviewProposal {
   reason: string
   sourceRefs: string[]
   createdAt: string
+  derivedGuard?: {
+    sourcePath: string
+    sourceRevision: string
+    category: string
+    derivationKey?: string
+  }
 }
 
 
@@ -233,6 +254,8 @@ export interface SearchResult {
   excerpt: string
   modifiedAt: number
   score: number
+  category?: string
+  topics?: string[]
 }
 
 export interface GoogleAccount {
@@ -332,6 +355,8 @@ export interface TsuzuneApi {
   chooseVault(): Promise<Result<VaultSnapshot | null>>
   openLastVault(): Promise<Result<VaultSnapshot | null>>
   getSettings(): Promise<Result<AppSettings>>
+  listObsidianPluginCandidates(): Promise<Result<ObsidianPluginCandidate[]>>
+  getCalendarPluginStatus(): Promise<Result<CalendarPluginRuntimeStatus>>
   getSnapshot(): Promise<Result<VaultSnapshot>>
   readNote(path: string): Promise<Result<NoteDocument>>
   readVaultImage(path: string): Promise<Result<string>>
@@ -341,6 +366,9 @@ export interface TsuzuneApi {
   copyText(text: string): Promise<Result<null>>
   saveNote(input: SaveNoteInput): Promise<Result<SaveNoteOutput>>
   createNote(input: CreateNoteInput): Promise<Result<EntryOperationOutput>>
+  importAttachments(
+    destinationDirectory: string
+  ): Promise<Result<EntryOperationOutput[] | null>>
   createDirectory(input: CreateDirectoryInput): Promise<Result<EntryOperationOutput>>
   renameEntry(input: RenameEntryInput): Promise<Result<EntryOperationOutput>>
   moveNote(input: MoveNoteInput): Promise<Result<EntryOperationOutput>>
@@ -354,6 +382,7 @@ export interface TsuzuneApi {
   setGraphForces(settings: GraphForceSettings): Promise<Result<null>>
   setAiReviewPaths(paths: string[]): Promise<Result<null>>
   setTemplateSettings(settings: TemplateSettings): Promise<Result<null>>
+  setCalendarPluginSettings(settings: CalendarPluginSettings): Promise<Result<null>>
   listAiReviewProposals(): Promise<Result<AiWriteReviewProposal[]>>
   approveAiReviewProposal(id: string): Promise<Result<EntryOperationOutput>>
   cancelAiReviewProposal(id: string): Promise<Result<null>>

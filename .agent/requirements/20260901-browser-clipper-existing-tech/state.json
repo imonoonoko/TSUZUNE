@@ -1,0 +1,20 @@
+{
+  "workflow": "20260901-browser-clipper-existing-tech",
+  "lane": "orchestrated",
+  "phase": "persisted",
+  "objective": "Strengthen TSUZUNE Browser Clipper with proven local-first extraction technology while preserving one-to-three-click Inbox capture.",
+  "state_owner": ".agent/requirements/20260901-browser-clipper-existing-tech/state.json",
+  "current_step": "receipt-governed-production-delivery",
+  "workstreams": {
+    "web_extraction": "completed",
+    "youtube_transcript": "completed_with_local_ytdlp_fallback",
+    "mv3_integration": "completed",
+    "human_first_review": "completed",
+    "root_integration": "completed",
+    "verification_delivery": "source_complete_receipt_governed"
+  },
+  "installed_status_owner": "docs/reports/production-update-latest.json",
+  "completion_condition": "receipt status is installed-and-verified and its source fingerprint matches the current source",
+  "status_semantics": "This source-owned workflow is frozen before the production gate. The excluded receipt owns installed delivery status after the gate.",
+  "updated_at": "2026-09-01T11:56:45+09:00"
+}

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "candidate": "ranked",
+  "k": 3,
+  "notes": [
+    {
+      "path": "30_知識/Current GPU.md",
+      "name": "Current GPU",
+      "content": "The current image model is Aurora. This is the adopted choice.",
+      "modifiedAt": 100,
+      "size": 64
+    },
+    {
+      "path": "30_知識/Legacy GPU.md",
+      "name": "Legacy GPU",
+      "content": "The old image model is Nebula. This choice is obsolete.",
+      "modifiedAt": 90,
+      "size": 58
+    },
+    {
+      "path": "30_知識/Project Alpha.md",
+      "name": "Project Alpha",
+      "content": "project launch checklist for the adopted Alpha branch",
+      "modifiedAt": 80,
+      "size": 54
+    },
+    {
+      "path": "30_知識/Project Launch.md",
+      "name": "Project Launch",
+      "content": "project launch checklist for the rejected Alpine branch",
+      "modifiedAt": 120,
+      "size": 57
+    },
+    {
+      "path": "30_知識/Release Draft.md",
+      "name": "Release Draft",
+      "content": "release checklist draft",
+      "modifiedAt": 110,
+      "size": 23
+    },
+    {
+      "path": "30_知識/Release Decision.md",
+      "name": "Release Decision",
+      "content": "release checklist approved decision",
+      "modifiedAt": 70,
+      "size": 37
+    }
+  ],
+  "cases": [
+    {
+      "id": "direct-current-target",
+      "query": "Current GPU",
+      "expectedIds": ["30_知識/Current GPU.md"]
+    },
+    {
+      "id": "near-collision-wrong-branch",
+      "query": "\"project launch\"",
+      "expectedIds": ["30_知識/Project Alpha.md"],
+      "forbiddenIds": ["30_知識/Project Launch.md"]
+    },
+    {
+      "id": "obsolete-resurrection",
+      "query": "old image model",
+      "expectedIds": ["30_知識/Current GPU.md"],
+      "obsoleteIds": ["30_知識/Legacy GPU.md"]
+    },
+    {
+      "id": "honest-unknown",
+      "query": "不存在の確定情報",
+      "expectUnknown": true
+    },
+    {
+      "id": "unnecessary-open-before-target",
+      "query": "release checklist",
+      "expectedIds": ["30_知識/Release Decision.md"]
+    }
+  ]
+}

@@ -1,0 +1,533 @@
+{
+  "result": "pass",
+  "isolatedVault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\fixtures\\obsidian-graph-parity-vault",
+  "isolatedUserData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\full-text-search-ui-userdata",
+  "query": "\"Project Alpha\" tag:#project/active -nonexistent",
+  "digestBefore": "99261427a78c3246518b4c8812544c5d510840ec5d129ec21413d01e5f9ab047",
+  "digestAfter": "99261427a78c3246518b4c8812544c5d510840ec5d129ec21413d01e5f9ab047",
+  "markdownDigestUnchanged": true,
+  "layout": {
+    "rail": {
+      "top": 0,
+      "right": 42,
+      "bottom": 753,
+      "left": 0,
+      "width": 42,
+      "height": 753
+    },
+    "railButtons": [
+      {
+        "top": 8,
+        "right": 36.5,
+        "bottom": 40,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 44,
+        "right": 36.5,
+        "bottom": 76,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 85,
+        "right": 36.5,
+        "bottom": 117,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 121,
+        "right": 36.5,
+        "bottom": 153,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 157,
+        "right": 36.5,
+        "bottom": 189,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 193,
+        "right": 36.5,
+        "bottom": 225,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 229,
+        "right": 36.5,
+        "bottom": 261,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 270,
+        "right": 36.5,
+        "bottom": 302,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 306,
+        "right": 36.5,
+        "bottom": 338,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 342,
+        "right": 36.5,
+        "bottom": 374,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 600,
+        "right": 36.5,
+        "bottom": 632,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 636,
+        "right": 36.5,
+        "bottom": 668,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 672,
+        "right": 36.5,
+        "bottom": 704,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 713,
+        "right": 36.5,
+        "bottom": 745,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      }
+    ],
+    "tree": {
+      "top": 12,
+      "right": 292,
+      "bottom": 703,
+      "left": 51,
+      "width": 241,
+      "height": 691
+    },
+    "firstRow": {
+      "top": 14,
+      "right": 277,
+      "bottom": 42,
+      "left": 51,
+      "width": 226,
+      "height": 28
+    },
+    "entryToolbar": {
+      "top": 703,
+      "right": 292,
+      "bottom": 743,
+      "left": 51,
+      "width": 241,
+      "height": 40
+    },
+    "railScrollable": false,
+    "railOverlapsTree": false,
+    "treeScrollable": true,
+    "treeOverlapsEntryToolbar": false
+  },
+  "closed": {
+    "viewport": {
+      "width": 1249,
+      "height": 753
+    },
+    "leftExpanded": "false",
+    "focused": false,
+    "query": null,
+    "keyshortcuts": null,
+    "heading": null,
+    "helpTokens": [],
+    "startVisible": false,
+    "fileTreeVisible": true,
+    "entryToolbarVisible": true,
+    "summary": null,
+    "help": null,
+    "resultCount": 0,
+    "name": null,
+    "path": null,
+    "excerpt": null,
+    "excerptLineClamp": null,
+    "excerptWhiteSpace": null,
+    "metadata": [],
+    "markTexts": [],
+    "markTagNames": [],
+    "markFontWeight": null,
+    "markTextDecoration": null,
+    "markBackground": null,
+    "input": null,
+    "results": null,
+    "documentOverflowX": false,
+    "resultsOverflowX": null
+  },
+  "opened": {
+    "viewport": {
+      "width": 1249,
+      "height": 753
+    },
+    "leftExpanded": "true",
+    "focused": true,
+    "query": "",
+    "keyshortcuts": "Control+Shift+F Meta+Shift+F Control+K Meta+K",
+    "heading": "内容を検索",
+    "helpTokens": [
+      "tag:",
+      "path:",
+      "file:",
+      "-語",
+      "\"複数語\""
+    ],
+    "startVisible": true,
+    "fileTreeVisible": false,
+    "entryToolbarVisible": false,
+    "summary": null,
+    "help": "tag:タグpath:フォルダーfile:ファイル名-語除外\"複数語\"完全一致",
+    "resultCount": 0,
+    "name": null,
+    "path": null,
+    "excerpt": null,
+    "excerptLineClamp": null,
+    "excerptWhiteSpace": null,
+    "metadata": [],
+    "markTexts": [],
+    "markTagNames": [],
+    "markFontWeight": null,
+    "markTextDecoration": null,
+    "markBackground": null,
+    "input": {
+      "top": 58.1875,
+      "right": 290,
+      "bottom": 94.1875,
+      "left": 53,
+      "width": 237,
+      "height": 36
+    },
+    "results": null,
+    "documentOverflowX": false,
+    "resultsOverflowX": null
+  },
+  "searched": {
+    "viewport": {
+      "width": 1249,
+      "height": 753
+    },
+    "leftExpanded": "true",
+    "focused": true,
+    "query": "\"Project Alpha\" tag:#project/active -nonexistent",
+    "keyshortcuts": "Control+Shift+F Meta+Shift+F Control+K Meta+K",
+    "heading": "内容を検索",
+    "helpTokens": [
+      "tag:",
+      "path:",
+      "file:",
+      "-語",
+      "\"複数語\""
+    ],
+    "startVisible": false,
+    "fileTreeVisible": false,
+    "entryToolbarVisible": false,
+    "summary": "検索結果 1件",
+    "help": "tag:タグpath:フォルダーfile:ファイル名-語除外\"複数語\"完全一致",
+    "resultCount": 1,
+    "name": "Project Alpha",
+    "path": "10_projects/Project Alpha.md",
+    "excerpt": "# Project Alpha #project/active - [[00_Home|Home]] - [[10_projects/Project Beta|Pro…",
+    "excerptLineClamp": "2",
+    "excerptWhiteSpace": "normal",
+    "metadata": [
+      "# Project Alpha #project/active - [[00_Home|Home]] - [[10_projects/Project Beta|Pro…",
+      "最終更新: 2026/8/15 5:22:09 · 最近更新"
+    ],
+    "markTexts": [
+      "Project Alpha"
+    ],
+    "markTagNames": [
+      "MARK"
+    ],
+    "markFontWeight": "700",
+    "markTextDecoration": "underline",
+    "markBackground": "rgba(0, 0, 0, 0)",
+    "input": {
+      "top": 58.1875,
+      "right": 290,
+      "bottom": 94.1875,
+      "left": 53,
+      "width": 237,
+      "height": 36
+    },
+    "results": {
+      "top": 156.1875,
+      "right": 292,
+      "bottom": 743,
+      "left": 51,
+      "width": 241,
+      "height": 586.8125
+    },
+    "documentOverflowX": false,
+    "resultsOverflowX": false
+  },
+  "searchLayouts": [
+    {
+      "width": 1440,
+      "height": 900,
+      "fileName": "01-full-text-search-1440.png",
+      "state": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "leftExpanded": "true",
+        "focused": true,
+        "query": "\"Project Alpha\" tag:#project/active -nonexistent",
+        "keyshortcuts": "Control+Shift+F Meta+Shift+F Control+K Meta+K",
+        "heading": "内容を検索",
+        "helpTokens": [
+          "tag:",
+          "path:",
+          "file:",
+          "-語",
+          "\"複数語\""
+        ],
+        "startVisible": false,
+        "fileTreeVisible": false,
+        "entryToolbarVisible": false,
+        "summary": "検索結果 1件",
+        "help": "tag:タグpath:フォルダーfile:ファイル名-語除外\"複数語\"完全一致",
+        "resultCount": 1,
+        "name": "Project Alpha",
+        "path": "10_projects/Project Alpha.md",
+        "excerpt": "# Project Alpha #project/active - [[00_Home|Home]] - [[10_projects/Project Beta|Pro…",
+        "excerptLineClamp": "2",
+        "excerptWhiteSpace": "normal",
+        "metadata": [
+          "# Project Alpha #project/active - [[00_Home|Home]] - [[10_projects/Project Beta|Pro…",
+          "最終更新: 2026/8/15 5:22:09 · 最近更新"
+        ],
+        "markTexts": [
+          "Project Alpha"
+        ],
+        "markTagNames": [
+          "MARK"
+        ],
+        "markFontWeight": "700",
+        "markTextDecoration": "underline",
+        "markBackground": "rgba(0, 0, 0, 0)",
+        "input": {
+          "top": 58.1875,
+          "right": 290,
+          "bottom": 94.1875,
+          "left": 53,
+          "width": 237,
+          "height": 36
+        },
+        "results": {
+          "top": 156.1875,
+          "right": 292,
+          "bottom": 890,
+          "left": 51,
+          "width": 241,
+          "height": 733.8125
+        },
+        "documentOverflowX": false,
+        "resultsOverflowX": false
+      }
+    },
+    {
+      "width": 900,
+      "height": 768,
+      "fileName": "01-full-text-search-900.png",
+      "state": {
+        "viewport": {
+          "width": 900,
+          "height": 768
+        },
+        "leftExpanded": "true",
+        "focused": true,
+        "query": "\"Project Alpha\" tag:#project/active -nonexistent",
+        "keyshortcuts": "Control+Shift+F Meta+Shift+F Control+K Meta+K",
+        "heading": "内容を検索",
+        "helpTokens": [
+          "tag:",
+          "path:",
+          "file:",
+          "-語",
+          "\"複数語\""
+        ],
+        "startVisible": false,
+        "fileTreeVisible": false,
+        "entryToolbarVisible": false,
+        "summary": "検索結果 1件",
+        "help": "tag:タグpath:フォルダーfile:ファイル名-語除外\"複数語\"完全一致",
+        "resultCount": 1,
+        "name": "Project Alpha",
+        "path": "10_projects/Project Alpha.md",
+        "excerpt": "# Project Alpha #project/active - [[00_Home|Home]] - [[10_projects/Project Beta|Pro…",
+        "excerptLineClamp": "2",
+        "excerptWhiteSpace": "normal",
+        "metadata": [
+          "# Project Alpha #project/active - [[00_Home|Home]] - [[10_projects/Project Beta|Pro…",
+          "最終更新: 2026/8/15 5:22:09 · 最近更新"
+        ],
+        "markTexts": [
+          "Project Alpha"
+        ],
+        "markTagNames": [
+          "MARK"
+        ],
+        "markFontWeight": "700",
+        "markTextDecoration": "underline",
+        "markBackground": "rgba(0, 0, 0, 0)",
+        "input": {
+          "top": 58.1875,
+          "right": 248,
+          "bottom": 94.1875,
+          "left": 53,
+          "width": 195,
+          "height": 36
+        },
+        "results": {
+          "top": 180.1875,
+          "right": 250,
+          "bottom": 758,
+          "left": 51,
+          "width": 199,
+          "height": 577.8125
+        },
+        "documentOverflowX": false,
+        "resultsOverflowX": false
+      }
+    },
+    {
+      "width": 720,
+      "height": 768,
+      "fileName": "01-full-text-search-720.png",
+      "state": {
+        "viewport": {
+          "width": 720,
+          "height": 768
+        },
+        "leftExpanded": "true",
+        "focused": true,
+        "query": "\"Project Alpha\" tag:#project/active -nonexistent",
+        "keyshortcuts": "Control+Shift+F Meta+Shift+F Control+K Meta+K",
+        "heading": "内容を検索",
+        "helpTokens": [
+          "tag:",
+          "path:",
+          "file:",
+          "-語",
+          "\"複数語\""
+        ],
+        "startVisible": false,
+        "fileTreeVisible": false,
+        "entryToolbarVisible": false,
+        "summary": "検索結果 1件",
+        "help": "tag:タグpath:フォルダーfile:ファイル名-語除外\"複数語\"完全一致",
+        "resultCount": 1,
+        "name": "Project Alpha",
+        "path": "10_projects/Project Alpha.md",
+        "excerpt": "# Project Alpha #project/active - [[00_Home|Home]] - [[10_projects/Project Beta|Pro…",
+        "excerptLineClamp": "2",
+        "excerptWhiteSpace": "normal",
+        "metadata": [
+          "# Project Alpha #project/active - [[00_Home|Home]] - [[10_projects/Project Beta|Pro…",
+          "最終更新: 2026/8/15 5:22:09 · 最近更新"
+        ],
+        "markTexts": [
+          "Project Alpha"
+        ],
+        "markTagNames": [
+          "MARK"
+        ],
+        "markFontWeight": "700",
+        "markTextDecoration": "underline",
+        "markBackground": "rgba(0, 0, 0, 0)",
+        "input": {
+          "top": 58.1875,
+          "right": 238,
+          "bottom": 94.1875,
+          "left": 53,
+          "width": 185,
+          "height": 36
+        },
+        "results": {
+          "top": 180.1875,
+          "right": 240,
+          "bottom": 758,
+          "left": 51,
+          "width": 189,
+          "height": 577.8125
+        },
+        "documentOverflowX": false,
+        "resultsOverflowX": false
+      }
+    }
+  ],
+  "overlayDismissal": {
+    "quickSwitcher": {
+      "beforeOpen": {
+        "searchExists": true,
+        "searchFocused": true,
+        "workspaceInert": false
+      },
+      "innerStayedOpen": true,
+      "closed": true,
+      "focusRestored": true,
+      "workspaceInert": false,
+      "searchConnected": true,
+      "activeElement": {
+        "tagName": "INPUT",
+        "className": "",
+        "placeholder": "内容を検索"
+      }
+    },
+    "commandPalette": {
+      "beforeOpen": {
+        "searchExists": true,
+        "searchFocused": true,
+        "workspaceInert": false
+      },
+      "innerStayedOpen": true,
+      "closed": true,
+      "focusRestored": true,
+      "workspaceInert": false,
+      "searchConnected": true,
+      "activeElement": {
+        "tagName": "INPUT",
+        "className": "",
+        "placeholder": "内容を検索"
+      }
+    }
+  }
+}

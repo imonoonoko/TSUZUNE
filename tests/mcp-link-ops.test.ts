@@ -129,15 +129,7 @@ describe('MCP link operations (suggest_links / add_link / move preflight)', () =
     expect(content.startsWith('# Home')).toBe(true)
     expect(content).toContain('AIエージェントのContext-Sidecar構想とTSUZUNEを調査する。')
 
-    const history = await readFile(
-      join(root, ...added.history_path!.split('/')),
-      'utf8'
-    )
-    expect(history).toContain('kind: note_link_add')
-    expect(history).toContain('source: Home.md')
-    expect(history).toContain('target: Knowledge/Context-Sidecar.md')
-    expect(history).toContain('previous_revision: ' + before.metadata.revision)
-    expect(history).toContain('new_revision: ' + added.new_revision)
+    expect('history_path' in added).toBe(false)
   })
 
   it('appends a 関連: line at the end when the note has none', async () => {
@@ -163,7 +155,7 @@ describe('MCP link operations (suggest_links / add_link / move preflight)', () =
       service.addLink('Home.md', 'Knowledge/Context-Sidecar.md')
     ).rejects.toThrow('既にリンクされています')
     expect(await readFile(join(root, 'Home.md'), 'utf8')).toBe(before)
-    expect(await readdir(join(root, '50_履歴', 'AI更新'))).toHaveLength(1)
+    await expect(stat(join(root, '50_履歴', 'AI更新'))).rejects.toThrow()
   })
 
   it('refuses missing source, missing target, and outside-Vault paths', async () => {

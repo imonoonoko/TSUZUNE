@@ -1,14 +1,15 @@
 # TSUZUNE Obsidian級Daily Workspace: User-facing Requirements
 
-Status: direction approved by the user on 2026-08-17; R1 Quick Switcher, R2 Command Palette, R3 Full-text Search, and R4 FileTree keyboard／ARIA are implemented and installed. The next gate is the bounded Windows acceptance in `6_implementation_brief.md`; R5 is the next implementation candidate only after that gate passes.
+Status: direction approved; the 2026-08-27 top-shell/settings continuation is source-verified and awaiting production acceptance. `state.json` is the current campaign status authority.
 
-## Current execution decision — 2026-08-22
+## Current execution decision — 2026-08-27
 
-- Do not start a cosmetic refresh, new infrastructure, or multiple R5-R12 items together.
-- Run the bounded acceptance packet first. Background-safe isolated checks and user-visible Windows assistive-technology checks are separate phases.
-- If the packet finds a reproducible blocker or daily-navigation regression, fix one root cause and rerun only the affected scenario plus its regression check.
-- If the packet passes, select R5 Workspace Tabs keyboard／ARIA as one independent implementation slice.
-- R6-R12 remain staged. Their presence in this document is not approval to implement them.
+- Remove the equal-weight permanent header action row and keep all existing actions reachable from the left Activity Rail.
+- Keep update status in text through accessible description and tooltip; do not duplicate its handler.
+- Organize only the settings that currently exist into Files and links, Templates, and AI and review.
+- On compact width, turn the settings category list into a horizontally scrollable row and keep Save／Cancel fixed.
+- Preserve persistence, OAuth, Markdown, save, conflict, and Vault safety contracts.
+- Appearance, custom hotkeys, attachments, plugins, accounts, and cloud parity remain separate candidates and are not implied by this slice.
 
 ## 1. Overview
 

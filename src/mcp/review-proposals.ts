@@ -93,6 +93,22 @@ export class AiWriteReviewStore {
       ) {
         throw new Error(`このノートには既に承認待ちのAI変更案があります: ${input.path}`)
       }
+      const derivedGuard = input.derivedGuard
+      if (
+        derivedGuard &&
+        current.proposals.some((proposal) => {
+          const existingGuard = proposal.derivedGuard
+          return (
+            existingGuard !== undefined &&
+            existingGuard.sourcePath.toLowerCase() ===
+              derivedGuard.sourcePath.toLowerCase() &&
+            existingGuard.sourceRevision === derivedGuard.sourceRevision &&
+            existingGuard.derivationKey === derivedGuard.derivationKey
+          )
+        })
+      ) {
+        throw new Error('同じ原典revision・概念keyの派生ノート提案が既に存在します。')
+      }
       const proposal = {
         ...input,
         id: randomUUID(),

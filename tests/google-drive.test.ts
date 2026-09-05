@@ -4,6 +4,7 @@ import {
   createMarkdown,
   createPathAliasObject,
   downloadMarkdown,
+  downloadVaultFile,
   DriveChangeTokenInvalidError,
   ensureVaultRoot,
   getDriveStartPageToken,
@@ -25,7 +26,7 @@ function jsonResponse(value: unknown, status = 200): Response {
 }
 
 describe('listVaultFiles', () => {
-  it('pages through the dedicated vault files and returns Markdown metadata only', async () => {
+  it('pages through the dedicated vault files and returns Markdown and attachment metadata', async () => {
     const requests: Array<{ url: URL; init?: RequestInit }> = []
     const responses = [
       {
@@ -53,6 +54,18 @@ describe('listVaultFiles', () => {
             appProperties: {
               tsuzuneVaultId: 'vault-alpha',
               tsuzunePath: '画像.png'
+            }
+          },
+          {
+            id: 'attachment-1',
+            name: '資料.pdf',
+            mimeType: 'application/octet-stream',
+            parents: ['root-1'],
+            version: '3',
+            md5Checksum: 'md5-pdf',
+            appProperties: {
+              tsuzuneVaultId: 'vault-alpha',
+              tsuzunePath: 'attachments/資料.pdf'
             }
           }
         ]
@@ -89,9 +102,36 @@ describe('listVaultFiles', () => {
         parentIds: ['root-1'],
         version: '7',
         md5Checksum: 'md5-a',
+        kind: 'markdown',
         appProperties: {
           tsuzuneVaultId: 'vault-alpha',
           tsuzunePath: '00_入口/入口.md'
+        }
+      },
+      {
+        id: 'not-markdown',
+        name: '画像.png',
+        path: '画像.png',
+        parentIds: ['root-1'],
+        version: '2',
+        md5Checksum: 'md5-image',
+        kind: 'attachment',
+        appProperties: {
+          tsuzuneVaultId: 'vault-alpha',
+          tsuzunePath: '画像.png'
+        }
+      },
+      {
+        id: 'attachment-1',
+        name: '資料.pdf',
+        path: 'attachments/資料.pdf',
+        parentIds: ['root-1'],
+        version: '3',
+        md5Checksum: 'md5-pdf',
+        kind: 'attachment',
+        appProperties: {
+          tsuzuneVaultId: 'vault-alpha',
+          tsuzunePath: 'attachments/資料.pdf'
         }
       },
       {
@@ -101,6 +141,7 @@ describe('listVaultFiles', () => {
         parentIds: ['folder-2'],
         version: '12',
         md5Checksum: 'md5-b',
+        kind: 'markdown',
         appProperties: {
           tsuzuneVaultId: 'vault-alpha',
           tsuzunePath: '10_プロジェクト/ONOKO.md'
@@ -115,9 +156,7 @@ describe('listVaultFiles', () => {
     expect(requests[0].url.searchParams.get('q')).toContain(
       "appProperties has { key='tsuzuneVaultId' and value='vault-alpha' }"
     )
-    expect(requests[0].url.searchParams.get('q')).toContain(
-      "mimeType = 'text/markdown'"
-    )
+    expect(requests[0].url.searchParams.get('q')).not.toContain('mimeType =')
     expect(requests[1].url.searchParams.get('pageToken')).toBe('next-page')
     expect(new Headers(requests[0].init?.headers).get('authorization')).toBe(
       'Bearer access-token'
@@ -495,6 +534,15 @@ describe('ensureVaultRoot', () => {
 })
 
 describe('Markdown transfer', () => {
+  it('downloads an attachment without text conversion', async () => {
+    const bytes = Uint8Array.from([0, 255, 17, 128])
+    const fetchImpl: typeof fetch = async () => new Response(bytes)
+
+    await expect(
+      downloadVaultFile('access-token', 'file-id', fetchImpl)
+    ).resolves.toEqual(Buffer.from(bytes))
+  })
+
   it('downloads one Markdown file as text', async () => {
     const requests: Array<{ url: URL; init?: RequestInit }> = []
     const fetchImpl: typeof fetch = async (input, init) => {
@@ -550,6 +598,75 @@ describe('Markdown transfer', () => {
     expect(body).toContain('"tsuzuneVaultId":"vault-alpha"')
     expect(body).toContain('"tsuzunePath":"10_プロジェクト/企画.md"')
     expect(body).toContain('# 企画\n本文')
+  })
+
+  it('uploads attachment bytes without UTF-8 conversion', async () => {
+    const bytes = Buffer.from([0, 255, 17, 128])
+    let body = Buffer.alloc(0)
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      body = Buffer.from(await new Response(init?.body).arrayBuffer())
+      return jsonResponse({
+        id: 'created-attachment',
+        name: 'image.png',
+        mimeType: 'application/octet-stream',
+        parents: ['folder-id'],
+        version: '1',
+        md5Checksum: 'created-md5',
+        appProperties: {
+          tsuzuneVaultId: 'vault-alpha',
+          tsuzunePath: 'attachments/image.png'
+        }
+      })
+    }
+
+    await expect(
+      createMarkdown(
+        'access-token',
+        {
+          vaultId: 'vault-alpha',
+          path: 'attachments/image.png',
+          parentId: 'folder-id',
+          content: bytes
+        },
+        fetchImpl
+      )
+    ).resolves.toMatchObject({ kind: 'attachment' })
+    expect(body.includes(bytes)).toBe(true)
+  })
+
+  it('accepts the actual Drive MIME type for a long-path attachment', async () => {
+    const path =
+      '40_情報源/TSUZUNE開発資料/repo/docs/reports/assets/graph-edge-viewport-2026-08-03/00-before-user-report.png'
+    let body = ''
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      body = String(init?.body)
+      return jsonResponse({
+        id: 'created-long-path-attachment',
+        name: '00-before-user-report.png',
+        mimeType: 'image/png',
+        parents: ['folder-id'],
+        version: '1',
+        md5Checksum: 'created-md5',
+        description: `TSUZUNE path: ${path}`,
+        appProperties: { tsuzuneVaultId: 'vault-alpha' }
+      })
+    }
+
+    await expect(
+      createMarkdown(
+        'access-token',
+        {
+          vaultId: 'vault-alpha',
+          path,
+          parentId: 'folder-id',
+          content: Buffer.from([0, 255, 17, 128])
+        },
+        fetchImpl
+      )
+    ).resolves.toMatchObject({ path, kind: 'attachment' })
+
+    expect(body).toContain(`"description":"TSUZUNE path: ${path}"`)
+    expect(body).not.toContain('"tsuzunePath"')
   })
 
   it('stores a long UTF-8 path outside appProperties', async () => {

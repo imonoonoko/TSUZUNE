@@ -1,0 +1,2 @@
+Error: 1440pxレイアウトが不正です: {"viewport":{"width":1440,"height":900},"documentOverflow":false,"workspaceOverflow":false,"controlColumns":"183.172px 333.062px 133.234px 166.531px","bodyColumns":"190px 708px","heading":"知識の時間","evidenceCount":4,"rightPanelPresent":false}
+    at runCapture (file:///C:/Users/Humin/Documents/Codex/TSUZUNE/.agent/requirements/20260830-2030-knowledge-time-context-workspace/capture-knowledge-time.mjs:142:13)

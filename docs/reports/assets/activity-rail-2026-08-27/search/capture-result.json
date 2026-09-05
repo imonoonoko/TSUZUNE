@@ -1,0 +1,192 @@
+{
+  "result": "pass",
+  "isolatedVault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\fixtures\\obsidian-graph-parity-vault",
+  "isolatedUserData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\full-text-search-ui-userdata",
+  "query": "\"Project Alpha\" tag:#project/active -nonexistent",
+  "digestBefore": "99261427a78c3246518b4c8812544c5d510840ec5d129ec21413d01e5f9ab047",
+  "digestAfter": "99261427a78c3246518b4c8812544c5d510840ec5d129ec21413d01e5f9ab047",
+  "markdownDigestUnchanged": true,
+  "layout": {
+    "rail": {
+      "top": 40,
+      "right": 42,
+      "bottom": 753,
+      "left": 0,
+      "width": 42,
+      "height": 713
+    },
+    "railButtons": [
+      {
+        "top": 48,
+        "right": 36.5,
+        "bottom": 80,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 84,
+        "right": 36.5,
+        "bottom": 116,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 125,
+        "right": 36.5,
+        "bottom": 157,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 161,
+        "right": 36.5,
+        "bottom": 193,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 197,
+        "right": 36.5,
+        "bottom": 229,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 233,
+        "right": 36.5,
+        "bottom": 265,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 269,
+        "right": 36.5,
+        "bottom": 301,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 310,
+        "right": 36.5,
+        "bottom": 342,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 346,
+        "right": 36.5,
+        "bottom": 378,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 382,
+        "right": 36.5,
+        "bottom": 414,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      },
+      {
+        "top": 713,
+        "right": 36.5,
+        "bottom": 745,
+        "left": 4.5,
+        "width": 32,
+        "height": 32
+      }
+    ],
+    "tree": {
+      "top": 52,
+      "right": 292,
+      "bottom": 703,
+      "left": 51,
+      "width": 241,
+      "height": 651
+    },
+    "firstRow": {
+      "top": 54,
+      "right": 277,
+      "bottom": 82,
+      "left": 51,
+      "width": 226,
+      "height": 28
+    },
+    "entryToolbar": {
+      "top": 703,
+      "right": 292,
+      "bottom": 743,
+      "left": 51,
+      "width": 241,
+      "height": 40
+    },
+    "railScrollable": false,
+    "railOverlapsTree": false,
+    "treeScrollable": true,
+    "treeOverlapsEntryToolbar": false
+  },
+  "closed": {
+    "leftExpanded": "false",
+    "focused": false,
+    "query": null,
+    "keyshortcuts": null,
+    "help": null,
+    "resultCount": 0,
+    "name": null,
+    "path": null,
+    "metadata": [],
+    "markTexts": [],
+    "markTagNames": [],
+    "markFontWeight": null,
+    "markTextDecoration": null,
+    "markBackground": null
+  },
+  "opened": {
+    "leftExpanded": "true",
+    "focused": true,
+    "query": "",
+    "keyshortcuts": "Control+Shift+F Meta+Shift+F Control+K Meta+K",
+    "help": "条件: tag: / path: / file: 除外: -語 語句: \"複数語\"",
+    "resultCount": 0,
+    "name": null,
+    "path": null,
+    "metadata": [],
+    "markTexts": [],
+    "markTagNames": [],
+    "markFontWeight": null,
+    "markTextDecoration": null,
+    "markBackground": null
+  },
+  "searched": {
+    "leftExpanded": "true",
+    "focused": true,
+    "query": "\"Project Alpha\" tag:#project/active -nonexistent",
+    "keyshortcuts": "Control+Shift+F Meta+Shift+F Control+K Meta+K",
+    "help": "条件: tag: / path: / file: 除外: -語 語句: \"複数語\"",
+    "resultCount": 1,
+    "name": "Project Alpha",
+    "path": "10_projects/Project Alpha.md",
+    "metadata": [
+      "最終更新: 2026/8/15 5:22:09 · 最近更新",
+      "# Project Alpha #project/active - [[00_Home|Home]] - [[10_projects/Project Beta|Pro…"
+    ],
+    "markTexts": [
+      "Project Alpha"
+    ],
+    "markTagNames": [
+      "MARK"
+    ],
+    "markFontWeight": "700",
+    "markTextDecoration": "underline",
+    "markBackground": "rgba(0, 0, 0, 0)"
+  }
+}

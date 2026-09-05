@@ -21,6 +21,10 @@ import {
 } from '../shared/graph-view-state'
 import { parseUserIgnoreFilters } from '../shared/excluded-files'
 import { parseAiReviewPaths } from '../shared/ai-write-policy'
+import {
+  DEFAULT_CALENDAR_PLUGIN_SETTINGS,
+  parseCalendarPluginSettings
+} from '../shared/calendar-plugin-settings'
 
 const DEFAULT_SETTINGS: AppSettings = {
   lastVaultPath: null,
@@ -62,7 +66,10 @@ export async function readSettings(): Promise<AppSettings> {
       showBuiltInTemplates:
         typeof parsed.showBuiltInTemplates === 'boolean'
           ? parsed.showBuiltInTemplates
-          : true
+          : true,
+      ...(Object.prototype.hasOwnProperty.call(parsed, 'calendarPlugin')
+        ? { calendarPlugin: parseCalendarPluginSettings(parsed.calendarPlugin) }
+        : {})
     }
   } catch {
     return { ...DEFAULT_SETTINGS }
@@ -82,7 +89,14 @@ export async function updateSettings(patch: Partial<AppSettings>): Promise<AppSe
     ),
     graphViewStates: parseGraphViewStates(
       patch.graphViewStates ?? current.graphViewStates
-    )
+    ),
+    ...(patch.calendarPlugin !== undefined || current.calendarPlugin !== undefined
+      ? {
+          calendarPlugin: parseCalendarPluginSettings(
+            patch.calendarPlugin ?? current.calendarPlugin ?? DEFAULT_CALENDAR_PLUGIN_SETTINGS
+          )
+        }
+      : {})
   }
   await writeFile(settingsPath(), JSON.stringify(next, null, 2), 'utf8')
   return next

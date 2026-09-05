@@ -11,10 +11,13 @@
     "preview_drive_sync",
     "create_directory",
     "create_note",
+    "create_derived_note",
+    "propose_derived_note",
     "update_note",
     "autonomous_update_note",
     "patch_note",
     "move_entry",
+    "trash_entry",
     "apply_drive_sync"
   ],
   "directOnly": [
@@ -29,6 +32,7 @@
       "update_note": "prompt",
       "patch_note": "prompt",
       "move_entry": "prompt",
+      "trash_entry": "prompt",
       "apply_drive_sync": "prompt"
     }
   }

@@ -10,7 +10,9 @@ import type {
 import type {
   EntryMoveApplyInput,
   EntryMovePlan,
-  EntryMoveResult
+  EntryMoveResult,
+  EntryTrashApplyInput,
+  EntryTrashResult
 } from './entry-move'
 
 interface BridgeState {
@@ -29,6 +31,7 @@ export interface DriveSyncBridgeOptions {
   apply(planId: string): Promise<DriveSyncApplyResult>
   preflightMoveEntry?(source: string, destination: string): Promise<EntryMovePlan>
   moveEntry?(input: EntryMoveApplyInput): Promise<EntryMoveResult>
+  trashEntry?(input: EntryTrashApplyInput): Promise<EntryTrashResult>
 }
 
 function respond(response: ServerResponse, status: number, body: object): void {
@@ -105,10 +108,7 @@ export async function startDriveSyncBridge(
         if (
           typeof body.source !== 'string' ||
           typeof body.destination !== 'string' ||
-          typeof body.expected_fingerprint !== 'string' ||
-          typeof body.reason !== 'string' ||
-          !Array.isArray(body.source_refs) ||
-          !body.source_refs.every((value) => typeof value === 'string')
+          typeof body.expected_fingerprint !== 'string'
         ) {
           throw new Error('move_entry要求の形式が不正です。')
         }
@@ -119,9 +119,26 @@ export async function startDriveSyncBridge(
             source: body.source,
             destination: body.destination,
             expected_fingerprint: body.expected_fingerprint,
-            actor: 'ai',
-            reason: body.reason,
-            source_refs: body.source_refs as string[]
+            actor: 'ai'
+          })
+        )
+        return
+      }
+      if (request.url === '/entry-trash/apply' && options.trashEntry) {
+        const body = await readJson(request)
+        if (
+          typeof body.source !== 'string' ||
+          typeof body.expected_revision !== 'string'
+        ) {
+          throw new Error('trash_entry要求の形式が不正です。')
+        }
+        respond(
+          response,
+          200,
+          await options.trashEntry({
+            source: body.source,
+            expected_revision: body.expected_revision,
+            actor: 'ai'
           })
         )
         return

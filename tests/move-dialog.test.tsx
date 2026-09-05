@@ -50,4 +50,21 @@ describe('MoveDialog keyboard contract', () => {
     expect(screen.queryByRole('dialog', { name: 'ファイルを移動' })).toBeNull()
     expect(document.activeElement).toBe(opener)
   })
+
+  it('closes on a backdrop click but not an inner click', () => {
+    const onCancel = vi.fn()
+    render(
+      <MoveDialog
+        notePath="A.md"
+        directories={['', 'Archive']}
+        currentDirectory=""
+        onCancel={onCancel}
+        onConfirm={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getByRole('dialog'))
+    expect(onCancel).not.toHaveBeenCalled()
+    fireEvent.click(document.querySelector('.modal-backdrop') as HTMLElement)
+    expect(onCancel).toHaveBeenCalledOnce()
+  })
 })

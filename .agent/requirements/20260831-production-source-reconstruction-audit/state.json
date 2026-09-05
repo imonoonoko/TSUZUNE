@@ -1,0 +1,36 @@
+{
+  "status": "complete",
+  "state_owner": ".agent/requirements/20260831-production-source-reconstruction-audit/plan.md",
+  "packets": {
+    "A_SOURCE_PROVENANCE": "completed",
+    "B_TEST_DELTA": "completed",
+    "C_ORIGIN_GUARD": "completed",
+    "D_WORKFLOW_RETROSPECTIVE": "completed",
+    "I_INTEGRATION": "completed"
+  },
+  "approvals": {
+    "read_only_audit": "approved",
+    "repository_workflow_hardening": "approved",
+    "source_code_change": "not_approved",
+    "installed_production_mutation": "not_approved",
+    "production_vault_mutation": "not_approved",
+    "git_state_mutation": "not_approved"
+  },
+  "protected": [
+    "knowledge.md",
+    "50_履歴",
+    "production profile",
+    "installed TSUZUNE"
+  ],
+  "decision": "default-stop-until-explicit-current-source-whole-tree-production-approval",
+  "verification": {
+    "tests": "868-passed-1-skipped",
+    "typecheck": "passed",
+    "mcp": "passed",
+    "currentDecision": "passed",
+    "taskOwnedDiffCheck": "passed",
+    "liveDelivery": "mismatch",
+    "productionMutation": "not-run"
+  },
+  "completedAt": "2026-08-31T20:13:41+09:00"
+}

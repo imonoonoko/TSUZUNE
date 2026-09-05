@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "dogfood:m5": "node scripts/build-m5-dogfood.mjs",
     "capture:graph:gp1": "electron scripts/capture-graph-gp1.mjs",
+    "acceptance:observatory": "npm run build && electron scripts/run-observatory-acceptance.mjs && electron scripts/run-observatory-acceptance.mjs --singleton",
     "capture:graph:gp6:obsidian": "node scripts/capture-graph-gp6-obsidian.mjs",
     "capture:graph:gp6:tsuzune": "node scripts/capture-graph-gp6-tsuzune.mjs",
     "capture:graph:gp6:working-tree": "npm run build && electron scripts/capture-graph-gp6-working-tree.mjs",
@@ -83,7 +84,11 @@
     "preview:classification-migration": "npm run build:classification-migration && node work/tools/classification-migration-preview.js",
     "check:current-decision": "node scripts/check-current-decision-docs.mjs",
     "check:workflow": "node scripts/check-workflow-harness.mjs",
+    "check:calendar:artifact": "node scripts/check-calendar-plugin-compatibility.mjs",
+    "check:calendar:electron": "electron scripts/check-calendar-plugin-electron.mjs",
+    "check:calendar:native": "node scripts/check-daily-calendar-electron.mjs",
     "check:mcp": "node scripts/check-mcp-suite.mjs",
+    "check:browser-clipper": "node scripts/check-browser-clipper.mjs",
     "mcp": "node out/mcp/server.js",
     "mcp:register": "npm run build:mcp && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/register-codex-mcp.ps1",
     "mcp:unregister": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/unregister-codex-mcp.ps1",
@@ -102,6 +107,7 @@
     "codemirror": "6.0.2",
     "d3-force": "3.0.0",
     "electron-updater": "6.8.9",
+    "moment": "2.29.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-markdown": "10.1.0",
@@ -147,6 +153,12 @@
     "files": [
       "out/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "browser-extension",
+        "to": "browser-extension"
+      }
     ],
     "win": {
       "icon": "src/renderer/assets/tsuzune-app-icon.png",

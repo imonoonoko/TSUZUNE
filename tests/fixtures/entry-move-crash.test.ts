@@ -41,14 +41,13 @@ describe.skipIf(!root || !crashStage)('entry move crash child', () => {
         }
       }
     })
-    const plan = await coordinator.preflight('Inbox/A.md', 'Archive/A.md', 'ai')
+    const actor = process.env.TSUZUNE_CRASH_FIXTURE_ACTOR === 'human' ? 'human' : 'ai'
+    const plan = await coordinator.preflight('Inbox/A.md', 'Archive/A.md', actor)
     await coordinator.apply({
       source: plan.source,
       destination: plan.destination,
       expected_fingerprint: plan.fingerprint,
-      actor: 'ai',
-      reason: 'crash test',
-      source_refs: []
+      actor
     })
   })
 })

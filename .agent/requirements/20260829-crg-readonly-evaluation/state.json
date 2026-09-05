@@ -1,0 +1,35 @@
+{
+  "title": "TSUZUNE code-review-graph read-only Gate 0",
+  "slug": "20260829-crg-readonly-evaluation",
+  "status": "complete",
+  "selected_at": "2026-08-29",
+  "approval": {
+    "required": false,
+    "basis": "The user explicitly selected the previously Held code-review-graph evaluation by saying やろう."
+  },
+  "packets": [
+    {"id": "01", "name": "frozen-ground-truth", "status": "completed"},
+    {"id": "02", "name": "isolated-build-and-queries", "status": "completed", "depends_on": ["01"]},
+    {"id": "03", "name": "independent-score-verification", "status": "completed", "depends_on": ["01", "02"]},
+    {"id": "04", "name": "decision-and-persistence", "status": "completed", "depends_on": ["03"]}
+  ],
+  "verification": {
+    "status": "passed",
+    "passed": [
+      "isolated CRG 2.3.8 build over the bounded current-source snapshot",
+      "standard direct-reference recall 8/8 production files and 4/4 test files across three frozen symbols",
+      "source and snapshot integrity boundary",
+      "independent arithmetic, unseen-wrapper, and decision verification",
+      "production TSUZUNE runtime fresh at the mutation boundary, one execution record created, one roadmap patch applied, and read-back/search/backlinks verified"
+    ],
+    "failed": [
+      "compact production caller recall: 7/8; src/mcp/service.ts omitted for buildContextBundle",
+      "restore-shaped freshness: deleted ghost symbol remained while graph reported current"
+    ],
+    "unknown": [
+      "aliases, renamed imports, dynamic dispatch, transport reachability, and runtime propagation",
+      "flow/community analysis, which was intentionally skipped",
+      "10–20 matched-task A/B, stopped before execution by the frozen kill criteria"
+    ]
+  }
+}

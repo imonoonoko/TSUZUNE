@@ -57,6 +57,30 @@ export interface ContextSource {
   provenance?: ResolvedWikiLink
 }
 
+export interface ContextStateLineage {
+  currentStates: Array<{
+    path: string
+    state: string
+    validFrom: string
+    validTo?: string
+    observedAt?: string
+    verifiedAt?: string
+    reviewAfter?: string
+    reviewDue: boolean
+  }>
+  sourceRelations: Array<{
+    fromPath: string
+    sourceRef: string
+    resolution: ResolvedWikiLink
+  }>
+  supersessionRelations: Array<{
+    successorPath: string
+    supersededPath: string
+    supersededRef: string
+  }>
+  conflictPaths: string[]
+}
+
 export interface ContextBundle {
   markdown: string
   characterCount: number
@@ -68,6 +92,7 @@ export interface ContextBundle {
   temporalPerspective: TemporalPerspective
   query?: string
   warnings: ContextWarning[]
+  stateLineage: ContextStateLineage
 }
 
 export interface ContextBundleOptions {
@@ -347,6 +372,10 @@ function sourceSectionParts(
   body: string
   suffix: string
 } {
+  const body = note.content
+    .trim()
+    .replaceAll('TSUZUNE_SOURCE_BEGIN', 'TSUZUNE_SOURCE\\_BEGIN')
+    .replaceAll('TSUZUNE_SOURCE_END', 'TSUZUNE_SOURCE\\_END')
   const relationLabel = {
     seed: '起点',
     outgoing: 'リンク先',
@@ -376,7 +405,7 @@ function sourceSectionParts(
       `Updated: ${new Date(note.modifiedAt).toISOString()}`,
       ''
     ].join('\n'),
-    body: note.content.trim(),
+    body,
     suffix: '\n\nTSUZUNE_SOURCE_END\n'
   }
 }
@@ -706,7 +735,7 @@ function buildContextBundleInternal(
     unavailableKnowledgePaths.size === 0
       ? notes
       : notes.filter((note) => !unavailableKnowledgePaths.has(note.path))
-  const matchingTemporalEntries = (
+  const perspectiveTemporalEntries =
     unavailableKnowledgePaths.size === 0
       ? allTemporalEntries
       : buildTemporalTimeline(
@@ -718,7 +747,7 @@ function buildContextBundleInternal(
           ),
           pathAliases
         )
-  )
+  const matchingTemporalEntries = perspectiveTemporalEntries
     .filter((entry) => {
       if (
         entry.evaluation.kind === 'state' &&
@@ -745,6 +774,9 @@ function buildContextBundleInternal(
       entry.evaluation.phase === 'current' &&
       entry.supersededBy.length === 0
   )
+  const sortedCurrentStates = [...currentStates].sort((left, right) =>
+    left.path.localeCompare(right.path, 'ja')
+  )
   for (const entry of currentStates) {
     if (
       entry.evaluation.kind === 'state' &&
@@ -757,20 +789,81 @@ function buildContextBundleInternal(
       })
     }
   }
-  if (
+  const conflictPaths =
     new Set(
       currentStates.map((entry) =>
         entry.metadata.kind === 'state' ? entry.metadata.status : ''
       )
     ).size > 1
-  ) {
+      ? sortedCurrentStates.map((entry) => entry.path)
+      : []
+  if (conflictPaths.length > 0) {
     warnings.push({
       code: 'CONFLICTING_CURRENT_STATES',
       message: '同じ対象に異なる現在状態が複数あります。',
-      paths: currentStates
-        .map((entry) => entry.path)
-        .sort((left, right) => left.localeCompare(right, 'ja'))
+      paths: conflictPaths
     })
+  }
+
+  const sourceRelations = sortedCurrentStates.flatMap((entry) => {
+    const sourceRef = entry.metadata.source
+    if (!sourceRef) {
+      return []
+    }
+    const resolution = resolveProvenance(entry, timelineNotes, pathAliases)
+    return resolution
+      ? [{ fromPath: entry.path, sourceRef, resolution }]
+      : []
+  })
+  const entriesByPath = new Map(
+    perspectiveTemporalEntries.map((entry) => [entry.path, entry])
+  )
+  const supersessionRelations = perspectiveTemporalEntries
+    .flatMap((superseded) =>
+      superseded.supersededBy.flatMap((successorPath) => {
+        const successor = entriesByPath.get(successorPath)
+        const supersededRef = successor?.metadata.supersedes
+        return successor && supersededRef
+          ? [
+              {
+                successorPath,
+                supersededPath: superseded.path,
+                supersededRef
+              }
+            ]
+          : []
+      })
+    )
+    .sort(
+      (left, right) =>
+        left.successorPath.localeCompare(right.successorPath, 'ja') ||
+        left.supersededPath.localeCompare(right.supersededPath, 'ja')
+    )
+  const stateLineage: ContextStateLineage = {
+    currentStates: sortedCurrentStates.map((entry) => {
+      if (entry.metadata.kind !== 'state' || entry.evaluation.kind !== 'state') {
+        throw new Error(`Current temporal entry is not a state: ${entry.path}`)
+      }
+      return {
+        path: entry.path,
+        state: entry.metadata.status,
+        validFrom: entry.metadata.validFrom,
+        ...(entry.metadata.validTo ? { validTo: entry.metadata.validTo } : {}),
+        ...(entry.metadata.observedAt
+          ? { observedAt: entry.metadata.observedAt }
+          : {}),
+        ...(entry.metadata.verifiedAt
+          ? { verifiedAt: entry.metadata.verifiedAt }
+          : {}),
+        ...(entry.metadata.reviewAfter
+          ? { reviewAfter: entry.metadata.reviewAfter }
+          : {}),
+        reviewDue: entry.evaluation.reviewDue
+      }
+    }),
+    sourceRelations,
+    supersessionRelations,
+    conflictPaths
   }
 
   const temporalEntries = matchingTemporalEntries
@@ -992,7 +1085,8 @@ function buildContextBundleInternal(
     asOf,
     temporalPerspective,
     ...(query ? { query } : {}),
-    warnings
+    warnings,
+    stateLineage
   }
 }
 

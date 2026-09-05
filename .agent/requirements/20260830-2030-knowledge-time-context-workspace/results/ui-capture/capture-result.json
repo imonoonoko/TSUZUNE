@@ -1,0 +1,47 @@
+{
+  "temporaryRoot": "C:\\Users\\Humin\\AppData\\Local\\Temp\\tsuzune-knowledge-time-vYbymf",
+  "captures": [
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "documentOverflow": false,
+      "workspaceOverflow": false,
+      "controlColumns": "183.172px 333.062px 133.234px 166.531px",
+      "bodyColumns": "190px 708px",
+      "bodyScrollable": false,
+      "heading": "知識の時間",
+      "evidenceCount": 4,
+      "rightPanelPresent": true
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "documentOverflow": false,
+      "workspaceOverflow": false,
+      "controlColumns": "210px 210px",
+      "bodyColumns": "190px 292px",
+      "bodyScrollable": false,
+      "heading": "知識の時間",
+      "evidenceCount": 4,
+      "rightPanelPresent": true
+    },
+    {
+      "viewport": {
+        "width": 720,
+        "height": 768
+      },
+      "documentOverflow": false,
+      "workspaceOverflow": false,
+      "controlColumns": "608px",
+      "bodyColumns": "629px",
+      "bodyScrollable": true,
+      "heading": "知識の時間",
+      "evidenceCount": 4,
+      "rightPanelPresent": true
+    }
+  ]
+}

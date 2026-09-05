@@ -7,8 +7,13 @@ import {
   resolveWikiLink
 } from '../core/links'
 import {
+  extractMarkdownHeadings,
+  type MarkdownHeading
+} from '../core/markdown-headings'
+import {
   buildWikiGraph,
   buildWikiGraphForView,
+  excludeWikiGraphPaths,
   getLocalWikiGraph,
   getVaultWikiGraph,
   type WikiGraphScope
@@ -19,6 +24,7 @@ import {
   formatPathForCopy,
   isPathInsideOrEqual,
   joinRelative,
+  validateRelativePath,
   withMarkdownExtension,
   withoutMarkdownExtension
 } from '../core/paths'
@@ -42,6 +48,7 @@ import type {
   AppError,
   AiWriteReviewProposal,
   AppUpdateStatus,
+  CalendarPluginRuntimeStatus,
   DriveRemoteVault,
   DriveSyncPreview,
   EntryMoveRecoveryStatus,
@@ -53,10 +60,16 @@ import type {
   GraphViewState,
   GraphViewStates,
   NoteDocument,
+  ObsidianPluginCandidate,
   VaultAttachment,
   VaultChangeEvent,
   VaultSnapshot
 } from '../shared/types'
+import {
+  DEFAULT_CALENDAR_PLUGIN_SETTINGS,
+  parseCalendarPluginSettings,
+  type CalendarPluginSettings
+} from '../shared/calendar-plugin-settings'
 import { DEFAULT_GRAPH_FORCE_SETTINGS } from '../shared/graph-settings'
 import { DEFAULT_GRAPH_DISPLAY_SETTINGS } from '../shared/graph-display'
 import { DEFAULT_GRAPH_FILTER_SETTINGS } from '../shared/graph-filters'
@@ -69,7 +82,7 @@ import HumanNoteCaptureDialog, {
   type HumanNoteCaptureSubmission
 } from './components/HumanNoteCaptureDialog'
 import Icon from './components/Icon'
-import MarkdownEditor from './components/MarkdownEditor'
+import MarkdownEditor, { type MarkdownEditorHandle } from './components/MarkdownEditor'
 import MarkdownPreview from './components/MarkdownPreview'
 import BookmarkDialog from './components/BookmarkDialog'
 import MoveDialog from './components/MoveDialog'
@@ -82,9 +95,14 @@ import ConflictBanner, {
   type ConflictState
 } from './components/ConflictBanner'
 import RenameDialog from './components/RenameDialog'
+import DailyCalendar from './components/DailyCalendar'
+import CalendarPluginFrame, {
+  type CalendarPluginFrameHandle
+} from './components/CalendarPluginFrame'
 import RelatedNotes from './components/RelatedNotes'
 import TemporalDetails from './components/TemporalDetails'
 import WikiGraphView from './components/WikiGraphView'
+import ObservatoryView from './components/ObservatoryView'
 import WorkspaceTabBar, {
   WORKSPACE_TAB_PANEL_ID,
   workspaceTabDomId,
@@ -94,11 +112,47 @@ import WorkspaceTabBar, {
 import tsuzuneMark from './assets/tsuzune-app-icon.png'
 
 type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict'
+type SettingsCategory = 'files' | 'templates' | 'plugins' | 'calendar' | 'ai'
 
 const isNormalDiscoveryExcluded = createExcludedFileMatcher(['50_履歴'])
 
 const SAVE_DELAY_MS = 600
 const EXTERNAL_CHANGE_DELAY_MS = 100
+
+function trapDialogTab(
+  event: React.KeyboardEvent<HTMLElement>,
+  dialog: HTMLElement | null
+): void {
+  if (event.key !== 'Tab' || !dialog) {
+    return
+  }
+
+  const focusable = Array.from(
+    dialog.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+    )
+  )
+  if (focusable.length === 0) {
+    event.preventDefault()
+    dialog.focus()
+    return
+  }
+
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  const active = document.activeElement
+  if (event.shiftKey && (active === first || active === dialog)) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && (active === last || active === dialog)) {
+    event.preventDefault()
+    first.focus()
+  } else if (!(active instanceof Node) || !dialog.contains(active)) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
 function isTextEditingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (
     target.isContentEditable ||
@@ -167,6 +221,7 @@ export default function App(): React.JSX.Element {
   const [loading, setLoading] = useState(true)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const selectedPathRef = useRef<string | null>(null)
+  const markdownEditorRef = useRef<MarkdownEditorHandle | null>(null)
   const [workspaceTabs, setWorkspaceTabs] = useState<WorkspaceTab[]>([])
   const [activeTabId, setActiveTabId] = useState<number | null>(null)
   const [workspaceTabFocusId, setWorkspaceTabFocusId] = useState<number | null>(null)
@@ -206,8 +261,23 @@ export default function App(): React.JSX.Element {
   const [userIgnoreFilters, setUserIgnoreFilters] = useState<string[]>([])
   const [aiReviewPaths, setAiReviewPaths] = useState<string[]>([])
   const [aiReviewProposals, setAiReviewProposals] = useState<AiWriteReviewProposal[]>([])
+  const [obsidianPluginCandidates, setObsidianPluginCandidates] = useState<
+    ObsidianPluginCandidate[]
+  >([])
+  const [obsidianPluginsLoading, setObsidianPluginsLoading] = useState(false)
+  const [calendarPluginStatus, setCalendarPluginStatus] =
+    useState<CalendarPluginRuntimeStatus | null>(null)
+  const [calendarPluginSettings, setCalendarPluginSettings] =
+    useState<CalendarPluginSettings>({ ...DEFAULT_CALENDAR_PLUGIN_SETTINGS })
+  const [calendarPluginSettingsDraft, setCalendarPluginSettingsDraft] =
+    useState<CalendarPluginSettings>({ ...DEFAULT_CALENDAR_PLUGIN_SETTINGS })
+  const [calendarPluginActivated, setCalendarPluginActivated] = useState(false)
+  const [calendarPluginError, setCalendarPluginError] = useState<string | null>(null)
+  const [calendarPluginFailed, setCalendarPluginFailed] = useState(false)
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [settingsBusy, setSettingsBusy] = useState(false)
+  const [settingsError, setSettingsError] = useState<string | null>(null)
+  const [settingsCategory, setSettingsCategory] = useState<SettingsCategory>('files')
   const [excludedFilesDraft, setExcludedFilesDraft] = useState('')
   const [aiReviewPathsDraft, setAiReviewPathsDraft] = useState('')
   const [templateDirectory, setTemplateDirectory] = useState(TEMPLATE_DIRECTORY)
@@ -241,7 +311,7 @@ export default function App(): React.JSX.Element {
   } | null>(null)
   const [renameError, setRenameError] = useState<string | null>(null)
   const [bookmarkPath, setBookmarkPath] = useState<string | null>(null)
-  const [bookmarksOpen, setBookmarksOpen] = useState(false)
+  const [leftSidebarView, setLeftSidebarView] = useState<'files' | 'search' | 'bookmarks'>('files')
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -291,6 +361,11 @@ export default function App(): React.JSX.Element {
     async () => undefined
   )
   const searchInputRef = useRef<HTMLInputElement | null>(null)
+  const calendarPluginFrameRef = useRef<CalendarPluginFrameHandle | null>(null)
+  const calendarPluginActivatedRef = useRef(false)
+  const calendarPluginSessionRef = useRef(
+    `calendar-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  )
   const handleCaptureDirtyChange = useCallback((dirty: boolean): void => {
     captureDirtyRef.current = dirty
   }, [])
@@ -298,6 +373,31 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     setWorkspaceTabFocusId(activeTabId)
   }, [activeTabId])
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') {
+      return
+    }
+
+    const compactLayout = window.matchMedia('(max-width: 900px)')
+    const narrowLayout = window.matchMedia('(max-width: 720px)')
+    const collapseForViewport = (): void => {
+      if (compactLayout.matches) {
+        setRightSidebarOpen(false)
+      }
+      if (narrowLayout.matches) {
+        setLeftSidebarOpen(false)
+      }
+    }
+
+    collapseForViewport()
+    compactLayout.addEventListener('change', collapseForViewport)
+    narrowLayout.addEventListener('change', collapseForViewport)
+    return () => {
+      compactLayout.removeEventListener('change', collapseForViewport)
+      narrowLayout.removeEventListener('change', collapseForViewport)
+    }
+  }, [])
 
   const focusWorkspaceTab = useCallback((tabId: number): void => {
     setWorkspaceTabFocusId(tabId)
@@ -323,7 +423,7 @@ export default function App(): React.JSX.Element {
     quickSwitcherPreviousFocusRef.current = null
     quickSwitcherRestoreFocusRef.current = false
     if (shouldRestore && previousFocus?.isConnected) {
-      queueMicrotask(() => previousFocus.focus())
+      setTimeout(() => previousFocus.focus(), 0)
     }
   }
 
@@ -347,9 +447,9 @@ export default function App(): React.JSX.Element {
 
   const closeCommandPalette = (): void => {
     const previousFocus = dismissCommandPalette()
-    queueMicrotask(() => {
+    setTimeout(() => {
       if (previousFocus?.isConnected) previousFocus.focus()
-    })
+    }, 0)
   }
 
   const openCommandPalette = useCallback((): boolean => {
@@ -363,17 +463,13 @@ export default function App(): React.JSX.Element {
   }, [modalOpen])
 
   const focusVaultSearch = useCallback((): void => {
-    if (leftSidebarOpen) {
-      searchInputRef.current?.focus()
-      searchInputRef.current?.select()
-      return
-    }
+    setLeftSidebarView('search')
     setLeftSidebarOpen(true)
     setTimeout(() => {
       searchInputRef.current?.focus()
       searchInputRef.current?.select()
     }, 0)
-  }, [leftSidebarOpen])
+  }, [])
 
   const clearSaveTimer = (): void => {
     if (saveTimerRef.current) {
@@ -618,6 +714,20 @@ export default function App(): React.JSX.Element {
     scheduleSave()
   }
 
+  const handleImportAttachments = async (): Promise<string[]> => {
+    const notePath = selectedPathRef.current
+    if (!notePath) return []
+    const result = await window.tsuzune.importAttachments(dirnameRelative(notePath))
+    if (!result.ok) {
+      setMessage(errorMessage(result.error))
+      return []
+    }
+    if (!result.value) return []
+    await refreshSnapshot()
+    setMessage(null)
+    return result.value.map((entry) => entry.path)
+  }
+
   const refreshSnapshot = async (
     generation = vaultGenerationRef.current
   ): Promise<VaultSnapshot | null> => {
@@ -644,7 +754,7 @@ export default function App(): React.JSX.Element {
       return
     }
     const activeTab = workspaceTabs.find((tab) => tab.id === activeTabId)
-    if (activeTab?.kind === 'global-graph') {
+    if (activeTab?.kind === 'global-graph' || activeTab?.kind === 'observatory') {
       const existing = workspaceTabs.find(
         (tab) => tab.kind === 'note' && tab.path === path
       )
@@ -847,6 +957,10 @@ export default function App(): React.JSX.Element {
         setTemplateDirectoryDraft(nextTemplateDirectory)
         setShowBuiltInTemplates(nextShowBuiltIns)
         setShowBuiltInTemplatesDraft(nextShowBuiltIns)
+        const nextCalendarSettings =
+          settingsResult.value.calendarPlugin ?? DEFAULT_CALENDAR_PLUGIN_SETTINGS
+        setCalendarPluginSettings({ ...nextCalendarSettings })
+        setCalendarPluginSettingsDraft({ ...nextCalendarSettings })
         setGraphForces(settingsResult.value.graphForces)
         setGraphDisplay(settingsResult.value.graphDisplay)
         setGraphFilters(settingsResult.value.graphFilters)
@@ -920,6 +1034,31 @@ export default function App(): React.JSX.Element {
   }, [])
 
   useEffect(() => {
+    let disposed = false
+    setCalendarPluginStatus(null)
+    setCalendarPluginActivated(false)
+    calendarPluginActivatedRef.current = false
+    setCalendarPluginError(null)
+    setCalendarPluginFailed(false)
+    if (!snapshot?.rootPath) {
+      return () => {
+        disposed = true
+      }
+    }
+    void window.tsuzune.getCalendarPluginStatus().then((result) => {
+      if (disposed) return
+      if (result.ok) {
+        setCalendarPluginStatus(result.value)
+      } else {
+        setCalendarPluginError(errorMessage(result.error))
+      }
+    })
+    return () => {
+      disposed = true
+    }
+  }, [snapshot?.rootPath])
+
+  useEffect(() => {
     if (!settingsDialogOpen) {
       return
     }
@@ -982,6 +1121,23 @@ export default function App(): React.JSX.Element {
     () => savedNotes.filter((note) => !isNormalDiscoveryExcluded(note.path)),
     [savedNotes]
   )
+  const userExcludedMatcher = useMemo(
+    () => createExcludedFileMatcher(userIgnoreFilters),
+    [userIgnoreFilters]
+  )
+  const userExcludedNotePaths = useMemo(
+    () =>
+      new Set(
+        savedNotes
+          .filter((note) => userExcludedMatcher(note.path))
+          .map((note) => note.path)
+      ),
+    [savedNotes, userExcludedMatcher]
+  )
+  const searchNotes = useMemo(
+    () => normalDiscoveryNotes.filter((note) => !userExcludedMatcher(note.path)),
+    [normalDiscoveryNotes, userExcludedMatcher]
+  )
   const pathAliases = useMemo(
     () => compilePathAliases(snapshot?.pathAliases ?? {}),
     [snapshot?.pathAliases]
@@ -1028,9 +1184,22 @@ export default function App(): React.JSX.Element {
         : [],
     [selectedPath, normalDiscoveryNotes, pathAliases]
   )
+  const headings = useMemo(
+    () => selectedPath && viewMode !== 'graph' ? extractMarkdownHeadings(content) : [],
+    [selectedPath, content, viewMode]
+  )
+  const handleHeadingSelect = useCallback((heading: MarkdownHeading): void => {
+    if (viewMode === 'edit') {
+      markdownEditorRef.current?.scrollToOffset(heading.sourceOffset)
+    } else if (viewMode === 'preview') {
+      const target = document.getElementById(heading.id)
+      target?.scrollIntoView({ block: 'start' })
+      target?.focus()
+    }
+  }, [viewMode])
   const searchResults = useMemo(
-    () => searchRendererRanked(normalDiscoveryNotes, query),
-    [normalDiscoveryNotes, query]
+    () => searchRendererRanked(searchNotes, query),
+    [query, searchNotes]
   )
   const selectedNote = useMemo(
     () =>
@@ -1062,13 +1231,16 @@ export default function App(): React.JSX.Element {
   }, [content, selectedPath])
   const wikiGraph = useMemo(
     () =>
-      buildWikiGraphForView(graphNotes, viewMode, {
-        includeUnresolved: !graphFilters.existingFilesOnly,
-        includeTags: graphFilters.showTags,
-        includeAttachments: graphFilters.showAttachments,
-        attachments: snapshot?.attachments ?? [],
-        pathAliases
-      }),
+      excludeWikiGraphPaths(
+        buildWikiGraphForView(graphNotes, viewMode, {
+          includeUnresolved: !graphFilters.existingFilesOnly,
+          includeTags: graphFilters.showTags,
+          includeAttachments: graphFilters.showAttachments,
+          attachments: snapshot?.attachments ?? [],
+          pathAliases
+        }),
+        userExcludedMatcher
+      ),
     [
       graphNotes,
       graphFilters.existingFilesOnly,
@@ -1076,6 +1248,7 @@ export default function App(): React.JSX.Element {
       graphFilters.showTags,
       pathAliases,
       snapshot?.attachments,
+      userExcludedMatcher,
       viewMode
     ]
   )
@@ -1465,12 +1638,17 @@ export default function App(): React.JSX.Element {
     return changes
   }
 
-  const confirmLinkImpact = (changes: ReadonlyMap<string, string>): boolean => {
+  const confirmLinkImpact = (changes: ReadonlyMap<string, string>, followsLinks = false): boolean => {
     const impact = findLinkImpact(savedNotes, changes, pathAliases)
     if (impact.affectedCount === 0) {
       return true
     }
     const examples = impact.sourcePaths.slice(0, 3).join('\n')
+    if (followsLinks) {
+      return window.confirm(
+        `Wikiリンクのある${impact.affectedCount}件の参照元を確認しました。参照元のリンクを新しい場所へ更新します。表示名・見出し・周辺の本文は保持します。\n\n${examples}\n\n受信箱・情報源・履歴や、解決先が曖昧なリンクは更新しません。続けますか？`
+      )
+    }
     return window.confirm(
       `この操作により、${impact.affectedCount}件の参照元でWikiリンクが未作成または曖昧になります。\n\n${examples}\n\nそのまま続けますか？`
     )
@@ -1526,7 +1704,7 @@ export default function App(): React.JSX.Element {
         finalName
       )
       const changes = pathChangesForRename(selection, newPath)
-      if (!confirmLinkImpact(changes)) {
+      if (!confirmLinkImpact(changes, selection.kind === 'note')) {
         return null
       }
 
@@ -1553,6 +1731,9 @@ export default function App(): React.JSX.Element {
         if (note) {
           loadNoteState(note)
         }
+      } else if (selectedPathRef.current && !dirtyRef.current) {
+        const note = next?.notes.find(candidate => candidate.path === selectedPathRef.current)
+        if (note && note.content !== contentRef.current) loadNoteState(note)
       }
       return null
     } finally {
@@ -1600,7 +1781,7 @@ export default function App(): React.JSX.Element {
         { kind: isDirectory ? 'directory' : 'note', path },
         newPath
       )
-      if (!confirmLinkImpact(changes)) {
+      if (!confirmLinkImpact(changes, !isDirectory && path.toLowerCase().endsWith('.md'))) {
         return
       }
 
@@ -1632,7 +1813,9 @@ export default function App(): React.JSX.Element {
       }
       setWorkspaceTabs((current) =>
         current.map((tab) =>
-          tab.kind !== 'global-graph' && isPathInsideOrEqual(tab.path, path)
+          tab.kind !== 'global-graph' &&
+          tab.kind !== 'observatory' &&
+          isPathInsideOrEqual(tab.path, path)
             ? { ...tab, path: mapMovedPath(tab.path) }
             : tab
         )
@@ -1654,6 +1837,9 @@ export default function App(): React.JSX.Element {
         if (note) {
           loadNoteState(note)
         }
+      } else if (selectedPathRef.current && !dirtyRef.current) {
+        const note = next?.notes.find(candidate => candidate.path === selectedPathRef.current)
+        if (note && note.content !== contentRef.current) loadNoteState(note)
       }
     } finally {
       finishOperation()
@@ -1915,10 +2101,13 @@ export default function App(): React.JSX.Element {
       if (!(await flushSave())) {
         return false
       }
-      if (tab.kind === 'global-graph') {
+      if (tab.kind === 'global-graph' || tab.kind === 'observatory') {
         setActiveTabId(tab.id)
         setActiveAttachmentPath(null)
         setActiveLinkedViewPath(null)
+        if (tab.kind === 'observatory') {
+          loadNoteState(null, false)
+        }
         setGraphScope('vault')
         setViewMode('graph')
         setMessage(null)
@@ -1976,6 +2165,23 @@ export default function App(): React.JSX.Element {
     setActiveLinkedViewPath(null)
     setGraphScope('vault')
     setViewMode('graph')
+  }
+
+  const openObservatoryWorkspace = (): void => {
+    const existing = workspaceTabs.find((tab) => tab.kind === 'observatory')
+    const observatoryTab: WorkspaceTab = existing ?? {
+      id: nextTabIdRef.current++,
+      kind: 'observatory'
+    }
+    if (!existing) {
+      const currentTabs = workspaceTabs.length > 0
+        ? workspaceTabs
+        : selectedPathRef.current
+          ? [{ id: nextTabIdRef.current++, kind: 'note' as const, path: selectedPathRef.current }]
+          : []
+      setWorkspaceTabs([...currentTabs, observatoryTab])
+    }
+    void loadWorkspaceTab(observatoryTab)
   }
 
   const openVaultEntryInNewTab = async (
@@ -2187,20 +2393,173 @@ export default function App(): React.JSX.Element {
 
   const searchGraphTag = (tag: string): void => {
     setQuery(`tag:${tag}`)
+    focusVaultSearch()
+  }
+
+  const validateCalendarPath = (path: string, markdownOnly = false): string => {
+    const normalized = path.replaceAll('\\', '/')
+    const validation = validateRelativePath(normalized)
+    if (!validation.valid || !validation.normalized) {
+      throw new Error(validation.reason ?? 'Calendarから無効なパスが渡されました。')
+    }
+    if (markdownOnly && !validation.normalized.toLocaleLowerCase().endsWith('.md')) {
+      throw new Error('Calendarが作成・操作できるのはMarkdownノートだけです。')
+    }
+    return validation.normalized
+  }
+
+  const openCalendarNote = async (
+    path: string,
+    newSplit: boolean
+  ): Promise<void> => {
+    const normalized = validateCalendarPath(path, true)
+    if (newSplit) {
+      await openVaultEntryInNewTab(normalized, 'note')
+    } else {
+      await openNote(normalized)
+    }
+  }
+
+  const createCalendarDirectory = async (path: string): Promise<{ path: string }> => {
+    const normalized = validateCalendarPath(path)
+    if (!beginOperation()) throw new Error('別の操作が完了するまでお待ちください。')
+    try {
+      if (!(await flushSave()) || !(await ensureDirectory(normalized))) {
+        throw new Error('Calendarのフォルダを作成できませんでした。')
+      }
+      return { path: normalized }
+    } finally {
+      finishOperation()
+    }
+  }
+
+  const createCalendarNote = async (payload: {
+    path: string
+    content: string
+  }): Promise<NoteDocument> => {
+    const path = validateCalendarPath(payload.path, true)
+    const directory = dirnameRelative(path)
+    const name = withoutMarkdownExtension(basenameRelative(path))
+    if (!snapshotRef.current || !beginOperation()) {
+      throw new Error('別の操作が完了するまでお待ちください。')
+    }
+    try {
+      if (!(await flushSave()) || !(await ensureDirectory(directory))) {
+        throw new Error('Calendarのノート作成準備を完了できませんでした。')
+      }
+      const result = await window.tsuzune.createNote({
+        directory,
+        name,
+        content: payload.content
+      })
+      if (!result.ok) {
+        const error = errorMessage(result.error)
+        setMessage(error)
+        throw new Error(error)
+      }
+      const next = await refreshSnapshot()
+      const note = next?.notes.find((candidate) => candidate.path === result.value.path)
+      if (!note) {
+        throw new Error('作成したCalendarノートをVaultから再読込できませんでした。')
+      }
+      return note
+    } finally {
+      finishOperation()
+    }
+  }
+
+  const saveCalendarPluginSettings = async (
+    value: CalendarPluginSettings
+  ): Promise<null> => {
+    const settings = parseCalendarPluginSettings(value)
+    const result = await window.tsuzune.setCalendarPluginSettings(settings)
+    if (!result.ok) {
+      const error = errorMessage(result.error)
+      setMessage(error)
+      throw new Error(error)
+    }
+    setCalendarPluginSettings({ ...settings })
+    setCalendarPluginSettingsDraft({ ...settings })
+    return null
+  }
+
+  const trashCalendarNote = async (path: string): Promise<null> => {
+    const normalized = validateCalendarPath(path, true)
+    if (!beginOperation()) throw new Error('別の操作が完了するまでお待ちください。')
+    try {
+      if (!(await flushSave())) {
+        throw new Error('編集中のノートを保存できなかったため削除を中止しました。')
+      }
+      const result = await window.tsuzune.trashEntry(normalized)
+      if (!result.ok) {
+        const error = errorMessage(result.error)
+        setMessage(error)
+        throw new Error(error)
+      }
+      await refreshSnapshot()
+      if (
+        selectedPathRef.current &&
+        isPathInsideOrEqual(selectedPathRef.current, normalized)
+      ) {
+        loadNoteState(null)
+      }
+      return null
+    } finally {
+      finishOperation()
+    }
   }
 
   const showSettingsDialog = async (
     previousFocus: HTMLElement | null
   ): Promise<void> => {
     settingsDialogPreviousFocusRef.current = previousFocus
+    setSettingsError(null)
     setExcludedFilesDraft(userIgnoreFilters.join('\n'))
     setAiReviewPathsDraft(aiReviewPaths.join('\n'))
     setTemplateDirectoryDraft(templateDirectory)
     setShowBuiltInTemplatesDraft(showBuiltInTemplates)
+    setCalendarPluginSettingsDraft({ ...calendarPluginSettings })
+    setSettingsCategory('files')
     setSettingsDialogOpen(true)
-    const proposals = await window.tsuzune.listAiReviewProposals()
+    setObsidianPluginsLoading(true)
+    const [proposals, plugins, calendarStatus] = await Promise.all([
+      window.tsuzune.listAiReviewProposals(),
+      window.tsuzune.listObsidianPluginCandidates(),
+      window.tsuzune.getCalendarPluginStatus()
+    ])
+    const errors: string[] = []
     if (proposals.ok) setAiReviewProposals(proposals.value)
-    else setMessage(errorMessage(proposals.error))
+    else errors.push(errorMessage(proposals.error))
+    if (plugins.ok) setObsidianPluginCandidates(plugins.value)
+    else errors.push(errorMessage(plugins.error))
+    if (calendarStatus.ok) setCalendarPluginStatus(calendarStatus.value)
+    else errors.push(errorMessage(calendarStatus.error))
+    setObsidianPluginsLoading(false)
+    setSettingsError(errors.length > 0 ? errors.join(' ') : null)
+  }
+
+  const refreshObsidianPluginCandidates = async (): Promise<void> => {
+    setSettingsError(null)
+    setObsidianPluginsLoading(true)
+    const result = await window.tsuzune.listObsidianPluginCandidates()
+    setObsidianPluginsLoading(false)
+    if (result.ok) {
+      setObsidianPluginCandidates(result.value)
+    } else {
+      setSettingsError(errorMessage(result.error))
+    }
+  }
+
+  const refreshCalendarPluginStatus = async (): Promise<void> => {
+    setSettingsError(null)
+    const result = await window.tsuzune.getCalendarPluginStatus()
+    if (result.ok) {
+      setCalendarPluginStatus(result.value)
+      setCalendarPluginError(null)
+      setCalendarPluginFailed(false)
+    } else {
+      setSettingsError(errorMessage(result.error))
+    }
   }
 
   const openSettingsDialog = async (): Promise<void> => {
@@ -2209,7 +2568,53 @@ export default function App(): React.JSX.Element {
     )
   }
 
-  const saveExcludedFiles = async (): Promise<void> => {
+  const openDailyNoteFromCalendar = async (date: Date): Promise<void> => {
+    const location = dailyNoteLocation(date)
+    const existing = snapshotRef.current?.notes.find(
+      (note) => note.path === location.path
+    )
+    if (!existing) {
+      setMessage(`${date.getMonth() + 1}月${date.getDate()}日のノートはまだありません。`)
+      return
+    }
+    setMessage(null)
+    await openNote(existing.path)
+  }
+
+  const settingsHaveUnsavedChanges =
+    excludedFilesDraft !== userIgnoreFilters.join('\n') ||
+    aiReviewPathsDraft !== aiReviewPaths.join('\n') ||
+    templateDirectoryDraft !== templateDirectory ||
+    showBuiltInTemplatesDraft !== showBuiltInTemplates ||
+    JSON.stringify(calendarPluginSettingsDraft) !==
+      JSON.stringify(calendarPluginSettings)
+
+  const closeSettingsDialog = (): void => {
+    if (settingsBusy) {
+      return
+    }
+    if (
+      settingsHaveUnsavedChanges &&
+      !window.confirm('未保存の設定変更があります。破棄して閉じますか？')
+    ) {
+      return
+    }
+    setSettingsError(null)
+    setSettingsDialogOpen(false)
+  }
+
+  const handleSettingsDialogKeyDown = (
+    event: React.KeyboardEvent<HTMLElement>
+  ): void => {
+    if (event.key === 'Escape' && !settingsBusy) {
+      event.preventDefault()
+      closeSettingsDialog()
+      return
+    }
+    trapDialogTab(event, settingsDialogRef.current)
+  }
+
+  const saveSettings = async (): Promise<void> => {
     const nextFilters = excludedFilesDraft
       .split(/\r?\n/)
       .map((filter) => filter.trim())
@@ -2220,29 +2625,50 @@ export default function App(): React.JSX.Element {
       .filter(Boolean)
 
     setSettingsBusy(true)
+    setSettingsError(null)
     try {
       const result = await window.tsuzune.setUserIgnoreFilters(nextFilters)
       if (!result.ok) {
-        setMessage(errorMessage(result.error))
+        setSettingsError(errorMessage(result.error))
         return
       }
+      setUserIgnoreFilters(nextFilters)
+      setExcludedFilesDraft(nextFilters.join('\n'))
       const reviewResult = await window.tsuzune.setAiReviewPaths(nextAiReviewPaths)
       if (!reviewResult.ok) {
-        setMessage(errorMessage(reviewResult.error))
+        setSettingsError(
+          `ファイルとリンクは保存済みです。${errorMessage(reviewResult.error)}`
+        )
         return
       }
+      setAiReviewPaths(nextAiReviewPaths)
+      setAiReviewPathsDraft(nextAiReviewPaths.join('\n'))
       const templateResult = await window.tsuzune.setTemplateSettings({
         directory: templateDirectoryDraft,
         includeBuiltIns: showBuiltInTemplatesDraft
       })
       if (!templateResult.ok) {
-        setMessage(errorMessage(templateResult.error))
+        setSettingsError(
+          `ファイルとリンク、AIとレビューは保存済みです。${errorMessage(templateResult.error)}`
+        )
         return
       }
-      setUserIgnoreFilters(nextFilters)
-      setAiReviewPaths(nextAiReviewPaths)
       setTemplateDirectory(templateDirectoryDraft)
       setShowBuiltInTemplates(showBuiltInTemplatesDraft)
+      const nextCalendarSettings = parseCalendarPluginSettings(
+        calendarPluginSettingsDraft
+      )
+      const calendarResult = await window.tsuzune.setCalendarPluginSettings(
+        nextCalendarSettings
+      )
+      if (!calendarResult.ok) {
+        setSettingsError(
+          `ファイル、AI、テンプレートは保存済みです。${errorMessage(calendarResult.error)}`
+        )
+        return
+      }
+      setCalendarPluginSettings({ ...nextCalendarSettings })
+      setCalendarPluginSettingsDraft({ ...nextCalendarSettings })
       await refreshSnapshot()
       setSettingsDialogOpen(false)
     } finally {
@@ -2255,15 +2681,17 @@ export default function App(): React.JSX.Element {
     approve: boolean
   ): Promise<void> => {
     setSettingsBusy(true)
+    setSettingsError(null)
     try {
       const result = approve
         ? await window.tsuzune.approveAiReviewProposal(proposal.id)
         : await window.tsuzune.cancelAiReviewProposal(proposal.id)
       if (!result.ok) {
-        setMessage(errorMessage(result.error))
+        setSettingsError(errorMessage(result.error))
       }
       const proposals = await window.tsuzune.listAiReviewProposals()
       if (proposals.ok) setAiReviewProposals(proposals.value)
+      else setSettingsError(errorMessage(proposals.error))
       if (approve && result.ok) await refreshSnapshot()
     } finally {
       setSettingsBusy(false)
@@ -2290,46 +2718,22 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  const closeGoogleDialog = (): void => {
+    if (googleBusy || busy) {
+      return
+    }
+    setGoogleDialogOpen(false)
+  }
+
   const handleGoogleDialogKeyDown = (
     event: React.KeyboardEvent<HTMLElement>
   ): void => {
     if (event.key === 'Escape') {
       event.preventDefault()
-      setGoogleDialogOpen(false)
+      closeGoogleDialog()
       return
     }
-    if (event.key !== 'Tab') {
-      return
-    }
-
-    const dialog = googleDialogRef.current
-    if (!dialog) {
-      return
-    }
-    const focusable = Array.from(
-      dialog.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
-      )
-    )
-    if (focusable.length === 0) {
-      event.preventDefault()
-      dialog.focus()
-      return
-    }
-
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    const active = document.activeElement
-    if (event.shiftKey && (active === first || active === dialog)) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && (active === last || active === dialog)) {
-      event.preventDefault()
-      first.focus()
-    } else if (!(active instanceof Node) || !dialog.contains(active)) {
-      event.preventDefault()
-      first.focus()
-    }
+    trapDialogTab(event, googleDialogRef.current)
   }
 
   const chooseGoogleConfig = async (): Promise<void> => {
@@ -2671,6 +3075,11 @@ export default function App(): React.JSX.Element {
       keywords: ['ノート', '作成', 'new', 'note', 'create']
     },
     {
+      id: 'inbox-note',
+      label: '受信箱へメモを作成',
+      keywords: ['受信箱', 'メモ', 'inbox', 'capture']
+    },
+    {
       id: 'today-note',
       label: '今日のノートを開く',
       keywords: ['今日', 'デイリー', 'daily', 'today']
@@ -2724,13 +3133,23 @@ export default function App(): React.JSX.Element {
       id: 'vault-graph',
       label: 'Vaultグラフを開く',
       keywords: ['グラフ', 'vault', 'graph', '全体'],
-      state: viewMode === 'graph' && graphScope === 'vault' ? '表示中' : undefined
+      state: workspaceTabs.some(
+        (tab) => tab.id === activeTabId && tab.kind === 'global-graph'
+      ) ? '表示中' : undefined
+    },
+    {
+      id: 'observatory',
+      label: '観測宙域を開く',
+      keywords: ['観測宙域', '宇宙', '鑑賞', 'observatory'],
+      state: workspaceTabs.some(
+        (tab) => tab.id === activeTabId && tab.kind === 'observatory'
+      ) ? '表示中' : undefined
     },
     {
       id: 'show-bookmarks',
       label: 'ブックマークを表示',
       keywords: ['ブックマーク', 'bookmark', 'favorite', 'saved'],
-      state: bookmarksOpen && leftSidebarOpen ? '表示中' : undefined
+      state: leftSidebarView === 'bookmarks' && leftSidebarOpen ? '表示中' : undefined
     },
     {
       id: 'open-settings',
@@ -2738,6 +3157,27 @@ export default function App(): React.JSX.Element {
       keywords: ['設定', 'settings', 'preferences', 'config']
     }
   ]
+  if (calendarPluginStatus?.state === 'ready') {
+    commandPaletteCommands.push(
+      {
+        id: 'calendar-show-calendar-view',
+        label: 'Calendar: ビューを開く',
+        keywords: ['calendar', 'カレンダー', 'open view'],
+        state: rightSidebarOpen && calendarPluginActivated ? '表示中' : undefined
+      },
+      {
+        id: 'calendar-open-weekly-note',
+        label: 'Calendar: 週次ノートを開く',
+        keywords: ['calendar', 'weekly', '週次', '週番号']
+      },
+      {
+        id: 'calendar-reveal-active-note',
+        label: 'Calendar: 選択中のノートを表示',
+        keywords: ['calendar', 'reveal', '選択', '今日'],
+        disabledReason: noteCommandDisabledReason
+      }
+    )
+  }
 
   const executeCommandPaletteCommand = (id: string): void => {
     const run = (action: () => void): void => {
@@ -2748,6 +3188,9 @@ export default function App(): React.JSX.Element {
     switch (id) {
       case 'new-note':
         run(() => void createNote())
+        return
+      case 'inbox-note':
+        run(() => void createNoteInDirectory('01_受信箱'))
         return
       case 'today-note':
         run(() => void openOrCreateDailyNote())
@@ -2784,17 +3227,39 @@ export default function App(): React.JSX.Element {
       case 'vault-graph':
         run(openGlobalGraphWorkspace)
         return
+      case 'observatory':
+        run(openObservatoryWorkspace)
+        return
       case 'show-bookmarks':
         run(() => {
           setLeftSidebarOpen(true)
           setQuery('')
-          setBookmarksOpen(true)
+          setLeftSidebarView('bookmarks')
         })
         return
       case 'open-settings': {
         const previousFocus = dismissCommandPalette()
         void showSettingsDialog(previousFocus)
+        return
       }
+      case 'calendar-show-calendar-view':
+        run(() => {
+          setRightSidebarOpen(true)
+          calendarPluginFrameRef.current?.runCommand('show-calendar-view')
+        })
+        return
+      case 'calendar-open-weekly-note':
+        run(() => {
+          setRightSidebarOpen(true)
+          calendarPluginFrameRef.current?.runCommand('open-weekly-note')
+        })
+        return
+      case 'calendar-reveal-active-note':
+        run(() => {
+          setRightSidebarOpen(true)
+          calendarPluginFrameRef.current?.runCommand('reveal-active-note')
+        })
+        return
     }
   }
 
@@ -2810,6 +3275,7 @@ export default function App(): React.JSX.Element {
       onKeyDown={handleWorkspaceTabKeyDown}
     />
   )
+  const activeWorkspaceTab = workspaceTabs.find((tab) => tab.id === activeTabId) ?? null
 
   if (loading) {
     return (
@@ -2828,55 +3294,6 @@ export default function App(): React.JSX.Element {
           <span>処理中…</span>
         </div>
       )}
-      <header className="app-header" inert={busy || modalOpen}>
-        <div className="brand">
-          <img className="brand-mark" src={tsuzuneMark} alt="" aria-hidden="true" />
-          <div className="brand-copy">
-            <strong>TSUZUNE</strong>
-            <span>書いて、つないで、あとで尋ねる。</span>
-          </div>
-        </div>
-        <div className="vault-summary">
-          <span>{snapshot ? `Vault: ${snapshot.rootName}` : 'Vault未選択'}</span>
-          {updateStatus.phase !== 'disabled' && (
-            <button
-              type="button"
-              className="secondary-button update-button"
-              title={updateStatus.message ?? undefined}
-              disabled={
-                updateBusy ||
-                updateStatus.phase === 'checking' ||
-                updateStatus.phase === 'downloading'
-              }
-              onClick={() => void handleUpdateAction()}
-            >
-              <Icon name="refresh" />
-              {updateActionLabel()}
-            </button>
-          )}
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => void openSettingsDialog()}
-          >
-            <Icon name="settings" />
-            設定
-          </button>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => void openGoogleDialog()}
-          >
-            <Icon name="cloud" />
-            Google / 同期
-          </button>
-          <button type="button" className="secondary-button" onClick={() => void chooseVault()}>
-            <Icon name="folder-open" />
-            Vaultを開く
-          </button>
-        </div>
-      </header>
-
       {message && (
         <div className="message-banner" role="status" inert={busy || modalOpen}>
           <span>{message}</span>
@@ -2933,9 +3350,201 @@ export default function App(): React.JSX.Element {
           inert={busy || modalOpen}
         >
           <aside className={`left-panel${leftSidebarOpen ? '' : ' is-collapsed'}`}>
+          <nav className="activity-rail" aria-label="主なナビゲーション">
+            <div className="activity-rail-main">
             <button
               type="button"
-              className="sidebar-toggle"
+              className="activity-rail-button"
+              aria-label="ファイル"
+              title="ファイル"
+              aria-pressed={leftSidebarOpen && leftSidebarView === 'files'}
+              onClick={() => {
+                setLeftSidebarOpen(true)
+                setQuery('')
+                setLeftSidebarView('files')
+              }}
+            >
+              <Icon name="folder" />
+              <span className="sr-only">ファイル</span>
+            </button>
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-label="内容を検索"
+              aria-keyshortcuts="Control+Shift+F Meta+Shift+F Control+K Meta+K"
+              title="内容を検索（Ctrl+Shift+F、Ctrl+K）"
+              aria-pressed={leftSidebarOpen && leftSidebarView === 'search'}
+              onClick={focusVaultSearch}
+            >
+              <Icon name="search" />
+              <span className="sr-only">検索</span>
+            </button>
+            <span className="activity-rail-separator" aria-hidden="true" />
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-keyshortcuts="Control+O Meta+O"
+              aria-label="ノートを開く"
+              title="ノートを開く（Ctrl+O）"
+              onClick={() => void openQuickSwitcher()}
+            >
+              <Icon name="folder-open" />
+              <span className="sr-only">ノートを開く</span>
+            </button>
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-label="新規ノート"
+              title="新規ノート"
+              onClick={() => void createNote()}
+            >
+              <Icon name="note-plus" />
+              <span className="sr-only">新規ノート</span>
+            </button>
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-label="新規フォルダ"
+              title="新規フォルダ"
+              onClick={() => {
+                setLeftSidebarOpen(true)
+                setLeftSidebarView('files')
+                setQuery('')
+                setCreateDirectoryParent(targetDirectory())
+              }}
+            >
+              <Icon name="folder-plus" />
+              <span className="sr-only">新規フォルダ</span>
+            </button>
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-label="今日のノート"
+              title="今日のノート"
+              onClick={() => void openOrCreateDailyNote()}
+            >
+              <Icon name="calendar" />
+              <span className="sr-only">今日のノート</span>
+            </button>
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-label="アイデアを追加"
+              title="アイデアを追加"
+              onClick={() => startIdeaCapture()}
+            >
+              <Icon name="lightbulb" />
+              <span className="sr-only">アイデアを追加</span>
+            </button>
+            <span className="activity-rail-separator" aria-hidden="true" />
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-label="グラフビュー"
+              title="グラフビュー"
+              aria-pressed={activeWorkspaceTab?.kind === 'global-graph'}
+              onClick={openGlobalGraphWorkspace}
+            >
+              <Icon name="graph" />
+              <span className="sr-only">グラフビュー</span>
+            </button>
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-label="観測宙域"
+              title="観測宙域"
+              aria-pressed={activeWorkspaceTab?.kind === 'observatory'}
+              onClick={openObservatoryWorkspace}
+            >
+              <Icon name="sparkles" />
+              <span className="sr-only">観測宙域</span>
+            </button>
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-label="ブックマーク"
+              title="ブックマーク"
+              aria-pressed={leftSidebarView === 'bookmarks' && leftSidebarOpen}
+              onClick={() => {
+                setLeftSidebarOpen(true)
+                setQuery('')
+                setLeftSidebarView('bookmarks')
+              }}
+            >
+              <Icon name="bookmark" />
+              <span className="sr-only">ブックマーク</span>
+            </button>
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-keyshortcuts="Control+P Meta+P"
+              aria-label="操作"
+              title="操作を実行（Ctrl+P）"
+              onClick={() => void openCommandPalette()}
+            >
+              <Icon name="command" />
+              <span className="sr-only">操作</span>
+            </button>
+            </div>
+            <div className="activity-rail-footer" aria-label="アプリ操作">
+            {updateStatus.phase !== 'disabled' && (
+              <>
+                <button
+                  type="button"
+                  className="activity-rail-button"
+                  aria-label="更新"
+                  aria-describedby="activity-rail-update-state"
+                  data-phase={updateStatus.phase}
+                  title={
+                    updateStatus.message
+                      ? `${updateActionLabel()} — ${updateStatus.message}`
+                      : updateActionLabel()
+                  }
+                  disabled={
+                    updateBusy ||
+                    updateStatus.phase === 'checking' ||
+                    updateStatus.phase === 'downloading'
+                  }
+                  onClick={() => void handleUpdateAction()}
+                >
+                  <Icon name="refresh" />
+                </button>
+                <span id="activity-rail-update-state" className="sr-only">
+                  現在: {updateActionLabel()}
+                </span>
+              </>
+            )}
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-label="Google / 同期"
+              title="Google Drive / Calendar 同期"
+              onClick={() => void openGoogleDialog()}
+            >
+              <Icon name="cloud" />
+            </button>
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-label={`Vaultを切り替える: ${snapshot.rootName}`}
+              title={`Vaultを切り替える — ${snapshot.rootName}`}
+              onClick={() => void chooseVault()}
+            >
+              <Icon name="folder-open" />
+            </button>
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-label="設定"
+              title="設定"
+              onClick={() => void openSettingsDialog()}
+            >
+              <Icon name="settings" />
+            </button>
+            <span className="activity-rail-separator" aria-hidden="true" />
+            <button
+              type="button"
+              className="activity-rail-button activity-rail-toggle"
               aria-label={leftSidebarOpen ? '左サイドバーを閉じる' : '左サイドバーを開く'}
               title={leftSidebarOpen ? '左サイドバーを閉じる' : '左サイドバーを開く'}
               aria-expanded={leftSidebarOpen}
@@ -2944,90 +3553,51 @@ export default function App(): React.JSX.Element {
             >
               {leftSidebarOpen ? '‹' : '›'}
             </button>
-            <div id="left-sidebar-content" className="sidebar-content" hidden={!leftSidebarOpen}>
-            <label className="search-field">
-              <span className="sr-only">内容を検索</span>
-              <Icon name="search" />
-              <input
-                ref={searchInputRef}
-                aria-keyshortcuts="Control+Shift+F Meta+Shift+F Control+K Meta+K"
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value)
-                  if (event.target.value) {
-                    setBookmarksOpen(false)
-                  }
-                }}
-                placeholder="内容を検索"
-                title="内容を検索（Ctrl+Shift+F、Ctrl+K）"
-              />
-            </label>
-            <p className="search-help">
-              条件: tag: / path: / file:　除外: -語　語句: "複数語"
-            </p>
-
-            <div className="tree-toolbar">
-              <button
-                type="button"
-                aria-keyshortcuts="Control+P Meta+P"
-                title="操作を実行（Ctrl+P）"
-                onClick={() => void openCommandPalette()}
-              >
-                操作
-              </button>
-              <button
-                type="button"
-                aria-keyshortcuts="Control+O Meta+O"
-                title="ノートを開く（Ctrl+O）"
-                onClick={() => void openQuickSwitcher()}
-              >
-                <Icon name="search" />
-                開く
-              </button>
-              <button type="button" onClick={() => void createNote()}>
-                <Icon name="note" />
-                ノート
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery('')
-                  setBookmarksOpen(false)
-                  setCreateDirectoryParent(targetDirectory())
-                }}
-              >
-                <Icon name="folder" />
-                フォルダ
-              </button>
-              <button
-                type="button"
-                className="graph-view-entry"
-                onClick={openGlobalGraphWorkspace}
-              >
-                <Icon name="graph" />
-                グラフビュー
-              </button>
-              <button
-                type="button"
-                className="bookmark-view-entry"
-                aria-pressed={bookmarksOpen}
-                onClick={() => {
-                  setQuery('')
-                  setBookmarksOpen((current) => !current)
-                }}
-              >
-                <Icon name="bookmark" />
-                ブックマーク
-              </button>
-              <button type="button" onClick={() => void openOrCreateDailyNote()}>
-                今日のノート
-              </button>
-              <button type="button" onClick={() => startIdeaCapture()}>
-                アイデアを追加
-              </button>
             </div>
+          </nav>
+            <div
+              id="left-sidebar-content"
+              className={`sidebar-content is-${leftSidebarView}-view`}
+              hidden={!leftSidebarOpen}
+            >
+            {leftSidebarView === 'search' && (
+              <section className="search-query-panel" aria-labelledby="vault-search-heading">
+                <header className="search-query-heading">
+                  <div>
+                    <h2 id="vault-search-heading">内容を検索</h2>
+                    <p id="vault-search-description">タイトル・パス・本文</p>
+                  </div>
+                  <kbd>Ctrl+Shift+F</kbd>
+                </header>
+                <label className="search-field">
+                  <span className="sr-only">内容を検索</span>
+                  <Icon name="search" />
+                  <input
+                    ref={searchInputRef}
+                    aria-keyshortcuts="Control+Shift+F Meta+Shift+F Control+K Meta+K"
+                    aria-describedby="vault-search-description vault-search-help"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="内容を検索"
+                    title="内容を検索（Ctrl+Shift+F、Ctrl+K）"
+                  />
+                </label>
+                <div className="search-help" id="vault-search-help" aria-label="検索条件">
+                  <span><code>tag:</code>タグ</span>
+                  <span><code>path:</code>フォルダー</span>
+                  <span><code>file:</code>ファイル名</span>
+                  <span><code>category:</code>カテゴリ</span>
+                  <span><code>topic:</code>トピック</span>
+                  <span><code>type:</code>ノート種別</span>
+                  <span><code>role:</code>役割</span>
+                  <span><code>lifecycle:</code>状態</span>
+                  <span><code>-語</code>除外</span>
+                  <span><code>"複数語"</code>完全一致</span>
+                </div>
+              </section>
+            )}
 
-            {bookmarksOpen ? (
+            {leftSidebarView === 'bookmarks' ? (
               <section className="bookmark-panel" aria-label="ブックマーク一覧">
                 {bookmarkGroups.length === 0 ? (
                   <p className="sidebar-empty">ブックマークはありません。</p>
@@ -3063,13 +3633,21 @@ export default function App(): React.JSX.Element {
                   ))
                 )}
               </section>
+            ) : leftSidebarView === 'search' && !query.trim() ? (
+              <section className="search-start" aria-label="検索を開始">
+                <span className="search-start-icon" aria-hidden="true">
+                  <Icon name="search" />
+                </span>
+                <strong>Vault内を検索</strong>
+                <p>検索語を入力すると、ノートのタイトル・パス・本文から候補を表示します。</p>
+              </section>
             ) : (
               <FileTree
                 snapshot={snapshot}
                 selectedNotePath={selectedPath}
                 treeSelection={treeSelection}
                 searchResults={searchResults}
-                query={query}
+                query={leftSidebarView === 'search' ? query : ''}
                 onSelectNote={(path) => void openNote(path)}
                 onSelectEntry={setTreeSelection}
                 onRename={openRename}
@@ -3091,7 +3669,7 @@ export default function App(): React.JSX.Element {
               />
             )}
 
-            {!bookmarksOpen && (
+            {leftSidebarView === 'files' && (
               <div className="entry-toolbar" aria-label="選択項目の操作">
                 <button
                   type="button"
@@ -3176,6 +3754,15 @@ export default function App(): React.JSX.Element {
                   <span>{linkedViewBacklinks.length}件のバックリンク</span>
                   <span>{activeLinkedViewPath}</span>
                 </footer>
+              </>
+            ) : activeWorkspaceTab?.kind === 'observatory' ? (
+              <>
+                <div className="note-top">{workspaceTabBar}</div>
+                <ObservatoryView
+                  graph={visibleGraph}
+                  notes={graphNotes}
+                  onOpen={(path) => void openNote(path)}
+                />
               </>
             ) : !selectedPath && viewMode === 'graph' && graphScope === 'vault' ? (
               <>
@@ -3324,10 +3911,14 @@ export default function App(): React.JSX.Element {
                 </div>
                 {viewMode === 'edit' ? (
                   <MarkdownEditor
+                    key={selectedPath}
+                    ref={markdownEditorRef}
                     value={content}
                     onChange={handleContentChange}
                     readOnly={busy}
+                    propertiesReadOnly={saveStatus === 'saving' || conflict !== null}
                     notes={savedNotes.filter((note) => note.path !== selectedPath)}
+                    deprioritizedPaths={userExcludedNotePaths}
                     templates={templates}
                     templateDirectory={templateDirectory}
                     noteTitle={
@@ -3337,6 +3928,7 @@ export default function App(): React.JSX.Element {
                           )
                         : undefined
                     }
+                    onImportAttachments={handleImportAttachments}
                   />
                 ) : viewMode === 'preview' ? (
                   <MarkdownPreview
@@ -3435,10 +4027,63 @@ export default function App(): React.JSX.Element {
               {rightSidebarOpen ? '›' : '‹'}
             </button>
             <div id="right-sidebar-content" className="sidebar-content" hidden={!rightSidebarOpen}>
+              {calendarPluginStatus?.state === 'ready' && snapshot && !calendarPluginFailed ? (
+                <section className="calendar-plugin-panel" aria-label="Calendarプラグイン">
+                  <CalendarPluginFrame
+                    ref={calendarPluginFrameRef}
+                    sessionId={calendarPluginSessionRef.current}
+                    snapshot={snapshot}
+                    settings={calendarPluginSettings}
+                    selectedPath={selectedPath}
+                    daily={{
+                      format: 'YYYY-MM-DD',
+                      folder: '02_デイリー',
+                      template: snapshot.notes.some(
+                        (note) => note.path === dailyTemplatePath(templateDirectory)
+                      )
+                        ? dailyTemplatePath(templateDirectory)
+                        : ''
+                    }}
+                    onOpenNote={openCalendarNote}
+                    onCreateNote={createCalendarNote}
+                    onCreateDirectory={createCalendarDirectory}
+                    onSaveSettings={saveCalendarPluginSettings}
+                    onTrashNote={trashCalendarNote}
+                    onActivated={() => {
+                      calendarPluginActivatedRef.current = true
+                      setCalendarPluginActivated(true)
+                      setCalendarPluginFailed(false)
+                      setCalendarPluginError(null)
+                    }}
+                    onError={(error) => {
+                      setCalendarPluginError(error)
+                      setMessage(`Calendar: ${error}`)
+                      if (!calendarPluginActivatedRef.current) {
+                        setCalendarPluginFailed(true)
+                      }
+                    }}
+                  />
+                  {calendarPluginError && (
+                    <p className="calendar-plugin-error" role="status">
+                      {calendarPluginError}
+                    </p>
+                  )}
+                </section>
+              ) : (
+                <DailyCalendar
+                  notes={savedNotes}
+                  selectedPath={selectedPath}
+                  onSelectDate={(date) => void openDailyNoteFromCalendar(date)}
+                  onOpenNote={(path) => void openCalendarNote(path, false)}
+                />
+              )}
               {selectedPath ? (
                 <RelatedNotes
                   outgoing={outgoing}
                   backlinks={backlinks}
+                  selectedNoteName={selectedNote?.name}
+                  headings={headings}
+                  onHeadingSelect={handleHeadingSelect}
                   temporal={
                     selectedNote ? (
                       <TemporalDetails
@@ -3464,6 +4109,7 @@ export default function App(): React.JSX.Element {
         <QuickSwitcherDialog
           notes={normalDiscoveryNotes}
           recentPaths={recentNotePaths}
+          deprioritizedPaths={userExcludedNotePaths}
           onClose={closeQuickSwitcher}
           onOpen={(path) => {
             quickSwitcherRestoreFocusRef.current = false
@@ -3579,7 +4225,16 @@ export default function App(): React.JSX.Element {
       )}
 
       {settingsDialogOpen && (
-        <div className="modal-backdrop" role="presentation">
+        <div
+          className="modal-backdrop app-settings-backdrop"
+          role="presentation"
+          data-testid="settings-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              closeSettingsDialog()
+            }
+          }}
+        >
           <section
             ref={settingsDialogRef}
             className="modal app-settings-modal"
@@ -3588,151 +4243,549 @@ export default function App(): React.JSX.Element {
             aria-labelledby="app-settings-title"
             aria-busy={settingsBusy}
             tabIndex={-1}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape' && !settingsBusy) {
-                event.preventDefault()
-                setSettingsDialogOpen(false)
-              }
-            }}
+            onKeyDown={handleSettingsDialogKeyDown}
           >
-            <div className="google-sync-heading">
+            <div className="app-settings-heading">
               <div>
                 <h2 id="app-settings-title">設定</h2>
-                <p>Vault全体に適用する設定です。</p>
+                <p>このVaultで使う設定をカテゴリごとに整理します。</p>
               </div>
               <button
                 type="button"
+                className="icon-button"
                 aria-label="設定を閉じる"
                 disabled={settingsBusy}
-                onClick={() => setSettingsDialogOpen(false)}
+                onClick={closeSettingsDialog}
               >
-                ×
+                <Icon name="x" />
               </button>
             </div>
 
-            <section className="app-settings-section" aria-labelledby="files-links-title">
-              <h3 id="files-links-title">ファイルとリンク</h3>
-              <label>
-                <span>除外するファイル</span>
-                <textarea
-                  aria-label="除外するファイル"
-                  value={excludedFilesDraft}
-                  disabled={settingsBusy}
-                  placeholder={'例: 90_Archive\n/\\.private\\.md$/'}
-                  onChange={(event) => setExcludedFilesDraft(event.target.value)}
-                />
-              </label>
-              <p>
-                1行に1つ、パスの一部または /正規表現/ を指定します。対象は一覧・検索・リンク・グラフから除外されます。
-              </p>
-              <label>
-                <span>AI変更を承認制にするパス</span>
-                <textarea
-                  aria-label="AI変更を承認制にするパス"
-                  value={aiReviewPathsDraft}
-                  disabled={settingsBusy}
-                  placeholder="例: 30_知識"
-                  onChange={(event) => setAiReviewPathsDraft(event.target.value)}
-                />
-              </label>
-              <p>
-                対象ではAIの作成・更新を即時反映せず、ここで承認または取り消します。変更禁止の指定が優先されます。
-              </p>
-              <section aria-labelledby="ai-review-proposals-title">
-                <h4 id="ai-review-proposals-title">承認待ちのAI変更案</h4>
-                {aiReviewProposals.length === 0 ? (
-                  <p>承認待ちの変更案はありません。</p>
-                ) : (
-                  aiReviewProposals.map((proposal) => {
-                    const current = snapshot?.notes.find(
-                      (note) => note.path.toLowerCase() === proposal.path.toLowerCase()
-                    )
-                    return (
-                      <article key={proposal.id} className="ai-review-proposal">
-                        <strong>{proposal.path}</strong>
-                        <p>{proposal.reason}</p>
-                        <p>操作: {proposal.operation === 'create' ? '作成' : '更新'}</p>
-                        <p>
-                          作成時刻: {new Date(proposal.createdAt).toLocaleString('ja-JP')}
-                        </p>
-                        <p>
-                          出典: {proposal.sourceRefs.length > 0 ? proposal.sourceRefs.join('、') : 'なし'}
-                        </p>
-                        <div className="ai-review-comparison">
-                          <div>
-                            <span>現在</span>
-                            <pre>{current?.content ?? '（新規ノート）'}</pre>
-                          </div>
-                          <div>
-                            <span>変更案</span>
-                            <pre>{proposal.content}</pre>
-                          </div>
-                        </div>
-                        <div className="modal-actions">
-                          <button
-                            type="button"
-                            disabled={settingsBusy}
-                            onClick={() => void resolveAiReviewProposal(proposal, false)}
-                          >
-                            取り消す
-                          </button>
-                          <button
-                            type="button"
-                            className="primary-button"
-                            disabled={settingsBusy}
-                            onClick={() => void resolveAiReviewProposal(proposal, true)}
-                          >
-                            承認して反映
-                          </button>
-                        </div>
-                      </article>
-                    )
-                  })
-                )}
-              </section>
-            </section>
-
-            <section className="app-settings-section" aria-labelledby="templates-title">
-              <h3 id="templates-title">テンプレート</h3>
-              <label>
-                <span>テンプレートフォルダ</span>
-                <select
-                  aria-label="テンプレートフォルダ"
-                  value={templateDirectoryDraft}
-                  disabled={settingsBusy}
-                  onChange={(event) => setTemplateDirectoryDraft(event.target.value)}
+            <div className="app-settings-layout">
+              <nav className="app-settings-navigation" aria-label="設定カテゴリ">
+                <button
+                  type="button"
+                  aria-label="ファイルとリンク"
+                  aria-current={settingsCategory === 'files' ? 'page' : undefined}
+                  onClick={() => setSettingsCategory('files')}
                 >
-                  {(snapshot?.directories ?? []).filter(Boolean).map((directory) => (
-                    <option key={directory} value={directory}>
-                      {directory}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={showBuiltInTemplatesDraft}
-                  disabled={settingsBusy}
-                  onChange={(event) => setShowBuiltInTemplatesDraft(event.target.checked)}
-                />
-                <span>内蔵テンプレートを表示</span>
-              </label>
-              <button
-                type="button"
-                disabled={settingsBusy}
-                onClick={() => revealVaultEntry(templateDirectoryDraft)}
-              >
-                テンプレートフォルダをエクスプローラーで表示
-              </button>
-              <p>このフォルダ内のMarkdownを通常ノートとして編集できます。</p>
-            </section>
+                  <span>ファイルとリンク</span>
+                  <small>除外する場所</small>
+                </button>
+                <button
+                  type="button"
+                  aria-label="テンプレート"
+                  aria-current={settingsCategory === 'templates' ? 'page' : undefined}
+                  onClick={() => setSettingsCategory('templates')}
+                >
+                  <span>テンプレート</span>
+                  <small>作成に使う雛形</small>
+                </button>
+                <button
+                  type="button"
+                  aria-label="Obsidianプラグイン"
+                  aria-current={settingsCategory === 'plugins' ? 'page' : undefined}
+                  onClick={() => setSettingsCategory('plugins')}
+                >
+                  <span>Obsidianプラグイン</span>
+                  <small>
+                    manifestを確認
+                    {obsidianPluginCandidates.length > 0 && (
+                      <span className="settings-count" aria-hidden="true">
+                        {obsidianPluginCandidates.length}
+                      </span>
+                    )}
+                  </small>
+                </button>
+                <button
+                  type="button"
+                  aria-label="Calendar互換"
+                  aria-current={settingsCategory === 'calendar' ? 'page' : undefined}
+                  onClick={() => setSettingsCategory('calendar')}
+                >
+                  <span>Calendar</span>
+                  <small>
+                    {calendarPluginStatus?.state === 'ready'
+                      ? '公式 1.5.10 検証済み'
+                      : calendarPluginStatus?.state === 'rejected'
+                        ? '配布物を拒否'
+                        : '公式配布物を確認'}
+                  </small>
+                </button>
+                <button
+                  type="button"
+                  aria-label="AIとレビュー"
+                  aria-current={settingsCategory === 'ai' ? 'page' : undefined}
+                  onClick={() => setSettingsCategory('ai')}
+                >
+                  <span>AIとレビュー</span>
+                  <small>
+                    承認と保留
+                    {aiReviewProposals.length > 0 && (
+                      <span className="settings-count" aria-hidden="true">
+                        {aiReviewProposals.length}
+                      </span>
+                    )}
+                  </small>
+                </button>
+              </nav>
 
-            <div className="modal-actions">
+              <div className="app-settings-content">
+                {settingsCategory === 'files' && (
+                  <section className="app-settings-section" aria-labelledby="files-links-title">
+                    <div className="app-settings-section-heading">
+                      <h3 id="files-links-title">ファイルとリンク</h3>
+                      <p>一覧、検索、リンク、グラフへ表示しない場所を指定します。</p>
+                    </div>
+                    <label>
+                      <span>除外するファイル</span>
+                      <textarea
+                        aria-label="除外するファイル"
+                        value={excludedFilesDraft}
+                        disabled={settingsBusy}
+                        placeholder={'例: 90_Archive\n/\\.private\\.md$/'}
+                        onChange={(event) => {
+                          setSettingsError(null)
+                          setExcludedFilesDraft(event.target.value)
+                        }}
+                      />
+                    </label>
+                    <p className="setting-help">
+                      1行に1つ、パスの一部または /正規表現/ を指定します。
+                    </p>
+                  </section>
+                )}
+
+                {settingsCategory === 'templates' && (
+                  <section className="app-settings-section" aria-labelledby="templates-title">
+                    <div className="app-settings-section-heading">
+                      <h3 id="templates-title">テンプレート</h3>
+                      <p>新しいノートの土台として使うMarkdownを管理します。</p>
+                    </div>
+                    <label>
+                      <span>テンプレートフォルダ</span>
+                      <select
+                        aria-label="テンプレートフォルダ"
+                        value={templateDirectoryDraft}
+                        disabled={settingsBusy}
+                        onChange={(event) => {
+                          setSettingsError(null)
+                          setTemplateDirectoryDraft(event.target.value)
+                        }}
+                      >
+                        {(snapshot?.directories ?? []).filter(Boolean).map((directory) => (
+                          <option key={directory} value={directory}>
+                            {directory}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="settings-checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={showBuiltInTemplatesDraft}
+                        disabled={settingsBusy}
+                        onChange={(event) => {
+                          setSettingsError(null)
+                          setShowBuiltInTemplatesDraft(event.target.checked)
+                        }}
+                      />
+                      <span>内蔵テンプレートを表示</span>
+                    </label>
+                    <button
+                      type="button"
+                      className="secondary-button settings-inline-action"
+                      disabled={settingsBusy}
+                      onClick={() => revealVaultEntry(templateDirectoryDraft)}
+                    >
+                      <Icon name="folder-open" />
+                      テンプレートフォルダをエクスプローラーで表示
+                    </button>
+                    <p className="setting-help">
+                      このフォルダ内のMarkdownは通常ノートとして編集できます。
+                    </p>
+                  </section>
+                )}
+
+                {settingsCategory === 'plugins' && (
+                  <section
+                    className="app-settings-section"
+                    aria-labelledby="obsidian-plugins-title"
+                  >
+                    <div className="app-settings-section-heading">
+                      <h3 id="obsidian-plugins-title">Obsidianプラグイン</h3>
+                      <p>
+                        このVaultの .obsidian/plugins にある候補を安全に確認します。
+                      </p>
+                    </div>
+                    <p className="setting-help">
+                      一般のプラグインは候補検出のみで、main.jsを実行しません。Calendar 1.5.10だけは専用の隔離互換層で扱います。
+                    </p>
+                    <button
+                      type="button"
+                      className="secondary-button settings-inline-action"
+                      disabled={obsidianPluginsLoading}
+                      onClick={() => void refreshObsidianPluginCandidates()}
+                    >
+                      {obsidianPluginsLoading ? '確認中…' : 'もう一度確認'}
+                    </button>
+                    {obsidianPluginsLoading ? (
+                      <p className="obsidian-plugin-empty" role="status">
+                        プラグイン候補を確認しています…
+                      </p>
+                    ) : obsidianPluginCandidates.length === 0 ? (
+                      <p className="obsidian-plugin-empty">
+                        このVaultにはObsidianプラグインが見つかりません。
+                      </p>
+                    ) : (
+                      <div className="obsidian-plugin-list">
+                        {obsidianPluginCandidates.map((plugin, index) => (
+                          <article
+                            key={`${plugin.id}:${index}`}
+                            className="obsidian-plugin-card"
+                          >
+                            <div className="obsidian-plugin-card-heading">
+                              <strong>{plugin.name}</strong>
+                              <span className={`obsidian-plugin-status is-${plugin.status}`}>
+                                {plugin.status === 'detected'
+                                  ? 'manifest確認済み'
+                                  : plugin.status === 'incomplete'
+                                    ? 'ファイル不足'
+                                    : '要確認'}
+                              </span>
+                            </div>
+                            <p>{plugin.description || '説明はありません。'}</p>
+                            <div className="obsidian-plugin-meta">
+                              <span>ID: {plugin.id}</span>
+                              <span>Version: {plugin.version || '不明'}</span>
+                              <span>作者: {plugin.author || '不明'}</span>
+                              <span>
+                                最低Obsidian: {plugin.minAppVersion || '不明'}
+                              </span>
+                              <span>
+                                Desktop専用: {plugin.isDesktopOnly ? 'はい' : 'いいえ'}
+                              </span>
+                              <span>main.js: {plugin.hasMain ? 'あり' : 'なし'}</span>
+                              <span>styles.css: {plugin.hasStyles ? 'あり' : 'なし'}</span>
+                            </div>
+                            <p className="setting-help">
+                              {plugin.id === 'calendar' && plugin.version === '1.5.10'
+                                ? 'Calendar画面で公式配布物のSHA-256を追加検証します。'
+                                : plugin.reason ?? 'manifestを検出しました。一般実行互換は未対応です。'}
+                            </p>
+                          </article>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                {settingsCategory === 'calendar' && (
+                  <section
+                    className="app-settings-section calendar-settings-section"
+                    aria-labelledby="calendar-settings-title"
+                  >
+                    <div className="app-settings-section-heading">
+                      <h3 id="calendar-settings-title">Calendar 互換</h3>
+                      <p>
+                        Liam Cain版 Calendar 1.5.10の公式配布物だけを、TSUZUNE専用の隔離環境で動かします。
+                      </p>
+                    </div>
+
+                    <div className="calendar-compatibility-status">
+                      <div>
+                        <strong>
+                          {calendarPluginStatus?.state === 'ready'
+                            ? '公式配布物を検証済み'
+                            : calendarPluginStatus?.state === 'rejected'
+                              ? '配布物を安全のため拒否'
+                              : calendarPluginStatus
+                                ? '公式配布物は未配置'
+                                : '配布物を確認中'}
+                        </strong>
+                        <span>
+                          {calendarPluginStatus?.state === 'ready'
+                            ? calendarPluginActivated
+                              ? '隔離ホストで実行中'
+                              : '画面を開くと隔離ホストで起動します'
+                            : calendarPluginStatus?.reason ??
+                              '.obsidian/plugins/calendar にmain.jsとmanifest.jsonを配置してください'}
+                        </span>
+                      </div>
+                      <span
+                        className={`calendar-compatibility-badge is-${calendarPluginStatus?.state ?? 'checking'}`}
+                      >
+                        {calendarPluginStatus?.state === 'ready'
+                          ? 'SHA一致'
+                          : calendarPluginStatus?.state === 'rejected'
+                            ? '拒否'
+                            : '未配置'}
+                      </span>
+                    </div>
+                    <p className="setting-help calendar-compatibility-hash">
+                      対象: calendar@1.5.10 / main.js SHA-256: {calendarPluginStatus?.mainSha256 ?? '確認中'}
+                    </p>
+                    <div className="calendar-settings-actions">
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={settingsBusy}
+                        onClick={() => void refreshCalendarPluginStatus()}
+                      >
+                        配布物を再確認
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() =>
+                          void window.tsuzune.openExternal(
+                            'https://github.com/liamcain/obsidian-calendar-plugin/releases/tag/1.5.10'
+                          )
+                        }
+                      >
+                        公式リリースを開く
+                      </button>
+                    </div>
+
+                    <h4>一般</h4>
+                    <label>
+                      <span>週の開始曜日</span>
+                      <select
+                        aria-label="Calendarの週の開始曜日"
+                        value={calendarPluginSettingsDraft.weekStart}
+                        disabled={settingsBusy}
+                        onChange={(event) =>
+                          setCalendarPluginSettingsDraft((current) => ({
+                            ...current,
+                            weekStart: event.target.value as CalendarPluginSettings['weekStart']
+                          }))
+                        }
+                      >
+                        <option value="locale">システムの地域設定</option>
+                        <option value="sunday">日曜日</option>
+                        <option value="monday">月曜日</option>
+                        <option value="tuesday">火曜日</option>
+                        <option value="wednesday">水曜日</option>
+                        <option value="thursday">木曜日</option>
+                        <option value="friday">金曜日</option>
+                        <option value="saturday">土曜日</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>1ドットあたりの単語数</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        aria-label="Calendarの1ドットあたりの単語数"
+                        value={calendarPluginSettingsDraft.wordsPerDot}
+                        disabled={settingsBusy}
+                        onChange={(event) =>
+                          setCalendarPluginSettingsDraft((current) => ({
+                            ...current,
+                            wordsPerDot: Math.max(0, Math.trunc(Number(event.target.value) || 0))
+                          }))
+                        }
+                      />
+                    </label>
+                    <p className="setting-help">0にするとノート量のドットを表示しません。最大5個です。</p>
+                    <label className="settings-checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={calendarPluginSettingsDraft.shouldConfirmBeforeCreate}
+                        disabled={settingsBusy}
+                        onChange={(event) =>
+                          setCalendarPluginSettingsDraft((current) => ({
+                            ...current,
+                            shouldConfirmBeforeCreate: event.target.checked
+                          }))
+                        }
+                      />
+                      <span>新しいデイリーノートを作る前に確認する</span>
+                    </label>
+                    <label>
+                      <span>表示言語</span>
+                      <input
+                        type="text"
+                        aria-label="Calendarの表示言語"
+                        value={calendarPluginSettingsDraft.localeOverride}
+                        disabled={settingsBusy}
+                        placeholder="system-default または ja"
+                        onChange={(event) =>
+                          setCalendarPluginSettingsDraft((current) => ({
+                            ...current,
+                            localeOverride: event.target.value
+                          }))
+                        }
+                      />
+                    </label>
+
+                    <h4>週次ノート</h4>
+                    <label className="settings-checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={calendarPluginSettingsDraft.showWeeklyNote}
+                        disabled={settingsBusy}
+                        onChange={(event) =>
+                          setCalendarPluginSettingsDraft((current) => ({
+                            ...current,
+                            showWeeklyNote: event.target.checked
+                          }))
+                        }
+                      />
+                      <span>週番号を表示する</span>
+                    </label>
+                    {calendarPluginSettingsDraft.showWeeklyNote && (
+                      <div className="calendar-weekly-settings">
+                        <label>
+                          <span>週次ノートの形式</span>
+                          <input
+                            type="text"
+                            aria-label="Calendarの週次ノート形式"
+                            value={calendarPluginSettingsDraft.weeklyNoteFormat}
+                            disabled={settingsBusy}
+                            placeholder="gggg-[W]ww"
+                            onChange={(event) =>
+                              setCalendarPluginSettingsDraft((current) => ({
+                                ...current,
+                                weeklyNoteFormat: event.target.value
+                              }))
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>週次ノートのテンプレート</span>
+                          <input
+                            type="text"
+                            aria-label="Calendarの週次ノートテンプレート"
+                            value={calendarPluginSettingsDraft.weeklyNoteTemplate}
+                            disabled={settingsBusy}
+                            placeholder="90_テンプレート/週次"
+                            onChange={(event) =>
+                              setCalendarPluginSettingsDraft((current) => ({
+                                ...current,
+                                weeklyNoteTemplate: event.target.value
+                              }))
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>週次ノートのフォルダ</span>
+                          <input
+                            type="text"
+                            aria-label="Calendarの週次ノートフォルダ"
+                            value={calendarPluginSettingsDraft.weeklyNoteFolder}
+                            disabled={settingsBusy}
+                            placeholder="02_デイリー/週次"
+                            onChange={(event) =>
+                              setCalendarPluginSettingsDraft((current) => ({
+                                ...current,
+                                weeklyNoteFolder: event.target.value
+                              }))
+                            }
+                          />
+                        </label>
+                      </div>
+                    )}
+                    <p className="setting-help">
+                      週次ノート機能は上流で非推奨です。互換のため残していますが、新しい設計の中心にはしません。
+                    </p>
+                  </section>
+                )}
+
+                {settingsCategory === 'ai' && (
+                  <section className="app-settings-section" aria-labelledby="ai-review-title">
+                    <div className="app-settings-section-heading">
+                      <h3 id="ai-review-title">AIとレビュー</h3>
+                      <p>AIによる書き込みを、指定した場所だけ承認制にします。</p>
+                    </div>
+                    <label>
+                      <span>AI変更を承認制にするパス</span>
+                      <textarea
+                        aria-label="AI変更を承認制にするパス"
+                        value={aiReviewPathsDraft}
+                        disabled={settingsBusy}
+                        placeholder="例: 30_知識"
+                        onChange={(event) => {
+                          setSettingsError(null)
+                          setAiReviewPathsDraft(event.target.value)
+                        }}
+                      />
+                    </label>
+                    <p className="setting-help">
+                      対象ではAIの作成・更新を即時反映せず、ここで承認または取り消します。変更禁止の指定が優先されます。
+                    </p>
+                    <section className="ai-review-list" aria-labelledby="ai-review-proposals-title">
+                      <h4 id="ai-review-proposals-title">承認待ちのAI変更案</h4>
+                      {aiReviewProposals.length === 0 ? (
+                        <p>承認待ちの変更案はありません。</p>
+                      ) : (
+                        aiReviewProposals.map((proposal) => {
+                          const current = snapshot?.notes.find(
+                            (note) => note.path.toLowerCase() === proposal.path.toLowerCase()
+                          )
+                          return (
+                            <article key={proposal.id} className="ai-review-proposal">
+                              <strong>{proposal.path}</strong>
+                              <p>{proposal.reason}</p>
+                              <p>操作: {proposal.operation === 'create' ? '作成' : '更新'}</p>
+                              <p>
+                                作成時刻: {new Date(proposal.createdAt).toLocaleString('ja-JP')}
+                              </p>
+                              <p>
+                                出典: {proposal.sourceRefs.length > 0 ? proposal.sourceRefs.join('、') : 'なし'}
+                              </p>
+                              <div className="ai-review-comparison">
+                                <div>
+                                  <span>現在</span>
+                                  <pre>{current?.content ?? '（新規ノート）'}</pre>
+                                </div>
+                                <div>
+                                  <span>変更案</span>
+                                  <pre>{proposal.content}</pre>
+                                </div>
+                              </div>
+                              <div className="modal-actions">
+                                <button
+                                  type="button"
+                                  disabled={settingsBusy}
+                                  onClick={() => void resolveAiReviewProposal(proposal, false)}
+                                >
+                                  取り消す
+                                </button>
+                                <button
+                                  type="button"
+                                  className="primary-button"
+                                  disabled={settingsBusy}
+                                  onClick={() => void resolveAiReviewProposal(proposal, true)}
+                                >
+                                  承認して反映
+                                </button>
+                              </div>
+                            </article>
+                          )
+                        })
+                      )}
+                    </section>
+                  </section>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-actions app-settings-actions">
+              {settingsError ? (
+                <p className="app-settings-feedback is-error" role="alert">
+                  {settingsError}
+                </p>
+              ) : settingsHaveUnsavedChanges ? (
+                <p className="app-settings-feedback" role="status">
+                  未保存の変更があります
+                </p>
+              ) : null}
               <button
                 type="button"
                 disabled={settingsBusy}
-                onClick={() => setSettingsDialogOpen(false)}
+                onClick={closeSettingsDialog}
               >
                 キャンセル
               </button>
@@ -3740,7 +4793,7 @@ export default function App(): React.JSX.Element {
                 type="button"
                 className="primary-button"
                 disabled={settingsBusy}
-                onClick={() => void saveExcludedFiles()}
+                onClick={() => void saveSettings()}
               >
                 設定を保存
               </button>
@@ -3750,7 +4803,16 @@ export default function App(): React.JSX.Element {
       )}
 
       {googleDialogOpen && (
-        <div className="modal-backdrop" role="presentation">
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          data-testid="google-sync-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              closeGoogleDialog()
+            }
+          }}
+        >
           <section
             ref={googleDialogRef}
             className="modal google-sync-modal"
@@ -3770,7 +4832,7 @@ export default function App(): React.JSX.Element {
                 type="button"
                 aria-label="Google Drive同期を閉じる"
                 disabled={googleBusy || busy}
-                onClick={() => setGoogleDialogOpen(false)}
+                onClick={closeGoogleDialog}
               >
                 ×
               </button>

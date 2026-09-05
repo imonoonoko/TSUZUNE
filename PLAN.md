@@ -1,6 +1,10 @@
 # TSUZUNE Product Plan — 単一正本・現在状態コンパイラ
 
-更新日: 2026-08-26（JST）
+## 2026-09-05 P0-7 参照元リンク追従の現在地
+
+P0-7の参照元リンク追従を実装・source検証済み。単一Markdownノートの名前変更・移動にWiki／Markdown／frontmatter参照が追従し、別名・見出し・コメント・BOM・改行を保持する。32件の安全性test、実画面の4操作と再起動後の全file一致、隔離先userData／sessionDataの実測、本番profile 273 files不変を確認した。独立reviewのblocking findingは解消済み。本番反映の完了は、このsource fingerprintに対応する最新production receiptとinstalled実画面検証を記録した既存Vault campaignを正本とする。repo内記録はgate前に確定し、gate後に結果を重複追記しない。P0-6のprofile差分は原因未特定の過去証拠として保持する。 [実装・検証証拠](.agent/requirements/20260905-obsidian-compatibility-program/results/p0-7-lossless-link-maintenance.md)。以下は各区切りの記録。
+
+更新日: 2026-09-05（JST）
 
 この文書は、TSUZUNEを「ノートを増やすアプリ」から「根拠に基づく現在状態を安全に再構成し、必要な場合だけ一つの正本を遷移させる個人用知識基盤」へ発展させるための実行正本です。
 
@@ -24,12 +28,22 @@
 
 | 区分 | 現在地 |
 |---|---|
-| Complete | 既存Context Compiler、Temporal Memory、MCP revision、patch、AI履歴、Review proposal、保護領域、production gate。R0能力・owner候補・fixture Baseline棚卸し。1命題のState Packet比較。Compact Decision Envelopeの5-case盲検benchmark。Workflow Verification Harness Phase 1（固定allowlist、fail-first、source fingerprint、JSON Receipt、public CLI fixture 4件、`current-decision`／`typecheck`／`test`／`mcp` dogfood）。Executable Policy Pilot 1（宣言済みread-only MCP 10件の通常Vault／隔離profile不変性と完全coverage）。MCP read-only完全化（cold／malformed／noncanonicalなcreation-time sidecarを含むVault／profile全体の無書込み。通常scanとwrite経路のrepairは維持） |
-| Next | **自然利用観測**。Phase 1 Harnessを通常の開発taskで使い、Receiptで表せない同型の証拠欠落または手作業摩擦が独立2件以上反復するか観測する。新しい実装Primaryは置かない。[Phase 1実装・検証](docs/reports/workflow-verification-harness-phase1-plan-2026-08-26.md) |
-| Held | R1〜R10、Compact Decision Envelope、独立Harness runtime、新DB、Vector DB、常駐Hook、全Vault ingestion、永続派生ビュー、BM25/cache、multi-note transaction、広域Graph拡張 |
+| Complete | 既存Context Compiler、Temporal Memory、MCP revision、patch、通常更新の履歴生成停止とlegacy保護、Review proposal、保護領域、production gate。R0能力・owner候補・fixture Baseline棚卸し。1命題のState Packet比較。Compact Decision Envelopeの5-case盲検benchmark。Workflow Verification Harness Phase 1。Executable Policy Pilot 1。MCP read-only完全化。Obsidian plugin manifest-only候補検出。分類不要のInbox capture。Readability本文抽出と、ページ内三経路＋取得不能／途中時のローカル`yt-dlp`を備えたBrowser Clipper。原典を変更せずAI Reviewへ登録するcategory-aware派生知識proposal、exact `category:`／`topic:`検索、知識／情報源／受信箱／その他の排他的表示。観測宙域MVP R2のsource実装とbuild-bound機械受入（局所two-hop tree、最大9星／8本、dense／singleton PASS。利用者鑑賞受入待ち、本番未反映） |
+| Next | **Obsidian互換性 第1層: データを壊さない互換性**。文字列・数値・単純listのProperties追加／編集／削除・保存・再読込はsource検証済み。P0-5のチェックボックス型Propertiesは追加・切替・削除・preview・保存・再読込をsource実装し、全体1124 tests PASS（1 SKIP）、隔離した固定Obsidian 1.13.4との実機26検査をPASSした。真偽値の切替・再起動後の状態は一致。新規未チェック値（TSUZUNE=false／Obsidian=空欄）とコメント／BOM／改行の保存は異なり、TSUZUNEの非破壊保存を維持する。再起動後にMCPの記録同期を完了し、既存campaignと3入口をrevision付きで更新、読み戻し・一意検索・相互リンクを確認した。Ownerが2026-09-05に現source全体を既存の検証・更新手順で導入することを明示承認した。対象はExcluded files、各型Properties編集、Context利用・状態由来レシートを含む現tree。導入結果はdocs/reports/production-update-latest.jsonの本承認後のreceiptとdelivery_infoを正本にし、既存campaignへ受入証拠を保存する。新機能やGit公開は自動着手しない。その後は毎日の操作 → 構造表現 → 工房主が選択した拡張の順。[公開挙動台帳](.agent/requirements/20260905-obsidian-compatibility-program/compatibility-ledger.md)を正本とする。本番反映は別判断。 |
+| Held | R1〜R10、Compact Decision Envelope、独立Harness runtime、新DB、Vector DB、全Vault ingestion、永続派生ビュー、BM25/cache、multi-note transaction、広域Graph拡張、無改造Obsidian community pluginの実行runtime／API shim／任意`main.js`読込、独立review queue、全Vault batch整理、既存ノートへのbulk分類write、AI整理の自動承認、原典の移動／削除、fact-only Hook実装、schedule作成、semantic Codex Lifecycle Hook、観測宙域R2の鑑賞受入／本番反映、観測宙域の常時Force movement、LLM／embeddingによる再編、Idea Proposal、自律書込み |
 | Research | exact rollout usageの明示添付、exclusionと完全修飾IDを機械検査できる最小transient形式、意味的no-op、owner候補支援、projection、event sourcing、background maintenance。Phase 1で同型摩擦が独立2件以上観測されるまで実装へ昇格しない |
 
 Workflow Verification Harness Phase 1は、新しいAgent runtimeを作らず、既存checkを再利用するread-onlyの証拠収集器として完了しました。Executable Policy Pilot 1で確認した`.tsuzune` creation-time sidecarの別境界は、利用者の明示選択を受けて製品sliceとして閉じました。MCP read-only経路はsidecarを読み取って論理creation timeを維持しますが、cold時の作成、malformed時のrepair、noncanonical JSONの正規化を行いません。通常scanとwrite経路は従来どおりrepairします。Harnessは`.tsuzune`除外を撤去し、宣言済みread-only tool 10件についてVault／profile全体のbyte／metadata／directory不変性と完全coverageを検査します。新しい実装Primaryは置かず、次は自然利用を観測します。[MCP read-only完全化](docs/reports/mcp-readonly-zero-write-2026-08-26.md)、[Pilot 1実装・検証](docs/reports/executable-policy-pilot-1-2026-08-26.md)、[Phase 1実装・検証](docs/reports/workflow-verification-harness-phase1-plan-2026-08-26.md)、既存の[R0 Baseline](docs/reports/current-state-compiler-r0-baseline-2026-08-23.md)を分離して扱います。
+
+2026-08-29に、利用者の明示選択でHeldだったObsidian plugin互換候補を再開し、最小の可逆sliceとして`.obsidian/plugins/*/manifest.json`のread-only候補検出だけを本番反映しました。plugin codeの読込・実行、Obsidian API shim、enable／disable、設定data、CSS適用は含みません。現在のactive Vaultでは候補0件だったため、次は実際に使うpluginと目的が確認されるまで停止します。
+
+2026-08-31に、利用者の明示選択で「人間は分類せず受信箱へ放り込める」をPrimaryへ昇格し、Command PaletteのInbox captureを実装・本番反映しました。2026-09-01の再設計では、原典をそのまま移動する方式をやめ、AIが再利用可能な`30_知識`候補を新しく作る方式へ更新しました。現在の最初のwrite sliceは、exact source revision・既存主カテゴリ1件・トピック1〜3件・Wiki原典linkを持つproposalをAI Reviewへ登録し、人間承認後だけ派生ノートを作ります。原典の移動／削除、自動承認、全Vault分類、Hook、scheduleはこのsliceに含めません。[現行計画](.agent/requirements/20260831-note-organization-video/plan.md#v5-category-aware-derivation-continuation--2026-09-01)
+
+2026-09-01に、同じ「分類せず受信箱へ放り込む」入口をChrome／Edgeへ拡張しました。Web／YouTubeクリップは一般的な操作履歴ではなく、URL・取得時刻・取得IDを持つ外部原典スナップショットとして毎回新規作成します。通常Webはローカル同梱したMozilla Readabilityで記事本文を抽出し、短文・特殊ページだけ表示DOMへ戻します。YouTubeは可視文字起こし、パネル展開、現在動画IDと一致する字幕トラックを先に使い、取れない時または途中取得の時だけ設定・Cookieを読まないローカル`yt-dlp`へ一度戻ります。2026-09-02に、通常本文と字幕の16,000文字／48 KiB／64 KiB切断を撤去し、原典は完全保存、10万文字超はrevisionを保った`fetch` cursorでAIが分割読取する境界へ変更しました。専用loopbackは固定拡張ID・明示ペアリング・`01_受信箱`へのcreateだけを許し、一回8 MiBを超える要求は部分保存せず拒否します。既存Drive bridge、更新、任意path、Native Messaging、広域host権限、cloud文字起こし、新しい`50_履歴`を追加しません。[Browser Clipper](docs/browser-clipper.md)
+
+2026-09-03に、利用者が鑑賞優先・最小操作の「観測宙域」を新しいMVPとして選択しました。最初のprototypeは全量589ノート／4175リンクを背景へ残してcameraで巡回したため、配線の塊、画面端への偏在、Canvas矩形、技術captionを生み、利用者鑑賞受入で不採用になりました。R2では全量Graph、global layout、camera、Canvasを表示経路から外し、明示Wiki linkだけからroot最大3枝、depth 2、最大9星／8本の局所treeを場面ごとに作る方式へ再設計・実装しました。前後sceneを重ねないdissolve、reduced motion、遷移中のTab／ARIA境界を含め、全974 testsとbuild-bound Electronのdense 589/4175・singleton 1/0受入はPASSしています。これは存在相そのものや意味空間ではなく、保存済みMarkdownの有限な鑑賞presentationです。sourceは検証済みですが、利用者の鑑賞受入と本番反映は未実施です。Living Cosmos、semantic再編、Proposal生成、自律書込みはHeld／Researchのままです。[開発計画](.agent/requirements/20260903-0032-existence-phase-observatory-mvp/implementation-plan.md)
+
+2026-09-05に、工房主は「追いつかないと追い抜けない」としてObsidian互換性を現行Primaryへ変更しました。公式Help、現行source、固定Obsidian 1.13.4 evidenceを分離した互換性台帳を作り、最初のP0としてExcluded filesのscan-level一律除外をsurface-specific contractへ変更しました。current sourceではFile Explorer／raw snapshotが対象を保持し、Search／Graphは隠し、Quick Switcher／editor link候補は削除せず後順位にします。MCPのfiltered retrievalは維持します。全986 tests PASS／1 SKIP、typecheck、独立8-file 243-test検証はPASSです。本番反映とGit deliveryは行っていません。工房主は続く優先順位を、(1) データを壊さない互換性、(2) 毎日の操作互換性、(3) 構造表現の互換性、(4) 選択した拡張だけの互換性、と正式決定しました。達成境界は「同じlocal Vaultを内容・metadata非破壊で開き、日常の作成・編集・検索・再開ができること」で、文字列PropertiesはP0-2でsource実装・検証済みです（focused 63／全体1045 tests PASS、1 SKIP、typecheck／独立review PASS）。先行2回の全体runはOOMでFAIL、原因は未確定です。P0-3で数値／単純listのauthoringもsource実装・検証しました（focused 117／全体1099 tests PASS（1 SKIP）、typecheck／独立review PASS）。P0-5のチェックボックス型Propertiesは追加・切替・削除・preview・保存・再読込をsource実装し、全体1124 tests PASS（1 SKIP）、隔離した固定Obsidian 1.13.4との実機26検査をPASSした。真偽値の切替・再起動後の状態は一致。新規未チェック値（TSUZUNE=false／Obsidian=空欄）とコメント／BOM／改行の保存は異なり、TSUZUNEの非破壊保存を維持する。再起動後にMCPの記録同期を完了し、既存campaignと3入口をrevision付きで更新、読み戻し・一意検索・相互リンクを確認した。Ownerが2026-09-05に現source全体を既存の検証・更新手順で導入することを明示承認した。対象はExcluded files、各型Properties編集、Context利用・状態由来レシートを含む現tree。導入結果はdocs/reports/production-update-latest.jsonの本承認後のreceiptとdelivery_infoを正本にし、既存campaignへ受入証拠を保存する。新機能やGit公開は自動着手しない。[互換性Program](.agent/requirements/20260905-obsidian-compatibility-program/plan.md)／[台帳](.agent/requirements/20260905-obsidian-compatibility-program/compatibility-ledger.md)／[P0-1 Evidence](.agent/requirements/20260905-obsidian-compatibility-program/results/p0-1-excluded-files.md)
 
 ### Success Conditions
 
@@ -72,11 +86,11 @@ Workflow Verification Harness Phase 1は、新しいAgent runtimeを作らず、
 3. 1つの可変な現在状態には、1つのcanonical ownerだけを割り当てる。
 4. MOC・一覧・ダッシュボードは入口と関係を持ち、可変状態を複製しない。
 5. 原典、監査履歴、認証情報はAIの自律更新対象にしない。
-6. AI出力は提案であり、根拠不足・矛盾・owner不明を自動的に事実へ昇格しない。
+6. AIの意味判断は推論であり、観測可能なsafe gateをすべて満たすInboxのlossless one-note moveだけを自動適用できる。根拠不足・矛盾・owner不明は事実へ昇格せず、人間判断へ返す。
 7. 更新前にtarget、base revision、reason、source refsを確定する。
 8. 失敗時は利用者データを保持し、成功と部分成功を混同しない。
-9. 履歴は復旧・監査用とし、現在状態を読むための必須イベント列にしない。
-10. 新runtime、DB、cache、daemon、Hook、外部依存は、既存経路で代替不能な測定証拠が出るまで追加しない。
+9. 通常の作成・更新・整理で履歴ノートを生成しない。既存の`50_履歴`はlegacyとして保護し、通常導線とAI更新対象から外す。
+10. 新runtime、DB、cache、daemon、外部依存は、既存経路で代替不能な測定証拠が出るまで追加しない。選択済みのHookはInboxのfact-only通知に限定し、意味判断やmutationを持たせない。
 11. UIは補助面であり、UIだけに正本・proposal・復旧情報を閉じ込めない。
 12. 「探索は大胆に、書込みは慎重に」を全mutationへ適用する。
 
@@ -107,7 +121,7 @@ Owner / Evidence / Invariant / Revision checks
             ↓
 Canonical Owner 1件だけを更新
             ↓
-History + Provenance + Result Receipt
+Response Provenance + Result Receipt（Vault履歴ノートなし）
             ↓
 MOC・検索・Contextから必要時に再構成
 ```
@@ -153,7 +167,7 @@ expected_outcome
 | `PROPOSED` | 根拠付き変更案。未適用 | 0 |
 | `BLOCKED` | owner不明、根拠不足、意味不確実、必須入力不足 | 0 |
 | `CONFLICT` | 証拠・状態・revisionが競合 | 0 |
-| `APPLIED` | guardと再読を通過した正本1件の更新 | 1 canonical + 1 valid history/receipt |
+| `APPLIED` | guardと再読を通過した正本1件の更新 | 1 canonical。provenance／receiptは応答または外部Evidenceで返し、履歴ノートは作らない |
 | `PROJECTION_PENDING` | 正本は成功したが補助導線が未完 | 正本成功をrollbackせず未完了表示 |
 
 意味的no-opをモデルが自動保証するとは定義しません。自動保証は完全本文一致までです。意味が不確実なら`BLOCKED`が正しい結果です。
@@ -326,15 +340,15 @@ expected_outcome
 
 ### R5 — Guarded Single-note Apply
 
-**目的:** Proposalを既存revision・Review・history経路でcanonical owner 1件だけへ安全に適用する。
+**目的:** Proposalを既存revision・Review・readback経路でcanonical owner 1件だけへ安全に適用する。
 
-**先行安全課題:** history先行による孤立、保存直前のcontent hash境界、full rewriteの欠落、空reason/source refs、承認待ち中のtarget変更・Vault切替。
+**先行安全課題:** 保存直前のcontent hash境界、full rewriteの欠落、空reason/source refs、承認待ち中のtarget変更・Vault切替、成功応答前のreadback失敗。
 
-**必須ガード:** expected revision、target/canonical path、immutable/review policy、reason、evidenceまたは外部Evidenceなしの明示、byte preimage、保持section検証、post-write read-back、valid history/receipt、stale runtime guard。
+**必須ガード:** expected revision、target/canonical path、immutable/review policy、reason、evidenceまたは外部Evidenceなしの明示、byte preimage、保持section検証、post-write read-back、valid result receipt、stale runtime guard。
 
-**failure injection:** proposal後、history前後、temp write、rename前後、read-back前、receipt前後、process interruption、concurrent edit。
+**failure injection:** proposal後、temp write、rename前後、read-back前、receipt前後、process interruption、concurrent edit。
 
-**出口条件:** stale/protected/missing拒否、no-op全書込み0、成功時だけ正本と有効履歴が対応、失敗を成功として返さない、orphan history 0または未適用として復旧可能、proposalとread-back一致。
+**出口条件:** stale/protected/missing拒否、no-op全書込み0、成功時だけ正本とreadback／result receiptが対応、失敗を成功として返さない、履歴ノート生成0、proposalとread-back一致。
 
 **Rollback:** preimageからcanonical 1件だけをrevision付き復元。
 
@@ -345,6 +359,8 @@ expected_outcome
 **目的:** R2/R5を外部Agent向けの最小proposal・承認経路へ接続する。
 
 最初はread-only proposalとし、既存`fetch`、`build_context`、Review store、stale guardを再利用します。common/direct toolを増やす前に既存tool組合せとの差を測り、自動/bulk/background applyを追加しません。
+
+このR6は汎用proposal programの境界である。2026-09-01に選択されたInbox派生知識laneは、専用の`propose_derived_note`で一件のAI Review proposalだけを登録し、人間承認後に`30_知識`へ新規作成する。原典move、自動承認、全Vault、merge、delete、rename、split、意味上の矛盾解消はこの例外に含めない。
 
 **検証:** schema/response size、transport、source refs、revision、omitted_ids、warnings、Vault identity、Codex/Freebuff、stale/protected/write count。
 
@@ -474,7 +490,7 @@ expected_outcome
 - Temporal Memory Lite。
 - revision付き単一note更新、exact-content no-op、exact patch。
 - Review proposalと承認時revision再検査。
-- AI履歴、provenance、protected path。
+- 通常更新の履歴生成停止、legacy provenance読取、protected path。
 - stale runtime guard、delivery info。
 - Drive preview/apply、Path Alias、単一note move。
 - Quick Switcher、Command Palette、Full-text Search、context tabs。
@@ -489,11 +505,10 @@ expected_outcome
 | X1-C2 Context budget | R2でContext量が主要ボトルネックと判明 |
 | BM25/cache/index | 既存検索が固定scaleでSLO未達 |
 | SQLite/Vector DB | Markdown + bounded indexで正しさ・性能を満たせない証拠 |
-| Hooks/co-occurrence | 反復する具体的missとread-only trial合格 |
+| semantic Hooks/co-occurrence | 反復する具体的missとread-only trial合格。選択済みのInbox fact-only Hookは含まない |
 | static Knowledge Compilation | transient packetで解決不能な反復摩擦 |
 | Compact Decision Envelope | 完全修飾IDと明示除外の機械検査を事前登録し、5-case安全gate全PASSかつ総量が通常文以下 |
 | multi-note transaction | single-ownerで避けられない実例とrollback要件 |
-| Graph parity残件 | 利用者が対象surfaceをPrimaryへ明示選定 |
 | Windows accessibility広域baseline | 対象UI slice選定後に実機測定 |
 | Google/ChatGPT/NotebookLM intake | provenanceと明示需要が成立 |
 | cross-device/collaboration | 個人1台の前提が明示的に変更 |
@@ -544,7 +559,9 @@ semantic no-op補助判定、owner candidate ranking、projection freshness、ev
 
 ## 11. Next Authorized Slice
 
-`Workflow Verification Harness Phase 1`、`Executable Policy Pilot 1`、MCP read-only完全化の実装sliceは完了しました。既存`mcp` checkは除外なしで、宣言済みread-only tool 10件のVault／隔離profile不変性と完全coverageを検査します。現在承認済みの活動は、既存Harnessを自然な開発taskで使うread-only観測であり、新しいcode sliceではありません。詳細Evidenceは[`docs/reports/mcp-readonly-zero-write-2026-08-26.md`](docs/reports/mcp-readonly-zero-write-2026-08-26.md)を参照します。
+P0-4の比較・ローカル記録・Vault同期は完了。再起動後に既存campaignと3入口の更新・read-back・一意検索・backlinkを確認した。[同期証拠](.agent/requirements/20260905-obsidian-compatibility-program/results/p0-4-pending-tsuzune-writeback.json)。次の実装候補は以下のとおりであり、自動着手しない。
+
+Obsidian互換性のP0-1 Excluded Files、P0-2文字列Properties、P0-3数値／単純list Propertiesはcurrent sourceで実装・検証済みです。工房主承認の順序は、データを壊さない互換性 → 毎日の操作互換性 → 構造表現の互換性 → 選択した拡張だけの互換性です。P0-5のチェックボックス型Propertiesは追加・切替・削除・preview・保存・再読込をsource実装し、全体1124 tests PASS（1 SKIP）、隔離した固定Obsidian 1.13.4との実機26検査をPASSした。真偽値の切替・再起動後の状態は一致。新規未チェック値（TSUZUNE=false／Obsidian=空欄）とコメント／BOM／改行の保存は異なり、TSUZUNEの非破壊保存を維持する。再起動後にMCPの記録同期を完了し、既存campaignと3入口をrevision付きで更新、読み戻し・一意検索・相互リンクを確認した。Ownerが2026-09-05に現source全体を既存の検証・更新手順で導入することを明示承認した。対象はExcluded files、各型Properties編集、Context利用・状態由来レシートを含む現tree。導入結果はdocs/reports/production-update-latest.jsonの本承認後のreceiptとdelivery_infoを正本にし、既存campaignへ受入証拠を保存する。新機能やGit公開は自動着手しない。複雑なYAML、Unicode key、global type管理は未対応であり、Properties全面互換は主張しません。[互換性台帳](.agent/requirements/20260905-obsidian-compatibility-program/compatibility-ledger.md)／[P0-2 Evidence](.agent/requirements/20260905-obsidian-compatibility-program/results/p0-2-properties-authoring.md)
 
 通常利用では、taskごとに必要な固定checkだけを選びます。
 
@@ -552,4 +569,4 @@ semantic no-op補助判定、owner candidate ranking、projection freshness、ev
 npm run check:workflow -- --task <task-id> --checks current-decision,typecheck,test,mcp
 ```
 
-Phase 2は、独立した自然task 2件以上で同じ証拠欠落または手作業摩擦が反復し、既存checkとReceiptでは原因を特定できない場合だけ再契約します。`.tsuzune` cold／malformed／noncanonical境界を含むliteralなMCP read-only環境不変はこのsliceで閉じました。R1〜R10、Compact Decision Envelope、独立Harness runtime、daemon、DB、Hook、cacheはHeldです。HarnessのPASSをpackaged／installed／live／利用者確認へ昇格せず、未検証層は`not_proven`として残します。
+P0-1〜3の本番反映は別work itemです。Properties sliceでCanvas／Bases／plugin runtimeまで同時に広げません。観測宙域、既存`30_知識`／`40_情報源`へのbulk分類write、fact-only Hook、schedule、自動承認、原典の処分、新DB、cache、semantic Hookも引き続きHeldです。

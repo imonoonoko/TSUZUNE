@@ -120,4 +120,19 @@ describe('QuickNoteCreateDialog', () => {
 
     expect(document.activeElement).toBe(screen.getByLabelText('名前'))
   })
+
+  it('does not dismiss while busy, but dismisses from the backdrop when idle', () => {
+    const onCancel = vi.fn()
+    const { rerender } = render(
+      <QuickNoteCreateDialog {...defaultProps} busy onCancel={onCancel} />
+    )
+    const backdrop = document.querySelector('.modal-backdrop') as HTMLElement
+    fireEvent.click(backdrop)
+    expect(onCancel).not.toHaveBeenCalled()
+    rerender(<QuickNoteCreateDialog {...defaultProps} onCancel={onCancel} />)
+    fireEvent.click(screen.getByRole('dialog'))
+    expect(onCancel).not.toHaveBeenCalled()
+    fireEvent.click(document.querySelector('.modal-backdrop') as HTMLElement)
+    expect(onCancel).toHaveBeenCalledOnce()
+  })
 })

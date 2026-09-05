@@ -899,37 +899,83 @@ export default function FileTree({
   ) : null
 
   if (query.trim()) {
+    const searchGroups = [
+      { key: 'knowledge', label: '知識', matches: (path: string) => path.startsWith('30_知識/') },
+      {
+        key: 'sources',
+        label: '情報源',
+        matches: (path: string) => path.startsWith('40_情報源/')
+      },
+      {
+        key: 'inbox',
+        label: '受信箱',
+        matches: (path: string) => path.startsWith('01_受信箱/')
+      },
+      {
+        key: 'other',
+        label: 'その他',
+        matches: (path: string) =>
+          !path.startsWith('30_知識/') &&
+          !path.startsWith('40_情報源/') &&
+          !path.startsWith('01_受信箱/')
+      }
+    ]
+    const groupedSearchResults = searchGroups
+      .map((group) => ({ ...group, results: searchResults.filter((result) => group.matches(result.path)) }))
+      .filter((group) => group.results.length > 0)
+
     return (
       <>
         <div className="search-results" aria-label="検索結果">
+          <header className="search-results-summary" role="status" aria-live="polite">
+            <span>検索結果</span>{' '}
+            <strong>{searchResults.length}件</strong>
+          </header>
           {searchResults.length === 0 ? (
             <div className="sidebar-empty">
               「{query}」は見つかりませんでした。
             </div>
           ) : (
-            searchResults.map((result) => {
-              const age = noteAges.get(result.path)
-              return (
-                <button
-                  type="button"
-                  className="search-result"
-                  key={result.path}
-                  onClick={() => onSelectNote(result.path)}
-                  onContextMenu={(event) =>
-                    openContextMenu(event, { kind: 'note', path: result.path })
-                  }
-                >
-                  <strong>{result.name}</strong>
-                  <span>{result.path}</span>
-                  {age ? (
-                    <small className={`freshness-${age.freshness.level}`}>
-                      最終更新: {age.exact} · {age.freshness.statusLabel}
-                    </small>
-                  ) : null}
-                  <small>{highlightSearchExcerpt(result.excerpt, query)}</small>
-                </button>
-              )
-            })
+            groupedSearchResults.map((group) => (
+              <section className="search-result-group" key={group.key} aria-label={group.label}>
+                <h2 className="search-result-group-heading">{group.label}</h2>
+                {group.results.map((result) => {
+                  const age = noteAges.get(result.path)
+                  return (
+                    <button
+                      type="button"
+                      className="search-result"
+                      key={result.path}
+                      onClick={() => onSelectNote(result.path)}
+                      onContextMenu={(event) =>
+                        openContextMenu(event, { kind: 'note', path: result.path })
+                      }
+                    >
+                      <strong>{result.name}</strong>
+                      {result.category || result.topics?.length ? (
+                        <span className="search-result-metadata">
+                          {result.category ? (
+                            <small className="search-result-category">{result.category}</small>
+                          ) : null}
+                          {result.topics?.map((topic) => (
+                            <small className="search-result-topic" key={topic}>{topic}</small>
+                          ))}
+                        </span>
+                      ) : null}
+                      <small className="search-result-excerpt">
+                        {highlightSearchExcerpt(result.excerpt, query)}
+                      </small>
+                      <span className="search-result-path">{result.path}</span>
+                      {age ? (
+                        <small className={`search-result-freshness freshness-${age.freshness.level}`}>
+                          最終更新: {age.exact} · {age.freshness.statusLabel}
+                        </small>
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </section>
+            ))
           )}
         </div>
         {contextMenuElement}

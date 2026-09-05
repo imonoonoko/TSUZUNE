@@ -1,0 +1,23 @@
+{
+  "status": "complete",
+  "currentPacket": null,
+  "packets": {
+    "D0": "complete",
+    "UI1": "complete",
+    "UI2": "complete",
+    "UI3": "complete",
+    "V1": "complete"
+  },
+  "approvals": {
+    "productionUpdate": "in_scope_if_safe",
+    "gitPublish": "not_authorized"
+  },
+  "verification": {
+    "sourceAndTests": "passed",
+    "visualCapture": "passed",
+    "productionUpdate": "installed-and-verified",
+    "deliveryInfo": "match",
+    "runtimeInfo": "fresh",
+    "tsuzuneWriteback": "verified"
+  }
+}

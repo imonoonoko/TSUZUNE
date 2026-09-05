@@ -1,0 +1,40 @@
+{
+  "title": "TSUZUNE Obsidian級Daily Workspace continuation",
+  "slug": "20260817-1952-obsidian-level-daily-workspace",
+  "status": "complete",
+  "selected_at": "2026-08-27",
+  "approval": {
+    "required": false,
+    "basis": "The user explicitly selected the top-shell and settings catch-up program; normal local implementation and production acceptance are authorized."
+  },
+  "success_criteria": [
+    "The top chrome no longer presents update, settings, sync, and vault switching as an equal-weight permanent button row",
+    "Existing settings are grouped behind category navigation without changing persistence or safety semantics",
+    "Focused, full, isolated responsive, packaged, installed, and post-restart delivery checks pass"
+  ],
+  "packets": [
+    {"id": "01", "name": "header-action-trace", "status": "completed"},
+    {"id": "02", "name": "settings-capability-inventory", "status": "completed"},
+    {"id": "03", "name": "obsidian-primary-reference", "status": "completed"},
+    {"id": "04", "name": "visual-accessibility-audit", "status": "completed"},
+    {"id": "05", "name": "minimal-integration", "status": "completed", "depends_on": ["01", "02", "03", "04"]},
+    {"id": "06", "name": "independent-verification-and-production", "status": "completed", "depends_on": ["05"]}
+  ],
+  "verification": {
+    "status": "complete",
+    "passed": [
+      "focused shell/settings tests",
+      "full tests: 858 passed, 1 skipped",
+      "typecheck",
+      "build",
+      "check:mcp",
+      "isolated 1440/900/720 UI with unchanged Markdown digest",
+      "legacy optimization capture",
+      "independent read-only verification",
+      "production update: 10/10 installed-and-verified",
+      "post-restart runtime: stale_runtime false and delivery match",
+      "TSUZUNE canonical write-back and read-back"
+    ],
+    "pending": []
+  }
+}

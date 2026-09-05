@@ -158,8 +158,7 @@ async function startFixtureBridge(statePath) {
       responseJson(response, 200, {
         old_path: body.source,
         new_path: body.destination,
-        fingerprint: body.expected_fingerprint,
-        history_path: null
+        fingerprint: body.expected_fingerprint
       })
       return
     }
@@ -353,9 +352,7 @@ async function run() {
       ['move_entry', {
         source: 'Projects/Source.md',
         destination: 'Projects/Moved.md',
-        expected_fingerprint: `sha256:${'1'.repeat(64)}`,
-        reason: 'fixture',
-        source_refs: []
+        expected_fingerprint: `sha256:${'1'.repeat(64)}`
       }],
       ['apply_drive_sync', { plan_id: 'fixture-plan' }],
       ['add_link', {
@@ -492,9 +489,7 @@ async function run() {
     await callOk(client, 'move_entry', {
       source: 'Projects/Source.md',
       destination: 'Projects/Moved.md',
-      expected_fingerprint: `sha256:${'1'.repeat(64)}`,
-      reason: 'fixture',
-      source_refs: []
+      expected_fingerprint: `sha256:${'1'.repeat(64)}`
     })
     freshWrites.push('move_entry')
     await callOk(client, 'apply_drive_sync', { plan_id: 'fixture-plan' })

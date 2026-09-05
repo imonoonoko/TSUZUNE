@@ -3,8 +3,11 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 const vault = resolve('fixtures/obsidian-graph-parity-vault')
-const outputDirectory = resolve('docs/reports/assets/optimization-2026-08-03')
+const outputDirectory = resolve(
+  process.env.TSUZUNE_CAPTURE_OUTPUT ?? 'docs/reports/assets/optimization-2026-08-03'
+)
 const userDataDirectory = resolve('work/optimization-ui-userdata')
+const captureNightWorkshop = process.env.TSUZUNE_CAPTURE_NIGHT === '1'
 const originalLoadFile = BrowserWindow.prototype.loadFile
 let captureStarted = false
 
@@ -40,7 +43,8 @@ async function clickButton(window, label) {
     window,
     `(() => {
       const button = [...document.querySelectorAll('button')].find(
-        (candidate) => candidate.textContent.trim() === ${JSON.stringify(label)}
+        (candidate) => candidate.getAttribute('aria-label') === ${JSON.stringify(label)} ||
+          candidate.textContent.trim() === ${JSON.stringify(label)}
       )
       if (!button) return false
       button.click()
@@ -77,6 +81,9 @@ async function prepare() {
 }
 
 async function runCapture(window) {
+  let outline = null
+  let compactLayout = null
+  let narrowLayout = null
   window.setSkipTaskbar(true)
   window.setSize(1440, 900, false)
   window.setPosition(-32000, -32000, false)
@@ -87,15 +94,44 @@ async function runCapture(window) {
     window,
     `(() => ({
       title: document.title,
-      brand: document.querySelector('.brand-copy strong')?.textContent ?? null,
-      brandMark: Boolean(document.querySelector('.brand-mark')),
+      legacyHeader: Boolean(document.querySelector('.app-header')),
       iconCount: document.querySelectorAll('.ui-icon').length,
       selectedNote: document.querySelector('.note-header strong')?.textContent ?? null,
+      railActions: [...document.querySelectorAll('.activity-rail-button')]
+        .map((button) => button.getAttribute('aria-label')),
+      appActions: [...document.querySelectorAll('.activity-rail-footer button')]
+        .map((button) => button.getAttribute('aria-label')),
+      railFooterVisible: (() => {
+        const footer = document.querySelector('.activity-rail-footer')
+        const bounds = footer?.getBoundingClientRect()
+        return Boolean(bounds && bounds.bottom <= innerHeight)
+      })(),
+      duplicateToolbar: Boolean(document.querySelector('.tree-toolbar')),
+      searchHiddenInFileView: !document.querySelector('input[placeholder="内容を検索"]'),
       viewport: { width: innerWidth, height: innerHeight }
     }))()`
   )
-  if (state.brand !== 'TSUZUNE' || !state.brandMark || state.iconCount < 8) {
-    throw new Error(`ブランドUIを確認できませんでした: ${JSON.stringify(state)}`)
+  const expectedRailActions = [
+    'ファイル',
+    '内容を検索',
+    'ノートを開く',
+    '新規ノート',
+    '新規フォルダ',
+    '今日のノート',
+    'アイデアを追加',
+    'グラフビュー',
+    'ブックマーク',
+    '操作'
+  ]
+  const expectedAppActions = ['Google / 同期', '設定']
+  if (
+    state.legacyHeader || state.iconCount < 8 ||
+    expectedRailActions.some((label) => !state.railActions.includes(label)) ||
+    expectedAppActions.some((label) => !state.appActions.includes(label)) ||
+    !state.appActions.some((label) => label?.startsWith('Vaultを切り替える:')) ||
+    !state.railFooterVisible || state.duplicateToolbar || !state.searchHiddenInFileView
+  ) {
+    throw new Error(`workspace shellを確認できませんでした: ${JSON.stringify(state)}`)
   }
   await capture(window, '01-editor-shell.png')
 
@@ -110,7 +146,7 @@ async function runCapture(window) {
     }))()`
   )
   if (
-    moveDialog.title !== 'ノートを移動' ||
+    moveDialog.title !== 'ファイルを移動' ||
     moveDialog.focused !== 'SELECT' ||
     !moveDialog.backgroundInert
   ) {
@@ -133,13 +169,97 @@ async function runCapture(window) {
   )
   await capture(window, '03-preview.png')
 
-  const result = { ...state, moveDialog, previewImageReady }
+  if (captureNightWorkshop) {
+    await evaluate(window, `document.querySelector('#context-tab-outline')?.click()`)
+    await waitFor(window, '.outline-item')
+    outline = await evaluate(
+      window,
+      `(() => ({
+        selected: document.querySelector('#context-tab-outline')?.getAttribute('aria-selected'),
+        count: document.querySelectorAll('.outline-item').length,
+        first: document.querySelector('.outline-item')?.textContent?.trim() ?? null
+      }))()`
+    )
+    if (outline.selected !== 'true' || outline.count < 1) {
+      throw new Error(`アウトラインを確認できませんでした: ${JSON.stringify(outline)}`)
+    }
+    await capture(window, '09-outline-preview.png')
+
+    window.setSize(900, 768, false)
+    await delay(350)
+    compactLayout = await evaluate(
+      window,
+      `(() => ({
+        viewportWidth: innerWidth,
+        narrowMatches: matchMedia('(max-width: 720px)').matches,
+        leftExpanded: document.querySelector('[aria-controls="left-sidebar-content"]')?.getAttribute('aria-expanded'),
+        rightExpanded: document.querySelector('[aria-controls="right-sidebar-content"]')?.getAttribute('aria-expanded'),
+        railFooterVisible: document.querySelector('.activity-rail-footer')
+          ?.getBoundingClientRect().bottom <= innerHeight,
+        overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth
+      }))()`
+    )
+    if (
+      compactLayout.leftExpanded !== 'true' || compactLayout.rightExpanded !== 'false' ||
+      !compactLayout.railFooterVisible || compactLayout.overflow
+    ) {
+      throw new Error(`900pxレイアウトが不正です: ${JSON.stringify(compactLayout)}`)
+    }
+    await capture(window, '04-preview-900.png')
+
+    window.setSize(720, 768, false)
+    await delay(350)
+    narrowLayout = await evaluate(
+      window,
+      `(() => ({
+        viewportWidth: innerWidth,
+        narrowMatches: matchMedia('(max-width: 720px)').matches,
+        leftExpanded: document.querySelector('[aria-controls="left-sidebar-content"]')?.getAttribute('aria-expanded'),
+        rightExpanded: document.querySelector('[aria-controls="right-sidebar-content"]')?.getAttribute('aria-expanded'),
+        rail: Boolean(document.querySelector('.activity-rail')),
+        railFooterVisible: document.querySelector('.activity-rail-footer')
+          ?.getBoundingClientRect().bottom <= innerHeight,
+        overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth
+      }))()`
+    )
+    if (
+      narrowLayout.leftExpanded !== 'false' || narrowLayout.rightExpanded !== 'false' ||
+      !narrowLayout.rail || !narrowLayout.railFooterVisible || narrowLayout.overflow
+    ) {
+      throw new Error(`720pxレイアウトが不正です: ${JSON.stringify(narrowLayout)}`)
+    }
+    await capture(window, '05-preview-720.png')
+
+    window.setSize(1440, 900, false)
+    await delay(350)
+    await clickButton(window, 'グラフビュー')
+    await waitFor(window, '.wiki-graph-view')
+    await capture(window, '06-vault-graph.png')
+
+    await clickButton(window, 'ノートを開く')
+    await waitFor(window, '.quick-switcher-modal')
+    await capture(window, '07-quick-switcher.png')
+    await evaluate(
+      window,
+      `document.querySelector('.quick-switcher-modal')?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      )`
+    )
+    await delay(200)
+
+    await clickButton(window, '操作')
+    await waitFor(window, '.command-palette-modal')
+    await capture(window, '08-command-palette.png')
+  }
+
+  const result = { ...state, moveDialog, previewImageReady, outline, compactLayout, narrowLayout }
   await writeFile(
     resolve(outputDirectory, 'capture-result.json'),
     JSON.stringify(result, null, 2),
     'utf8'
   )
   console.log(JSON.stringify(result, null, 2))
+  process.exit(0)
 }
 
 process.env.TSUZUNE_HEADLESS_SMOKE = '1'
@@ -163,6 +283,7 @@ BrowserWindow.prototype.loadFile = function (...args) {
         )
         console.error(error)
         app.exit(1)
+        process.exit(1)
       })
   }
   return loaded

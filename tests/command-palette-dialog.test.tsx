@@ -72,8 +72,30 @@ describe('CommandPaletteDialog', () => {
     const dialog = screen.getByRole('dialog')
     screen.getByRole('combobox').focus()
     fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true })
-    expect(document.activeElement).toBe(screen.getByRole('combobox'))
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '閉じる' }))
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('closes from a visible close button', () => {
+    const onClose = vi.fn()
+    render(<CommandPaletteDialog commands={commands} onExecute={vi.fn()} onClose={onClose} />)
+
+    fireEvent.click(screen.getByRole('button', { name: '閉じる' }))
+
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('closes from the backdrop without dismissing dialog clicks', () => {
+    const onClose = vi.fn()
+    const { container } = render(
+      <CommandPaletteDialog commands={commands} onExecute={vi.fn()} onClose={onClose} />
+    )
+
+    fireEvent.click(screen.getByRole('dialog'))
+    expect(onClose).not.toHaveBeenCalled()
+
+    fireEvent.click(container.querySelector('.command-palette-backdrop')!)
     expect(onClose).toHaveBeenCalledOnce()
   })
 

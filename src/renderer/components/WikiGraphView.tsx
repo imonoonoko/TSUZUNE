@@ -131,7 +131,7 @@ const canvasStyle: React.CSSProperties = {
   overflow: 'hidden',
   border: 0,
   borderRadius: 0,
-  background: '#fff'
+  background: 'var(--graph-editor, #202925)'
 }
 
 function nodeRelations(
@@ -191,43 +191,43 @@ function nodeColors(
 } {
   if (isSelected || isActive) {
     return {
-      color: '#222',
-      background: '#7c5cf0',
-      borderColor: '#7c5cf0'
+      color: 'var(--graph-node-ink, #E7E8E2)',
+      background: 'var(--graph-node-active, #78BFB2)',
+      borderColor: 'var(--graph-node-active, #78BFB2)'
     }
   }
   if (groupColor) {
     return {
-      color: '#222',
+      color: 'var(--graph-node-ink, #E7E8E2)',
       background: groupColor,
       borderColor: groupColor
     }
   }
   if (isUnresolved) {
     return {
-      color: '#222',
-      background: '#ababab',
-      borderColor: '#ababab'
+      color: 'var(--graph-node-ink, #E7E8E2)',
+      background: 'var(--graph-node-unresolved, #D5A45F)',
+      borderColor: 'var(--graph-node-unresolved, #D5A45F)'
     }
   }
   if (isTag) {
     return {
-      color: '#222',
-      background: '#08b94e',
-      borderColor: '#08b94e'
+      color: 'var(--graph-node-ink, #E7E8E2)',
+      background: 'var(--graph-node-tag, #5F9277)',
+      borderColor: 'var(--graph-node-tag, #5F9277)'
     }
   }
   if (isAttachment) {
     return {
-      color: '#222',
-      background: '#e0ac00',
-      borderColor: '#e0ac00'
+      color: 'var(--graph-node-ink, #E7E8E2)',
+      background: 'var(--graph-node-attachment, #B58A4F)',
+      borderColor: 'var(--graph-node-attachment, #B58A4F)'
     }
   }
   return {
-    color: '#222',
-    background: '#5c5c5c',
-    borderColor: '#5c5c5c'
+    color: 'var(--graph-node-ink, #E7E8E2)',
+    background: 'var(--graph-node, #9CA7A1)',
+    borderColor: 'var(--graph-node, #9CA7A1)'
   }
 }
 
@@ -375,7 +375,7 @@ export default function WikiGraphView({
       {
         id: `graph-group-${Date.now()}-${nextGroupNumber.current++}`,
         query: '',
-        color: '#e57373'
+        color: '#e0847d'
       }
     ]
     changeGroups(next, true)
@@ -922,7 +922,7 @@ export default function WikiGraphView({
         gap: 0,
         padding: 0,
         overflow: 'hidden',
-        background: '#fff'
+        background: 'var(--graph-editor, #202925)'
       }}
     >
       <div
@@ -936,8 +936,9 @@ export default function WikiGraphView({
           display: 'flex',
           gap: 2,
           padding: 2,
-          background: '#fff',
-          border: '1px solid #dadada',
+          color: 'var(--ink, #E7E8E2)',
+          background: 'var(--surface, #1D2623)',
+          border: '1px solid var(--line-strong, #64766F)',
           borderRadius: 5,
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)'
         }}
@@ -984,9 +985,9 @@ export default function WikiGraphView({
             width: 32,
             height: 32,
             padding: 0,
-            color: '#5c5c5c',
-            background: '#fff',
-            border: '1px solid #dadada',
+            color: 'var(--ink, #E7E8E2)',
+            background: 'var(--surface, #1D2623)',
+            border: '1px solid var(--line-strong, #64766F)',
             borderRadius: 5,
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)'
           }}
@@ -1022,9 +1023,9 @@ export default function WikiGraphView({
             width: 32,
             height: 32,
             padding: 0,
-            color: '#5c5c5c',
-            background: '#fff',
-            border: '1px solid #dadada',
+            color: 'var(--ink, #E7E8E2)',
+            background: 'var(--surface, #1D2623)',
+            border: '1px solid var(--line-strong, #64766F)',
             borderRadius: 5,
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)'
           }}
@@ -1045,8 +1046,9 @@ export default function WikiGraphView({
               maxWidth: 'calc(100% - 24px)',
               maxHeight: 'calc(100% - 24px)',
               overflowY: 'auto',
-              background: '#fff',
-              border: '1px solid #dadada',
+              color: 'var(--ink, #E7E8E2)',
+              background: 'var(--surface, #1D2623)',
+              border: '1px solid var(--line-strong, #64766F)',
               borderRadius: 5,
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.14)'
             }}
@@ -1061,8 +1063,8 @@ export default function WikiGraphView({
                 justifyContent: 'space-between',
                 gap: 8,
                 padding: '9px 10px',
-                background: '#fff',
-                borderBottom: '1px solid #dadada'
+                background: 'var(--surface, #1D2623)',
+                borderBottom: '1px solid var(--line-quiet, #36433F)'
               }}
             >
               <button type="button" onClick={restoreGraphSettings}>
@@ -1115,7 +1117,7 @@ export default function WikiGraphView({
                       alignItems: 'center',
                       gap: 7,
                       fontSize: 11,
-                      color: '#444'
+                      color: 'var(--ink, #E7E8E2)'
                     }}
                   >
                     <input
@@ -1133,7 +1135,7 @@ export default function WikiGraphView({
                       alignItems: 'center',
                       gap: 7,
                       fontSize: 11,
-                      color: '#444'
+                      color: 'var(--ink, #E7E8E2)'
                     }}
                   >
                     <input
@@ -1154,7 +1156,7 @@ export default function WikiGraphView({
                       alignItems: 'center',
                       gap: 7,
                       fontSize: 11,
-                      color: '#444'
+                      color: 'var(--ink, #E7E8E2)'
                     }}
                   >
                     <input
@@ -1177,7 +1179,7 @@ export default function WikiGraphView({
                           alignItems: 'center',
                           gap: 7,
                           fontSize: 11,
-                          color: '#444'
+                          color: 'var(--ink, #E7E8E2)'
                         }}
                       >
                         <input
@@ -1198,7 +1200,7 @@ export default function WikiGraphView({
                           alignItems: 'center',
                           gap: 7,
                           fontSize: 11,
-                          color: '#444'
+                          color: 'var(--ink, #E7E8E2)'
                         }}
                       >
                         <input
@@ -1219,7 +1221,7 @@ export default function WikiGraphView({
                           alignItems: 'center',
                           gap: 7,
                           fontSize: 11,
-                          color: '#444'
+                          color: 'var(--ink, #E7E8E2)'
                         }}
                       >
                         <input
@@ -1243,7 +1245,7 @@ export default function WikiGraphView({
                         alignItems: 'center',
                         gap: 7,
                         fontSize: 11,
-                        color: '#444'
+                        color: 'var(--ink, #E7E8E2)'
                       }}
                     >
                       <input
@@ -1368,7 +1370,7 @@ export default function WikiGraphView({
                       alignItems: 'center',
                       gap: 7,
                       fontSize: 11,
-                      color: '#444'
+                      color: 'var(--ink, #E7E8E2)'
                     }}
                   >
                     <input
@@ -1403,7 +1405,7 @@ export default function WikiGraphView({
                           alignItems: 'center',
                           gap: 8,
                           fontSize: 11,
-                          color: '#444'
+                          color: 'var(--ink, #E7E8E2)'
                         }}
                       >
                         <span>{label}</span>
@@ -1468,7 +1470,7 @@ export default function WikiGraphView({
                         alignItems: 'center',
                         gap: 8,
                         fontSize: 11,
-                        color: '#444'
+                        color: 'var(--ink, #E7E8E2)'
                       }}
                     >
                       <span>{label}</span>
@@ -1500,7 +1502,7 @@ export default function WikiGraphView({
         )}
 
       {scope === 'local' && !current ? (
-          <p style={{ margin: 8, color: '#777' }}>
+          <p style={{ margin: 8, color: 'var(--muted, #AEB7B1)' }}>
           現在のノートをグラフに表示できません。
         </p>
       ) : (
@@ -1700,7 +1702,7 @@ export default function WikiGraphView({
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
                       textShadow:
-                        '0 1px #fff, 1px 0 #fff, 0 -1px #fff, -1px 0 #fff'
+                        '0 1px var(--graph-editor, #202925), 1px 0 var(--graph-editor, #202925), 0 -1px var(--graph-editor, #202925), -1px 0 var(--graph-editor, #202925)'
                     }}
                   >
                     {node.name}
@@ -1922,7 +1924,7 @@ export default function WikiGraphView({
               style={{
                 margin: 0,
                 fontSize: 12,
-                color: '#777',
+                color: 'var(--muted, #AEB7B1)',
                 textAlign: 'center'
               }}
             >

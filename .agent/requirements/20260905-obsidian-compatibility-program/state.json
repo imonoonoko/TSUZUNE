@@ -1,0 +1,65 @@
+{
+  "feature": "obsidian-compatibility-program",
+  "lane": "orchestrated",
+  "state": "verifying",
+  "completionBoundary": "whole-tree-production-result-owned-by-post-approval-receipt",
+  "ownerDecision": {
+    "selectedAt": "2026-09-05",
+    "primary": "obsidian-compatibility",
+    "priorityApprovedAt": "2026-09-05T03:59:26+09:00",
+    "definition": "same-local-vault-lossless-daily-use",
+    "priorityOrder": [
+      "lossless-data-compatibility",
+      "daily-operation-compatibility",
+      "structural-representation-compatibility",
+      "selected-extension-compatibility"
+    ],
+    "immediateNext": "execute-approved-production-gate-and-verify-installed"
+  },
+  "tracks": {
+    "officialSurfaceBaseline": "completed",
+    "coreParityAudit": "completed",
+    "structuralParityAudit": "completed",
+    "compatibilityLedger": "completed",
+    "firstP0Implementation": "completed",
+    "independentVerification": "completed",
+    "repositoryPersistence": "completed",
+    "tsuzuneWriteback": "completed",
+    "production": "result-in-post-approval-production-receipt"
+  },
+  "currentSlice": {
+    "id": "p0-5-checkbox-properties",
+    "workItem": "tsuzune-checkbox-compatibility-20260905",
+    "scope": "note-local-boolean-lossless-form-save-reload",
+    "implementation": "completed",
+    "verification": "completed",
+    "persistence": "completed",
+    "production": "result-in-post-approval-production-receipt",
+    "syncEvidence": "results/p0-5-pending-tsuzune-writeback.json",
+    "focusVerification": "actual-electron-save-focus-and-byte-restoration-pass"
+  },
+  "updatedAt": "2026-09-05T10:26:14.411Z",
+  "productionScopeAudit": {
+    "workItem": "tsuzune-production-scope-audit-20260905",
+    "status": "completed",
+    "scope": "read-only-production-boundary",
+    "report": "results/production-promotion-scope-20260905.md",
+    "productionAuthorized": true,
+    "recommendation": "whole-tree-production-gate-after-explicit-owner-approval",
+    "installedReceiptMatches": true,
+    "productionEquivalentSourceReconstructed": false,
+    "persistence": "completed",
+    "syncEvidence": "results/production-scope-tsuzune-sync.json",
+    "ownerDecision": "whole-tree-promotion-approved"
+  },
+  "productionPromotion": {
+    "workItem": "tsuzune-whole-tree-production-20260905",
+    "authorization": "whole-current-tree",
+    "authorizedAt": "2026-09-05T10:26:14.411Z",
+    "command": "npm run production:update",
+    "resultOwner": "docs/reports/production-update-latest.json",
+    "receiptMustBeNewerThan": "2026-09-05T10:26:14.411Z",
+    "finalPersistence": "existing-vault-campaign",
+    "repositoryStatePolicy": "Finalized pre-gate snapshot; derive terminal installed status from post-approval receipt and delivery fingerprint, not stale historical source-only fields."
+  }
+}

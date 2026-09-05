@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { parseFrontmatter } from '../../core/frontmatter'
+import { inspectFrontmatterProperty, parseFrontmatter } from '../../core/frontmatter'
+import { extractMarkdownHeadings } from '../../core/markdown-headings'
 import { transformWikiLinksForPreview } from '../../core/links'
 import {
   basenameRelative,
@@ -151,6 +152,16 @@ export default function MarkdownPreview({
   const transformed = transformWikiLinksForPreview(
     hasValidFrontmatter ? frontmatter.body : content
   )
+  const headings = extractMarkdownHeadings(content)
+  const headingProps = (
+    node: { position?: { start?: { line?: number } } } | undefined,
+    level: number
+  ): { id?: string; tabIndex?: number } => {
+    const heading = headings.find(
+      (candidate) => candidate.previewLine === node?.position?.start?.line && candidate.level === level
+    )
+    return heading ? { id: heading.id, tabIndex: -1 } : {}
+  }
 
   return (
     <article className="markdown-preview" aria-label="Markdownプレビュー">
@@ -160,17 +171,28 @@ export default function MarkdownPreview({
             プロパティ
           </div>
           <dl className="markdown-properties-list">
-            {properties.map(([name, value]) => (
+            {properties.map(([name, value]) => {
+              const inspected = inspectFrontmatterProperty(content, name)
+              return (
               <div className="markdown-property" key={name}>
                 <dt>{name}</dt>
-                <dd>{value ?? '（空）'}</dd>
+                <dd>{inspected.ok && inspected.property?.type === 'checkbox'
+                  ? <input type="checkbox" aria-label={name} checked={inspected.property.value} disabled />
+                  : value ?? '（空）'}</dd>
               </div>
-            ))}
+              )
+            })}
           </dl>
         </section>
       ) : null}
       <ReactMarkdown
         components={{
+          h1: ({ node, children }) => <h1 {...headingProps(node, 1)}>{children}</h1>,
+          h2: ({ node, children }) => <h2 {...headingProps(node, 2)}>{children}</h2>,
+          h3: ({ node, children }) => <h3 {...headingProps(node, 3)}>{children}</h3>,
+          h4: ({ node, children }) => <h4 {...headingProps(node, 4)}>{children}</h4>,
+          h5: ({ node, children }) => <h5 {...headingProps(node, 5)}>{children}</h5>,
+          h6: ({ node, children }) => <h6 {...headingProps(node, 6)}>{children}</h6>,
           img: ({ src, alt, title }) =>
             src?.startsWith('#/vault-asset/') ? (
               <VaultImage
