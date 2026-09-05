@@ -18,7 +18,7 @@ function parseArgs(argv) {
   return args
 }
 
-async function loadSearchModule() {
+export async function loadSearchModule() {
   const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   const output = await build({
     entryPoints: [join(repoRoot, 'src/core/search.ts')],

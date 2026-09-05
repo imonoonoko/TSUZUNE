@@ -3,6 +3,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import {
   mkdtemp,
   mkdir,
+  readdir,
   readFile,
   rm,
   stat,
@@ -43,6 +44,16 @@ const client = new Client({
   version: '0.3.0'
 })
 
+async function pathExists(path) {
+  try {
+    await stat(path)
+    return true
+  } catch (error) {
+    if (error?.code === 'ENOENT') return false
+    throw error
+  }
+}
+
 let stderr = ''
 transport.stderr?.on('data', (chunk) => {
   stderr += chunk.toString()
@@ -52,6 +63,9 @@ try {
   await mkdir(join(vaultPath, 'Projects'))
   await mkdir(join(vaultPath, 'History'))
   await mkdir(join(vaultPath, 'Knowledge'))
+  await mkdir(join(vaultPath, '01_受信箱'))
+  await mkdir(join(vaultPath, '30_知識'))
+  await mkdir(join(vaultPath, '40_情報源'))
   await mkdir(join(vaultPath, '.tsuzune'))
   await mkdir(join(vaultPath, '50_履歴', 'AI更新'), { recursive: true })
   await writeFile(
@@ -65,6 +79,26 @@ try {
     'utf8'
   )
   await writeFile(
+    join(vaultPath, '01_受信箱', 'Organizer-source.md'),
+    '# Organizer source\n\nImmutable source body.',
+    'utf8'
+  )
+  await writeFile(
+    join(vaultPath, '01_受信箱', 'Organizer-direct-source.md'),
+    '# Organizer direct source\n\nAnother immutable source body.',
+    'utf8'
+  )
+  await writeFile(
+    join(vaultPath, '01_受信箱', 'Trash-source.md'),
+    '# Trash source\n\nRecoverable source body.',
+    'utf8'
+  )
+  await writeFile(
+    join(vaultPath, '30_知識', 'TSUZUNE分類と保存基準.md'),
+    '- 30_知識: AI・記憶 / ソフトウェア開発 / 知識管理 / UX / 検証・品質 / 生活・創作\n',
+    'utf8'
+  )
+  await writeFile(
     join(vaultPath, 'Knowledge', 'Backlink.md'),
     '# Knowledge backlink\n\n[[Projects/TSUZUNE]]',
     'utf8'
@@ -74,6 +108,7 @@ try {
     '# History backlink\n\n[[Projects/TSUZUNE]]',
     'utf8'
   )
+  const legacyHistoryEntriesBefore = await readdir(join(vaultPath, '50_履歴', 'AI更新'))
   await writeFile(
     join(vaultPath, 'History', 'Home-planning.md'),
     [
@@ -96,9 +131,18 @@ try {
       'subject: "[[Home]]"',
       'status: active',
       'valid_from: 2026-07-01',
+      'verified_at: 2026-07-05',
+      'review_after: 2026-07-10',
+      'source: "[[40_情報源/Home-evidence]]"',
+      'supersedes: "[[History/Home-planning]]"',
       '---',
       '# Home active'
     ].join('\n'),
+    'utf8'
+  )
+  await writeFile(
+    join(vaultPath, '40_情報源', 'Home-evidence.md'),
+    '# Home evidence\n\nObserved source.',
     'utf8'
   )
 
@@ -140,11 +184,36 @@ try {
     throw new Error(`Unexpected tools: ${toolNames.join(', ')}`)
   }
   const toolsByName = new Map(listed.tools.map((tool) => [tool.name, tool]))
+  if (toolsByName.get('search')?.inputSchema?.properties?.include_history !== undefined) {
+    throw new Error('search must not expose an include_history control.')
+  }
   const requiredDescriptionTerms = {
-    search: ['Use first', 'note id is unknown', 'fetch', 'build_context'],
-    fetch: ['full Markdown', 'revision', 'build_context', 'one note'],
+    search: [
+      'Use first',
+      'note id is unknown',
+      'fetch',
+      'build_context',
+      'category:',
+      'topic:',
+      'type:',
+      'role:',
+      'lifecycle:'
+    ],
+    fetch: ['Markdown chunk', 'revision', 'build_context', 'Large notes', 'next_after'],
     build_context: ['linked or temporal context', 'fetch', 'one note', 'included-source metadata'],
-    create_note: ['user directly asks', 'active project contract explicitly requires']
+    create_note: ['user directly asks', 'active project contract explicitly requires'],
+    create_derived_note: [
+      'exact source revision',
+      'source remains unchanged',
+      'multiple distinct concept keys',
+      'mismatched legacy output'
+    ],
+    propose_derived_note: [
+      'exact source revision',
+      'source remains unchanged',
+      'human approval',
+      'AI Review'
+    ]
   }
   for (const [name, terms] of Object.entries(requiredDescriptionTerms)) {
     const description = toolsByName.get(name)?.description ?? ''
@@ -161,8 +230,20 @@ try {
   ) {
     throw new Error('build_context query must be optional and limited to 500 characters.')
   }
+  if (contextInputSchema?.properties?.include_history !== undefined) {
+    throw new Error('build_context must not expose an include_history control.')
+  }
   const contextOutputSchema = toolsByName.get('build_context')?.outputSchema
   const contextSourceSchema = contextOutputSchema?.properties?.included?.items
+  const usageReceiptSchema = contextOutputSchema?.properties?.usage_receipt
+  const stateLineageSchema = contextOutputSchema?.properties?.state_lineage
+  const currentStateVariants = stateLineageSchema?.properties?.current_states?.anyOf
+  const observedCurrentStates = currentStateVariants?.find(
+    (variant) => variant?.properties?.status?.const === 'observed'
+  )
+  const unknownCurrentStates = currentStateVariants?.find(
+    (variant) => variant?.properties?.status?.const === 'unknown'
+  )
   if (
     contextSourceSchema?.properties?.revision?.type !== 'string' ||
     contextSourceSchema?.properties?.modified_at?.type !== 'string' ||
@@ -173,19 +254,57 @@ try {
       'build_context must expose required revision and modified_at source descriptors.'
     )
   }
+  if (
+    stateLineageSchema?.properties?.schema_version?.const !== 1 ||
+    stateLineageSchema?.properties?.subject?.properties?.revision?.type !==
+      'string' ||
+    observedCurrentStates?.properties?.states?.items?.properties?.revision
+      ?.type !== 'string' ||
+    !unknownCurrentStates ||
+    stateLineageSchema?.properties?.explicit_sources?.anyOf?.[0]?.properties
+      ?.relations?.items?.properties?.source_ref?.type !== 'string' ||
+    stateLineageSchema?.properties?.supersession?.anyOf?.[0]?.properties
+      ?.relations?.items?.properties?.superseded_ref?.type !== 'string' ||
+    stateLineageSchema?.properties?.decision_records?.properties?.status
+      ?.const !== 'not_observable'
+  ) {
+    throw new Error(
+      'build_context must expose revision-pinned explicit state lineage and preserve unknown boundaries.'
+    )
+  }
+  if (
+    usageReceiptSchema?.properties?.schema_version?.const !== 1 ||
+    usageReceiptSchema?.properties?.search_candidates?.properties?.status
+      ?.const !== 'not_observable' ||
+    usageReceiptSchema?.properties?.context_candidates?.properties?.status
+      ?.const !== 'observed' ||
+    usageReceiptSchema?.properties?.context_candidates?.properties?.note_ids
+      ?.items?.type !== 'string' ||
+    usageReceiptSchema?.properties?.context_included?.properties?.status
+      ?.const !== 'observed' ||
+    usageReceiptSchema?.properties?.evidence_cited?.properties?.status?.const !==
+      'not_observable' ||
+    usageReceiptSchema?.properties?.decision_or_action?.properties?.status
+      ?.const !== 'not_observable' ||
+    usageReceiptSchema?.properties?.outcome_verified?.properties?.status
+      ?.const !== 'not_observable'
+  ) {
+    throw new Error(
+      'build_context must separate observed context selection from unobservable downstream use.'
+    )
+  }
   const backlinksTool = toolsByName.get('get_backlinks')
   const backlinksInputSchema = backlinksTool?.inputSchema
   const backlinksOutputSchema = backlinksTool?.outputSchema
   if (
-    backlinksInputSchema?.properties?.include_history?.type !== 'boolean' ||
-    backlinksInputSchema?.required?.includes('include_history') ||
+    backlinksInputSchema?.properties?.include_history !== undefined ||
     backlinksInputSchema?.properties?.after?.type !== 'string' ||
     backlinksInputSchema.properties.after.maxLength !== 500 ||
     backlinksInputSchema?.required?.includes('after') ||
     backlinksOutputSchema?.properties?.next_after?.type !== 'string'
   ) {
     throw new Error(
-      'get_backlinks must expose optional history and bounded path-cursor inputs.'
+      'get_backlinks must omit history controls and expose bounded path-cursor inputs.'
     )
   }
   const directoryTool = toolsByName.get('list_directory')
@@ -223,7 +342,7 @@ try {
   ) {
     throw new Error('preview_drive_sync has incorrect annotations.')
   }
-  for (const name of ['create_directory', 'create_note', 'update_note', 'autonomous_update_note', 'patch_note', 'move_entry', 'add_link']) {
+  for (const name of ['create_directory', 'create_note', 'create_derived_note', 'propose_derived_note', 'update_note', 'autonomous_update_note', 'patch_note', 'move_entry', 'trash_entry', 'add_link']) {
     const annotations = toolsByName.get(name)?.annotations
     if (
       annotations?.readOnlyHint !== false ||
@@ -247,6 +366,12 @@ try {
   }
   if (toolsByName.get('create_directory')?.annotations?.destructiveHint !== false) {
     throw new Error('create_directory must be marked non-destructive.')
+  }
+  if (toolsByName.get('propose_derived_note')?.annotations?.destructiveHint !== false) {
+    throw new Error('propose_derived_note must be marked non-destructive.')
+  }
+  if (toolsByName.get('create_derived_note')?.annotations?.destructiveHint !== false) {
+    throw new Error('create_derived_note must be marked non-destructive.')
   }
   if (toolsByName.get('update_note')?.annotations?.destructiveHint !== true) {
     throw new Error('update_note must disclose full-content replacement.')
@@ -341,6 +466,9 @@ try {
   if (toolsByName.get('move_entry')?.annotations?.destructiveHint !== true) {
     throw new Error('move_entry must disclose that it relocates a note.')
   }
+  if (toolsByName.get('trash_entry')?.annotations?.destructiveHint !== true) {
+    throw new Error('trash_entry must disclose that it trashes an Inbox source.')
+  }
   if (toolsByName.get('add_link')?.annotations?.destructiveHint !== true) {
     throw new Error('add_link must disclose that it modifies a note.')
   }
@@ -382,6 +510,105 @@ try {
     fetched.structuredContent?.id !== 'Projects/TSUZUNE.md'
   ) {
     throw new Error('fetch did not return the expected note.')
+  }
+  const derivedTool = toolsByName.get('propose_derived_note')
+  const derivedInputSchema = derivedTool?.inputSchema
+  const derivedOutputSchema = derivedTool?.outputSchema
+  if (
+    derivedInputSchema?.properties?.topics?.minItems !== 1 ||
+    derivedInputSchema?.properties?.topics?.maxItems !== 3 ||
+    derivedInputSchema?.properties?.topics?.items?.maxLength !== 80 ||
+    derivedInputSchema?.properties?.category?.maxLength !== 80 ||
+    derivedInputSchema?.properties?.derivation_key?.maxLength !== 80 ||
+    derivedInputSchema?.properties?.source_id?.maxLength !== 500 ||
+    derivedInputSchema?.properties?.source_revision?.pattern !==
+      '^sha256:[a-f0-9]{64}$' ||
+    derivedOutputSchema?.properties?.pending_review?.const !== true ||
+    derivedOutputSchema?.properties?.proposal?.type !== 'object'
+  ) {
+    throw new Error('propose_derived_note lost its bounded review contract.')
+  }
+
+  const organizerSourcePath = join(vaultPath, '01_受信箱', 'Organizer-source.md')
+  const organizerSourceBefore = await readFile(organizerSourcePath, 'utf8')
+  const organizerSource = await callReadOnlyTool({
+    name: 'fetch',
+    arguments: { id: '01_受信箱/Organizer-source.md' }
+  })
+  const proposedDerived = await client.callTool({
+    name: 'propose_derived_note',
+    arguments: {
+      destination: '30_知識/Organizer-derived.md',
+      content: '再利用できる要点。',
+      category: '知識管理',
+      topics: ['受信箱', '原典追跡'],
+      derivation_key: 'レビュー境界',
+      source_id: '01_受信箱/Organizer-source.md',
+      source_revision: organizerSource.structuredContent?.metadata?.revision
+    }
+  })
+  if (
+    organizerSource.isError ||
+    proposedDerived.isError ||
+    proposedDerived.structuredContent?.pending_review !== true ||
+    proposedDerived.structuredContent?.proposal?.path !==
+      '30_知識/Organizer-derived.md' ||
+    (await readFile(organizerSourcePath, 'utf8')) !== organizerSourceBefore
+  ) {
+    throw new Error('propose_derived_note did not preserve its pending-review boundary.')
+  }
+  if (await pathExists(join(vaultPath, '30_知識', 'Organizer-derived.md'))) {
+    throw new Error('propose_derived_note wrote its destination before approval.')
+  }
+
+  const directSourcePath = join(vaultPath, '01_受信箱', 'Organizer-direct-source.md')
+  const directSourceBefore = await readFile(directSourcePath, 'utf8')
+  const directSource = await callReadOnlyTool({
+    name: 'fetch',
+    arguments: { id: '01_受信箱/Organizer-direct-source.md' }
+  })
+  const createdDerived = await client.callTool({
+    name: 'create_derived_note',
+    arguments: {
+      destination: '30_知識/Organizer-direct-derived.md',
+      content: '承認操作なしで再利用できる要点。',
+      category: '知識管理',
+      topics: ['受信箱', '自動整理'],
+      derivation_key: '直接作成境界',
+      source_id: '01_受信箱/Organizer-direct-source.md',
+      source_revision: directSource.structuredContent?.metadata?.revision
+    }
+  })
+  if (
+    directSource.isError ||
+    createdDerived.isError ||
+    createdDerived.structuredContent?.id !==
+      '30_知識/Organizer-direct-derived.md' ||
+    createdDerived.structuredContent?.pending_review !== undefined ||
+    !(await pathExists(join(vaultPath, '30_知識', 'Organizer-direct-derived.md'))) ||
+    (await readFile(directSourcePath, 'utf8')) !== directSourceBefore
+  ) {
+    throw new Error('create_derived_note did not preserve its direct derived-note contract.')
+  }
+
+  const autonomousOutputSchema = toolsByName.get('autonomous_update_note')?.outputSchema
+  const addLinkOutputSchema = toolsByName.get('add_link')?.outputSchema
+  const moveInputSchema = toolsByName.get('move_entry')?.inputSchema
+  const moveOutputSchema = toolsByName.get('move_entry')?.outputSchema
+  const trashInputSchema = toolsByName.get('trash_entry')?.inputSchema
+  const trashOutputSchema = toolsByName.get('trash_entry')?.outputSchema
+  if (
+    autonomousOutputSchema?.properties?.provenance?.properties?.history_path !== undefined ||
+    addLinkOutputSchema?.properties?.history_path !== undefined ||
+    moveInputSchema?.properties?.reason !== undefined ||
+    moveInputSchema?.properties?.source_refs !== undefined ||
+    moveOutputSchema?.properties?.history_path !== undefined ||
+    trashInputSchema?.required?.includes('expected_revision') !== true ||
+    trashInputSchema?.properties?.expected_revision?.pattern !==
+      '^sha256:[a-f0-9]{64}$' ||
+    trashOutputSchema?.properties?.history_path !== undefined
+  ) {
+    throw new Error('write tools must not expose history paths or move-audit inputs.')
   }
 
   const suggested = await callReadOnlyTool({
@@ -428,23 +655,6 @@ try {
   ) {
     throw new Error('get_backlinks did not page filtered sources correctly.')
   }
-  const backlinksWithHistory = await callReadOnlyTool({
-    name: 'get_backlinks',
-    arguments: {
-      id: 'Projects/TSUZUNE.md',
-      limit: 50,
-      include_history: true
-    }
-  })
-  if (
-    backlinksWithHistory.isError ||
-    backlinksWithHistory.structuredContent?.total !== 3 ||
-    !backlinksWithHistory.structuredContent?.backlinks?.some((item) =>
-      item.id.startsWith('50_履歴/')
-    )
-  ) {
-    throw new Error('get_backlinks did not include history when requested.')
-  }
 
   const context = await callReadOnlyTool({
     name: 'build_context',
@@ -472,6 +682,29 @@ try {
     throw new Error(
       'build_context source descriptors did not match fetch for the same note.'
     )
+  }
+  const usageReceipt = context.structuredContent?.usage_receipt
+  const includedNoteIds = context.structuredContent?.included?.map(
+    (source) => source?.path
+  )
+  const candidateNoteIds = [
+    ...(includedNoteIds ?? []),
+    ...(context.structuredContent?.omitted_ids ?? [])
+  ]
+  if (
+    usageReceipt?.schema_version !== 1 ||
+    usageReceipt?.search_candidates?.status !== 'not_observable' ||
+    usageReceipt?.context_candidates?.status !== 'observed' ||
+    JSON.stringify(usageReceipt.context_candidates.note_ids) !==
+      JSON.stringify([...new Set(candidateNoteIds)]) ||
+    usageReceipt?.context_included?.status !== 'observed' ||
+    JSON.stringify(usageReceipt.context_included.note_ids) !==
+      JSON.stringify(includedNoteIds) ||
+    usageReceipt?.evidence_cited?.status !== 'not_observable' ||
+    usageReceipt?.decision_or_action?.status !== 'not_observable' ||
+    usageReceipt?.outcome_verified?.status !== 'not_observable'
+  ) {
+    throw new Error('build_context did not return a bounded usage receipt.')
   }
 
   const queriedContext = await callReadOnlyTool({
@@ -513,38 +746,69 @@ try {
       id: 'Home.md',
       max_characters: 5_000,
       as_of: '2026-07-15',
-      include_history: true
     }
   })
   const temporalSources = temporalContext.structuredContent?.included
-  const historicalSource = Array.isArray(temporalSources)
+  const activeSource = Array.isArray(temporalSources)
     ? temporalSources.find(
-        (source) => source?.path === 'History/Home-planning.md'
+        (source) => source?.path === 'History/Home-active.md'
       )
     : undefined
-  const historicalSeed = Array.isArray(temporalSources)
+  const omittedSeed = Array.isArray(temporalSources)
     ? temporalSources.find((source) => source?.path === 'Home.md')
     : undefined
   const temporalWarnings = temporalContext.structuredContent?.warnings
+  const stateLineage = temporalContext.structuredContent?.state_lineage
+  const currentState = stateLineage?.current_states?.states?.[0]
+  const sourceRelation = stateLineage?.explicit_sources?.relations?.[0]
+  const supersessionRelation = stateLineage?.supersession?.relations?.[0]
   if (
     temporalContext.isError ||
     temporalContext.structuredContent?.as_of !== '2026-07-15' ||
     temporalContext.structuredContent?.temporal_perspective !==
       'valid-time' ||
-    historicalSeed?.content_omitted !== true ||
-    historicalSource?.temporal_status !== 'historical' ||
-    !Array.isArray(historicalSource?.selection_reasons) ||
+    omittedSeed?.content_omitted !== true ||
+    activeSource?.temporal_status !== 'review_due' ||
+    !activeSource?.selection_reasons?.includes(
+      '指定時点で有効だが再確認期限を超過'
+    ) ||
+    temporalSources?.some(
+      (source) => source?.path === 'History/Home-planning.md'
+    ) ||
     !Array.isArray(temporalWarnings) ||
     !temporalWarnings.some(
       (warning) =>
         warning?.code === 'UNSCOPED_NORMAL_CONTENT_OMITTED'
     ) ||
+    stateLineage?.schema_version !== 1 ||
+    stateLineage?.subject?.note_id !== 'Home.md' ||
+    !/^sha256:[a-f0-9]{64}$/.test(stateLineage?.subject?.revision ?? '') ||
+    stateLineage?.current_states?.status !== 'observed' ||
+    currentState?.note_id !== 'History/Home-active.md' ||
+    currentState?.state !== 'active' ||
+    !/^sha256:[a-f0-9]{64}$/.test(currentState?.revision ?? '') ||
+    stateLineage?.explicit_sources?.status !== 'observed' ||
+    sourceRelation?.from_note_id !== 'History/Home-active.md' ||
+    sourceRelation?.source_ref !== '[[40_情報源/Home-evidence]]' ||
+    sourceRelation?.resolution !== 'resolved' ||
+    sourceRelation?.source_note_id !== '40_情報源/Home-evidence.md' ||
+    !/^sha256:[a-f0-9]{64}$/.test(sourceRelation?.source_revision ?? '') ||
+    stateLineage?.supersession?.status !== 'observed' ||
+    supersessionRelation?.successor_note_id !== 'History/Home-active.md' ||
+    supersessionRelation?.superseded_note_id !==
+      'History/Home-planning.md' ||
+    stateLineage?.conflicts?.status !== 'observed' ||
+    stateLineage.conflicts.current_state_note_ids?.length !== 0 ||
+    stateLineage?.freshness?.status !== 'observed' ||
+    stateLineage.freshness.value !== 'review_due' ||
+    stateLineage.freshness.as_of !== '2026-07-15' ||
+    stateLineage?.decision_records?.status !== 'not_observable' ||
     String(temporalContext.structuredContent?.markdown).includes(
       'TSUZUNE MCP smoke test.'
     )
   ) {
     throw new Error(
-      'build_context did not expose the requested temporal context.'
+      'build_context did not expose the requested current temporal context.'
     )
   }
 
@@ -561,6 +825,8 @@ try {
     knowledgeContext.isError ||
     knowledgeContext.structuredContent?.temporal_perspective !==
       'knowledge-time' ||
+    knowledgeContext.structuredContent?.state_lineage?.current_states?.status !==
+      'unknown' ||
     String(knowledgeContext.structuredContent?.markdown).includes(
       '# Home active'
     )
@@ -731,12 +997,18 @@ try {
   if (
     autonomous.isError ||
     autonomous.structuredContent?.provenance?.actor !== 'ai' ||
-    autonomous.structuredContent?.provenance?.history_path === undefined ||
+    autonomous.structuredContent?.provenance?.history_path !== undefined ||
     !(await readFile(join(vaultPath, 'Projects', 'AI-created.md'), 'utf8')).includes(
       'Updated autonomously through MCP'
     )
   ) {
     throw new Error('autonomous_update_note did not apply the AI update.')
+  }
+  const legacyHistoryEntriesAfterAutonomous = await readdir(
+    join(vaultPath, '50_履歴', 'AI更新')
+  )
+  if (JSON.stringify(legacyHistoryEntriesAfterAutonomous) !== JSON.stringify(legacyHistoryEntriesBefore)) {
+    throw new Error('autonomous_update_note created a history entry.')
   }
   const updatedPath = join(vaultPath, 'Projects', 'AI-created.md')
   const autonomousRevision = autonomous.structuredContent?.metadata?.revision
@@ -799,19 +1071,16 @@ try {
   })
   if (
     linked.isError ||
-    typeof linked.structuredContent?.history_path !== 'string' ||
+    linked.structuredContent?.history_path !== undefined ||
     !(await readFile(join(vaultPath, 'Home.md'), 'utf8')).includes(
       '[[Knowledge/Context]]'
     )
   ) {
-    throw new Error('add_link did not add the Wiki link with an audit trail.')
+    throw new Error('add_link did not add the Wiki link without an audit trail.')
   }
-  const linkAudit = await readFile(
-    join(vaultPath, ...linked.structuredContent.history_path.split('/')),
-    'utf8'
-  )
-  if (!linkAudit.includes('kind: note_link_add')) {
-    throw new Error('add_link did not write a note_link_add audit record.')
+  const legacyHistoryEntriesAfterLink = await readdir(join(vaultPath, '50_履歴', 'AI更新'))
+  if (JSON.stringify(legacyHistoryEntriesAfterLink) !== JSON.stringify(legacyHistoryEntriesBefore)) {
+    throw new Error('add_link created a history entry.')
   }
 
   const unavailableMovePreflight = await callReadOnlyTool({
@@ -835,8 +1104,6 @@ try {
       source: 'Projects/TSUZUNE.md',
       destination: 'History/TSUZUNE.md',
       expected_fingerprint: 'sha256:unavailable',
-      reason: 'MCP smoke test',
-      source_refs: []
     }
   })
   if (
@@ -847,11 +1114,31 @@ try {
   ) {
     throw new Error('move_entry did not fail closed without the app.')
   }
+  const trashSource = await callReadOnlyTool({
+    name: 'fetch',
+    arguments: { id: '01_受信箱/Trash-source.md' }
+  })
+  const directTrash = await client.callTool({
+    name: 'trash_entry',
+    arguments: {
+      source: '01_受信箱/Trash-source.md',
+      expected_revision: trashSource.structuredContent?.metadata?.revision
+    }
+  })
+  if (
+    trashSource.isError ||
+    directTrash.isError ||
+    directTrash.structuredContent?.old_path !== '01_受信箱/Trash-source.md' ||
+    !(await pathExists(join(vaultPath, ...directTrash.structuredContent.new_path.split('/')))) ||
+    (await pathExists(join(vaultPath, '01_受信箱', 'Trash-source.md')))
+  ) {
+    throw new Error('trash_entry did not recoverably trash the Inbox source without the app.')
+  }
   assertExactReadOnlyCoverage(
     declaredReadOnlyToolNames,
     exercisedReadOnlyToolNames
   )
-  console.log('TSUZUNE MCP smoke check passed: 10 read tools and 8 write tools.')
+  console.log('TSUZUNE MCP smoke check passed: 10 read tools and 11 write tools.')
 } catch (error) {
   if (stderr.trim()) {
     console.error(stderr.trim())

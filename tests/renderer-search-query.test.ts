@@ -73,13 +73,21 @@ describe('Renderer search query parser', () => {
       { kind: 'tag', value: '#設計', negated: false }
     ])
   })
+
+  it('parses note-role metadata filters', () => {
+    expect(parseRendererSearchQuery('type:knowledge role:source lifecycle:held')).toEqual([
+      { kind: 'type', value: 'knowledge', negated: false },
+      { kind: 'role', value: 'source', negated: false },
+      { kind: 'lifecycle', value: 'held', negated: false }
+    ])
+  })
 })
 
 describe('Renderer search operator integration', () => {
   const tsuZuneExpected: Record<string, string[]> = {
     Project: ['00_Home.md', '10_projects/Project Alpha.md', '10_projects/Project Beta.md', '20_knowledge/Distillation.md'],
-    'Project active': ['00_Home.md', '10_projects/Project Alpha.md', '10_projects/Project Beta.md', '20_knowledge/Distillation.md'],
-    'Project missing': ['00_Home.md', '10_projects/Project Alpha.md', '10_projects/Project Beta.md', '20_knowledge/Distillation.md'],
+    'Project active': ['10_projects/Project Alpha.md'],
+    'Project missing': ['00_Home.md'],
     'Project -paused': ['00_Home.md', '10_projects/Project Alpha.md', '20_knowledge/Distillation.md'],
     '-excluded': ['00_Home.md', '10_projects/Project Alpha.md', '10_projects/Project Beta.md', '20_knowledge/Distillation.md', '20_knowledge/Reference.md', '90_orphan/Orphan.md'],
     'tag:project': ['10_projects/Project Alpha.md', '10_projects/Project Beta.md'],

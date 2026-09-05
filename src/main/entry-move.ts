@@ -1,23 +1,23 @@
 import { createHash, randomUUID } from "node:crypto";
 import { access, mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { findLinkImpact } from "../core/links";
+import { buildWikiLinkIndex, findLinkImpact, getBacklinks } from "../core/links";
 import { compilePathAliases } from "../core/path-aliases";
+import { rewriteMovedLinks } from "../core/move-links";
 import {
-  basenameRelative,
   dirnameRelative,
   validateRelativePath,
 } from "../core/paths";
 import {
   isAiMoveProtected,
   isAuditHistoryPath,
+  isAiImmutablePath,
 } from "../shared/ai-write-policy";
 import type { NoteDocument } from "../shared/types";
 import { VaultService } from "./vault";
 
 export type EntryMoveActor = "human" | "ai";
-export type EntryMoveJournalStage =
-  "prepared" | "filesystem" | "ledger" | "audit";
+export type EntryMoveJournalStage = "prepared" | "filesystem" | "links" | "ledger";
 export type EntryMoveRecoveryStatus =
   | { status: "clean" }
   | { status: "recovered"; action: "discarded" | "rolled-back" | "committed" }
@@ -45,15 +45,24 @@ export interface EntryMoveApplyInput {
   destination: string;
   expected_fingerprint: string;
   actor: EntryMoveActor;
-  reason: string;
-  source_refs: string[];
 }
 
 export interface EntryMoveResult {
   old_path: string;
   new_path: string;
   fingerprint: string;
-  history_path: string | null;
+}
+
+export interface EntryTrashApplyInput {
+  source: string;
+  expected_revision: string;
+  actor: EntryMoveActor;
+}
+
+export interface EntryTrashResult {
+  old_path: string;
+  new_path: string;
+  source_revision: string;
 }
 
 interface EntryMoveDrive {
@@ -74,14 +83,14 @@ interface EntryMoveJournal {
   version: 1;
   operation_id: string;
   stage: EntryMoveJournalStage;
-  actor: EntryMoveActor;
   source: string;
   destination: string;
   fingerprint: string;
   content_revision: string;
   drive_tracked: boolean;
   pending_moves_before: Record<string, string>;
-  history_path: string | null;
+  link_updates?: Array<{ path: string; before: string; after: string; modifiedAt: number }>;
+  source_content?: string;
 }
 
 function sha256(parts: readonly string[]): string {
@@ -91,13 +100,18 @@ function sha256(parts: readonly string[]): string {
 }
 
 function noteRevision(rootPath: string, note: NoteDocument): string {
-  return sha256([
-    rootPath,
-    note.path,
-    String(note.modifiedAt),
-    String(note.size),
-    note.content,
-  ]);
+  const digest = createHash("sha256")
+    .update(rootPath)
+    .update("\0")
+    .update(note.path)
+    .update("\0")
+    .update(String(note.modifiedAt))
+    .update("\0")
+    .update(String(note.size))
+    .update("\0")
+    .update(note.content)
+    .digest("hex");
+  return `sha256:${digest}`;
 }
 
 function contentRevision(note: NoteDocument): string {
@@ -114,11 +128,6 @@ function normalizeMarkdownPath(raw: string, label: string): string {
     throw new Error(`${label}はVault内のMarkdownノートを指定してください。`);
   }
   return validation.normalized;
-}
-
-function auditPath(): string {
-  const timestamp = new Date().toISOString().replaceAll(":", "-");
-  return `50_履歴/AI更新/${timestamp}-entry-move-${randomUUID()}.md`;
 }
 
 function recordsEqual(
@@ -145,28 +154,8 @@ function pendingMovesAfter(journal: EntryMoveJournal): Record<string, string> {
   return next;
 }
 
-function renderAudit(input: EntryMoveApplyInput, fingerprint: string): string {
-  return [
-    "---",
-    "kind: note_move",
-    "actor: ai",
-    `source: ${JSON.stringify(input.source)}`,
-    `destination: ${JSON.stringify(input.destination)}`,
-    `fingerprint: ${fingerprint}`,
-    `reason: ${JSON.stringify(input.reason.trim() || "AIによるノート移動")}`,
-    "source_refs:",
-    ...(input.source_refs.length
-      ? input.source_refs.map((value) => `  - ${JSON.stringify(value)}`)
-      : ["  - none"]),
-    `recorded_at: ${new Date().toISOString()}`,
-    "---",
-    "",
-    "# Move audit",
-    "",
-    `- 移動元: ${input.source}`,
-    `- 移動先: ${input.destination}`,
-    "- Markdown本文は記録しない",
-  ].join("\n");
+function isLinkUpdateProtected(path: string): boolean {
+  return isAiImmutablePath(path) || path.startsWith('01_受信箱/');
 }
 
 export class EntryMoveCoordinator {
@@ -211,14 +200,6 @@ export class EntryMoveCoordinator {
           note.path.toLocaleLowerCase() ===
           journal.destination.toLocaleLowerCase(),
       );
-      const auditExists = Boolean(
-        journal.history_path &&
-        snapshot.notes.some(
-          (note) =>
-            note.path.toLocaleLowerCase() ===
-            journal.history_path?.toLocaleLowerCase(),
-        ),
-      );
       const currentLedger = (
         await this.dependencies.drive.inspectLocalMoves([
           { oldPath: journal.source, path: journal.destination },
@@ -233,10 +214,13 @@ export class EntryMoveCoordinator {
         pendingMovesAfter(journal),
       );
 
-      if (source && !destination && ledgerBefore && !auditExists) {
-        if (contentRevision(source) !== journal.content_revision) {
+      if (source && !destination && ledgerBefore) {
+        if (journal.source_content !== undefined
+          ? source.content !== journal.source_content
+          : contentRevision(source) !== journal.content_revision) {
           return this.recoveryRequired(journal.source, journal.destination);
         }
+        await this.restoreLinks(journal, false);
         await rm(journalPath, { force: true });
         return this.setRecoveryStatus({
           status: "recovered",
@@ -247,16 +231,24 @@ export class EntryMoveCoordinator {
       if (
         !source &&
         destination &&
-        contentRevision(destination) === journal.content_revision
+        (journal.source_content !== undefined
+          ? destination.content === journal.source_content || destination.content ===
+            journal.link_updates?.find(update => update.path === journal.source)?.after
+          : contentRevision(destination) === journal.content_revision)
       ) {
-        if (ledgerAfter && (journal.actor === "human" || auditExists)) {
+        const links = await this.inspectLinks(journal, true);
+        if (journal.stage === "ledger" && ledgerAfter) {
+          if (links.some(({ update, note }) => note.content !== update.after)) {
+            return this.recoveryRequired(journal.source, journal.destination);
+          }
           await rm(journalPath, { force: true });
           return this.setRecoveryStatus({
             status: "recovered",
             action: "committed",
           });
         }
-        if (!auditExists && (ledgerBefore || ledgerAfter)) {
+        if (ledgerBefore || ledgerAfter) {
+          await this.restoreLinks(journal, true);
           if (!ledgerBefore) {
             await this.dependencies.drive.replacePendingMoves(
               journal.pending_moves_before,
@@ -285,6 +277,10 @@ export class EntryMoveCoordinator {
     rawDestination: string,
     actor: EntryMoveActor,
   ): Promise<EntryMovePlan> {
+    return (await this.inspect(rawSource, rawDestination, actor)).plan;
+  }
+
+  private async inspect(rawSource: string, rawDestination: string, actor: EntryMoveActor) {
     const source = normalizeMarkdownPath(rawSource, "移動元");
     const destination = normalizeMarkdownPath(rawDestination, "移動先");
     const rootPath = this.dependencies.vault.getRootPath();
@@ -352,6 +348,20 @@ export class EntryMoveCoordinator {
     const drive = await this.dependencies.drive.inspectLocalMoves(mappings);
     const sourceRevision = noteRevision(snapshot.rootPath, sourceNote);
     const sourceContentRevision = contentRevision(sourceNote);
+    const linkUpdates: NonNullable<EntryMoveJournal['link_updates']> = [];
+    if (actor === "human") {
+      const index = buildWikiLinkIndex(snapshot.notes, aliases);
+      for (const note of snapshot.notes) {
+        if (isLinkUpdateProtected(note.path) || (note.path === sourceNote.path && isLinkUpdateProtected(destination))) continue;
+        const after = rewriteMovedLinks(note, index, sourceNote.path, destination);
+        if (after === note.content) continue;
+        const bytes = await readFile(await this.dependencies.vault.resolveFileForOpen(note.path));
+        if (bytes.toString('utf8') !== note.content) throw new Error('preflight中に参照元が変わりました。もう一度操作してください。');
+        // Invalid UTF-8 cannot be losslessly written by the text save path.
+        if (!bytes.equals(Buffer.from(note.content, 'utf8'))) continue;
+        linkUpdates.push({ path: note.path, before: note.content, after, modifiedAt: note.modifiedAt });
+      }
+    }
     const manifest = {
       source: sourceNote.path,
       destination,
@@ -361,10 +371,11 @@ export class EntryMoveCoordinator {
       actor,
       protection_policy: "fixed-source-history-v1",
       collision_policy: "fail",
+      ...(actor === "human" ? { link_updates: linkUpdates } : {}),
     };
     const fingerprint = sha256([JSON.stringify(manifest)]);
 
-    return {
+    const plan: EntryMovePlan = {
       source_type: "markdown",
       source: sourceNote.path,
       destination,
@@ -386,10 +397,11 @@ export class EntryMoveCoordinator {
         untracked_uploads: drive.untracked,
       },
     };
+    return { plan, linkUpdates };
   }
 
   async apply(input: EntryMoveApplyInput): Promise<EntryMoveResult> {
-    const plan = await this.preflight(
+    const { plan, linkUpdates } = await this.inspect(
       input.source,
       input.destination,
       input.actor,
@@ -427,7 +439,6 @@ export class EntryMoveCoordinator {
         "preflight後に移動元が変わりました。もう一度preflightしてください。",
       );
     }
-    const historyPath = input.actor === "ai" ? auditPath() : null;
     const mapping = [{ oldPath: plan.source, path: plan.destination }];
     const driveBefore =
       await this.dependencies.drive.inspectLocalMoves(mapping);
@@ -435,20 +446,19 @@ export class EntryMoveCoordinator {
       version: 1,
       operation_id: randomUUID(),
       stage: "prepared",
-      actor: input.actor,
       source: plan.source,
       destination: plan.destination,
       fingerprint: plan.fingerprint,
       content_revision: expectedContentRevision,
       drive_tracked: driveBefore.tracked > 0,
       pending_moves_before: driveBefore.pendingMoves,
-      history_path: historyPath,
+      ...(linkUpdates.length ? { link_updates: linkUpdates, source_content: sourceBefore.content } : {}),
     };
     await this.writeJournal(journalPath, journal);
     await this.dependencies.afterJournalStage?.("prepared");
 
     let filesystemMoved = false;
-    let ledgerMoved = false;
+    let ledgerWriteAttempted = false;
     try {
       await this.dependencies.vault.moveNote({
         path: plan.source,
@@ -467,35 +477,36 @@ export class EntryMoveCoordinator {
         throw new Error("移動直後の内容がpreflight manifestと一致しません。");
       }
 
+      if (linkUpdates.length) {
+        journal.stage = "links";
+        await this.writeJournal(journalPath, journal);
+      }
+      for (const update of linkUpdates) {
+        await this.dependencies.vault.saveNote({
+          path: update.path === plan.source ? plan.destination : update.path,
+          content: update.after,
+          expectedContent: update.before,
+          expectedModifiedAt: update.modifiedAt,
+        });
+        await this.dependencies.afterJournalStage?.("links");
+      }
+
+      ledgerWriteAttempted = true;
       await this.dependencies.drive.recordLocalMoves(mapping);
-      ledgerMoved = true;
       journal.stage = "ledger";
       await this.writeJournal(journalPath, journal);
       await this.dependencies.afterJournalStage?.("ledger");
-
-      if (historyPath) {
-        await this.ensureDirectory("50_履歴");
-        await this.ensureDirectory("50_履歴/AI更新");
-        await this.dependencies.vault.createNote({
-          directory: dirnameRelative(historyPath),
-          name: basenameRelative(historyPath),
-          content: renderAudit(input, plan.fingerprint),
-        });
-        journal.stage = "audit";
-        await this.writeJournal(journalPath, journal);
-        await this.dependencies.afterJournalStage?.("audit");
-      }
 
       await rm(journalPath, { force: true });
       return {
         old_path: plan.source,
         new_path: plan.destination,
         fingerprint: plan.fingerprint,
-        history_path: historyPath,
       };
     } catch (error) {
       try {
-        if (ledgerMoved) {
+        await this.restoreLinks(journal, filesystemMoved);
+        if (ledgerWriteAttempted) {
           await this.dependencies.drive.replacePendingMoves(
             journal.pending_moves_before,
           );
@@ -518,16 +529,71 @@ export class EntryMoveCoordinator {
     }
   }
 
-  private async ensureDirectory(path: string): Promise<void> {
-    try {
-      await this.dependencies.vault.createDirectory({
-        parent: dirnameRelative(path),
-        name: basenameRelative(path),
-      });
-    } catch (error) {
-      const snapshot = await this.dependencies.vault.scan();
-      if (!snapshot.directories.includes(path)) throw error;
+  private async inspectLinks(journal: EntryMoveJournal, moved: boolean) {
+    return Promise.all((journal.link_updates ?? []).map(async (update) => {
+      const path = moved && update.path === journal.source ? journal.destination : update.path;
+      if (isLinkUpdateProtected(path)) throw new Error('保護領域の参照元は復旧時も書き換えません。');
+      const note = await this.dependencies.vault.readNote(path);
+      if (note.content !== update.before && note.content !== update.after) {
+        throw new Error(`参照元が別のアプリで変更されています: ${path}`);
+      }
+      return { update, note };
+    }));
+  }
+
+  private async restoreLinks(journal: EntryMoveJournal, moved: boolean): Promise<void> {
+    for (const { update, note } of await this.inspectLinks(journal, moved)) {
+      if (note.content === update.before) continue;
+      await this.dependencies.vault.saveNote({ path: note.path, content: update.before,
+        expectedContent: update.after, expectedModifiedAt: note.modifiedAt });
     }
+  }
+
+  async trash(input: EntryTrashApplyInput): Promise<EntryTrashResult> {
+    const source = normalizeMarkdownPath(input.source, "削除元");
+    if (input.actor === "ai" && !source.startsWith("01_受信箱/")) {
+      throw new Error("AIは01_受信箱のMarkdown原典だけをごみ箱へ移動できます。");
+    }
+    if (isAuditHistoryPath(source)) {
+      throw new Error("監査履歴はごみ箱へ移動できません。");
+    }
+
+    const inspect = async () => {
+      const snapshot = await this.dependencies.vault.scan();
+      const sourceNote = snapshot.notes.find(
+        (note) => note.path.toLocaleLowerCase() === source.toLocaleLowerCase(),
+      );
+      if (!sourceNote) throw new Error(`削除元が見つかりません: ${source}`);
+      const sourceRevision = noteRevision(snapshot.rootPath, sourceNote);
+      if (sourceRevision !== input.expected_revision) {
+        throw new Error("削除元のrevisionが変わりました。もう一度fetchしてください。");
+      }
+
+      const aliases = compilePathAliases(snapshot.pathAliases ?? {});
+      const backlinks = getBacklinks(sourceNote.path, snapshot.notes, aliases);
+      if (backlinks.length > 0) {
+        throw new Error(
+          `リンク元が${backlinks.length}件残っています。先に出典表示を更新してください。`,
+        );
+      }
+      return { sourceNote, sourceRevision };
+    };
+
+    const ready = await inspect();
+    const result = await this.dependencies.vault.trashEntry(
+      ready.sourceNote.path,
+      async () => {
+        await inspect();
+      },
+    );
+    if (!result.path) {
+      throw new Error("ごみ箱の移動先を確認できませんでした。");
+    }
+    return {
+      old_path: ready.sourceNote.path,
+      new_path: result.path,
+      source_revision: ready.sourceRevision,
+    };
   }
 
   private recoveryRequired(

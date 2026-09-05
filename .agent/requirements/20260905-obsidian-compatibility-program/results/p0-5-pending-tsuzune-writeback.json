@@ -1,0 +1,129 @@
+{
+  "status": "completed",
+  "asOf": "2026-09-04T21:55:55.414Z",
+  "workItem": "tsuzune-checkbox-compatibility-20260905",
+  "attemptedId": "30_知識/TSUZUNE-Obsidian互換性P0-1-Excluded-files-実施記録-2026-09-05.md",
+  "result": "Four existing notes patched once each, exact readback and mutual links verified",
+  "vaultWrites": 4,
+  "resume": "Synchronization is complete. Next: establish the authorized production promotion boundary; no product or test rerun is needed solely because the MCP client restarted.",
+  "patches": [
+    {
+      "id": "30_知識/TSUZUNE-Obsidian互換性P0-1-Excluded-files-実施記録-2026-09-05.md",
+      "observed_revision": "sha256:62d5eb741bb9ebad66471d339a8d28c43d533ffc1165926369f1c0efcd61a2de",
+      "operations": [
+        {
+          "find": "## Evidenceと関係",
+          "replace": "## 2026-09-05 P0-5 チェックボックスProperties検証済み境界\n\n- **契約・成果:** 工房主が禅のUI具体化より「先にObsidian互換性の次項目」を選択し、既存候補のcheckboxを実装した。ノート内の追加、native checkboxによるtrue/false切替、削除、previewの読み取り専用表示を既存revision-checked保存へ接続。真偽値はtop-levelのtrue/false、True/False、TRUE/FALSE。無変更はbyte-identical、変更時は小文字で保存する。\n- **非破壊境界:** 引用済み\"true\"は文字列のまま。null／空欄、yes/no/on/off、boolean list項目、global property型管理、複雑YAMLの変換は対象外。コメント・BOM／改行・対象外フィールド・本文を保持し、stale saveとread-onlyを拒否する。Zen UI、依存／IPC／設定registry、次機能、Git、本番更新は追加していない。\n- **検証:** 公開checkboxとpreviewのRED→GREEN、focused 130件、独立core 17件、全体1124件PASS／1 fixture SKIP、typecheck、最終build、check:mcp、独立review 51件、最終focus修正の再review 28件、diff check PASS。一般Skillのverify_workflow.pyは既存の独自state schemaに非対応でFAIL（title/slug等と汎用final-report不足）。これは製品検証PASSと分離し、汎用schemaへの二重状態・不要artifactは追加しない。P0-2先行OOMの原因解消は主張しない。\n- **実機比較:** 固定公式Obsidian 1.13.4とcurrent-source TSUZUNE、匿名2ノート・別Vault／profileで26/26検査PASS。既存false／true／FALSEのマウス切替、明示false、削除、別PID再起動の状態が一致。新規未チェックはTSUZUNEがfalse、Obsidianは型選択直後に空欄を残すためdifferent。Obsidianのコメント／BOM除去・LF化・null表記変更には追従せず、TSUZUNEの非破壊保存を維持する。全面Properties／global型／installedの互換を主張しない。\n- **試行境界:** 最初のObsidianのscripted keyboard試行で本文にも文字が入り、原因未確定のためpaired根拠から除外。両fixtureをexact初期byteに戻したマウス試行では本文を保持し、各操作直後の保存結果を記録した。TSUZUNEのSpace切替は期待byteと一致。最終実機確認で保存中のdisabledによるfocus喪失も修正し、aria-disabledと既存mutation guardで保存中／競合中の書込みを止めたままfocusを保持。Editor／App 33件と実Electronで保存後のfocus・fixture復元をPASS。Obsidianの一般的なkeyboard不具合とは断定しない。\n- **保護・終了:** 自動testは本番Vaultを開いていない。選定した本番settings／Obsidian設定fileとprotocol登録は前後同一。全profile監査ではない。隔離appとCDP listenerは終了。最終の製品4file hash、before snapshot、26検査、再起動PID・保存file・screenshotはrepository evidenceから到達可能。\n- **委譲と採否:** obsidian_baseline／Kierkegaard（Luna low）は公式仕様、note_attention_scout／Sagan（Luna low）はUI既存状態とharness／receiptをread-only調査。checkbox_core_check（Luna low）はtests/frontmatter-checkbox.test.tsだけを所有して17件PASS。checkbox_review（Terra high）はpre-task copyとの差分をread-only検証、51件PASSとPonytail reviewを返し、最終Editor／CSS hashの追加reviewで28件PASSと書込み遮断・accessibilityを確認した。親は実装・UI／実file／実機受入・統合・本番Vault書戻しを専有。全子へ本番Vault／Git／production操作を禁止。成果を採用し、禅側の折りたたみ案は今回不採用。親のhost観測はgpt-6-astraでありSolへの切替を装わない。\n- **反証・改善:** 親の実機境界で新規falseと空欄の差を確認し、matchedを最終真偽値だけに限定。reviewはuppercase直後の独立commentと別field保持を確認。test import、CSS既存token、Obsidian keyboard試行を修正・分離した。component試験だけでは保存中の実機blurを捕捉できず、実Electronで追加検証し2段階のfocus修正を完了した。per-operation保存とhash-bound reviewは維持。費用改善や恒久Agent格付けは推測しない。\n- **現在と次:** source実装・隔離実機検証済み、本番未反映。latest installed receiptはdirty sourceの全体fingerprintだけでsource snapshot／path-hash manifestがなく、今回の差分だけでproduction-equivalentを証明できない。次はtree全体の明示承認または再構築監査による昇格範囲の確定と本番受入。次の機能を自動着手しない。\n- **Evidence:** `.agent/requirements/20260905-obsidian-compatibility-program/results/p0-5-checkbox-properties.md`、`output/playwright/p0-5-checkbox-20260905/verification.json`。既存project／roadmap／current workから本campaignへ接続を維持。Raw log／使用量台帳はVaultへ複製しない。\n- **Skill:** orchestrate-skills、ai-coding-operator、tdd、ponytail、codex-dynamic-workflows、playwright、ponytail-review、tsuzune、tsuzune-execution-record。impeccableは方向確認前の読取だけに用い、禅UI実装には進まなかった。\n- **同期再開:** 工房主の再起動通知後、2026-09-05にMCPのstale_runtime:falseを確認。4対象を最新revisionで再取得し、準備済み差分を照合して更新を再開した。checkbox_review（Terra high、read-only）は現source 4 hashと保存証拠の一致、26/26、focus PASS、1124 PASS／1 SKIPを再照合し、親が採用。再build／再試験／本番更新は行わない。読み戻し・一意検索・backlinkの最終証拠はrepositoryのp0-5-pending-tsuzune-writeback.jsonへ残す。delivery_info:mismatchのため本番反映済みとはしない。\n\n## Evidenceと関係"
+        }
+      ]
+    },
+    {
+      "id": "30_知識/TSUZUNE開発ロードマップ.md",
+      "observed_revision": "sha256:84d3ec881c8b4496280f1d26fc4c8556b7ba1538f3a481132371a1748d28fdd1",
+      "operations": [
+        {
+          "find": "P0-4の隔離実機対比較は完了。文字列・通常小数・文字列listの最終値は一致し、混在listの型とコメント／数値字面の保存は異なる。TSUZUNEの非破壊保存を維持し、次の候補は真偽値（checkbox）の無損失フォーム編集とする。工房主の選択後に一件だけ着手する。",
+          "replace": "P0-5のチェックボックス型Propertiesは追加・切替・削除・preview・保存・再読込をsource実装し、全体1124 tests PASS（1 SKIP）、隔離した固定Obsidian 1.13.4との実機26検査をPASSした。真偽値の切替・再起動後の状態は一致。新規未チェック値（TSUZUNE=false／Obsidian=空欄）とコメント／BOM／改行の保存は異なり、TSUZUNEの非破壊保存を維持する。次は本番昇格範囲の確定と受入。未反映tree全体の承認またはproduction-equivalent境界の再構築監査が必要で、次の機能を自動着手しない。",
+          "replace_all": true
+        }
+      ],
+      "expected_match_count": 2
+    },
+    {
+      "id": "10_プロジェクト/TSUZUNE.md",
+      "observed_revision": "sha256:8ac6d18d29b7089dfcb2778e042b219af4b523146b2b0acf96c17ef155f53f66",
+      "operations": [
+        {
+          "find": "P0-4の隔離実機対比較は完了。文字列・通常小数・文字列listの最終値は一致し、混在listの型とコメント／数値字面の保存は異なる。TSUZUNEの非破壊保存を維持し、次の候補は真偽値（checkbox）の無損失フォーム編集とする。工房主の選択後に一件だけ着手する。",
+          "replace": "P0-5のチェックボックス型Propertiesは追加・切替・削除・preview・保存・再読込をsource実装し、全体1124 tests PASS（1 SKIP）、隔離した固定Obsidian 1.13.4との実機26検査をPASSした。真偽値の切替・再起動後の状態は一致。新規未チェック値（TSUZUNE=false／Obsidian=空欄）とコメント／BOM／改行の保存は異なり、TSUZUNEの非破壊保存を維持する。次は本番昇格範囲の確定と受入。未反映tree全体の承認またはproduction-equivalent境界の再構築監査が必要で、次の機能を自動着手しない。",
+          "replace_all": true
+        },
+        {
+          "find": "- **製品source checkpoint:** P0-3数値／単純list Propertiesの追加・編集・削除・保存・再読込を実装・検証。focused 117／全体1099 tests PASS（1 SKIP）、typecheck／最終hash-bound独立review PASS。型と非対象byte、comment、revision保護を確認。複雑YAMLはsource-only。本番昇格・installed GUI・Git公開は未実施。P0-2先行OOMの原因解消は未証明。[[30_知識/TSUZUNE-Obsidian互換性P0-1-Excluded-files-実施記録-2026-09-05]]",
+          "replace": "- **製品source checkpoint:** P0-5チェックボックスPropertiesまでsource実装・隔離検証済み。全体1124 tests PASS／1 SKIP、保存後のキーボードfocusと非対象byte保持、最終source hashの独立再照合を確認。型ごとの互換差・証拠・未確認境界は同一campaignへ集約。本番昇格・installed GUI・Git公開は未実施。P0-2先行OOMの原因解消は未証明。[[30_知識/TSUZUNE-Obsidian互換性P0-1-Excluded-files-実施記録-2026-09-05]]"
+        }
+      ],
+      "expected_match_count": 2
+    },
+    {
+      "id": "00_入口/今やること.md",
+      "observed_revision": "sha256:1b973cefc1cba3816d438fa728e5aadc000ab09572fb2ad701053d6973abf5ab",
+      "operations": [
+        {
+          "find": "P0-4の隔離実機対比較は完了。文字列・通常小数・文字列listの最終値は一致し、混在listの型とコメント／数値字面の保存は異なる。TSUZUNEの非破壊保存を維持し、次の候補は真偽値（checkbox）の無損失フォーム編集とする。工房主の選択後に一件だけ着手する。",
+          "replace": "P0-5のチェックボックス型Propertiesは追加・切替・削除・preview・保存・再読込をsource実装し、全体1124 tests PASS（1 SKIP）、隔離した固定Obsidian 1.13.4との実機26検査をPASSした。真偽値の切替・再起動後の状態は一致。新規未チェック値（TSUZUNE=false／Obsidian=空欄）とコメント／BOM／改行の保存は異なり、TSUZUNEの非破壊保存を維持する。次は本番昇格範囲の確定と受入。未反映tree全体の承認またはproduction-equivalent境界の再構築監査が必要で、次の機能を自動着手しない。",
+          "replace_all": true
+        }
+      ],
+      "expected_match_count": 1
+    }
+  ],
+  "initialAttempt": {
+    "status": "blocked-stale-runtime",
+    "result": "STALE_RUNTIME_WRITE_BLOCKED: registered MCP server is stale",
+    "vaultWrites": 0,
+    "asOf": "2026-09-04T21:46:56.834Z"
+  },
+  "synchronization": {
+    "runtime": {
+      "server_version": "0.6.0",
+      "package_version": "0.6.0",
+      "profile": "direct",
+      "process_started_at": "2026-09-04T21:52:39.550Z",
+      "build_updated_at": "2026-09-04T21:43:16.081Z",
+      "stale_runtime": false,
+      "vault_id": "sha256:560a5e172abc8125cf6fa3ab1b51c0e1989180342a9add01eb44d2ea274d8fb7"
+    },
+    "delivery": {
+      "status": "mismatch"
+    },
+    "writes": [
+      {
+        "id": "30_知識/TSUZUNE-Obsidian互換性P0-1-Excluded-files-実施記録-2026-09-05.md",
+        "beforeRevision": "sha256:62d5eb741bb9ebad66471d339a8d28c43d533ffc1165926369f1c0efcd61a2de",
+        "revision": "sha256:29e0597f1a805d833aab50c2d274fd3b6c3a946d1e14743fb1c97d1b3e5b59bb",
+        "readbackRevision": "sha256:29e0597f1a805d833aab50c2d274fd3b6c3a946d1e14743fb1c97d1b3e5b59bb",
+        "exactReadback": true,
+        "operationCount": 1
+      },
+      {
+        "id": "30_知識/TSUZUNE開発ロードマップ.md",
+        "beforeRevision": "sha256:84d3ec881c8b4496280f1d26fc4c8556b7ba1538f3a481132371a1748d28fdd1",
+        "revision": "sha256:913afce04c1d381d23b40f8b2c78aa41117256309b9f9d2e4bdcac900a709b77",
+        "readbackRevision": "sha256:913afce04c1d381d23b40f8b2c78aa41117256309b9f9d2e4bdcac900a709b77",
+        "exactReadback": true,
+        "operationCount": 1
+      },
+      {
+        "id": "10_プロジェクト/TSUZUNE.md",
+        "beforeRevision": "sha256:8ac6d18d29b7089dfcb2778e042b219af4b523146b2b0acf96c17ef155f53f66",
+        "revision": "sha256:f6868f7520cb8c0eb86c2537e35fad226d279d3e1b849dcce25f24e158a52cdb",
+        "readbackRevision": "sha256:f6868f7520cb8c0eb86c2537e35fad226d279d3e1b849dcce25f24e158a52cdb",
+        "exactReadback": true,
+        "operationCount": 2
+      },
+      {
+        "id": "00_入口/今やること.md",
+        "beforeRevision": "sha256:1b973cefc1cba3816d438fa728e5aadc000ab09572fb2ad701053d6973abf5ab",
+        "revision": "sha256:6b0d962ac3f3c4fe6b2019a33bf22b74ba66b0799cb06eef07691a16d5d17061",
+        "readbackRevision": "sha256:6b0d962ac3f3c4fe6b2019a33bf22b74ba66b0799cb06eef07691a16d5d17061",
+        "exactReadback": true,
+        "operationCount": 1
+      }
+    ],
+    "links": {
+      "uniqueSearch": true,
+      "requiredBacklinks": [
+        "30_知識/TSUZUNE開発ロードマップ.md",
+        "10_プロジェクト/TSUZUNE.md",
+        "00_入口/今やること.md"
+      ],
+      "allPresent": true,
+      "mutualLinks": true
+    },
+    "newNotes": 0,
+    "productChanges": 0,
+    "productionUpdates": 0,
+    "sourceEvidenceRecheckedBy": "checkbox_review (Terra high, read-only): four current source hashes match both verification packets, 26/26 PASS, focus PASS, full log 1124 PASS / 1 SKIP. Accepted by parent."
+  }
+}

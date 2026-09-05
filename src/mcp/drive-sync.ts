@@ -8,7 +8,9 @@ import type {
 import type {
   EntryMoveApplyInput,
   EntryMovePlan,
-  EntryMoveResult
+  EntryMoveResult,
+  EntryTrashApplyInput,
+  EntryTrashResult
 } from '../main/entry-move'
 import { defaultSettingsPath } from './vault-source'
 
@@ -41,6 +43,12 @@ export class DriveSyncMcpClient {
     input: Omit<EntryMoveApplyInput, 'actor'>
   ): Promise<EntryMoveResult> {
     return this.request('/entry-move/apply', input)
+  }
+
+  trashEntry(
+    input: Omit<EntryTrashApplyInput, 'actor'>
+  ): Promise<EntryTrashResult> {
+    return this.request('/entry-trash/apply', input)
   }
 
   private async request<T>(path: string, body?: object): Promise<T> {

@@ -1,4 +1,5 @@
 import {
+  copyFile,
   lstat,
   mkdir,
   readFile,
@@ -8,6 +9,7 @@ import {
   stat,
   writeFile
 } from 'node:fs/promises'
+import { constants as fsConstants } from 'node:fs'
 import {
   basename,
   dirname,
@@ -932,6 +934,116 @@ export class VaultService {
     }
   }
 
+  async readAttachmentBytes(relativePath: string): Promise<Buffer> {
+    if (!isSupportedAttachmentPath(relativePath)) {
+      throw new VaultError({
+        code: 'INVALID_PATH',
+        message: '対応する添付ファイルだけを読み込めます。'
+      })
+    }
+
+    const absolutePath = await this.resolveFileForOpen(relativePath)
+    try {
+      return await readFile(absolutePath)
+    } catch (error) {
+      throw fromNodeError(error, 'UNKNOWN', '添付ファイルを読み込めませんでした。')
+    }
+  }
+
+  async saveAttachment(input: {
+    path: string
+    content: Buffer
+    expectedModifiedAt?: number
+    expectedContent?: Buffer
+  }): Promise<SaveNoteOutput> {
+    if (!isSupportedAttachmentPath(input.path)) {
+      throw new VaultError({
+        code: 'INVALID_PATH',
+        message: '対応する添付ファイルだけを保存できます。'
+      })
+    }
+
+    const absolute = this.absolutePath(input.path)
+    const temporaryPath = join(
+      dirname(absolute),
+      `.tsuzune-${basename(absolute)}-${randomUUID()}.tmp`
+    )
+    try {
+      await this.assertNoSymlinkTraversal(absolute, true)
+      let currentInfo: Awaited<ReturnType<typeof stat>> | null = null
+      try {
+        currentInfo = await stat(absolute)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      }
+
+      if (currentInfo) {
+        if (!currentInfo.isFile()) {
+          throw new VaultError({
+            code: 'INVALID_PATH',
+            message: '添付ファイルの保存先が通常のファイルではありません。'
+          })
+        }
+        if (
+          input.expectedModifiedAt === undefined &&
+          input.expectedContent === undefined
+        ) {
+          throw new VaultError({
+            code: 'ALREADY_EXISTS',
+            message: '同じ場所に添付ファイルがあります。'
+          })
+        }
+        const currentContent = await readFile(absolute)
+        if (
+          (input.expectedModifiedAt !== undefined &&
+            Math.abs(currentInfo.mtimeMs - input.expectedModifiedAt) > 0.5) ||
+          (input.expectedContent !== undefined &&
+            !currentContent.equals(input.expectedContent))
+        ) {
+          throw new VaultError({
+            code: 'FILE_CHANGED',
+            message: 'この添付ファイルは別のアプリで変更されています。',
+            currentModifiedAt: currentInfo.mtimeMs
+          })
+        }
+      }
+
+      await writeFile(temporaryPath, input.content, { flag: 'wx' })
+      if (currentInfo) {
+        await this.assertNoSymlinkTraversal(absolute)
+        const latestInfo = await stat(absolute)
+        const latestContent = await readFile(absolute)
+        if (
+          Math.abs(latestInfo.mtimeMs - currentInfo.mtimeMs) > 0.5 ||
+          latestInfo.size !== currentInfo.size ||
+          (input.expectedContent !== undefined &&
+            !latestContent.equals(input.expectedContent))
+        ) {
+          throw new VaultError({
+            code: 'FILE_CHANGED',
+            message: '保存中に、この添付ファイルが別のアプリで変更されました。',
+            currentModifiedAt: latestInfo.mtimeMs
+          })
+        }
+        await rename(temporaryPath, absolute)
+      } else {
+        await copyFile(temporaryPath, absolute, fsConstants.COPYFILE_EXCL)
+        await rm(temporaryPath, { force: true })
+      }
+
+      const savedInfo = await stat(absolute)
+      return {
+        path: input.path,
+        modifiedAt: savedInfo.mtimeMs,
+        size: savedInfo.size
+      }
+    } catch (error) {
+      await rm(temporaryPath, { force: true }).catch(() => undefined)
+      if (error instanceof VaultError) throw error
+      throw fromNodeError(error, 'SAVE_FAILED', '添付ファイルを保存できませんでした。')
+    }
+  }
+
   async saveNote(input: SaveNoteInput): Promise<SaveNoteOutput> {
     if (!isMarkdownFile(input.path)) {
       throw new VaultError({
@@ -1059,6 +1171,58 @@ export class VaultService {
     } catch (error) {
       throw fromNodeError(error, 'UNKNOWN', 'ノートを作成できませんでした。')
     }
+  }
+
+  async importAttachments(
+    sourcePaths: readonly string[],
+    destinationDirectory: string
+  ): Promise<EntryOperationOutput[]> {
+    const directory = this.absolutePath(destinationDirectory, true)
+    await this.assertNoSymlinkTraversal(directory)
+    const directoryInfo = await stat(directory)
+    if (!directoryInfo.isDirectory()) {
+      throw new VaultError({
+        code: 'INVALID_PATH',
+        message: '添付ファイルの保存先フォルダが見つかりません。'
+      })
+    }
+
+    const imported: EntryOperationOutput[] = []
+    for (const sourcePath of sourcePaths) {
+      const sourceInfo = await lstat(sourcePath)
+      if (sourceInfo.isSymbolicLink() || !sourceInfo.isFile()) {
+        throw new VaultError({
+          code: 'INVALID_PATH',
+          message: '通常のファイルだけを添付できます。'
+        })
+      }
+      const fileName = basename(sourcePath)
+      if (!isSupportedAttachmentPath(fileName)) {
+        throw new VaultError({
+          code: 'INVALID_PATH',
+          message: '対応する画像、PDF、音声、動画だけを添付できます。'
+        })
+      }
+
+      const destination = await this.findAvailableMoveDestination(
+        sourcePath,
+        join(directory, fileName)
+      )
+      const temporaryPath = join(
+        directory,
+        `.tsuzune-${fileName}-${randomUUID()}.tmp`
+      )
+      try {
+        await copyFile(sourcePath, temporaryPath, fsConstants.COPYFILE_EXCL)
+        await copyFile(temporaryPath, destination, fsConstants.COPYFILE_EXCL)
+      } catch (error) {
+        throw fromNodeError(error, 'UNKNOWN', '添付ファイルを保存できませんでした。')
+      } finally {
+        await rm(temporaryPath, { force: true }).catch(() => undefined)
+      }
+      imported.push({ path: this.relativePath(destination) })
+    }
+    return imported
   }
 
   async createDirectory(input: CreateDirectoryInput): Promise<EntryOperationOutput> {
@@ -1275,7 +1439,10 @@ export class VaultService {
     }
   }
 
-  async trashEntry(relativePath: string): Promise<EntryOperationOutput> {
+  async trashEntry(
+    relativePath: string,
+    beforeRename?: () => Promise<void>
+  ): Promise<EntryOperationOutput> {
     if (relativePath === '.trash' || relativePath.startsWith('.trash/')) {
       throw new VaultError({
         code: 'INVALID_PATH',
@@ -1297,6 +1464,7 @@ export class VaultService {
     const batchRoot = join(trashRoot, `${timestampSuffix()}-${randomUUID()}`)
     const destination = join(batchRoot, ...relativePath.split('/'))
     let batchCreated = false
+    let preconditionError: unknown
 
     try {
       await this.assertNoSymlinkTraversal(source)
@@ -1308,6 +1476,12 @@ export class VaultService {
       batchCreated = true
       await mkdir(dirname(destination), { recursive: true })
       await this.assertNoSymlinkTraversal(dirname(destination))
+      try {
+        await beforeRename?.()
+      } catch (error) {
+        preconditionError = error
+        throw error
+      }
       await rename(source, destination)
       await this.removeCreationTimes(root, revision, normalizedPath)
       return {
@@ -1317,6 +1491,9 @@ export class VaultService {
     } catch (error) {
       if (batchCreated) {
         await rm(batchRoot, { recursive: true, force: true }).catch(() => undefined)
+      }
+      if (preconditionError) {
+        throw preconditionError
       }
       throw fromNodeError(error, 'UNKNOWN', '.trashへ移動できませんでした。')
     }

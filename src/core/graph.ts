@@ -276,6 +276,46 @@ export function buildWikiGraphForView(
     : { nodes: [], edges: [] }
 }
 
+export function excludeWikiGraphPaths(
+  graph: WikiGraph,
+  isExcluded: (path: string) => boolean
+): WikiGraph {
+  const excludedPaths = new Set(
+    graph.nodes
+      .filter(
+        (node) =>
+          (node.kind === 'note' || node.kind === 'attachment') &&
+          isExcluded(node.path)
+      )
+      .map((node) => node.path)
+  )
+  if (excludedPaths.size === 0) {
+    return graph
+  }
+
+  const edges = graph.edges.filter(
+    (edge) =>
+      !excludedPaths.has(edge.sourcePath) &&
+      !excludedPaths.has(edge.targetPath)
+  )
+  const connectedDerivedPaths = new Set(
+    edges.flatMap((edge) => [edge.sourcePath, edge.targetPath])
+  )
+
+  return {
+    nodes: graph.nodes.filter((node) => {
+      if (excludedPaths.has(node.path)) {
+        return false
+      }
+      if (node.kind === 'unresolved' || node.kind === 'tag') {
+        return connectedDerivedPaths.has(node.path)
+      }
+      return true
+    }),
+    edges
+  }
+}
+
 export function getLocalWikiGraph(
   graph: WikiGraph,
   currentPath: string,

@@ -86,7 +86,13 @@ export default function QuickNoteCreateDialog({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation">
+    <div
+      className="modal-backdrop"
+      role="presentation"
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !busy) onCancel()
+      }}
+    >
       <form
         ref={formRef}
         className="modal quick-note-create-dialog"

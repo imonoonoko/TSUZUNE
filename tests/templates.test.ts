@@ -56,6 +56,16 @@ describe('templates', () => {
     )
   })
 
+  it('publishes the learning memo lifecycle as a built-in template', () => {
+    const learningMemo = listTemplates([]).find((item) =>
+      item.path.endsWith('学びメモ.md')
+    )
+
+    expect(learningMemo?.content).toBe(
+      '# {{title}}\n\n## 原典・根拠・時点\n\n## 自分の理解\n\n## 再利用できる主張\n\n## 関連ノート\n\n## 使う場面\n\n## 見直す条件\n\n'
+    )
+  })
+
   it('lets a real Vault template override a built-in with the same path', () => {
     const custom = note('90_テンプレート/学びメモ.md')
     custom.content = '# 自分用テンプレート'

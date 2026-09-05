@@ -1,0 +1,316 @@
+{
+  "checkedAt": "2026-08-26T18:59:15.808Z",
+  "isolatedVault": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\fixtures\\obsidian-graph-parity-vault",
+  "isolatedUserData": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\shell-settings-ui-1776",
+  "fixture": {
+    "before": {
+      "fileCount": 7,
+      "sha256": "99261427a78c3246518b4c8812544c5d510840ec5d129ec21413d01e5f9ab047"
+    },
+    "after": {
+      "fileCount": 7,
+      "sha256": "99261427a78c3246518b4c8812544c5d510840ec5d129ec21413d01e5f9ab047"
+    },
+    "unchanged": true
+  },
+  "scenarios": [
+    {
+      "width": 1440,
+      "height": 900,
+      "category": "ファイルとリンク",
+      "workspace": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "hasLegacyHeader": false,
+        "documentOverflowX": false,
+        "workspace": {
+          "left": 0,
+          "top": 0,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1440,
+          "height": 900
+        },
+        "rail": {
+          "left": 0,
+          "top": 0,
+          "right": 42,
+          "bottom": 900,
+          "width": 42,
+          "height": 900
+        },
+        "railFooter": {
+          "left": 0,
+          "top": 739,
+          "right": 41,
+          "bottom": 900,
+          "width": 41,
+          "height": 161
+        },
+        "appActions": [
+          "Google / 同期",
+          "Vaultを切り替える: obsidian-graph-parity-vault",
+          "設定",
+          "左サイドバーを閉じる"
+        ],
+        "visibleFooterButtons": [
+          "Google / 同期",
+          "Vaultを切り替える: obsidian-graph-parity-vault",
+          "設定",
+          "左サイドバーを閉じる"
+        ]
+      },
+      "settings": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "dialog": {
+          "left": 300,
+          "top": 110,
+          "right": 1140,
+          "bottom": 790,
+          "width": 840,
+          "height": 680
+        },
+        "footer": {
+          "left": 301,
+          "top": 727,
+          "right": 1139,
+          "bottom": 789,
+          "width": 838,
+          "height": 62
+        },
+        "selectedCategory": "ファイルとリンク",
+        "navigationDirection": "column",
+        "dialogOverflowX": false,
+        "contentOverflowX": false,
+        "dialogBackground": "rgb(29, 38, 35)",
+        "contentBackground": "rgb(32, 41, 37)",
+        "textareaBackground": "rgb(38, 49, 45)",
+        "saveVisible": true
+      },
+      "draftFeedback": {
+        "supported": true,
+        "documentFocused": true,
+        "focused": true,
+        "matchesFocus": true,
+        "focusVisible": true,
+        "matchesFocusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "draftChanged": true,
+        "restored": true
+      },
+      "keyboard": {
+        "ready": true,
+        "shiftTabWrapped": true,
+        "tabWrapped": true,
+        "closed": true,
+        "focusRestored": true
+      },
+      "screenshots": [
+        "docs/reports/assets/shell-settings-2026-08-27/1440-workspace.png",
+        "docs/reports/assets/shell-settings-2026-08-27/1440-settings.png"
+      ]
+    },
+    {
+      "width": 900,
+      "height": 768,
+      "category": "テンプレート",
+      "workspace": {
+        "viewport": {
+          "width": 900,
+          "height": 768
+        },
+        "hasLegacyHeader": false,
+        "documentOverflowX": false,
+        "workspace": {
+          "left": 0,
+          "top": 0,
+          "right": 900,
+          "bottom": 768,
+          "width": 900,
+          "height": 768
+        },
+        "rail": {
+          "left": 0,
+          "top": 0,
+          "right": 42,
+          "bottom": 768,
+          "width": 42,
+          "height": 768
+        },
+        "railFooter": {
+          "left": 0,
+          "top": 607,
+          "right": 41,
+          "bottom": 768,
+          "width": 41,
+          "height": 161
+        },
+        "appActions": [
+          "Google / 同期",
+          "Vaultを切り替える: obsidian-graph-parity-vault",
+          "設定",
+          "左サイドバーを閉じる"
+        ],
+        "visibleFooterButtons": [
+          "Google / 同期",
+          "Vaultを切り替える: obsidian-graph-parity-vault",
+          "設定",
+          "左サイドバーを閉じる"
+        ]
+      },
+      "settings": {
+        "viewport": {
+          "width": 900,
+          "height": 768
+        },
+        "dialog": {
+          "left": 30,
+          "top": 44,
+          "right": 870,
+          "bottom": 724,
+          "width": 840,
+          "height": 680
+        },
+        "footer": {
+          "left": 31,
+          "top": 661,
+          "right": 869,
+          "bottom": 723,
+          "width": 838,
+          "height": 62
+        },
+        "selectedCategory": "テンプレート",
+        "navigationDirection": "column",
+        "dialogOverflowX": false,
+        "contentOverflowX": false,
+        "dialogBackground": "rgb(29, 38, 35)",
+        "contentBackground": "rgb(32, 41, 37)",
+        "textareaBackground": null,
+        "saveVisible": true
+      },
+      "draftFeedback": {
+        "supported": false
+      },
+      "keyboard": {
+        "ready": true,
+        "shiftTabWrapped": true,
+        "tabWrapped": true,
+        "closed": true,
+        "focusRestored": true
+      },
+      "screenshots": [
+        "docs/reports/assets/shell-settings-2026-08-27/900-workspace.png",
+        "docs/reports/assets/shell-settings-2026-08-27/900-settings.png"
+      ]
+    },
+    {
+      "width": 720,
+      "height": 768,
+      "category": "AIとレビュー",
+      "workspace": {
+        "viewport": {
+          "width": 720,
+          "height": 768
+        },
+        "hasLegacyHeader": false,
+        "documentOverflowX": false,
+        "workspace": {
+          "left": 0,
+          "top": 0,
+          "right": 720,
+          "bottom": 768,
+          "width": 720,
+          "height": 768
+        },
+        "rail": {
+          "left": 0,
+          "top": 0,
+          "right": 42,
+          "bottom": 768,
+          "width": 42,
+          "height": 768
+        },
+        "railFooter": {
+          "left": 0,
+          "top": 607,
+          "right": 41,
+          "bottom": 768,
+          "width": 41,
+          "height": 161
+        },
+        "appActions": [
+          "Google / 同期",
+          "Vaultを切り替える: obsidian-graph-parity-vault",
+          "設定",
+          "左サイドバーを開く"
+        ],
+        "visibleFooterButtons": [
+          "Google / 同期",
+          "Vaultを切り替える: obsidian-graph-parity-vault",
+          "設定",
+          "左サイドバーを開く"
+        ]
+      },
+      "settings": {
+        "viewport": {
+          "width": 720,
+          "height": 768
+        },
+        "dialog": {
+          "left": 8,
+          "top": 8,
+          "right": 712,
+          "bottom": 760,
+          "width": 704,
+          "height": 752
+        },
+        "footer": {
+          "left": 9,
+          "top": 705,
+          "right": 711,
+          "bottom": 759,
+          "width": 702,
+          "height": 54
+        },
+        "selectedCategory": "AIとレビュー",
+        "navigationDirection": "row",
+        "dialogOverflowX": false,
+        "contentOverflowX": false,
+        "dialogBackground": "rgb(29, 38, 35)",
+        "contentBackground": "rgb(32, 41, 37)",
+        "textareaBackground": "rgb(38, 49, 45)",
+        "saveVisible": true
+      },
+      "draftFeedback": {
+        "supported": true,
+        "documentFocused": true,
+        "focused": true,
+        "matchesFocus": true,
+        "focusVisible": true,
+        "matchesFocusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "draftChanged": true,
+        "restored": true
+      },
+      "keyboard": {
+        "ready": true,
+        "shiftTabWrapped": true,
+        "tabWrapped": true,
+        "closed": true,
+        "focusRestored": true
+      },
+      "screenshots": [
+        "docs/reports/assets/shell-settings-2026-08-27/720-workspace.png",
+        "docs/reports/assets/shell-settings-2026-08-27/720-settings.png"
+      ]
+    }
+  ],
+  "overall": "PASS"
+}

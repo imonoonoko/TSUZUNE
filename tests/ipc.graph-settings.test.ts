@@ -394,7 +394,7 @@ describe('graph settings IPC', () => {
     })
   })
 
-  it('persists excluded file filters and applies them to the next Vault snapshot', async () => {
+  it('persists excluded file filters without removing files from renderer snapshots', async () => {
     const mainFrame = {}
     const webContents = { mainFrame }
     const window = { webContents }
@@ -404,6 +404,11 @@ describe('graph settings IPC', () => {
     await writeFile(
       join(vaultRoot, '80_excluded', 'Hidden.md'),
       '# hidden',
+      'utf8'
+    )
+    await writeFile(
+      join(vaultRoot, '80_excluded', 'Hidden.png'),
+      'image',
       'utf8'
     )
     const vault = new VaultService()
@@ -448,7 +453,12 @@ describe('graph settings IPC', () => {
     ).resolves.toMatchObject({
       ok: true,
       value: {
-        notes: [{ path: 'Visible.md' }]
+        directories: ['', '80_excluded'],
+        notes: [
+          { path: '80_excluded/Hidden.md' },
+          { path: 'Visible.md' }
+        ],
+        attachments: [{ path: '80_excluded/Hidden.png' }]
       }
     })
   })
@@ -550,9 +560,7 @@ describe('graph settings IPC', () => {
       source: 'Inbox/A.md',
       destination: 'Archive/A.md',
       expected_fingerprint: 'sha256:test',
-      actor: 'human',
-      reason: 'アプリでのノート移動',
-      source_refs: []
+      actor: 'human'
     })
   })
 

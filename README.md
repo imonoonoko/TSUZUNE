@@ -2,7 +2,7 @@
 
 **書いて、つないで、あとで尋ねる。**
 
-TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個人用知識ワークスペースです。人はMarkdown記法を覚えなくてもメモを残せ、CodexやChatGPTは出典と履歴を保ちながら必要な知識を読み書きできます。
+TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個人用知識ワークスペースです。人はMarkdown記法を覚えなくてもメモを残せ、CodexやChatGPTは出典とrevision境界を保ちながら必要な知識を読み書きできます。
 
 | ノートを自然に書く | 知識をGraphでたどる |
 |---|---|
@@ -11,15 +11,17 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 ## TSUZUNEでできること
 
 - **自然に書く** — 通常ノートをすぐ編集画面で開き、Daily／Ideaを含む自由に増やせるテンプレートと簡易書式ツールバーを使えます。
+- **分類せず受け取る** — `Ctrl+P`の「受信箱へメモを作成」で、選択中の場所に関係なく`01_受信箱`へ空のメモを作り、そのまま書き始められます。
+- **Webを分類せず受け取る** — Chrome／EdgeのBrowser Clipperから、表示中のWebページやYouTubeを出典情報付きMarkdownで`01_受信箱`へ保存できます。通常Webは記事本文を抽出し、YouTubeは画面上の文字起こしから検証済み字幕トラック、取得不能または途中の場合のローカル`yt-dlp`まで順に探して取得状態も残します。初回だけTSUZUNEの通知領域で6桁コードを使ってペアリングします。[Browser Clipper](docs/browser-clipper.md)
 - **Markdownのまま残す** — ノートは`.md`、添付は通常ファイル。TSUZUNEがなくても一般的なeditorで読めます。
 - **知識をつなぐ** — `[[Wiki link]]`、backlink、未解決link、ブックマーク、Local/Global Graph。
 - **すばやく開く** — `Ctrl+O`のQuick Switcher、`Ctrl+P`のCommand Palette、複数ノートを行き来できるworkspace tab。
-- **必要なノートを探す** — `Ctrl+Shift+F`で「内容を検索」を開き、AND、除外、`tag:`／`path:`／`file:`、完全phraseで絞り込めます。
+- **必要なノートを探す** — `Ctrl+Shift+F`で「内容を検索」を開き、AND、除外、`tag:`／`path:`／`file:`／`category:`／`topic:`、完全phraseで絞り込めます。結果は知識・情報源・受信箱・その他の固定順に分け、各group内では関連度順を保ちます。
 - **安全に整理する** — 一覧の右クリックから名前変更、移動、`.trash`への退避。衝突時は上書きしません。
 - **画面を広く使う** — 左右のsidebarを独立して閉じ、必要な側だけ再表示できます。
 - **古さに気づく** — 最終更新日時と任意の`review_after`から、再確認の目安を非破壊で表示。
 - **時間を区別する** — 現在・過去・未来、情報が有効だった時点とAIが知った時点を分離。
-- **AIと共有する** — MCP経由で検索、取得、Context構築、競合検知付き更新、履歴付きAI更新。
+- **AIと共有する** — MCP経由で検索、取得、Context構築、revision競合を防ぐ履歴なし更新。
 - **任意で同期する** — Google接続と専用Drive folderへの手動preview/apply。ローカル利用だけでも動作します。
 - **Windowsで使い続ける** — user単位installer、アプリ内更新、packaged/installed smokeを含む本番更新gate。
 
@@ -50,6 +52,7 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 
 ### Markdownを知らない場合
 
+- 「受信箱へメモを作成」は、分類・タイトル・タグを先に決めず、同名衝突を避けた空のメモを`01_受信箱`へ作って編集画面で開きます。
 - 「ノート」は同名衝突を避けた空のノートを作り、モーダルを挟まず通常の編集画面で開きます。
 - 「今日のノート」はテンプレートから選び、日付入りのDailyを同日一件だけ作ります。
 - 「アイデアメモ」はテンプレートから選び、見出し入りのノートを通常編集画面で開きます。
@@ -81,9 +84,11 @@ link先、backlink、未作成・曖昧・無効linkを右panelで確認でき�
 | `tag:project` | `#project`またはその子tagを持つノート |
 | `path:10_projects` | Vault相対pathで絞り込み |
 | `file:alpha` | ファイル名で絞り込み |
+| `category:知識管理` | frontmatterの主カテゴリ完全一致で絞り込み |
+| `topic:"原典,追跡"` | frontmatterのtopic完全一致で絞り込み |
 | `"Project Alpha"` | 連続したphraseの完全一致 |
 
-演算子名、tag、path、file、通常語の大文字小文字は区別しません。空白で区切った条件はANDになります。対象はデスクトップ画面の通常検索で、MCP検索とGraph検索はそれぞれの既存契約を維持します。
+演算子名、tag、path、file、category、topic、通常語の大文字小文字は区別しません。空白で区切った条件はANDになります。一つの空白なし日本語自然文は文中の区切り候補をORとして順位付けします。`category:`と`topic:`はデスクトップ画面とMCP検索で同じ検索処理を使います。Graph検索は既存契約を維持します。
 
 ## Codex Desktopと連携する
 
@@ -93,30 +98,35 @@ TSUZUNEで使うVaultを一度開いた後、開発repositoryで次を実行し�
 npm run mcp:register
 ```
 
-Codex Desktopへ登録するMCP toolは16個です。
+Codex Desktopへ登録するMCP toolは19個です。
 
 | Tool | 用途 |
 |---|---|
 | `runtime_info` | MCPのversion・起動時刻・更新状態・匿名化Vault IDを確認 |
 | `delivery_info` | runtime freshnessとは分離して、sourceとlatest receiptのstatus（match／mismatch／unknown）のみを確認。更新推奨・path・hashは返さない |
-| `search` | title、path、本文を検索 |
+| `search` | title、path、本文、category、topicを検索 |
 | `fetch` | Markdown noteとrevisionを取得 |
-| `get_backlinks` | backlinkを取得（`50_履歴`は既定除外、path cursorで継続可能） |
+| `get_backlinks` | backlinkを取得（legacy `50_履歴`は除外、path cursorで継続可能） |
 | `build_context` | 起点と関連noteを文字数上限付きで構築し、query付きの長い通常起点は関連見出し節を投影して、各sourceのrevision／更新時刻を返す |
 | `list_directory` | 本文を含めずfolder・note・添付metadataを最大200件取得し、複数ページの同時変更をfingerprintで検出 |
 | `preview_drive_sync` | 起動中のTSUZUNE本体でDrive同期内容を確認 |
 | `create_directory` | 既存folderへ新規folderを作成 |
 | `create_note` | 既存folderへ新規noteを作成 |
+| `create_derived_note` | 受信箱原典を概念単位へ分け、カテゴリ付き派生知識を直接作成 |
+| `propose_derived_note` | `01_受信箱`／`40_情報源`を変えず、カテゴリ付き派生知識をAI Reviewへ提案 |
 | `update_note` | revision一致時だけ更新 |
-| `autonomous_update_note` | 通常noteを更新し、同一本文はno-op、変更時だけ旧本文を`50_履歴/AI更新`へ保存 |
+| `autonomous_update_note` | 通常noteを更新（同一本文はno-op、revision一致時だけ変更） |
 | `patch_note` | revision一致時だけ狭い範囲を更新 |
 | `preflight_move_entry` | 起動中アプリで単一Markdown移動を事前確認 |
 | `move_entry` | fingerprint一致時だけ単一Markdownを移動 |
+| `trash_entry` | 明示依頼時だけ、リンク元のない受信箱原典をrevision一致で復元可能な`.trash`へ移動 |
 | `apply_drive_sync` | 確認済みDrive同期planを再検査して適用 |
 
-AI更新でも、本文が変わるときは出典、理由、旧revisionを履歴へ残します。指定した`expected_revision`が古い場合は先に拒否し、それ以外で本文が完全に同一ならrevision指定の有無にかかわらず`unchanged: true`を返して履歴を作りません。原典の`40_情報源`と監査履歴の`50_履歴`は、MCPの作成・通常更新・自動更新を拒否します。設定の「AIレビュー対象パス」では、この3ツールを即時適用せずVault外の提案へ切り替え、Settingsから承認・取消できます。
+AI更新は履歴を生成せず、revision一致時だけ通常ノートを更新します。指定した`expected_revision`が古い場合は先に拒否し、本文が完全に同一なら`unchanged: true`を返します。既存の`50_履歴`はlegacyデータとして読み書き対象から除外・保護します。原典の`40_情報源`もMCPの作成・通常更新・自動更新を拒否します。設定の「AIレビュー対象パス」では、これらのツールを即時適用せずVault外の提案へ切り替え、Settingsから承認・取消できます。
 
-通常のCodex登録面には、削除、強制上書き、Google認証を含めません。`create_directory`は既存親フォルダの直下だけを確認付きで作成します。単一Markdown移動は、起動中アプリへ`preflight_move_entry`で事前確認し、そのfingerprintを確認付き`move_entry`へ渡した場合だけ実行します。アプリ不在時の直接実行fallbackや旧`move_note`はありません。Drive同期も起動中アプリのloopback bridgeを通し、Google tokenはMCPへ渡しません。direct server専用の`suggest_links`と`add_link`は通常のCodex登録面には公開しません。
+受信箱整理では、AIが原典を非信頼データとして最後まで読み、0〜複数の再利用可能な概念へ分けます。各概念は安定した`derivation_key`、`30_知識/TSUZUNE分類と保存基準.md`の現行主カテゴリ1件、topic 1〜3件を持ちます。同じ原典revisionでも異なる概念keyなら複数ノートを作れ、同じkeyだけを重複として拒否します。既存知識の本文は自動置換せず、関連知識へのWikiリンクを派生ノート側に置きます。同一概念に新しい知識がなければノートを増やさず、受信箱地図の処理済みrevisionだけを更新します。権限衝突、採否不明、機微・危険情報は地図で保留します。通常は原典を保ち、利用者が明示した場合だけ、出典URL・revisionを派生知識へ残してリンク元を解消した後に`trash_entry`で復元可能な`.trash`へ移します。`40_情報源`、`knowledge.md`、`50_履歴`は対象外です。
+
+通常のCodex登録面には、永久削除、強制上書き、Google認証を含めません。`trash_entry`は利用者の明示依頼、`01_受信箱`、revision一致、Wiki-link参照ゼロを要求し、MCPから直接、復元可能なVault内`.trash`へ移します。`create_directory`は既存親フォルダの直下だけを確認付きで作成します。一般ノートの移動は、起動中アプリへ`preflight_move_entry`で事前確認し、そのfingerprintを確認付き`move_entry`へ渡した場合だけ実行します。一般moveのアプリ不在時fallbackや旧`move_note`はありません。Drive同期も起動中アプリのloopback bridgeを通し、Google tokenはMCPへ渡しません。direct server専用の`suggest_links`と`add_link`は通常のCodex登録面には公開しません。
 
 登録解除:
 

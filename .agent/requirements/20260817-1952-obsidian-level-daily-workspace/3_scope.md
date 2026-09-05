@@ -1,6 +1,6 @@
 # TSUZUNE Obsidian級Daily Workspace: Scope
 
-Status: direction approved by the user on 2026-08-17; P0-1 Quick Switcher, P0-2 Command Palette, and P0-3/R3 Full-text Search are implemented and installed, P0-4 onward remain staged
+Status: direction approved; the 2026-08-27 P0-6 top-shell/settings continuation is source-verified and awaiting production acceptance. `state.json` is the current campaign status authority.
 
 ## Delivery Principle
 

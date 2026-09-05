@@ -1,0 +1,19 @@
+{
+  "workflow": "20260901-browser-clipper-history",
+  "lane": "orchestrated",
+  "phase": "persisted",
+  "objective": "Clip webpages and YouTube videos into 01_受信箱 as provenance-preserving Markdown without restoring generic mutation history.",
+  "state_owner": ".agent/requirements/20260901-browser-clipper-history/state.json",
+  "current_step": "receipt-governed-production-delivery",
+  "workstreams": {
+    "history_boundary": "complete",
+    "transport_security": "complete",
+    "extension_ux": "complete",
+    "app_integration": "complete",
+    "verification_delivery": "source_complete_receipt_governed"
+  },
+  "installed_status_owner": "docs/reports/production-update-latest.json",
+  "completion_condition": "receipt status is installed-and-verified and its source fingerprint matches the current source",
+  "status_semantics": "This source-owned workflow is frozen before the production gate. The excluded receipt owns installed delivery status after the gate.",
+  "updated_at": "2026-09-01T00:35:58+09:00"
+}

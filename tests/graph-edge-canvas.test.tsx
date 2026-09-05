@@ -5,7 +5,8 @@ import {
   buildGraphEdgeDrawCommands,
   edgeEndpointsAtNodeBoundaries,
   graphPointToViewport,
-  graphRadiusToViewport
+  graphRadiusToViewport,
+  resolveGraphThemePalette
 } from '../src/renderer/components/GraphEdgeCanvas'
 
 describe('Graph edge canvas', () => {
@@ -38,7 +39,7 @@ describe('Graph edge canvas', () => {
     })
   })
 
-  it('uses Obsidian default edge colors and dims only edges unrelated to the active note', () => {
+  it('uses the Night Workshop edge colors and dims only edges unrelated to the active note', () => {
     const graph: WikiGraph = {
       nodes: [
         { path: 'A.md', name: 'A' },
@@ -64,7 +65,7 @@ describe('Graph edge canvas', () => {
         targetPath: 'B.md',
         source: { x: 10, y: 20 },
         target: { x: 30, y: 40 },
-        color: '#7c5cf0',
+        color: '#78BFB2',
         lineWidth: 1.8,
         opacity: 1
       },
@@ -73,7 +74,7 @@ describe('Graph edge canvas', () => {
         targetPath: 'D.md',
         source: { x: 50, y: 60 },
         target: { x: 70, y: 80 },
-        color: '#dadada',
+        color: '#64766F',
         lineWidth: 1,
         opacity: 0.16
       }
@@ -99,11 +100,24 @@ describe('Graph edge canvas', () => {
         targetPath: 'B.md',
         source: { x: 10, y: 20 },
         target: { x: 30, y: 40 },
-        color: '#dadada',
+        color: '#64766F',
         lineWidth: 1,
         opacity: 1
       }
     ])
+  })
+
+  it('resolves CSS graph tokens and falls back to the Night Workshop palette', () => {
+    expect(
+      resolveGraphThemePalette({
+        getPropertyValue: (name) =>
+          name === '--graph-edge' ? ' #36433F ' : ' #93D3C7 '
+      })
+    ).toEqual({ edge: '#36433F', edgeActive: '#93D3C7' })
+
+    expect(
+      resolveGraphThemePalette({ getPropertyValue: () => '' })
+    ).toEqual({ edge: '#64766F', edgeActive: '#78BFB2' })
   })
 
   it('draws mutual and duplicate links as one geometry edge', () => {

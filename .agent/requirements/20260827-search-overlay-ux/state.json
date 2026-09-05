@@ -1,0 +1,31 @@
+{
+  "title": "TSUZUNE search readability and overlay dismissal",
+  "slug": "20260827-search-overlay-ux",
+  "status": "complete",
+  "selected_at": "2026-08-27",
+  "approval": {
+    "required": false,
+    "basis": "The user explicitly requested search readability and outside-click dismissal for transient screens."
+  },
+  "packets": [
+    {"id": "01", "name": "dialog-dismissal-audit", "status": "completed"},
+    {"id": "02", "name": "search-hierarchy-audit", "status": "completed"},
+    {"id": "03", "name": "test-first-integration", "status": "completed", "depends_on": ["01", "02"]},
+    {"id": "04", "name": "independent-verification-and-production", "status": "completed", "depends_on": ["03"]}
+  ],
+  "verification": {
+    "status": "passed",
+    "passed": [
+      "focused red-green tests",
+      "full suite: 873 passed and 1 skipped",
+      "typecheck, build, and MCP check",
+      "isolated 1440/900/720 pointer and keyboard UI verification",
+      "fixture Markdown digest unchanged",
+      "independent review",
+      "production update: installed-and-verified",
+      "production profile digest unchanged",
+      "TSUZUNE final-boundary write-back and read-back"
+    ],
+    "pending": []
+  }
+}

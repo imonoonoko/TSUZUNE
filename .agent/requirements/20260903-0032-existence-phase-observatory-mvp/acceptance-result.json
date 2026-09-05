@@ -1,0 +1,75 @@
+{
+  "status": "passed",
+  "asOf": "2026-09-03",
+  "sourceBoundary": "development-working-tree",
+  "userVisualAcceptance": "pending",
+  "productionUpdate": "not-run",
+  "tsuzunePersistence": {
+    "status": "complete",
+    "target": "30_知識/TSUZUNE-観測宙域MVP採用・要件定義-実施記録-2026-09-03.md",
+    "previousRevision": "sha256:13827ba878019562d4344657b9a4e4d07aca3c0d33b817c71e1237bcdddf5d84",
+    "revision": "sha256:e28e1ae3457dc2e9e79eb3fcde275477aa9e0c1663442d30318706afd5d8e6f8",
+    "runtimeStartedAt": "2026-09-02T21:25:06.658Z",
+    "buildUpdatedAt": "2026-09-02T21:07:37.300Z",
+    "staleRuntime": false,
+    "readBackCharacters": 6647,
+    "readBackTruncated": false,
+    "exactSearchMatches": 1,
+    "projectBacklink": true,
+    "previousBlockedAttempt": "STALE_RUNTIME_WRITE_BLOCKED before mutation"
+  },
+  "verification": {
+    "narrow": "2 files passed; 17 tests passed",
+    "independentNarrow": "3 files passed; 115 tests passed",
+    "typecheckBuildAndScriptSyntax": "passed",
+    "fullSuite": "101 files passed, 1 skipped; 973 tests passed, 1 skipped",
+    "buildBoundAcceptance": "passed",
+    "independentReviews": "visual and implementation accepted; P0/P1/P2 none"
+  },
+  "dense": {
+    "fixture": "589 notes / 4175 explicit links",
+    "receipt": "work/observatory-acceptance-dense-GOfLfz/acceptance-result.json",
+    "particles": 72,
+    "observedOutside": 517,
+    "realNoteParticles": 72,
+    "canvasCount": 1,
+    "domEdges": 0,
+    "controls": 1,
+    "timelineSeconds": [0, 10, 20, 30, 40, 50, 60],
+    "safeBoundsAtEverySample": true,
+    "meanMotionPx": 13.900317406092697,
+    "maximumMotionPx": 27.585213611643457,
+    "pauseFrozen": true,
+    "staticReflow": true,
+    "resumedMotion": true,
+    "directOpen": "matched"
+  },
+  "singleton": {
+    "fixture": "1 note / 0 links",
+    "receipt": "work/observatory-acceptance-singleton-pGzjo4/acceptance-result.json",
+    "particles": 1,
+    "edges": 0,
+    "driftsWithoutInventedCompanion": true,
+    "pauseFrozen": true,
+    "staticReflow": true,
+    "resumedMotion": true,
+    "directOpen": "matched"
+  },
+  "unseenProbe": {
+    "seeds": ["epsilon", "iota", "kappa", "lambda"],
+    "framesPerSeed": 2000,
+    "rmsSpreadRange": [0.306, 0.440],
+    "visibleGroupCountRange": [2, 6],
+    "largestGroupRange": [11, 45],
+    "semanticInvariantAfterNameReplacementAnd900Links": true
+  },
+  "sourceHashes": {
+    "src/core/observatory.ts": "sha256:3be8f2c935996b4d9804151f82d362b385b69119e168906aebb529ed7f063407",
+    "src/renderer/components/ObservatoryView.tsx": "sha256:9fd09d827c83ff4474c1b861c88f349ab0daa26e162c25031b01a5709aee80f9",
+    "src/renderer/styles.css": "sha256:25d4ac384ebc89fc8a1710866868f7d05a3e6b65b04682b2b5a9af8098cc5aa7",
+    "scripts/run-observatory-acceptance.mjs": "sha256:45a13412efcdf59d944a4c97716591c8ccf595f8b3809511ea6dd90939661579",
+    "tests/observatory.test.ts": "sha256:aa455775c50eddcc17f0e915bd6122eb1e776c873d8ada85e15f097926ff4349",
+    "tests/observatory-view.test.tsx": "sha256:6f17b68b4202ff0f611dd1d6dcbe8d284ac070479a80d917cc36e2b4efb11be0",
+    "package.json": "sha256:3cca618f027c9bad5fa62431dd8a0701e41fa33b622a5288c76cf03736c716ab"
+  }
+}

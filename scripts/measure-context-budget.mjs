@@ -64,8 +64,7 @@ try {
         name: 'build_context',
         arguments: {
           ...scenario,
-          max_characters: budget,
-          include_history: true
+          max_characters: budget
         }
       })
       const [first, second] = await Promise.all([call(), call()])

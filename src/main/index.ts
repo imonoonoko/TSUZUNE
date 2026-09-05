@@ -1,7 +1,7 @@
-import { app, BrowserWindow, Menu, safeStorage, shell, Tray } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, Menu, safeStorage, shell, Tray } from 'electron'
 import electronUpdater from 'electron-updater'
-import { writeFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { basename, isAbsolute, join } from 'node:path'
 import { DriveSyncService } from './drive-sync-service'
 import { GoogleConnectionService } from './google-connection'
 import { runGoogleOAuthLoopback } from './google-oauth-flow'
@@ -12,13 +12,37 @@ import {
   type DriveSyncBridge
 } from './mcp-drive-sync-bridge'
 import { SecureTokenStore } from './secure-token-store'
+import { BrowserClipService } from './browser-clip'
+import {
+  startBrowserClipBridge,
+  type BrowserClipBridge
+} from './browser-clip-bridge'
 import { resolveGitHubUpdateToken, UpdateService } from './update-service'
 import { VaultService } from './vault'
 import { VaultWatcher } from './watcher'
+import { createCalendarPluginHostHtml } from './calendar-plugin-host-page'
+import {
+  loadMomentScript,
+  registerCalendarPluginProtocol,
+  registerCalendarPluginSchemeAsPrivileged
+} from './calendar-plugin-protocol'
+import calendarBootstrapSource from './calendar-plugin-host-bootstrap.js?raw'
+import calendarCommonJsSource from './calendar-plugin-host-commonjs.js?raw'
+import calendarActivateSource from './calendar-plugin-host-activate.js?raw'
 import trayIconPath from '../renderer/assets/tsuzune-tray-icon.png?asset'
 
 const { autoUpdater } = electronUpdater
 
+// Keep explicit isolated launches out of the default profile, including Chromium caches.
+const explicitUserData = app.commandLine.getSwitchValue('user-data-dir')
+if (explicitUserData) {
+  if (!isAbsolute(explicitUserData)) throw new Error('--user-data-dir must be absolute')
+  mkdirSync(explicitUserData, { recursive: true })
+  app.setPath('userData', explicitUserData)
+  app.setPath('sessionData', explicitUserData)
+}
+
+registerCalendarPluginSchemeAsPrivileged()
 app.setAppUserModelId('jp.tsuzune.app')
 const singleInstanceLock = app.requestSingleInstanceLock()
 if (!singleInstanceLock) app.quit()
@@ -27,6 +51,7 @@ let mainWindow: BrowserWindow | null = null
 let closeApproved = false
 let quitRequested = false
 let driveSyncBridge: DriveSyncBridge | null = null
+let browserClipBridge: BrowserClipBridge | null = null
 let tray: Tray | null = null
 
 const vault = new VaultService()
@@ -77,7 +102,7 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    minWidth: 760,
+    minWidth: 720,
     minHeight: 560,
     show: false,
     title: 'TSUZUNE',
@@ -98,10 +123,17 @@ function createWindow(): void {
 
   mainWindow.webContents.once('did-finish-load', () => {
     const readyFile = process.env.TSUZUNE_HEADLESS_SMOKE_READY_FILE
-    if (process.env.TSUZUNE_HEADLESS_SMOKE === '1' && readyFile) {
-      writeFileSync(readyFile, 'ready', 'utf8')
-      closeApproved = true
-      app.quit()
+    if (readyFile) {
+      writeFileSync(readyFile, JSON.stringify({
+        ready: true,
+        pid: process.pid,
+        userData: app.getPath('userData'),
+        sessionData: app.getPath('sessionData')
+      }), 'utf8')
+      if (process.env.TSUZUNE_HEADLESS_SMOKE === '1') {
+        closeApproved = true
+        app.quit()
+      }
     }
   })
 
@@ -163,6 +195,31 @@ async function createTray(): Promise<void> {
     Menu.buildFromTemplate([
       { label: 'TSUZUNEを開く', click: showMainWindow },
       {
+        label: 'ブラウザ拡張を接続',
+        enabled: browserClipBridge !== null,
+        click: () => {
+          if (!browserClipBridge) return
+          const pairing = browserClipBridge.openPairingWindow()
+          clipboard.writeText(pairing.code)
+          void dialog.showMessageBox({
+            type: 'info',
+            title: 'ブラウザ拡張を接続',
+            message: `接続コード: ${pairing.code}`,
+            detail: 'ブラウザ拡張の接続画面にコードを貼り付けてください。コードは5分間有効です。クリップ先はTSUZUNEの01_受信箱です。',
+            buttons: ['OK']
+          })
+        }
+      },
+      {
+        label: 'ブラウザ拡張フォルダを開く',
+        click: () => {
+          const extensionPath = app.isPackaged
+            ? join(process.resourcesPath, 'browser-extension')
+            : join(app.getAppPath(), 'browser-extension')
+          void shell.openPath(extensionPath)
+        }
+      },
+      {
         label: '終了',
         click: () => {
           quitRequested = true
@@ -212,6 +269,13 @@ if (singleInstanceLock) {
     connection: googleConnection
   })
   const entryMove = new EntryMoveCoordinator({ vault, drive: driveSync })
+  registerCalendarPluginProtocol(() => vault.getRootPath(), {
+    bootstrap: calendarBootstrapSource,
+    commonjs: calendarCommonJsSource,
+    activate: calendarActivateSource,
+    moment: loadMomentScript(),
+    html: createCalendarPluginHostHtml
+  })
   autoUpdater.logger = null
   const updates = new UpdateService({
     isPackaged: app.isPackaged,
@@ -257,11 +321,33 @@ if (singleInstanceLock) {
       preflightMoveEntry: (source, destination) =>
         runEntryMoveInOrder(() => entryMove.preflight(source, destination, 'ai')),
       moveEntry: (input) =>
-        runEntryMoveInOrder(() => entryMove.apply(input))
+        runEntryMoveInOrder(() => entryMove.apply(input)),
+      trashEntry: (input) =>
+        runEntryMoveInOrder(() => entryMove.trash(input))
     })
   } catch (error) {
     console.error(
       `Drive sync MCP bridge failed: ${error instanceof Error ? error.message : String(error)}`
+    )
+  }
+  try {
+    const browserClipTokenStore = new SecureTokenStore(
+      join(app.getPath('userData'), 'browser-clipper-token.json'),
+      {
+        isAvailable: () => safeStorage.isAsyncEncryptionAvailable(),
+        encrypt: (plainText) => safeStorage.encryptStringAsync(plainText),
+        decrypt: async (encrypted) =>
+          (await safeStorage.decryptStringAsync(encrypted)).result
+      }
+    )
+    const browserClipService = new BrowserClipService({ vault })
+    browserClipBridge = await startBrowserClipBridge({
+      tokenStore: browserClipTokenStore,
+      capture: (payload) => browserClipService.capture(payload)
+    })
+  } catch (error) {
+    console.error(
+      `Browser clip bridge failed: ${error instanceof Error ? error.message : String(error)}`
     )
   }
   await createTray()
@@ -280,8 +366,13 @@ if (singleInstanceLock) {
 
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
-      void Promise.all([watcher.stop(), driveSyncBridge?.close()]).finally(() => {
+      void Promise.all([
+        watcher.stop(),
+        driveSyncBridge?.close(),
+        browserClipBridge?.close()
+      ]).finally(() => {
         driveSyncBridge = null
+        browserClipBridge = null
         app.quit()
       })
     }

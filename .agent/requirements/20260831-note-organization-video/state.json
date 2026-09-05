@@ -1,0 +1,73 @@
+{
+  "status": "active",
+  "packets": {
+    "V1": "complete",
+    "T1": "complete",
+    "W1": "complete",
+    "I1": "complete",
+    "R2": "complete",
+    "D1_UX": "complete",
+    "D2_CODE": "complete",
+    "D3_RISK": "complete",
+    "D4_MINIMUM": "complete",
+    "D5_IMPLEMENT": "complete",
+    "D6_VERIFY": "complete",
+    "D7_ORIGIN_GUARD": "complete",
+    "D8_DELIVERY_BOUNDARY": "complete",
+    "D9_CAPTURE_FRICTION": "complete",
+    "D10_INTEGRATION": "complete",
+    "D11_ISOLATION": "complete",
+    "D12_MCP_DESIGN": "complete",
+    "D13_HOOKS_DESIGN": "complete",
+    "D14_SCHEDULE_DESIGN": "complete",
+    "D15_TSUZUNE_DESIGN": "complete",
+    "D16_INTEGRATION": "complete",
+    "D17_PHILOSOPHY_GUARD": "complete",
+    "D18_CATEGORY_INVENTORY": "complete_with_concurrent_change_boundary",
+    "D19_CODE_PATH": "complete",
+    "D20_IMPLEMENT": "complete",
+    "D21_ADVERSARIAL_VERIFY": "complete",
+    "D22_PRODUCTION_DELIVERY": "in_progress"
+  },
+  "approval": {
+    "source_implementation": "approved",
+    "fixture_mutation": "approved",
+    "production_vault_mutation": "read_only_inventory_and_final_canonical_writeback_approved; bulk_classification_write_requires_preview_gate",
+    "installed_production_mutation": "approved_after_required_checks"
+  },
+  "scope": {
+    "tsuzune_notes_snapshot": 516,
+    "recount_before_execution": true,
+    "protected_knowledge_md": true,
+    "inactive_legacy_history_notes": 8
+  },
+  "design": {
+    "version": 5,
+    "model": "category_aware_derived_knowledge",
+    "full_semantic_inventory": false,
+    "inbox_source_preserved": true,
+    "processed_archive_history": false,
+    "first_slice": "review_gated_derived_note_proposal",
+    "organization_api": "propose_derived_note",
+    "search_facets": ["category", "topic"],
+    "search_groups": ["knowledge", "source", "inbox", "other"],
+    "automatic_routine_organization": "not_implemented",
+    "hooks": "fact_only_contract_designed_not_implemented",
+    "schedule": "codex_heartbeat_designed_not_created",
+    "ponytail_in_design_phase": false
+  },
+  "delivery": {
+    "source_implementation": "category-aware derived-note proposal, category/topic search, and exclusive search grouping implemented; adversarial PASS; 107 focused and 927 full tests, typecheck, and MCP check passed",
+    "installed_production": "governed_by_latest_production_receipt_after_D22",
+    "production_vault": "raw sources unchanged; bulk classification not run; final canonical writeback waits for D22",
+    "remaining_boundary": "production update, installed verification, final canonical writeback"
+  },
+  "continuation": {
+    "objective": "implement category-aware derived knowledge and grouped knowledge/source discovery using Markdown truth, then promote verified current source to installed production",
+    "lane": "orchestrated",
+    "state_owner": ".agent/requirements/20260831-note-organization-video/plan.md",
+    "stop": "stop before bulk production Vault classification writes, source mutation, delete, mass move, new database, or external AI service",
+    "decision": "category_aware_derivation_and_grouped_discovery_implementation_authorized",
+    "production_delivery": "required_after_product_code_checks_pass"
+  }
+}

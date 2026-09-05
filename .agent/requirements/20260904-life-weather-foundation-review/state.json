@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "title": "TSUZUNE LIFE Weather Foundation Review",
+  "slug": "20260904-life-weather-foundation-review",
+  "status": "verified-awaiting-tsuzune-writeback",
+  "owner": "CEO-01",
+  "work_item": "tsuzune-life-weather-foundation-review-20260904",
+  "packets": {
+    "A": "complete",
+    "B": "complete",
+    "C": "complete",
+    "D": "complete",
+    "E": "complete"
+  },
+  "verdict": "approve-with-corrections-integrated",
+  "next_gate": "owner decision on isolated Living Archive Field proof",
+  "verification": {
+    "status": "passed",
+    "checks": [
+      "independent adversarial review",
+      "workflow artifact verification",
+      "GPU probe syntax and capability receipt",
+      "state JSON parse",
+      "whitespace check"
+    ]
+  },
+  "persistence": {
+    "status": "blocked-stale-tsuzune-runtime",
+    "write_applied": false,
+    "resume_from": "tsuzune-writeback-pending.md"
+  },
+  "approval": {
+    "research_and_isolated_artifacts": "authorized",
+    "product_rewrite_dependencies_production_git": "not_authorized"
+  }
+}

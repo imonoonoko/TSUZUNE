@@ -39,6 +39,34 @@ describe('VaultService path and scan boundaries', () => {
     expect(isSupportedAttachmentPath('.png')).toBe(false)
   })
 
+  it('imports image and PDF bytes without overwriting an existing attachment', async () => {
+    const sourceRoot = await mkdtemp(join(tmpdir(), 'tsuzune-attachment-source-'))
+    try {
+      const image = Buffer.from([0, 255, 17, 34])
+      const pdf = Buffer.from('%PDF-1.7\nfixture', 'utf8')
+      await mkdir(absolute('attachments'), { recursive: true })
+      await writeFile(absolute('attachments/image.png'), Buffer.from('existing'))
+      await writeFile(join(sourceRoot, 'image.png'), image)
+      await writeFile(join(sourceRoot, 'paper.pdf'), pdf)
+
+      await expect(
+        vault.importAttachments(
+          [join(sourceRoot, 'image.png'), join(sourceRoot, 'paper.pdf')],
+          'attachments'
+        )
+      ).resolves.toEqual([
+        { path: 'attachments/image 1.png' },
+        { path: 'attachments/paper.pdf' }
+      ])
+
+      expect(await readFile(absolute('attachments/image.png'), 'utf8')).toBe('existing')
+      expect(await readFile(absolute('attachments/image 1.png'))).toEqual(image)
+      expect(await readFile(absolute('attachments/paper.pdf'))).toEqual(pdf)
+    } finally {
+      await rm(sourceRoot, { recursive: true, force: true })
+    }
+  })
+
   it('scans nested Markdown while excluding internal folders and non-Markdown files', async () => {
     await mkdir(absolute('開発'), { recursive: true })
     await mkdir(absolute('.trash'), { recursive: true })
@@ -705,6 +733,31 @@ describe('VaultService file operations', () => {
 })
 
 describe('VaultService save conflicts', () => {
+  it('preserves externally changed attachment bytes', async () => {
+    await mkdir(absolute('attachments'), { recursive: true })
+    const original = Buffer.from([1, 2, 3])
+    const external = Buffer.from([4, 5, 6, 0, 255])
+    await writeFile(absolute('attachments/image.png'), original)
+    const opened = (await vault.scan()).attachments?.find(
+      (attachment) => attachment.path === 'attachments/image.png'
+    )
+    expect(opened).toBeDefined()
+
+    await writeFile(absolute('attachments/image.png'), external)
+    const externalTime = new Date((opened?.modifiedAt ?? 0) + 10_000)
+    await utimes(absolute('attachments/image.png'), externalTime, externalTime)
+
+    await expect(
+      vault.saveAttachment({
+        path: 'attachments/image.png',
+        content: Buffer.from([9, 9, 9]),
+        expectedModifiedAt: opened?.modifiedAt,
+        expectedContent: original
+      })
+    ).rejects.toMatchObject({ appError: { code: 'FILE_CHANGED' } })
+    expect(await readFile(absolute('attachments/image.png'))).toEqual(external)
+  })
+
   it('preserves an external edit until the caller explicitly forces an overwrite', async () => {
     await vault.createNote({ directory: '', name: '競合', content: '読み込み時の本文' })
     const opened = await vault.readNote('競合.md')

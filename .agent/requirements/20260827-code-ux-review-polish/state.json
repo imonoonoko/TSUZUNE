@@ -1,0 +1,39 @@
+{
+  "title": "TSUZUNE current UI code review and UX polish",
+  "slug": "20260827-code-ux-review-polish",
+  "status": "complete",
+  "selected_at": "2026-08-27",
+  "approval": {
+    "required": false,
+    "basis": "The user explicitly requested code review and interaction/UX improvements for the current UI."
+  },
+  "success_criteria": [
+    "No verified P0 or P1 remains in the reviewed shell, settings, and primary navigation path",
+    "Selected P2 fixes reduce observed friction at 1440, 900, and 720 CSS px for pointer and keyboard use",
+    "Focused, full, isolated responsive, production, and post-restart delivery checks pass"
+  ],
+  "packets": [
+    {"id": "01", "name": "code-correctness-review", "status": "completed"},
+    {"id": "02", "name": "interaction-ux-audit", "status": "completed"},
+    {"id": "03", "name": "accessibility-test-gap", "status": "completed"},
+    {"id": "04", "name": "minimal-integration", "status": "completed", "depends_on": ["01", "02", "03"]},
+    {"id": "05", "name": "independent-verification-and-production", "status": "completed", "depends_on": ["04"]}
+  ],
+  "verification": {
+    "status": "passed",
+    "passed": [
+      "focused red-green regression tests",
+      "full suite: 861 passed and 1 skipped",
+      "typecheck and build",
+      "check:mcp",
+      "isolated 1440/900/720 pointer and keyboard UI verification with unchanged Markdown",
+      "legacy optimization UI capture",
+      "independent code and visual verification",
+      "git diff --check",
+      "production update: 10 of 10 checks",
+      "post-restart runtime_info stale_runtime false and delivery_info match",
+      "TSUZUNE canonical write-back, read-back, unique-title search, and backlinks"
+    ],
+    "pending": []
+  }
+}

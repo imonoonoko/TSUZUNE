@@ -119,6 +119,47 @@ describe('App settings', () => {
     })
   })
 
+  it('persists and validates Calendar plugin settings without changing older settings shape', async () => {
+    await updateSettings({
+      calendarPlugin: {
+        shouldConfirmBeforeCreate: false,
+        weekStart: 'monday',
+        wordsPerDot: 0,
+        showWeeklyNote: true,
+        weeklyNoteFormat: ' YYYY-[W]WW ',
+        weeklyNoteTemplate: ' template ',
+        weeklyNoteFolder: ' weekly ',
+        localeOverride: ' ja '
+      }
+    })
+
+    await expect(readSettings()).resolves.toMatchObject({
+      calendarPlugin: {
+        shouldConfirmBeforeCreate: false,
+        weekStart: 'monday',
+        wordsPerDot: 0,
+        showWeeklyNote: true,
+        weeklyNoteFormat: ' YYYY-[W]WW '
+      }
+    })
+  })
+
+  it('fails safe when persisted Calendar settings are malformed', async () => {
+    await writeFile(
+      join(appData.path, 'settings.json'),
+      JSON.stringify({ calendarPlugin: { wordsPerDot: -1, weekStart: 'invalid' } }),
+      'utf8'
+    )
+
+    await expect(readSettings()).resolves.toMatchObject({
+      calendarPlugin: {
+        shouldConfirmBeforeCreate: true,
+        weekStart: 'locale',
+        wordsPerDot: 250
+      }
+    })
+  })
+
   it('parses graph display settings and clamps them to the public UI ranges', () => {
     expect(
       graphDisplay.parseGraphDisplaySettings({

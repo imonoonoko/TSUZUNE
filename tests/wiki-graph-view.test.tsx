@@ -479,7 +479,7 @@ describe('WikiGraphView', () => {
     fireEvent.change(query, { target: { value: 'path:Projects' } })
     fireEvent.blur(query)
     expect(onGroupsCommit).toHaveBeenLastCalledWith([
-      expect.objectContaining({ query: 'path:Projects', color: '#e57373' })
+      expect.objectContaining({ query: 'path:Projects', color: '#e0847d' })
     ])
 
     const color = screen.getByLabelText('グループ1の色')
@@ -493,7 +493,7 @@ describe('WikiGraphView', () => {
     expect(onGroupsCommit).toHaveBeenLastCalledWith([])
   })
 
-  it('uses group color for matching nodes while active purple still wins', async () => {
+  it('uses group color for matching nodes while the active Night accent still wins', async () => {
     const user = userEvent.setup()
     render(
       <WikiGraphView
@@ -521,7 +521,7 @@ describe('WikiGraphView', () => {
     expect(dot?.style.background).toBe('rgb(18, 58, 188)')
 
     await user.hover(node)
-    expect(dot?.style.background).toBe('rgb(124, 92, 240)')
+    expect(dot?.style.background).toBe('var(--graph-node-active, #78BFB2)')
   })
 
   it('reorders groups by dragging the color swatch and persists first-match order', () => {
@@ -618,7 +618,9 @@ describe('WikiGraphView', () => {
     const unresolvedDot = unresolvedButton.querySelector<HTMLElement>(
       '.wiki-graph-node-dot'
     )
-    expect(unresolvedDot?.style.background).toBe('rgb(171, 171, 171)')
+    expect(unresolvedDot?.style.background).toBe(
+      'var(--graph-node-unresolved, #D5A45F)'
+    )
     expect(unresolvedButton.style.opacity).toBe('0.5')
 
     await user.click(screen.getByRole('button', { name: 'グラフ設定を開く' }))
@@ -782,7 +784,7 @@ describe('WikiGraphView', () => {
     })
     expect(
       tagNode.querySelector<HTMLElement>('.wiki-graph-node-dot')?.style.background
-    ).toBe('rgb(8, 185, 78)')
+    ).toBe('var(--graph-node-tag, #5F9277)')
 
     await user.click(tagNode)
     expect(onSearchTag).toHaveBeenNthCalledWith(1, '#design')
@@ -1189,15 +1191,23 @@ describe('WikiGraphView', () => {
     const attachmentDot = attachmentNode.querySelector<HTMLElement>(
       '.wiki-graph-node-dot'
     )
-    expect(attachmentDot?.style.background).toBe('rgb(224, 172, 0)')
+    expect(attachmentDot?.style.background).toBe(
+      'var(--graph-node-attachment, #B58A4F)'
+    )
 
     await user.hover(attachmentNode)
-    expect(attachmentDot?.style.background).toBe('rgb(124, 92, 240)')
+    expect(attachmentDot?.style.background).toBe(
+      'var(--graph-node-active, #78BFB2)'
+    )
     await user.unhover(attachmentNode)
-    expect(attachmentDot?.style.background).toBe('rgb(224, 172, 0)')
+    expect(attachmentDot?.style.background).toBe(
+      'var(--graph-node-attachment, #B58A4F)'
+    )
 
     fireEvent.focus(attachmentNode)
-    expect(attachmentDot?.style.background).toBe('rgb(124, 92, 240)')
+    expect(attachmentDot?.style.background).toBe(
+      'var(--graph-node-active, #78BFB2)'
+    )
     await user.click(attachmentNode)
     expect(onOpen).toHaveBeenCalledWith('assets/diagram.png')
     onOpen.mockClear()
@@ -1624,10 +1634,12 @@ describe('WikiGraphView', () => {
     const current = dotFor('A（現在のノート）')
 
     for (const node of [outgoing, incoming, related, reciprocal]) {
-      expect(node.style.background).toBe('rgb(92, 92, 92)')
+      expect(node.style.background).toBe('var(--graph-node, #9CA7A1)')
       expect(node.style.borderColor).toBe(outgoing.style.borderColor)
     }
-    expect(current.style.background).toBe('rgb(124, 92, 240)')
+    expect(current.style.background).toBe(
+      'var(--graph-node-active, #78BFB2)'
+    )
     expect(current.style.background).not.toBe(outgoing.style.background)
     expect(container.querySelector('.wiki-graph-node.is-outgoing')).toBeTruthy()
   })
@@ -1681,7 +1693,7 @@ describe('WikiGraphView', () => {
     expect(nodeD.style.opacity).toBe('0.28')
     expect(
       nodeB.querySelector<HTMLElement>('.wiki-graph-node-dot')?.style.background
-    ).toBe('rgb(124, 92, 240)')
+    ).toBe('var(--graph-node-active, #78BFB2)')
     expect(
       screen
         .getByRole('button', { name: 'A（現在のノート）' })

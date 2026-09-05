@@ -3,6 +3,8 @@ import type {
   AppSettings,
   AiWriteReviewProposal,
   AppUpdateStatus,
+  CalendarPluginRuntimeStatus,
+  CalendarPluginSettings,
   CreateDirectoryInput,
   CreateNoteInput,
   DriveRemoteVault,
@@ -20,6 +22,7 @@ import type {
   MoveEntryInput,
   EntryMoveRecoveryStatus,
   NoteDocument,
+  ObsidianPluginCandidate,
   PairDriveVaultInput,
   RenameEntryInput,
   Result,
@@ -40,6 +43,10 @@ const api: TsuzuneApi = {
   chooseVault: () => invoke<VaultSnapshot | null>('vault:choose'),
   openLastVault: () => invoke<VaultSnapshot | null>('vault:openLast'),
   getSettings: () => invoke<AppSettings>('settings:get'),
+  listObsidianPluginCandidates: () =>
+    invoke<ObsidianPluginCandidate[]>('obsidianPlugins:list'),
+  getCalendarPluginStatus: () =>
+    invoke<CalendarPluginRuntimeStatus>('calendarPlugin:status'),
   getSnapshot: () => invoke<VaultSnapshot>('vault:snapshot'),
   readNote: (path: string) => invoke<NoteDocument>('vault:readNote', path),
   readVaultImage: (path: string) => invoke<string>('vault:readImage', path),
@@ -52,6 +59,8 @@ const api: TsuzuneApi = {
   saveNote: (input: SaveNoteInput) => invoke<SaveNoteOutput>('note:save', input),
   createNote: (input: CreateNoteInput) =>
     invoke<EntryOperationOutput>('entry:createNote', input),
+  importAttachments: (destinationDirectory: string) =>
+    invoke<EntryOperationOutput[] | null>('attachment:import', destinationDirectory),
   createDirectory: (input: CreateDirectoryInput) =>
     invoke<EntryOperationOutput>('entry:createDirectory', input),
   renameEntry: (input: RenameEntryInput) =>
@@ -74,6 +83,8 @@ const api: TsuzuneApi = {
     invoke<null>('settings:setAiReviewPaths', paths),
   setTemplateSettings: (settings: TemplateSettings) =>
     invoke<null>('settings:setTemplates', settings),
+  setCalendarPluginSettings: (settings: CalendarPluginSettings) =>
+    invoke<null>('settings:setCalendarPlugin', settings),
   listAiReviewProposals: () =>
     invoke<AiWriteReviewProposal[]>('aiReview:list'),
   approveAiReviewProposal: (id: string) =>

@@ -33,7 +33,13 @@ export default function MoveDialog({
   }, [])
 
   return (
-    <div className="modal-backdrop" role="presentation">
+    <div
+      className="modal-backdrop"
+      role="presentation"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onCancel()
+      }}
+    >
       <form
         ref={dialogRef}
         className="modal"

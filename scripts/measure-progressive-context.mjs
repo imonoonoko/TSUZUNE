@@ -107,7 +107,6 @@ try {
   const temporalContext = await call('build_context', {
     id: '10_プロジェクト/TSUZUNE.md',
     as_of: '2026-07-22',
-    include_history: true,
     max_characters: budget
   })
   const temporalSeed = temporalContext.value.included.find(

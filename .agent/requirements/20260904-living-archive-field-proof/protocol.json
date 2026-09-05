@@ -1,0 +1,68 @@
+{
+  "protocolVersion": "laf-proof-v1",
+  "frozenAt": "2026-09-04T20:40:00+09:00",
+  "noRetryRound": true,
+  "subject": "Living Archive Field isolated art proof",
+  "source": {
+    "snapshotPath": "work/archive-weather-prototype/note-snapshot.mjs",
+    "snapshotDigest": "ed137cb77ccce737b432cd52838d596e7765a97fa074ecac66d2c4812319d8c5",
+    "noteCount": 599,
+    "seed": 1369952969,
+    "archiveTimeUtc": "2026-09-04T11:17:00.000Z"
+  },
+  "render": {
+    "backingWidth": 1280,
+    "backingHeight": 720,
+    "devicePixelRatio": 1,
+    "captureSeconds": [0, 30, 90, 240, 480, 720],
+    "technicalDurationSeconds": 720,
+    "ignoreInitialSeconds": 5,
+    "pauseWhenHidden": true
+  },
+  "comparison": {
+    "anonymousOrder": [
+      { "label": "A", "variant": "living-archive-field" },
+      { "label": "B", "variant": "gate-3b5" },
+      { "label": "C", "variant": "one-phenomenon-control" }
+    ],
+    "hideVariantAndReceiptsUntilScored": true
+  },
+  "control": {
+    "removePhenomenonId": "recurrence:b69bfc59",
+    "sourceIndices": [573, 87],
+    "predictedCueId": "cue:recurrence:b69bfc59",
+    "predictedRegionId": "filament:recurrence:b69bfc59",
+    "prediction": "The control removes the back-left recurrence entry pulse and its later transfer into the paired filament; the rest of the world origin, camera path, feature identities, cue schedule, and carrier texture remain unchanged."
+  },
+  "cameraBounds": {
+    "linearVelocityMax": 0.18,
+    "linearAccelerationMax": 0.045,
+    "angularVelocityMax": 0.09,
+    "angularAccelerationMax": 0.024,
+    "epsilon": 0.00001
+  },
+  "performance": {
+    "p95FrameIntervalMsMax": 20,
+    "frameIntervalsOver50MsFractionMax": 0.01,
+    "webglErrorsMax": 0,
+    "unrecoveredContextLossMax": 0
+  },
+  "observationQuestions": [
+    "Is the first reading something other than white points on black?",
+    "Can one energy passage be followed without a legend into a later filament, boundary, or void?",
+    "Is there any visible camera cut or wake slip at a cue change?",
+    "Does depth come from parallax and at least two of occlusion, focus or extinction, scale, and passage through material?",
+    "Across twelve minutes are there at least three macro compositions without blackout, saturation, a fixed central attractor, or a short replay?",
+    "Before receipts are revealed, can the predicted local control difference and its downstream propagation be distinguished?",
+    "Did my archive cause this?",
+    "Do I want to keep watching for ninety seconds?",
+    "Do I want to revisit on another day?"
+  ],
+  "roles": {
+    "aestheticOwner": "workshop owner",
+    "technicalVerifier": "VERIFY-01",
+    "integrationOwner": "CEO-01"
+  },
+  "passRule": "All technical invariants and performance gates must pass; all three final owner questions must be yes. Telemetry alone cannot pass the blind control or aesthetic gates.",
+  "stopRule": "Stop instead of adding effects if the result still reads as a star field, particle demo, graph, atom model, source-free fog, a camera patched to event changes, or a generic preset with post-hoc provenance."
+}

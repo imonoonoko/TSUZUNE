@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import FileTree from '../src/renderer/components/FileTree'
 import type { VaultSnapshot } from '../src/shared/types'
@@ -188,6 +188,137 @@ describe('FileTree context menu', () => {
     expect(onSelectEntry).toHaveBeenCalledWith({ kind: 'note', path: 'Inbox/Note.md' })
     fireEvent.click(screen.getByRole('menuitem', { name: '移動' }))
     expect(onMove).toHaveBeenCalledWith('Inbox/Note.md')
+  })
+
+  it('summarizes search results and separates the excerpt from metadata', () => {
+    render(
+      <FileTree
+        snapshot={snapshot}
+        selectedNotePath={null}
+        treeSelection={null}
+        searchResults={[
+          {
+            path: 'Inbox/Note.md',
+            name: 'Note',
+            excerpt: 'Noteを含む長い本文の抜粋',
+            modifiedAt: 1,
+            score: 1
+          }
+        ]}
+        query="Note"
+        onSelectNote={vi.fn()}
+        onSelectEntry={vi.fn()}
+        onRename={vi.fn()}
+        onMove={vi.fn()}
+        onDropEntry={vi.fn()}
+        onInlineRename={vi.fn()}
+        onTrash={vi.fn()}
+        bookmarkedPaths={new Set()}
+        onOpenInNewTab={vi.fn()}
+        onReveal={vi.fn()}
+        onCopyPath={vi.fn()}
+        onBookmark={vi.fn()}
+        onCreateNote={vi.fn()}
+        onCreateDirectory={vi.fn()}
+      />
+    )
+
+    const results = screen.getByLabelText('検索結果')
+    expect(within(results).getByRole('status').textContent?.replace(/\s+/gu, ' ')).toBe(
+      '検索結果 1件'
+    )
+    expect(results.querySelector('.search-result-excerpt')?.textContent).toBe(
+      'Noteを含む長い本文の抜粋'
+    )
+    expect(results.querySelector('.search-result-path')?.textContent).toBe('Inbox/Note.md')
+  })
+
+  it('uses a fixed four-group order while preserving every result and group-local rank', () => {
+    render(
+      <FileTree
+        snapshot={snapshot}
+        selectedNotePath={null}
+        treeSelection={null}
+        searchResults={[
+          { path: '40_情報源/Source.md', name: 'Source', excerpt: 'match', modifiedAt: 1, score: 3 },
+          {
+            path: '30_知識/Knowledge.md',
+            name: 'Knowledge',
+            excerpt: 'match',
+            modifiedAt: 1,
+            score: 2,
+            category: '知識管理',
+            topics: ['原典追跡']
+          },
+          { path: '01_受信箱/Capture.md', name: 'Capture', excerpt: 'match', modifiedAt: 1, score: 1 },
+          { path: 'misc/Other.md', name: 'Other', excerpt: 'match', modifiedAt: 1, score: 0 }
+        ]}
+        query="match"
+        onSelectNote={vi.fn()}
+        onSelectEntry={vi.fn()}
+        onRename={vi.fn()}
+        onMove={vi.fn()}
+        onDropEntry={vi.fn()}
+        onInlineRename={vi.fn()}
+        onTrash={vi.fn()}
+        bookmarkedPaths={new Set()}
+        onOpenInNewTab={vi.fn()}
+        onReveal={vi.fn()}
+        onCopyPath={vi.fn()}
+        onBookmark={vi.fn()}
+        onCreateNote={vi.fn()}
+        onCreateDirectory={vi.fn()}
+      />
+    )
+
+    const results = screen.getByLabelText('検索結果')
+    expect(within(results).getByRole('status').textContent?.replace(/\s+/gu, ' ')).toBe(
+      '検索結果 4件'
+    )
+    expect(within(results).getAllByRole('heading').map((heading) => heading.textContent)).toEqual([
+      '知識',
+      '情報源',
+      '受信箱',
+      'その他'
+    ])
+    expect(within(results).getAllByRole('button')).toHaveLength(4)
+    expect(within(results).getByText('知識管理')).toBeTruthy()
+    expect(within(results).getByText('原典追跡')).toBeTruthy()
+    expect(within(results).getAllByRole('button').map((button) => button.textContent).join(' ')).toMatch(
+      /Knowledge[\s\S]*Source[\s\S]*Capture[\s\S]*Other/
+    )
+  })
+
+  it('announces an empty search result count', () => {
+    render(
+      <FileTree
+        snapshot={snapshot}
+        selectedNotePath={null}
+        treeSelection={null}
+        searchResults={[]}
+        query="missing"
+        onSelectNote={vi.fn()}
+        onSelectEntry={vi.fn()}
+        onRename={vi.fn()}
+        onMove={vi.fn()}
+        onDropEntry={vi.fn()}
+        onInlineRename={vi.fn()}
+        onTrash={vi.fn()}
+        bookmarkedPaths={new Set()}
+        onOpenInNewTab={vi.fn()}
+        onReveal={vi.fn()}
+        onCopyPath={vi.fn()}
+        onBookmark={vi.fn()}
+        onCreateNote={vi.fn()}
+        onCreateDirectory={vi.fn()}
+      />
+    )
+
+    const results = screen.getByLabelText('検索結果')
+    expect(within(results).getByRole('status').textContent?.replace(/\s+/gu, ' ')).toBe(
+      '検索結果 0件'
+    )
+    expect(within(results).getByText('「missing」は見つかりませんでした。')).toBeTruthy()
   })
 
   it('highlights only positive terms and phrases in search excerpts', () => {

@@ -1,11 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { validateRelativePath } from '../core/paths'
+import { isSupportedAttachmentPath } from '../shared/attachments'
 
 const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files'
 const DRIVE_CHANGES_URL = 'https://www.googleapis.com/drive/v3/changes'
 const DRIVE_UPLOAD_URL =
   'https://www.googleapis.com/upload/drive/v3/files'
 const MARKDOWN_MIME_TYPE = 'text/markdown'
+const ATTACHMENT_MIME_TYPE = 'application/octet-stream'
 const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
 const DRIVE_PROPERTY_LIMIT_BYTES = 124
 const PATH_PROPERTY = 'tsuzunePath'
@@ -22,6 +24,7 @@ export interface DriveMarkdownFile {
   parentIds: string[]
   version: string | null
   md5Checksum: string | null
+  kind?: 'markdown' | 'attachment'
   appProperties: {
     tsuzuneVaultId: string
     tsuzunePath: string
@@ -56,7 +59,7 @@ export interface CreateMarkdownInput {
   vaultId: string
   path: string
   parentId: string
-  content: string
+  content: string | Buffer
 }
 
 export interface UpdateMarkdownInput {
@@ -66,7 +69,7 @@ export interface UpdateMarkdownInput {
   expectedVersion: string
   expectedMd5Checksum?: string | null
   expectedContentHash?: string
-  content: string
+  content: string | Buffer
 }
 
 export interface MoveMarkdownInput {
@@ -206,14 +209,11 @@ function asProperties(value: unknown): Record<string, string> {
 
 function parseMarkdownFile(value: unknown): DriveMarkdownFile | null {
   const record = asRecord(value)
-  if (
-    !record ||
-    record.mimeType !== MARKDOWN_MIME_TYPE ||
-    record.trashed === true
-  ) return null
+  if (!record || record.trashed === true) return null
 
   const id = asString(record.id)
   const name = asString(record.name)
+  const mimeType = asString(record.mimeType)
   const properties = asProperties(record.appProperties)
   const vaultId = properties.tsuzuneVaultId
   const description = asString(record.description)
@@ -223,7 +223,16 @@ function parseMarkdownFile(value: unknown): DriveMarkdownFile | null {
       ? description.slice(PATH_DESCRIPTION_PREFIX.length)
       : null)
   if (!id || !name || !vaultId || !rawPath) return null
-  const path = normalizedMarkdownPath(rawPath)
+  const path = normalizedVaultPath(rawPath)
+  const kind = path.toLowerCase().endsWith('.md') ? 'markdown' : 'attachment'
+  if (
+    !mimeType ||
+    (kind === 'markdown' && mimeType !== MARKDOWN_MIME_TYPE) ||
+    (kind === 'attachment' &&
+      (!isSupportedAttachmentPath(path) ||
+        mimeType === MARKDOWN_MIME_TYPE ||
+        mimeType.startsWith('application/vnd.google-apps.')))
+  ) return null
 
   return {
     id,
@@ -232,6 +241,7 @@ function parseMarkdownFile(value: unknown): DriveMarkdownFile | null {
     parentIds: asStringArray(record.parents),
     version: asString(record.version),
     md5Checksum: asString(record.md5Checksum),
+    kind,
     appProperties: {
       tsuzuneVaultId: vaultId,
       tsuzunePath: path
@@ -302,7 +312,7 @@ async function requestJson(
   return response.json()
 }
 
-function normalizedMarkdownPath(path: string): string {
+function normalizedVaultPath(path: string): string {
   const validation = validateRelativePath(path)
   if (!validation.valid || !validation.normalized) {
     throw new Error(
@@ -310,8 +320,8 @@ function normalizedMarkdownPath(path: string): string {
     )
   }
   const name = validation.normalized.split('/').at(-1)
-  if (!name?.toLowerCase().endsWith('.md')) {
-    throw new Error('Google Driveへ同期するパスは.mdノートに限られます。')
+  if (!name || (!name.toLowerCase().endsWith('.md') && !isSupportedAttachmentPath(name))) {
+    throw new Error('Google Driveへ同期できないファイル形式です。')
   }
   return validation.normalized
 }
@@ -349,7 +359,7 @@ function markdownMetadata(
   }
   const metadata: UnknownRecord = {
     name: path.split('/').at(-1),
-    mimeType: MARKDOWN_MIME_TYPE,
+    mimeType: path.toLowerCase().endsWith('.md') ? MARKDOWN_MIME_TYPE : ATTACHMENT_MIME_TYPE,
     appProperties
   }
   if (
@@ -402,7 +412,6 @@ export async function listVaultFiles(
       'q',
       [
         'trashed = false',
-        `mimeType = '${MARKDOWN_MIME_TYPE}'`,
         `appProperties has { key='tsuzuneVaultId' and value='${queryLiteral(vaultId)}' }`
       ].join(' and ')
     )
@@ -605,16 +614,27 @@ export async function downloadMarkdown(
   return response.text()
 }
 
+export async function downloadVaultFile(
+  accessToken: string,
+  fileId: string,
+  fetchImpl: typeof fetch = globalThis.fetch
+): Promise<Buffer> {
+  const url = new URL(`${DRIVE_FILES_URL}/${encodeURIComponent(fileId)}`)
+  url.searchParams.set('alt', 'media')
+  const response = await fetchImpl(url, { headers: authorizationHeaders(accessToken) })
+  await assertDriveResponse(response)
+  return Buffer.from(await response.arrayBuffer())
+}
+
 export async function createMarkdown(
   accessToken: string,
   input: CreateMarkdownInput,
   fetchImpl: typeof fetch = globalThis.fetch
 ): Promise<DriveMarkdownFile> {
-  const path = normalizedMarkdownPath(input.path)
-  const multipart = multipartBody(
-    markdownMetadata(input.vaultId, path, input.parentId),
-    input.content
-  )
+  const path = normalizedVaultPath(input.path)
+  const multipart = typeof input.content === 'string'
+    ? multipartBody(markdownMetadata(input.vaultId, path, input.parentId), input.content)
+    : multipartBytes(markdownMetadata(input.vaultId, path, input.parentId), input.content, ATTACHMENT_MIME_TYPE)
   const url = new URL(DRIVE_UPLOAD_URL)
   url.searchParams.set('uploadType', 'multipart')
   url.searchParams.set('fields', MARKDOWN_FIELDS)
@@ -625,7 +645,7 @@ export async function createMarkdown(
       headers: authorizationHeaders(accessToken, {
         'content-type': multipart.contentType
       }),
-      body: multipart.body
+      body: typeof multipart.body === 'string' ? multipart.body : Buffer.from(multipart.body)
     })
   )
 }
@@ -635,7 +655,7 @@ export async function updateMarkdown(
   input: UpdateMarkdownInput,
   fetchImpl: typeof fetch = globalThis.fetch
 ): Promise<DriveMarkdownFile> {
-  const path = normalizedMarkdownPath(input.path)
+  const path = normalizedVaultPath(input.path)
   const current = await getMarkdownMetadata(
     accessToken,
     input.fileId,
@@ -656,7 +676,7 @@ export async function updateMarkdown(
       current.md5Checksum === input.expectedMd5Checksum
     if (!md5Matches) {
       const currentContent = input.expectedContentHash
-        ? await downloadMarkdown(accessToken, input.fileId, fetchImpl)
+        ? await downloadVaultFile(accessToken, input.fileId, fetchImpl)
         : null
       if (
         currentContent === null ||
@@ -669,10 +689,9 @@ export async function updateMarkdown(
       }
     }
   }
-  const multipart = multipartBody(
-    markdownMetadata(input.vaultId, path, undefined, true),
-    input.content
-  )
+  const multipart = typeof input.content === 'string'
+    ? multipartBody(markdownMetadata(input.vaultId, path, undefined, true), input.content)
+    : multipartBytes(markdownMetadata(input.vaultId, path, undefined, true), input.content, ATTACHMENT_MIME_TYPE)
   const url = new URL(
     `${DRIVE_UPLOAD_URL}/${encodeURIComponent(input.fileId)}`
   )
@@ -685,7 +704,7 @@ export async function updateMarkdown(
       headers: authorizationHeaders(accessToken, {
         'content-type': multipart.contentType
       }),
-      body: multipart.body
+      body: typeof multipart.body === 'string' ? multipart.body : Buffer.from(multipart.body)
     })
   )
 }
@@ -695,8 +714,8 @@ export async function moveMarkdown(
   input: MoveMarkdownInput,
   fetchImpl: typeof fetch = globalThis.fetch
 ): Promise<DriveMarkdownFile> {
-  const oldPath = normalizedMarkdownPath(input.oldPath)
-  const path = normalizedMarkdownPath(input.path)
+  const oldPath = normalizedVaultPath(input.oldPath)
+  const path = normalizedVaultPath(input.path)
   const current = await getMarkdownMetadata(accessToken, input.fileId, fetchImpl)
   if (
     current.id !== input.fileId ||
@@ -713,7 +732,7 @@ export async function moveMarkdown(
       current.md5Checksum === input.expectedMd5Checksum
     if (!md5Matches) {
       const currentContent = input.expectedContentHash
-        ? await downloadMarkdown(accessToken, input.fileId, fetchImpl)
+        ? await downloadVaultFile(accessToken, input.fileId, fetchImpl)
         : null
       if (
         currentContent === null ||
@@ -740,9 +759,9 @@ export async function moveMarkdown(
   )
 }
 
-function multipartBytes(metadata: UnknownRecord, bytes: Buffer): { contentType: string; body: Uint8Array } {
+function multipartBytes(metadata: UnknownRecord, bytes: Buffer, mimeType = 'application/json'): { contentType: string; body: Uint8Array } {
   const boundary = `tsuzune_${randomUUID()}`
-  const head = [`--${boundary}`, 'Content-Type: application/json; charset=UTF-8', '', JSON.stringify(metadata), `--${boundary}`, 'Content-Type: application/json', '', '']
+  const head = [`--${boundary}`, 'Content-Type: application/json; charset=UTF-8', '', JSON.stringify(metadata), `--${boundary}`, `Content-Type: ${mimeType}`, '', '']
   const prefix = new TextEncoder().encode(head.join('\r\n'))
   const suffix = new TextEncoder().encode(`\r\n--${boundary}--\r\n`)
   const body = new Uint8Array(prefix.byteLength + bytes.byteLength + suffix.byteLength)
@@ -775,7 +794,7 @@ export async function trashMarkdown(
   if (
     current.id !== input.fileId ||
     current.appProperties.tsuzuneVaultId !== input.vaultId ||
-    current.path !== normalizedMarkdownPath(input.path)
+    current.path !== normalizedVaultPath(input.path)
   ) {
     throw new Error('Google Drive側の削除対象または場所が変わりました。同期内容を確認し直してください。')
   }
@@ -784,7 +803,7 @@ export async function trashMarkdown(
       current.md5Checksum === input.expectedMd5Checksum
     if (!md5Matches) {
       const currentContent = input.expectedContentHash
-        ? await downloadMarkdown(accessToken, input.fileId, fetchImpl)
+        ? await downloadVaultFile(accessToken, input.fileId, fetchImpl)
         : null
       const contentMatches = currentContent !== null &&
         createHash('sha256').update(currentContent).digest('hex') === input.expectedContentHash

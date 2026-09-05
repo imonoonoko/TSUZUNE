@@ -5,7 +5,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { startDriveSyncBridge } from '../src/main/mcp-drive-sync-bridge'
 import { DriveSyncMcpClient } from '../src/mcp/drive-sync'
 import type { DriveSyncApplyResult, DriveSyncPreview } from '../src/shared/types'
-import type { EntryMovePlan, EntryMoveResult } from '../src/main/entry-move'
+import type {
+  EntryMovePlan,
+  EntryMoveResult,
+  EntryTrashResult
+} from '../src/main/entry-move'
 
 const preview: DriveSyncPreview = {
   planId: 'plan-1',
@@ -44,8 +48,13 @@ const movePlan: EntryMovePlan = {
 const moved: EntryMoveResult = {
   old_path: 'Inbox/A.md',
   new_path: 'Archive/A.md',
-  fingerprint: movePlan.fingerprint,
-  history_path: '50_履歴/AI更新/move.md'
+  fingerprint: movePlan.fingerprint
+}
+
+const trashed: EntryTrashResult = {
+  old_path: '01_受信箱/A.md',
+  new_path: '.trash/20260902/A.md',
+  source_revision: 'sha256:source'
 }
 
 describe('Drive sync MCP bridge', () => {
@@ -61,7 +70,8 @@ describe('Drive sync MCP bridge', () => {
       preview: async () => preview,
       apply,
       preflightMoveEntry: async () => movePlan,
-      moveEntry: async () => moved
+      moveEntry: async () => moved,
+      trashEntry: async () => trashed
     })
 
     try {
@@ -75,11 +85,15 @@ describe('Drive sync MCP bridge', () => {
         await client.moveEntry({
           source: movePlan.source,
           destination: movePlan.destination,
-          expected_fingerprint: movePlan.fingerprint,
-          reason: '整理',
-          source_refs: []
+          expected_fingerprint: movePlan.fingerprint
         })
       ).toEqual(moved)
+      expect(
+        await client.trashEntry({
+          source: trashed.old_path,
+          expected_revision: trashed.source_revision
+        })
+      ).toEqual(trashed)
       expect(apply).toHaveBeenCalledOnce()
       expect(await readFile(statePath, 'utf8')).not.toContain('refresh')
     } finally {

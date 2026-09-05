@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildWikiGraph,
   buildWikiGraphForView,
+  excludeWikiGraphPaths,
   filterWikiGraph,
   getLocalWikiGraph,
   getVaultWikiGraph
@@ -538,6 +539,38 @@ describe('Wiki graph', () => {
     })
 
     expect(filterWikiGraph(graph, '入口.md', '   ')).toBe(graph)
+  })
+
+  it('removes excluded existing files without turning them into unresolved nodes', () => {
+    const graph = buildWikiGraph(
+      [
+        note(
+          'A.md',
+          '[[80_excluded/Hidden]] [[Missing Note]] #visible-tag'
+        ),
+        note('80_excluded/Hidden.md', '#hidden-tag')
+      ],
+      { includeUnresolved: true, includeTags: true }
+    )
+
+    expect(
+      excludeWikiGraphPaths(graph, (path) => path.startsWith('80_excluded/'))
+    ).toEqual({
+      nodes: [
+        existingNode('A.md', 'A'),
+        {
+          path: 'Missing Note',
+          name: 'Missing Note',
+          kind: 'unresolved',
+          exists: false
+        },
+        tagNode('#visible-tag')
+      ],
+      edges: [
+        { sourcePath: 'A.md', targetPath: 'Missing Note' },
+        { sourcePath: 'A.md', targetPath: 'tag:#visible-tag' }
+      ]
+    })
   })
 
   it('matches the Obsidian unresolved-node sets for malformed graph queries', () => {

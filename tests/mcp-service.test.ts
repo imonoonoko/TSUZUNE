@@ -21,6 +21,12 @@ describe('MCP vault service', () => {
   beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), 'tsuzune-service-'))
     await mkdir(join(root, 'Projects'))
+    await mkdir(join(root, '30_知識'), { recursive: true })
+    await writeFile(
+      join(root, '30_知識', 'TSUZUNE分類と保存基準.md'),
+      '- 30_知識: AI・記憶 / ソフトウェア開発 / 知識管理 / UX / 検証・品質 / 生活・創作\n',
+      'utf8'
+    )
     await writeFile(
       join(root, 'Home.md'),
       '# Home\n\n[[Projects/TSUZUNE]]',
@@ -63,6 +69,438 @@ describe('MCP vault service', () => {
     })
   })
 
+  it('trashes an unlinked Inbox source directly without the desktop app', async () => {
+    await mkdir(join(root, '01_受信箱'))
+    const sourcePath = join(root, '01_受信箱', '退避対象.md')
+    const sourceContent = '# 退避対象\n\n復元できる原典。'
+    await writeFile(sourcePath, sourceContent, 'utf8')
+    const fetched = await service.fetch('01_受信箱/退避対象.md')
+
+    const result = await service.trashInboxSource(
+      fetched.id,
+      fetched.metadata.revision
+    )
+
+    expect(result.old_path).toBe('01_受信箱/退避対象.md')
+    expect(result.new_path).toMatch(
+      /^\.trash\/[^/]+\/01_受信箱\/退避対象\.md$/
+    )
+    expect(result.source_revision).toBe(fetched.metadata.revision)
+    await expect(stat(sourcePath)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readFile(join(root, ...result.new_path.split('/')), 'utf8')).toBe(
+      sourceContent
+    )
+  })
+
+  it('refuses direct Inbox trash when the revision is stale or a backlink remains', async () => {
+    await mkdir(join(root, '01_受信箱'))
+    const sourcePath = join(root, '01_受信箱', '保護対象.md')
+    await writeFile(sourcePath, '# 保護対象', 'utf8')
+    const fetched = await service.fetch('01_受信箱/保護対象.md')
+
+    await expect(
+      service.trashInboxSource(fetched.id, `sha256:${'0'.repeat(64)}`)
+    ).rejects.toThrow('revisionが変わりました')
+
+    await writeFile(join(root, 'Projects', '参照.md'), '[[保護対象]]', 'utf8')
+    await expect(
+      service.trashInboxSource(fetched.id, fetched.metadata.revision)
+    ).rejects.toThrow('リンク元が1件残っています')
+    expect(await readFile(sourcePath, 'utf8')).toBe('# 保護対象')
+  })
+
+  it('creates a derived note without changing the Inbox source or waiting for review', async () => {
+    await mkdir(join(root, '01_受信箱'))
+    await mkdir(join(root, '30_知識'), { recursive: true })
+    const sourcePath = join(root, '01_受信箱', '原典.md')
+    await writeFile(sourcePath, '# 原典\n\n本文。', 'utf8')
+    const settingsPath = join(root, 'settings.json')
+    await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root }), 'utf8')
+    const scoped = new VaultMcpService({ settingsPath })
+    const fetched = await scoped.fetch('01_受信箱/原典.md')
+    const before = await readFile(sourcePath, 'utf8')
+    const created = await scoped.createDerivedNote({
+      destination: '30_知識/派生.md',
+      content: '要点。',
+      category: '知識管理',
+      topics: ['AI', '原典追跡'],
+      sourceId: fetched.id,
+      sourceRevision: fetched.metadata.revision
+    })
+    expect(created.id).toBe('30_知識/派生.md')
+    expect(created.pending_review).toBeUndefined()
+    expect(await readFile(sourcePath, 'utf8')).toBe(before)
+    expect(await scoped.listReviewProposals()).toEqual([])
+    const derived = await readFile(join(root, '30_知識', '派生.md'), 'utf8')
+    expect(derived).toContain('type: knowledge')
+    expect(derived).toContain('role: knowledge')
+    expect(derived).toContain('category: "知識管理"')
+    expect(derived).toContain('topics: ["AI", "原典追跡"]')
+    expect(derived).toContain('derived_from: "[[01_受信箱/原典]]"')
+    expect(
+      (await scoped.backlinks('01_受信箱/原典.md')).backlinks.map(
+        (item) => item.id
+      )
+    ).toContain('30_知識/派生.md')
+    expect(await readFile(sourcePath, 'utf8')).toBe(before)
+  })
+
+  it('applies an existing valid derived proposal instead of leaving legacy review work', async () => {
+    await mkdir(join(root, '01_受信箱'))
+    await writeFile(join(root, '01_受信箱', '旧提案.md'), '# 旧提案', 'utf8')
+    const settingsPath = join(root, 'settings.json')
+    await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root }), 'utf8')
+    const scoped = new VaultMcpService({ settingsPath })
+    const fetched = await scoped.fetch('01_受信箱/旧提案.md')
+    const input = {
+      destination: '30_知識/旧提案の派生.md',
+      content: '既に検証済みの要点。',
+      category: '知識管理',
+      topics: ['受信箱'],
+      sourceId: fetched.id,
+      sourceRevision: fetched.metadata.revision
+    }
+    await scoped.proposeDerivedNote(input)
+
+    const created = await scoped.createDerivedNote(input)
+
+    expect(created.id).toBe('30_知識/旧提案の派生.md')
+    expect(await scoped.listReviewProposals()).toEqual([])
+  })
+
+  it('creates multiple concept notes from one source revision and rejects only the same concept key', async () => {
+    await mkdir(join(root, '01_受信箱'))
+    await writeFile(join(root, '01_受信箱', '複数概念.md'), '# 複数概念', 'utf8')
+    const settingsPath = join(root, 'settings.json')
+    await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root }), 'utf8')
+    const scoped = new VaultMcpService({ settingsPath })
+    const fetched = await scoped.fetch('01_受信箱/複数概念.md')
+    const base = {
+      content: '再利用できる概念。',
+      category: '知識管理',
+      topics: ['概念分解'],
+      sourceId: fetched.id,
+      sourceRevision: fetched.metadata.revision
+    }
+
+    await scoped.createDerivedNote({
+      ...base,
+      destination: '30_知識/概念A.md',
+      derivationKey: '概念A'
+    })
+    await scoped.createDerivedNote({
+      ...base,
+      destination: '30_知識/概念B.md',
+      derivationKey: '概念B'
+    })
+
+    await expect(
+      scoped.createDerivedNote({
+        ...base,
+        destination: '30_知識/概念Aの重複.md',
+        derivationKey: '概念A'
+      })
+    ).rejects.toThrow('同じ原典revision')
+    expect(await readFile(join(root, '30_知識', '概念A.md'), 'utf8')).toContain(
+      'derivation_key: "概念A"'
+    )
+    expect(await readFile(join(root, '30_知識', '概念B.md'), 'utf8')).toContain(
+      'derivation_key: "概念B"'
+    )
+  })
+
+  it('replaces a mismatched legacy review proposal with the current concept output', async () => {
+    await mkdir(join(root, '01_受信箱'))
+    await writeFile(join(root, '01_受信箱', '再抽出.md'), '# 再抽出', 'utf8')
+    const settingsPath = join(root, 'settings.json')
+    await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root }), 'utf8')
+    const scoped = new VaultMcpService({ settingsPath })
+    const fetched = await scoped.fetch('01_受信箱/再抽出.md')
+    const base = {
+      category: '知識管理',
+      topics: ['再抽出'],
+      sourceId: fetched.id,
+      sourceRevision: fetched.metadata.revision,
+      derivationKey: '再抽出概念'
+    }
+    await scoped.proposeDerivedNote({
+      ...base,
+      destination: '30_知識/古い案.md',
+      content: '古い内容。'
+    })
+
+    const created = await scoped.createDerivedNote({
+      ...base,
+      destination: '30_知識/現在の案.md',
+      content: '現在の内容。'
+    })
+
+    expect(created.id).toBe('30_知識/現在の案.md')
+    await expect(stat(join(root, '30_知識', '古い案.md'))).rejects.toThrow()
+    expect(await readFile(join(root, '30_知識', '現在の案.md'), 'utf8')).toContain(
+      '現在の内容。'
+    )
+    expect(await scoped.listReviewProposals()).toEqual([])
+  })
+
+  it('quotes derived metadata and rejects a second proposal for the same source revision', async () => {
+    await mkdir(join(root, '01_受信箱'))
+    await mkdir(join(root, '30_知識'), { recursive: true })
+    await writeFile(join(root, '01_受信箱', '原典.md'), '# 原典', 'utf8')
+    const settingsPath = join(root, 'settings.json')
+    await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root }), 'utf8')
+    const scoped = new VaultMcpService({ settingsPath })
+    const fetched = await scoped.fetch('01_受信箱/原典.md')
+
+    await scoped.proposeDerivedNote({
+      destination: '30_知識/一件目.md',
+      content: '再利用できる主張。',
+      category: 'UX',
+      topics: ['原典,追跡', '引用'],
+      sourceId: fetched.id,
+      sourceRevision: fetched.metadata.revision
+    })
+
+    const proposal = (await scoped.listReviewProposals())[0]
+    expect(proposal.content).toContain('category: "UX"')
+    expect(proposal.content).toContain('topics: ["原典,追跡", "引用"]')
+    await expect(
+      scoped.proposeDerivedNote({
+        destination: '30_知識/二件目.md',
+        content: '別名でも同じ生成単位。',
+        category: 'UX',
+        topics: ['重複防止'],
+        sourceId: fetched.id,
+        sourceRevision: fetched.metadata.revision
+      })
+    ).rejects.toThrow('同じ原典revision')
+  })
+
+  it('registers at most one pending proposal for the same source revision under concurrency', async () => {
+    await mkdir(join(root, '01_受信箱'))
+    await writeFile(join(root, '01_受信箱', '並行原典.md'), '# 並行原典', 'utf8')
+    const settingsPath = join(root, 'settings.json')
+    await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root }), 'utf8')
+    const scoped = new VaultMcpService({ settingsPath })
+    const fetched = await scoped.fetch('01_受信箱/並行原典.md')
+    const base = {
+      content: '再利用できる主張。',
+      category: '知識管理',
+      topics: ['並行制御'],
+      sourceId: fetched.id,
+      sourceRevision: fetched.metadata.revision
+    }
+
+    const results = await Promise.allSettled([
+      scoped.proposeDerivedNote({ ...base, destination: '30_知識/並行A.md' }),
+      scoped.proposeDerivedNote({ ...base, destination: '30_知識/並行B.md' })
+    ])
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1)
+    expect(await scoped.listReviewProposals()).toHaveLength(1)
+  })
+
+  it('rejects unsafe derived-note inputs before registering a proposal', async () => {
+    await mkdir(join(root, '01_受信箱'))
+    await mkdir(join(root, '01_受信箱', '深い'))
+    await mkdir(join(root, '30_知識'), { recursive: true })
+    await writeFile(join(root, '01_受信箱', '原典.md'), '# 原典', 'utf8')
+    await writeFile(join(root, '01_受信箱', '深い', 'knowledge.md'), '# 保護対象', 'utf8')
+    await writeFile(join(root, '01_受信箱', '題#見出し.md'), '# Wikiリンク不能', 'utf8')
+    const settingsPath = join(root, 'settings.json')
+    await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root }), 'utf8')
+    const scoped = new VaultMcpService({ settingsPath })
+    const fetched = await scoped.fetch('01_受信箱/原典.md')
+    const base = {
+      destination: '30_知識/派生.md',
+      content: '本文。',
+      category: '知識管理',
+      topics: ['原典追跡'],
+      sourceId: fetched.id,
+      sourceRevision: fetched.metadata.revision
+    }
+
+    await expect(
+      scoped.proposeDerivedNote({ ...base, destination: 'Projects/派生.md' })
+    ).rejects.toThrow('30_知識')
+    await expect(
+      scoped.proposeDerivedNote({ ...base, sourceId: 'Projects/TSUZUNE.md' })
+    ).rejects.toThrow('01_受信箱または40_情報源')
+    await expect(
+      scoped.proposeDerivedNote({ ...base, content: '---\ntype: source\n---\n本文' })
+    ).rejects.toThrow('frontmatter')
+    await expect(
+      scoped.proposeDerivedNote({ ...base, topics: ['a', 'b', 'c', 'd'] })
+    ).rejects.toThrow('1〜3件')
+    await expect(
+      scoped.proposeDerivedNote({ ...base, topics: ['AI', 'ai'] })
+    ).rejects.toThrow('重複しない')
+    await expect(
+      scoped.proposeDerivedNote({ ...base, topics: ['AI"引用'] })
+    ).rejects.toThrow('ダブルクォート')
+    await expect(
+      scoped.proposeDerivedNote({ ...base, category: '未登録カテゴリ' })
+    ).rejects.toThrow('既存主カテゴリ')
+    await expect(
+      scoped.proposeDerivedNote({ ...base, category: 'UX"Research' })
+    ).rejects.toThrow('ダブルクォート')
+    await expect(
+      scoped.proposeDerivedNote({
+        ...base,
+        sourceId: '01_受信箱/深い/knowledge.md'
+      })
+    ).rejects.toThrow('knowledge.md')
+    const hashPath = await scoped.fetch('01_受信箱/題#見出し.md')
+    await expect(
+      scoped.proposeDerivedNote({
+        ...base,
+        sourceId: hashPath.id,
+        sourceRevision: hashPath.metadata.revision
+      })
+    ).rejects.toThrow('Wikiリンク')
+    await expect(
+      scoped.proposeDerivedNote({
+        ...base,
+        sourceRevision: `sha256:${'0'.repeat(64)}`
+      })
+    ).rejects.toThrow('原典が変更')
+    expect(await scoped.listReviewProposals()).toEqual([])
+  })
+
+  it('allows a derived proposal from a large source read in chunks', async () => {
+    await mkdir(join(root, '01_受信箱'))
+    const source = `# 長い原典\n\n${'あ'.repeat(220_000)}`
+    await writeFile(join(root, '01_受信箱', '長い原典.md'), source, 'utf8')
+    const settingsPath = join(root, 'settings.json')
+    await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root }), 'utf8')
+    const scoped = new VaultMcpService({ settingsPath })
+    const first = await scoped.fetch('01_受信箱/長い原典.md')
+    const second = await scoped.fetch('01_受信箱/長い原典.md', first.next_after)
+    const third = await scoped.fetch('01_受信箱/長い原典.md', second.next_after)
+
+    expect(first.text + second.text + third.text).toBe(source)
+    expect(first.metadata.revision).toBe(second.metadata.revision)
+    expect(third.next_after).toBeUndefined()
+    await expect(scoped.proposeDerivedNote({
+      destination: '30_知識/長い原典からの派生.md',
+      content: '長い原典を分割して確認した結果。',
+      category: '知識管理',
+      topics: ['長文原典'],
+      sourceId: first.id,
+      sourceRevision: first.metadata.revision
+    })).resolves.toMatchObject({ pending_review: true })
+  })
+
+  it('fails closed for empty or case-insensitively duplicated canonical categories', async () => {
+    await mkdir(join(root, '01_受信箱'))
+    await writeFile(join(root, '01_受信箱', '分類原典.md'), '# 分類原典', 'utf8')
+    const settingsPath = join(root, 'settings.json')
+    await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root }), 'utf8')
+    const scoped = new VaultMcpService({ settingsPath })
+    const fetched = await scoped.fetch('01_受信箱/分類原典.md')
+    const input = {
+      destination: '30_知識/分類.md',
+      content: '本文。',
+      category: 'UX',
+      topics: ['分類'],
+      sourceId: fetched.id,
+      sourceRevision: fetched.metadata.revision
+    }
+    const catalogPath = join(root, '30_知識', 'TSUZUNE分類と保存基準.md')
+
+    await writeFile(catalogPath, '- 30_知識: 知識管理 / / UX\n', 'utf8')
+    await expect(scoped.proposeDerivedNote(input)).rejects.toThrow(
+      'TSUZUNE主カテゴリ正本'
+    )
+
+    await writeFile(catalogPath, '- 30_知識: 知識管理 / UX / ux\n', 'utf8')
+    await expect(scoped.proposeDerivedNote(input)).rejects.toThrow(
+      'TSUZUNE主カテゴリ正本'
+    )
+    expect(await scoped.listReviewProposals()).toEqual([])
+  })
+
+  it('invalidates a derived proposal when its source changes before approval', async () => {
+    await mkdir(join(root, '01_受信箱'))
+    const sourcePath = join(root, '01_受信箱', '更新原典.md')
+    await writeFile(sourcePath, '# 更新原典', 'utf8')
+    const settingsPath = join(root, 'settings.json')
+    await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root }), 'utf8')
+    const scoped = new VaultMcpService({ settingsPath })
+    const fetched = await scoped.fetch('01_受信箱/更新原典.md')
+    const proposed = await scoped.proposeDerivedNote({
+      destination: '30_知識/失効.md',
+      content: '本文。',
+      category: '知識管理',
+      topics: ['失効'],
+      sourceId: fetched.id,
+      sourceRevision: fetched.metadata.revision
+    })
+    await writeFile(sourcePath, '# 更新された原典', 'utf8')
+
+    await expect(
+      scoped.approveReviewProposal(proposed.proposal?.id ?? '')
+    ).rejects.toThrow('失効')
+    expect(await scoped.listReviewProposals()).toEqual([])
+    await expect(stat(join(root, '30_知識', '失効.md'))).rejects.toThrow()
+  })
+
+  it('invalidates a derived proposal when its canonical category is removed before approval', async () => {
+    await mkdir(join(root, '01_受信箱'))
+    await writeFile(join(root, '01_受信箱', 'カテゴリ原典.md'), '# カテゴリ原典', 'utf8')
+    const settingsPath = join(root, 'settings.json')
+    await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root }), 'utf8')
+    const scoped = new VaultMcpService({ settingsPath })
+    const fetched = await scoped.fetch('01_受信箱/カテゴリ原典.md')
+    const proposed = await scoped.proposeDerivedNote({
+      destination: '30_知識/カテゴリ失効.md',
+      content: '本文。',
+      category: 'UX',
+      topics: ['分類'],
+      sourceId: fetched.id,
+      sourceRevision: fetched.metadata.revision
+    })
+    await writeFile(
+      join(root, '30_知識', 'TSUZUNE分類と保存基準.md'),
+      '- 30_知識: AI・記憶 / ソフトウェア開発 / 知識管理 / 検証・品質 / 生活・創作\n',
+      'utf8'
+    )
+
+    await expect(
+      scoped.approveReviewProposal(proposed.proposal?.id ?? '')
+    ).rejects.toThrow('失効')
+    expect(await scoped.listReviewProposals()).toEqual([])
+    await expect(stat(join(root, '30_知識', 'カテゴリ失効.md'))).rejects.toThrow()
+  })
+
+  it('invalidates a derived-note proposal when its destination appears before approval', async () => {
+    await mkdir(join(root, '01_受信箱'))
+    await mkdir(join(root, '30_知識'), { recursive: true })
+    await writeFile(join(root, '01_受信箱', '原典.md'), '# 原典', 'utf8')
+    const settingsPath = join(root, 'settings.json')
+    await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root }), 'utf8')
+    const scoped = new VaultMcpService({ settingsPath })
+    const fetched = await scoped.fetch('01_受信箱/原典.md')
+    const proposed = await scoped.proposeDerivedNote({
+      destination: '30_知識/衝突.md',
+      content: '本文。',
+      category: '知識管理',
+      topics: ['衝突'],
+      sourceId: fetched.id,
+      sourceRevision: fetched.metadata.revision
+    })
+    await writeFile(join(root, '30_知識', '衝突.md'), '# 人間のノート', 'utf8')
+
+    await expect(
+      scoped.approveReviewProposal(proposed.proposal?.id ?? '')
+    ).rejects.toThrow('同じノートが作成')
+    expect(await readFile(join(root, '30_知識', '衝突.md'), 'utf8')).toBe(
+      '# 人間のノート'
+    )
+    expect(await scoped.listReviewProposals()).toEqual([])
+  })
+
   it('does not repair malformed creation-time metadata during a read-only fetch', async () => {
     const sidecarPath = join(root, '.tsuzune', 'graph-file-times.json')
     await mkdir(join(root, '.tsuzune'))
@@ -91,6 +529,49 @@ describe('MCP vault service', () => {
 
     const context = await service.buildContext('Home.md')
     expect(context.markdown).toContain('Path: Projects/TSUZUNE.md')
+  })
+
+  it('separates observed context selection from unobservable downstream use', async () => {
+    await service.search('AI連携')
+
+    const context = await service.buildContext('Home.md')
+
+    expect(context.usage_receipt).toEqual({
+      schema_version: 1,
+      search_candidates: { status: 'not_observable' },
+      context_candidates: {
+        status: 'observed',
+        note_ids: ['Home.md', 'Projects/TSUZUNE.md']
+      },
+      context_included: {
+        status: 'observed',
+        note_ids: ['Home.md', 'Projects/TSUZUNE.md']
+      },
+      evidence_cited: { status: 'not_observable' },
+      decision_or_action: { status: 'not_observable' },
+      outcome_verified: { status: 'not_observable' }
+    })
+  })
+
+  it('marks state lineage unknown when the seed has no explicit temporal state', async () => {
+    const context = await service.buildContext('Home.md', 15_000, {
+      asOf: '2026-09-05'
+    })
+
+    expect(context.state_lineage).toEqual({
+      schema_version: 1,
+      subject: {
+        note_id: 'Home.md',
+        revision: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+        modified_at: expect.any(String)
+      },
+      current_states: { status: 'unknown' },
+      explicit_sources: { status: 'unknown' },
+      supersession: { status: 'unknown' },
+      conflicts: { status: 'unknown' },
+      freshness: { status: 'unknown', as_of: '2026-09-05' },
+      decision_records: { status: 'not_observable' }
+    })
   })
 
   it('returns fetch-compatible descriptors for every included context source', async () => {
@@ -148,27 +629,6 @@ describe('MCP vault service', () => {
     expect(backlinks.total).toBe(1)
   })
 
-  it('includes history backlinks when explicitly requested', async () => {
-    await mkdir(join(root, '50_履歴', 'AI更新'), { recursive: true })
-    await writeFile(
-      join(root, '50_履歴', 'AI更新', 'Backlink.md'),
-      '# History backlink\n\n[[Projects/TSUZUNE]]',
-      'utf8'
-    )
-
-    const backlinks = await service.backlinks(
-      'Projects/TSUZUNE.md',
-      20,
-      true
-    )
-
-    expect(backlinks.backlinks.map((item) => item.id)).toEqual([
-      '50_履歴/AI更新/Backlink.md',
-      'Home.md'
-    ])
-    expect(backlinks.total).toBe(2)
-  })
-
   it('continues backlinks with a stateless path cursor', async () => {
     await writeFile(
       join(root, 'Alpha.md'),
@@ -185,7 +645,6 @@ describe('MCP vault service', () => {
     const second = await service.backlinks(
       'Projects/TSUZUNE.md',
       2,
-      false,
       first.next_after
     )
     const ids = [...first.backlinks, ...second.backlinks].map(
@@ -375,7 +834,7 @@ describe('MCP vault service', () => {
     ])
   })
 
-  it('includes 50_履歴 audit history when include_history is true', async () => {
+  it('always excludes 50_履歴 from search', async () => {
     await mkdir(join(root, '50_履歴', 'AI更新'), { recursive: true })
     await writeFile(
       join(root, '50_履歴', 'AI更新', '2026-08-13T00-00-00-000Z-00_-sample-abc123.md'),
@@ -385,12 +844,6 @@ describe('MCP vault service', () => {
 
     const excluded = await service.search('AI連携')
     expect(excluded.results.map((result) => result.id)).toEqual([
-      'Projects/TSUZUNE.md'
-    ])
-
-    const included = await service.search('AI連携', 10, true)
-    expect(included.results.map((result) => result.id).sort()).toEqual([
-      '50_履歴/AI更新/2026-08-13T00-00-00-000Z-00_-sample-abc123.md',
       'Projects/TSUZUNE.md'
     ])
   })
@@ -404,9 +857,6 @@ describe('MCP vault service', () => {
     )
 
     expect((await service.search('唯一のヒット')).results).toEqual([])
-    const included = await service.search('唯一のヒット', 10, true)
-    expect(included.results).toHaveLength(1)
-    expect(included.results[0].id).toContain('50_履歴')
   })
 
   it('applies limit after excluding history', async () => {
@@ -427,11 +877,10 @@ describe('MCP vault service', () => {
     const limited = await service.search('AI連携', 1)
     expect(limited.results).toHaveLength(1)
 
-    const all = await service.search('AI連携', 10, true)
+    const all = await service.search('AI連携', 10)
     expect(all.results.map((result) => result.id).sort()).toEqual([
       '30_知識/A.md',
       '30_知識/B.md',
-      '50_履歴/H.md',
       'Projects/TSUZUNE.md'
     ])
   })
@@ -473,7 +922,8 @@ describe('MCP vault service', () => {
       { find: 'あとで直す。', replace: '直しました。', match_count: 1 }
     ])
     expect(patched.provenance.reason).toBe('テスト用の部分更新')
-    expect(patched.provenance.history_path).toBeTruthy()
+    expect('history_path' in patched.provenance).toBe(false)
+    await expect(stat(join(root, '50_履歴', 'AI更新'))).rejects.toThrow()
 
     const after = await service.fetch('Projects/TSUZUNE.md')
     expect(after.text).toContain('直しました。')
@@ -791,16 +1241,8 @@ describe('MCP vault service', () => {
       '# TSUZUNE\n\n旧IDから自動更新。'
     )
     expect(autonomous.id).toBe('Knowledge/TSUZUNE.md')
-    const historyPath = autonomous.provenance.history_path
-    expect(historyPath).toBeDefined()
-    if (!historyPath) {
-      throw new Error('autonomous update must record a history path')
-    }
-    const history = await readFile(
-      join(root, historyPath),
-      'utf8'
-    )
-    expect(history).toContain('target: Knowledge/TSUZUNE.md')
+    expect('history_path' in autonomous.provenance).toBe(false)
+    await expect(stat(join(root, '50_履歴', 'AI更新'))).rejects.toThrow()
   })
 
   it('prefers an existing old-path note and rejects aliases without a live target', async () => {
@@ -906,6 +1348,177 @@ describe('MCP vault service', () => {
     })
   })
 
+  it('returns only explicit state lineage, source, supersession, conflict, and freshness facts', async () => {
+    await mkdir(join(root, 'History'))
+    await mkdir(join(root, '40_情報源'))
+    await writeFile(
+      join(root, '40_情報源', 'Home-evidence.md'),
+      '# Home evidence\n\nObserved source.',
+      'utf8'
+    )
+    await writeFile(
+      join(root, 'History', 'Home-planning.md'),
+      [
+        '---',
+        'kind: state',
+        'subject: "[[Home]]"',
+        'status: planning',
+        'valid_from: 2026-01-01',
+        'observed_at: 2026-01-01',
+        '---',
+        '# Home planning'
+      ].join('\n'),
+      'utf8'
+    )
+    await writeFile(
+      join(root, 'History', 'Home-active.md'),
+      [
+        '---',
+        'kind: state',
+        'subject: "[[Home]]"',
+        'status: active',
+        'valid_from: 2026-02-01',
+        'observed_at: 2026-02-01',
+        'verified_at: 2026-08-30',
+        'review_after: 2026-09-01',
+        'source: "[[40_情報源/Home-evidence]]"',
+        'supersedes: "[[History/Home-planning]]"',
+        '---',
+        '# Home active'
+      ].join('\n'),
+      'utf8'
+    )
+    await writeFile(
+      join(root, 'History', 'Home-blocked.md'),
+      [
+        '---',
+        'kind: state',
+        'subject: "[[Home]]"',
+        'status: blocked',
+        'valid_from: 2026-08-01',
+        'observed_at: 2026-08-01',
+        '---',
+        '# Home blocked'
+      ].join('\n'),
+      'utf8'
+    )
+
+    const context = await service.buildContext('Home.md', 15_000, {
+      asOf: '2026-09-05'
+    })
+
+    expect(context.state_lineage.subject).toEqual({
+      note_id: 'Home.md',
+      revision: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+      modified_at: expect.any(String)
+    })
+    expect(context.state_lineage.current_states).toEqual({
+      status: 'observed',
+      states: [
+        {
+          note_id: 'History/Home-active.md',
+          state: 'active',
+          valid_from: '2026-02-01',
+          observed_at: '2026-02-01',
+          verified_at: '2026-08-30',
+          review_after: '2026-09-01',
+          revision: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+          modified_at: expect.any(String)
+        },
+        {
+          note_id: 'History/Home-blocked.md',
+          state: 'blocked',
+          valid_from: '2026-08-01',
+          observed_at: '2026-08-01',
+          revision: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+          modified_at: expect.any(String)
+        }
+      ]
+    })
+    expect(context.state_lineage.explicit_sources).toEqual({
+      status: 'observed',
+      relations: [
+        {
+          from_note_id: 'History/Home-active.md',
+          source_ref: '[[40_情報源/Home-evidence]]',
+          resolution: 'resolved',
+          source_note_id: '40_情報源/Home-evidence.md',
+          source_revision: expect.stringMatching(/^sha256:[a-f0-9]{64}$/)
+        }
+      ]
+    })
+    expect(context.state_lineage.supersession).toEqual({
+      status: 'observed',
+      relations: [
+        {
+          successor_note_id: 'History/Home-active.md',
+          superseded_ref: '[[History/Home-planning]]',
+          resolution: 'resolved',
+          superseded_note_id: 'History/Home-planning.md',
+          successor_revision: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+          superseded_revision: expect.stringMatching(/^sha256:[a-f0-9]{64}$/)
+        }
+      ]
+    })
+    expect(context.state_lineage.conflicts).toEqual({
+      status: 'observed',
+      current_state_note_ids: [
+        'History/Home-active.md',
+        'History/Home-blocked.md'
+      ]
+    })
+    expect(context.state_lineage.freshness).toEqual({
+      status: 'observed',
+      value: 'review_due',
+      as_of: '2026-09-05',
+      review_due_note_ids: ['History/Home-active.md']
+    })
+    expect(context.state_lineage.decision_records).toEqual({
+      status: 'not_observable'
+    })
+  })
+
+  it('does not expose a future supersession as observed state lineage', async () => {
+    await mkdir(join(root, 'History'))
+    await writeFile(
+      join(root, 'History', 'Home-current.md'),
+      [
+        '---',
+        'kind: state',
+        'subject: "[[Home]]"',
+        'status: current',
+        'valid_from: 2026-01-01',
+        '---',
+        '# Home current'
+      ].join('\n'),
+      'utf8'
+    )
+    await writeFile(
+      join(root, 'History', 'Home-future.md'),
+      [
+        '---',
+        'kind: state',
+        'subject: "[[Home]]"',
+        'status: future',
+        'valid_from: 2027-01-01',
+        'supersedes: "[[History/Home-current]]"',
+        '---',
+        '# Home future'
+      ].join('\n'),
+      'utf8'
+    )
+
+    const context = await service.buildContext('Home.md', 15_000, {
+      asOf: '2026-09-05'
+    })
+
+    expect(context.state_lineage.current_states).toMatchObject({
+      status: 'observed',
+      states: [{ note_id: 'History/Home-current.md', state: 'current' }]
+    })
+    expect(context.state_lineage.supersession).toEqual({ status: 'unknown' })
+  })
+
   it('lets MCP callers choose knowledge-time explicitly', async () => {
     await mkdir(join(root, 'History'))
     await writeFile(
@@ -972,24 +1585,10 @@ describe('MCP vault service', () => {
     const current = await service.buildContext('Home.md', 15_000, {
       asOf: '2026-07-15'
     })
-    const withHistory = await service.buildContext('Home.md', 15_000, {
-      asOf: '2026-07-15',
-      includeHistory: true
-    })
 
     expect(current.included.map((source) => source.path)).not.toContain(
       'History/Home-planning.md'
     )
-    expect(withHistory.included).toContainEqual({
-      path: 'History/Home-planning.md',
-      name: 'Home-planning',
-      relation: 'backlink',
-      truncated: false,
-      revision: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
-      modified_at: expect.any(String),
-      temporal_status: 'historical',
-      selection_reasons: ['指定時点より前に終了した状態']
-    })
   })
 
   it('rejects traversal and does not modify Markdown files', async () => {
@@ -1083,24 +1682,12 @@ describe('MCP vault service', () => {
     ])
     expect(updated.provenance.previous_revision).toMatch(/^sha256:[a-f0-9]{64}$/)
     expect(updated.unchanged).toBeUndefined()
-    const historyPath = updated.provenance.history_path
-    expect(historyPath).toMatch(/^50_履歴\/AI更新\/.*\.md$/)
-    if (!historyPath) {
-      throw new Error('changed autonomous update must record a history path')
-    }
+    expect('history_path' in updated.provenance).toBe(false)
+    await expect(stat(join(root, '50_履歴', 'AI更新'))).rejects.toThrow()
     expect(await readFile(join(root, 'Projects/TSUZUNE.md'), 'utf8')).toContain(
       'NotebookLMで確認した連携方針'
     )
 
-    const history = await readFile(join(root, historyPath), 'utf8')
-    expect(history).toContain('kind: ai_revision')
-    expect(history).toContain('target: Projects/TSUZUNE.md')
-    expect(history).toMatch(/previous_modified_at: \d+/)
-    expect(history).toMatch(/previous_size_bytes: \d+/)
-    expect(history).toMatch(/revision_root_sha256: [a-f0-9]{64}/)
-    expect(history).toContain('調査結果を知識ノートへ反映')
-    expect(history).toContain('NotebookLM/research-package-001.md')
-    expect(history).toContain('AI連携を試す。')
   })
 
   it('queues one review proposal without changing the note or history', async () => {
@@ -1178,7 +1765,7 @@ describe('MCP vault service', () => {
     expect(applied.id).toBe(opened.id)
     expect(await readFile(join(root, opened.id), 'utf8')).toContain('承認済み。')
     expect(await reviewService.listReviewProposals()).toEqual([])
-    expect(await stat(join(root, '50_履歴', 'AI更新'))).toBeTruthy()
+    await expect(stat(join(root, '50_履歴', 'AI更新'))).rejects.toThrow()
   })
 
   it('invalidates a review proposal when the target revision changed', async () => {
@@ -1235,7 +1822,7 @@ describe('MCP vault service', () => {
     expect(unchanged.provenance.previous_revision).toBe(
       opened.metadata.revision
     )
-    expect(unchanged.provenance.history_path).toBeUndefined()
+    expect('history_path' in unchanged.provenance).toBe(false)
     expect(await readFile(targetPath, 'utf8')).toBe(targetContents)
     expect((await stat(targetPath)).mtimeMs).toBe(targetBefore.mtimeMs)
     expect(await readFile(sidecarPath, 'utf8')).toBe(sidecarContents)
@@ -1306,7 +1893,7 @@ describe('MCP vault service', () => {
     expect(updated.provenance.previous_revision).toBe(
       opened.metadata.revision
     )
-    expect(updated.provenance.history_path).toBeUndefined()
+    expect('history_path' in updated.provenance).toBe(false)
     await expect(stat(join(root, '50_履歴', 'AI更新'))).rejects.toMatchObject({
       code: 'ENOENT'
     })
@@ -1397,6 +1984,10 @@ describe('MCP vault service', () => {
     const opened = await service.fetch('Projects/巨大ノート.md')
     expect(opened.text).toHaveLength(100_000)
     expect(opened.metadata.editable).toBe(false)
+    expect(opened.next_after).toBe(100_000)
+    const rest = await service.fetch(opened.id, opened.next_after)
+    expect(opened.text + rest.text).toBe(tooLarge)
+    expect(rest.next_after).toBeUndefined()
 
     await expect(
       service.updateNote(opened.id, opened.text, opened.metadata.revision)

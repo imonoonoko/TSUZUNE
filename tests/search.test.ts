@@ -117,4 +117,60 @@ describe('ranked note search', () => {
       '30_知識/TSUZUNE-検索・Wikiリンク・Graph.md'
     ])
   })
+
+  it('requires every whitespace-separated positive term clause to match', () => {
+    const results = searchRendererRanked(notes, 'OpenEvolve 評価')
+
+    expect(results.map((result) => result.path)).toEqual([
+      '30_知識/OpenEvolveの評価.md'
+    ])
+  })
+
+  it('filters renderer results by frontmatter category and inline topics', () => {
+    const categorized = [
+      note('30_知識/設計.md', '設計本文\n---', 30),
+      note('30_知識/研究.md', '研究本文', 20),
+      note('40_情報源/原典.md', '原典本文', 10)
+    ]
+    categorized[0].content = '---\ncategory: "知識管理"\ntopics: ["AI", "原典,追跡"]\n---\n設計本文'
+    categorized[1].content = '---\ncategory: "知識管理"\ntopics: [research]\n---\n研究本文'
+    categorized[2].content = '---\ntype: source\n---\n原典本文'
+
+    expect(searchRendererRanked(categorized, 'category:知識管理').map((r) => r.path)).toEqual([
+      '30_知識/設計.md',
+      '30_知識/研究.md'
+    ])
+    expect(searchRendererRanked(categorized, 'category:知識管理')[0]).toMatchObject({
+      category: '知識管理',
+      topics: ['AI', '原典,追跡']
+    })
+    expect(searchRendererRanked(categorized, 'topic:"原典,追跡"').map((r) => r.path)).toEqual([
+      '30_知識/設計.md'
+    ])
+    expect(searchRendererRanked(categorized, '知識管理').map((r) => r.path)).toEqual([
+      '30_知識/設計.md',
+      '30_知識/研究.md'
+    ])
+    expect(searchRendererRanked(categorized, '設計本文')[0].topics).toEqual([
+      'AI',
+      '原典,追跡'
+    ])
+  })
+
+  it('separates reusable knowledge from records with metadata filters', () => {
+    const classified = [
+      note('30_知識/原則.md', '---\ntype: knowledge\nrole: knowledge\nlifecycle: current\ncategory: 知識管理\n---\n原則'),
+      note('30_知識/実施記録.md', '---\ntype: execution-record\nrole: execution-record\nlifecycle: reference\ncategory: 知識管理\n---\n記録')
+    ]
+
+    expect(searchRendererRanked(classified, 'category:知識管理 type:knowledge').map((r) => r.path)).toEqual([
+      '30_知識/原則.md'
+    ])
+    expect(searchRendererRanked(classified, 'role:execution-record').map((r) => r.path)).toEqual([
+      '30_知識/実施記録.md'
+    ])
+    expect(searchRendererRanked(classified, 'lifecycle:current').map((r) => r.path)).toEqual([
+      '30_知識/原則.md'
+    ])
+  })
 })

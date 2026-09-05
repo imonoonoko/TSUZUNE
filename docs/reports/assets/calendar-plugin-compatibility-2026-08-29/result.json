@@ -1,0 +1,111 @@
+{
+  "checkedAt": "2026-08-29T12:49:39.765Z",
+  "overall": "PASS",
+  "applicationEntry": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\out\\main\\index.js",
+  "artifact": {
+    "main": "7fb339e9cf9fdbe5a801fa2b8ab85b366b5b3777fbd193cbc8728bc27711d125",
+    "manifest": "f3e9581338648512baa12d5b458490f7fd367918f7bdb6bd86171ce57be7d08b"
+  },
+  "runtime": {
+    "frameUrl": "tsuzune-calendar://host/?session=calendar-mtedo0ay-l11pzd213tq",
+    "days": 42,
+    "filledDots": 2,
+    "unfinishedTaskDots": 1,
+    "clickOpened": "2026-08-29",
+    "controlClickAddedTab": true,
+    "controlHoverPreview": true,
+    "settingsBadge": "SHA一致",
+    "createConfirmationCancel": true,
+    "createConfirmationAccept": "02_デイリー/2026-07-26.md",
+    "createWithoutConfirmation": "02_デイリー/2026-09-05.md",
+    "maxWordDots": 5,
+    "disabledWordDots": 0,
+    "mondayJapaneseWeekStart": "月",
+    "mondayNoteActivity": {
+      "adjacentMonth": false,
+      "created": 3,
+      "date": "2026-08-29",
+      "displayedDay": "29",
+      "modified": 4
+    },
+    "sundayWeekStart": "Sun",
+    "weekNumbers": 6,
+    "weeklyNote": "02_デイリー/週次/2026-W35.md",
+    "weeklyTemplateTagsExpanded": true,
+    "revealActiveNote": true,
+    "showCalendarView": true,
+    "customCssVariableOverride": "rgb(1, 2, 3)",
+    "settingsPersisted": true,
+    "rendererRestartRestored": {
+      "filledDots": 0,
+      "firstWeekday": "Sun",
+      "locale": "en",
+      "weekNumbers": 0
+    },
+    "noteActivity": {
+      "date": "2026-08-29",
+      "created": 1,
+      "modified": 2,
+      "historyExcluded": true,
+      "opened": "20_knowledge/Calendar Updated.md",
+      "outsideDismissed": true,
+      "markerScreenshot": "docs/reports/assets/calendar-plugin-compatibility-2026-08-29/electron-activity-markers.png"
+    }
+  },
+  "fixture": {
+    "markdownBefore": {
+      "fileCount": 13,
+      "sha256": "910e17544eb33c4c307751c6894ab31269c71aa36265a501786947bd9a12fcc8",
+      "paths": [
+        "00_Home.md",
+        "02_デイリー/2026-08-29.md",
+        "10_projects/Calendar Created.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Calendar Updated.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "50_履歴/AI更新/Calendar Hidden.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "90_テンプレート/今日のノート.md",
+        "90_テンプレート/週次.md"
+      ]
+    },
+    "markdownAfter": {
+      "fileCount": 16,
+      "sha256": "b40bd56e39635274aee2f9a817baf46b808189554f49024973b3e75a1615d371",
+      "paths": [
+        "00_Home.md",
+        "02_デイリー/2026-07-26.md",
+        "02_デイリー/2026-08-29.md",
+        "02_デイリー/2026-09-05.md",
+        "02_デイリー/週次/2026-W35.md",
+        "10_projects/Calendar Created.md",
+        "10_projects/Project Alpha.md",
+        "10_projects/Project Beta.md",
+        "20_knowledge/Calendar Updated.md",
+        "20_knowledge/Distillation.md",
+        "20_knowledge/Reference.md",
+        "50_履歴/AI更新/Calendar Hidden.md",
+        "80_excluded/Hidden.md",
+        "90_orphan/Orphan.md",
+        "90_テンプレート/今日のノート.md",
+        "90_テンプレート/週次.md"
+      ]
+    },
+    "expectedCreatedPaths": [
+      "02_デイリー/2026-07-26.md",
+      "02_デイリー/2026-09-05.md",
+      "02_デイリー/週次/2026-W35.md"
+    ],
+    "createdPaths": [
+      "02_デイリー/2026-07-26.md",
+      "02_デイリー/2026-09-05.md",
+      "02_デイリー/週次/2026-W35.md"
+    ],
+    "removedPaths": [],
+    "expectedChangesOnly": true
+  },
+  "screenshot": "docs/reports/assets/calendar-plugin-compatibility-2026-08-29/electron-acceptance.png"
+}

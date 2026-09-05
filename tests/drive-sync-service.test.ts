@@ -1,4 +1,5 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -25,6 +26,7 @@ import type {
   UpdateMarkdownInput
 } from '../src/main/google-drive'
 import { DriveChangeTokenInvalidError } from '../src/main/google-drive'
+import { VaultService } from '../src/main/vault'
 
 const temporaryDirectories: string[] = []
 
@@ -140,7 +142,7 @@ class MemoryVault {
 class MemoryRemote implements DriveSyncRemote {
   readonly files = new Map<
     string,
-    { id: string; content: string; version: number }
+    { id: string; content: string | Buffer; version: number }
   >()
   readonly roots = new Map<string, DriveVaultRoot>()
   rootCreated = false
@@ -158,6 +160,10 @@ class MemoryRemote implements DriveSyncRemote {
   activeUpdates = 0
   maxConcurrentUpdates = 0
   updateDelayMs = 0
+  failCreatePath: string | null = null
+  activeCreates = 0
+  maxConcurrentCreates = 0
+  createDelayMs = 0
   rejectChangeToken = false
   private readonly changes: DriveChange[] = []
   private nextId = 1
@@ -165,7 +171,7 @@ class MemoryRemote implements DriveSyncRemote {
 
   private metadata(
     path: string,
-    file: { id: string; content: string; version: number }
+    file: { id: string; content: string | Buffer; version: number }
   ): DriveMarkdownFile {
     return {
       id: file.id,
@@ -218,7 +224,7 @@ class MemoryRemote implements DriveSyncRemote {
     return [...this.roots.values()]
   }
 
-  async download(_accessToken: string, fileId: string): Promise<string> {
+  async download(_accessToken: string, fileId: string): Promise<string | Buffer> {
     this.downloadCount += 1
     const entry = [...this.files.values()].find((file) => file.id === fileId)
     if (!entry) throw new Error('NOT_FOUND')
@@ -243,12 +249,27 @@ class MemoryRemote implements DriveSyncRemote {
     _accessToken: string,
     input: CreateMarkdownInput
   ): Promise<DriveMarkdownFile> {
-    const id = `file-${this.nextId++}`
-    const file = { id, content: input.content, version: 1 }
-    this.files.set(input.path, file)
-    const metadata = this.metadata(input.path, file)
-    this.changes.push({ fileId: id, removed: false, file: metadata })
-    return metadata
+    this.activeCreates += 1
+    this.maxConcurrentCreates = Math.max(
+      this.maxConcurrentCreates,
+      this.activeCreates
+    )
+    try {
+      if (this.createDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, this.createDelayMs))
+      }
+      if (input.path === this.failCreatePath) {
+        throw new Error('SIMULATED_CREATE_FAILURE')
+      }
+      const id = `file-${this.nextId++}`
+      const file = { id, content: input.content, version: 1 }
+      this.files.set(input.path, file)
+      const metadata = this.metadata(input.path, file)
+      this.changes.push({ fileId: id, removed: false, file: metadata })
+      return metadata
+    } finally {
+      this.activeCreates -= 1
+    }
   }
 
   async update(
@@ -324,7 +345,7 @@ class MemoryRemote implements DriveSyncRemote {
     this.trashCount += 1
   }
 
-  set(path: string, content: string): void {
+  set(path: string, content: string | Buffer): void {
     const current = this.files.get(path)
     this.files.set(path, {
       id: current?.id ?? `file-${this.nextId++}`,
@@ -333,7 +354,7 @@ class MemoryRemote implements DriveSyncRemote {
     })
     const file = this.files.get(path) as {
       id: string
-      content: string
+      content: string | Buffer
       version: number
     }
     this.changes.push({
@@ -398,6 +419,60 @@ function serviceAt(
 }
 
 describe('DriveSyncService', () => {
+  it('syncs supported attachment bytes in both directions', async () => {
+    const rootPath = await mkdtemp(join(tmpdir(), 'tsuzune-drive-attachment-vault-'))
+    const ledgerDirectory = await mkdtemp(join(tmpdir(), 'tsuzune-drive-attachment-ledger-'))
+    temporaryDirectories.push(rootPath, ledgerDirectory)
+    await mkdir(join(rootPath, 'attachments'))
+    const initialBytes = Buffer.from([0, 255, 17])
+    await writeFile(join(rootPath, 'attachments', 'image.png'), initialBytes)
+    const vault = new VaultService()
+    await vault.setRootPath(rootPath)
+    const remote = new MemoryRemote()
+    const sync = new DriveSyncService({
+      ledgerPath: join(ledgerDirectory, 'ledger.json'),
+      vault,
+      connection: { async getAccessToken() { return 'access-token' } },
+      remote,
+      now: () => new Date('2026-07-31T04:00:00+09:00')
+    })
+
+    const uploadPreview = await sync.preview()
+    expect(uploadPreview.items).toEqual([
+      { path: 'attachments/image.png', action: 'upload', reason: 'new_local' }
+    ])
+    await expect(sync.apply(uploadPreview.planId)).resolves.toMatchObject({ uploaded: 1 })
+    expect(remote.files.get('attachments/image.png')?.content).toEqual(initialBytes)
+
+    const changedBytes = Buffer.from([9, 8, 7, 0, 255])
+    remote.set('attachments/image.png', changedBytes)
+    const downloadPreview = await sync.preview()
+    expect(downloadPreview.items).toEqual([
+      { path: 'attachments/image.png', action: 'download', reason: 'remote_changed' }
+    ])
+    await expect(sync.apply(downloadPreview.planId)).resolves.toMatchObject({ downloaded: 1 })
+    await expect(readFile(join(rootPath, 'attachments', 'image.png'))).resolves.toEqual(changedBytes)
+
+    const localConflictBytes = Buffer.from([1, 1, 1, 0, 255])
+    const remoteConflictBytes = Buffer.from([2, 2, 2, 128])
+    await writeFile(join(rootPath, 'attachments', 'image.png'), localConflictBytes)
+    remote.set('attachments/image.png', remoteConflictBytes)
+    const conflictPreview = await sync.preview()
+    expect(conflictPreview.items).toEqual([
+      { path: 'attachments/image.png', action: 'conflict', reason: 'both_changed' }
+    ])
+    const conflictResult = await sync.apply(conflictPreview.planId)
+    expect(conflictResult).toMatchObject({ conflicts: 1, uploaded: 2 })
+    expect(conflictResult.conflictPaths).toHaveLength(1)
+    const conflictPath = conflictResult.conflictPaths[0]
+    expect(conflictPath).toMatch(/^attachments\/image \(Drive conflict .+\)\.png$/)
+    await expect(readFile(join(rootPath, ...conflictPath.split('/')))).resolves.toEqual(
+      remoteConflictBytes
+    )
+    expect(remote.files.get('attachments/image.png')?.content).toEqual(localConflictBytes)
+    expect(remote.files.get(conflictPath)?.content).toEqual(remoteConflictBytes)
+  })
+
   it('rejects exact duplicate normalized Drive paths before downloading content', async () => {
     const vault = new MemoryVault()
     const remote = new MemoryRemote()
@@ -414,6 +489,29 @@ describe('DriveSyncService', () => {
     const sync = await service(vault, remote)
     await expect(sync.preview({ forceFull: true })).rejects.toThrow(/同じTSUZUNEパスが複数/)
     expect(remote.downloadCount).toBe(0)
+  })
+
+  it('treats byte-identical exact-path Drive duplicates as one recovery file', async () => {
+    const vault = new MemoryVault()
+    const remote = new MemoryRemote()
+    remote.set('Duplicate.md', 'one')
+    const listed = await remote.list('access-token', 'vault-id')
+    const checksum = createHash('md5').update('one').digest('hex')
+    remote.duplicateListedFiles = [{
+      ...listed[0],
+      id: 'z-duplicate-file',
+      md5Checksum: checksum
+    }]
+    remote.list = async () => [
+      { ...listed[0], md5Checksum: checksum },
+      ...remote.duplicateListedFiles
+    ]
+
+    const sync = await service(vault, remote)
+    await expect(sync.preview({ forceFull: true })).resolves.toMatchObject({
+      counts: { download: 1 }
+    })
+    expect(remote.downloadCount).toBe(1)
   })
 
   it('lists existing Drive vault roots as pairing choices', async () => {
@@ -818,6 +916,88 @@ describe('DriveSyncService', () => {
     expect((await sync.preview()).items).toEqual([])
   })
 
+  it('relocates and uploads an explicitly moved local note edited in the same sync', async () => {
+    const vault = new MemoryVault({ 'Inbox/A.md': 'baseline' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    await sync.apply((await sync.preview()).planId)
+    const fileId = remote.files.get('Inbox/A.md')?.id
+
+    await vault.moveNote({
+      path: 'Inbox/A.md',
+      destinationDirectory: 'Archive',
+      destinationPath: 'Archive/A.md'
+    })
+    vault.set('Archive/A.md', 'local edit')
+    await sync.recordLocalMove('Inbox/A.md', 'Archive/A.md')
+
+    const preview = await sync.preview()
+    expect(preview.items).toEqual([
+      {
+        path: 'Archive/A.md',
+        oldPath: 'Inbox/A.md',
+        action: 'move',
+        reason: 'local_moved'
+      },
+      {
+        path: 'Archive/A.md',
+        action: 'upload',
+        reason: 'local_changed'
+      }
+    ])
+    const result = await sync.apply(preview.planId)
+
+    expect(result.moved).toBe(1)
+    expect(result.uploaded).toBe(1)
+    expect(remote.files.get('Archive/A.md')).toMatchObject({
+      id: fileId,
+      content: 'local edit'
+    })
+    expect((await sync.preview()).items).toEqual([])
+  })
+
+  it('relocates and downloads a Drive note edited in the same sync', async () => {
+    const vault = new MemoryVault({ 'Inbox/A.md': 'baseline' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    await sync.apply((await sync.preview()).planId)
+    const current = remote.files.get('Inbox/A.md')
+    if (!current) throw new Error('missing remote fixture')
+
+    await remote.move('token', {
+      fileId: current.id,
+      vaultId: 'vault-id',
+      oldPath: 'Inbox/A.md',
+      path: 'Archive/A.md',
+      expectedVersion: String(current.version),
+      expectedMd5Checksum: null,
+      expectedContentHash: 'unused by fixture'
+    })
+    remote.set('Archive/A.md', 'remote edit')
+
+    const preview = await sync.preview()
+    expect(preview.items).toEqual([
+      {
+        path: 'Archive/A.md',
+        oldPath: 'Inbox/A.md',
+        action: 'move',
+        reason: 'remote_moved'
+      },
+      {
+        path: 'Archive/A.md',
+        action: 'download',
+        reason: 'remote_changed'
+      }
+    ])
+    const result = await sync.apply(preview.planId)
+
+    expect(result.moved).toBe(1)
+    expect(result.downloaded).toBe(1)
+    expect(vault.notes.get('Archive/A.md')?.content).toBe('remote edit')
+    expect(vault.notes.has('Inbox/A.md')).toBe(false)
+    expect((await sync.preview()).items).toEqual([])
+  })
+
   it('persists a deletion tombstone before Drive trash and requires recovery after failure', async () => {
     const vault = new MemoryVault({ 'A.md': 'baseline' })
     const remote = new MemoryRemote()
@@ -990,6 +1170,53 @@ describe('DriveSyncService', () => {
     expect(remote.maxConcurrentUpdates).toBe(4)
   })
 
+  it('creates new Drive files four at a time', async () => {
+    const vault = new MemoryVault({
+      'A.md': 'new A',
+      'B.md': 'new B',
+      'C.md': 'new C',
+      'D.md': 'new D',
+      'E.md': 'new E'
+    })
+    const remote = new MemoryRemote()
+    remote.createDelayMs = 10
+    const sync = await service(vault, remote)
+
+    const result = await sync.apply((await sync.preview()).planId)
+
+    expect(result.uploaded).toBe(5)
+    expect(remote.maxConcurrentCreates).toBe(4)
+  })
+
+  it('checkpoints successful creates in a failed batch before retrying', async () => {
+    const vault = new MemoryVault({
+      'A.md': 'new A',
+      'B.md': 'new B',
+      'C.md': 'new C',
+      'D.md': 'new D'
+    })
+    const remote = new MemoryRemote()
+    remote.createDelayMs = 10
+    remote.failCreatePath = 'B.md'
+    const directory = await mkdtemp(join(tmpdir(), 'tsuzune-drive-create-batch-'))
+    temporaryDirectories.push(directory)
+    const ledgerPath = join(directory, 'ledger.json')
+    const sync = serviceAt(vault, remote, ledgerPath)
+
+    await expect(sync.apply((await sync.preview()).planId)).rejects.toThrow(
+      /SIMULATED_CREATE_FAILURE/
+    )
+    expect([...remote.files.keys()].sort()).toEqual(['A.md', 'C.md', 'D.md'])
+
+    remote.failCreatePath = null
+    const restarted = serviceAt(vault, remote, ledgerPath)
+    const retry = await restarted.preview()
+
+    expect(retry.items).toEqual([
+      { path: 'B.md', action: 'upload', reason: 'new_local' }
+    ])
+  })
+
   it('does not batch existing updates across a different action', async () => {
     const vault = new MemoryVault({
       'A.md': 'baseline A',
@@ -1073,24 +1300,6 @@ describe('DriveSyncService', () => {
     expect((await sync.preview()).items).toEqual([])
   })
 
-  it('fails closed when a local move and content edit are combined', async () => {
-    const vault = new MemoryVault({ 'Inbox/A.md': 'baseline' })
-    const remote = new MemoryRemote()
-    const sync = await service(vault, remote)
-    const first = await sync.preview()
-    await sync.apply(first.planId)
-    await vault.moveNote({
-      path: 'Inbox/A.md',
-      destinationDirectory: 'Archive',
-      destinationPath: 'Archive/A.md'
-    })
-    vault.set('Archive/A.md', 'edited too')
-    await sync.recordLocalMove('Inbox/A.md', 'Archive/A.md')
-
-    await expect(sync.preview()).rejects.toThrow(/移動と同時/)
-    expect(remote.files.has('Inbox/A.md')).toBe(true)
-    expect(remote.files.has('Archive/A.md')).toBe(false)
-  })
 })
 
 if (process.env.TSUZUNE_DRIVE_BENCHMARK === '1') {

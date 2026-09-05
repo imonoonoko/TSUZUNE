@@ -9,6 +9,7 @@ export interface QuickSwitcherDialogProps {
   onOpenInNewTab: (path: string) => void
   onClose: () => void
   onCreate?: (query: string) => void
+  deprioritizedPaths?: ReadonlySet<string>
 }
 
 interface QuickSwitcherResult {
@@ -20,13 +21,25 @@ function optionId(path: string): string {
   return `quick-switcher-option-${encodeURIComponent(path)}`
 }
 
+function moveDeprioritizedToEnd<T extends { path: string }>(
+  items: T[],
+  deprioritizedPaths?: ReadonlySet<string>
+): T[] {
+  if (!deprioritizedPaths?.size) return items
+  return [
+    ...items.filter((item) => !deprioritizedPaths.has(item.path)),
+    ...items.filter((item) => deprioritizedPaths.has(item.path))
+  ]
+}
+
 export default function QuickSwitcherDialog({
   notes,
   recentPaths,
   onOpen,
   onOpenInNewTab,
   onClose,
-  onCreate
+  onCreate,
+  deprioritizedPaths
 }: QuickSwitcherDialogProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const dialogRef = useRef<HTMLElement | null>(null)
@@ -46,28 +59,28 @@ export default function QuickSwitcherDialog({
     const trimmedQuery = query.trim()
     if (!trimmedQuery) {
       const seen = new Set<string>()
-      return recentPaths
+      const recentResults = recentPaths
         .filter((path) => {
           if (seen.has(path) || !notesByPath.has(path)) return false
           seen.add(path)
           return true
         })
-        .slice(0, 20)
         .map((path) => {
           const note = notesByPath.get(path)!
           return { path, name: note.name }
         })
+      return moveDeprioritizedToEnd(recentResults, deprioritizedPaths).slice(0, 20)
     }
 
     const seen = new Set<string>()
-    return searchRendererRanked(notes, trimmedQuery)
+    const rankedResults = searchRendererRanked(notes, trimmedQuery)
       .flatMap((result) => {
         if (seen.has(result.path) || !notesByPath.has(result.path)) return []
         seen.add(result.path)
         return [result]
       })
-      .slice(0, 50)
-  }, [notes, notesByPath, query, recentPaths])
+    return moveDeprioritizedToEnd(rankedResults, deprioritizedPaths).slice(0, 50)
+  }, [deprioritizedPaths, notes, notesByPath, query, recentPaths])
 
   const activeResult = results[selectedIndex]
   const activeId = activeResult ? optionId(activeResult.path) : undefined
@@ -145,7 +158,13 @@ export default function QuickSwitcherDialog({
   }
 
   return (
-    <div className="modal-backdrop quick-switcher-backdrop" data-testid="quick-switcher-backdrop">
+    <div
+      className="modal-backdrop quick-switcher-backdrop"
+      data-testid="quick-switcher-backdrop"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
       <section
         ref={dialogRef}
         className="modal quick-switcher-modal"

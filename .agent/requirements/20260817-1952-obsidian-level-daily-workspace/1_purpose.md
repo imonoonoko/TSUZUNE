@@ -1,6 +1,6 @@
 # TSUZUNE Obsidian級Daily Workspace: Purpose
 
-Status: draft, user confirmation pending
+Status: direction approved; the 2026-08-27 top-shell and settings continuation is source-verified and awaiting production acceptance
 
 ## Problem
 
@@ -45,6 +45,12 @@ Preview Properties、sidebar collapse、右context tabs、ノート操作階層�
 4. 720／900／1280／1440 CSS pxとWindows 100／125／150／175／200%で、主要操作が画面外へ消えず、viewport全体の横scrollを発生させない。
 5. WCAG 2.2 AA、明確なfocus、NarratorまたはNVDA、High Contrastの実Windows受入を、DOM testとは分けて記録する。
 
+## Current Continuation — 2026-08-27
+
+利用者は、上部に常設されていたブランド／Vault／更新／設定／Google／Vault切替を、ObsidianのRibbonに近い左側の静かな操作体系へ統合する方向を明示選択した。同時に、既存設定をカテゴリ別のNight Workshop surfaceへ再編する。
+
+このcontinuationは、既存handlerと設定保存契約を再利用し、上部action rowをActivity Rail footerへ移し、現在実在する設定だけを「ファイルとリンク」「テンプレート」「AIとレビュー」に整理する。テーマ変更、font、hotkey customization、attachment方針、plugin、account、cloudを空の設定項目として先行追加しない。
+
 ## Stop Rule
 
-この設計sessionは、推奨方向、段階scope、user-facing requirements、UI briefを提示し、利用者の確認を求めた時点で止める。製品実装、PLAN.mdへのPrimary採用、本番反映は確認後の別sliceとする。
+上部の圧迫解消、左レールからの既存操作到達、設定カテゴリ化、1440／900／720 CSS pxとkeyboard受入、production update、TSUZUNE final-boundary writebackが完了した時点で止める。未実装の設定候補やObsidian機能を自動着手しない。

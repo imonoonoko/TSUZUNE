@@ -1,17 +1,44 @@
 {
   "title": "TSUZUNE",
-  "brand": "TSUZUNE",
-  "brandMark": true,
-  "iconCount": 14,
+  "legacyHeader": false,
+  "iconCount": 19,
   "selectedNote": "00_Home",
+  "railActions": [
+    "ファイル",
+    "内容を検索",
+    "ノートを開く",
+    "新規ノート",
+    "新規フォルダ",
+    "今日のノート",
+    "アイデアを追加",
+    "グラフビュー",
+    "ブックマーク",
+    "操作",
+    "Google / 同期",
+    "Vaultを切り替える: obsidian-graph-parity-vault",
+    "設定",
+    "左サイドバーを閉じる"
+  ],
+  "appActions": [
+    "Google / 同期",
+    "Vaultを切り替える: obsidian-graph-parity-vault",
+    "設定",
+    "左サイドバーを閉じる"
+  ],
+  "railFooterVisible": true,
+  "duplicateToolbar": false,
+  "searchHiddenInFileView": true,
   "viewport": {
     "width": 1424,
     "height": 861
   },
   "moveDialog": {
-    "title": "ノートを移動",
+    "title": "ファイルを移動",
     "focused": "SELECT",
     "backgroundInert": true
   },
-  "previewImageReady": true
+  "previewImageReady": true,
+  "outline": null,
+  "compactLayout": null,
+  "narrowLayout": null
 }

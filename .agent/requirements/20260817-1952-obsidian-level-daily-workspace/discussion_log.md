@@ -73,3 +73,11 @@ Read-onlyの独立レビューでは重大な矛盾、現行codeとの不一致�
 - acceptanceの結論は`FIX-ONE`、`R5-READY`、`STOP-UNVERIFIED`の三択とし、PASSを推測しない。
 - `R5-READY`でもWorkspace Tabs実装は自動開始せず、次の一公開挙動として明示選択を待つ。
 - R5は既存`workspaceTabs`／`activeTabId`／load／close／global shortcut経路を再利用し、tab persistence、pin、reorder、split view、新state managerを含めない。
+
+## 2026-08-27 — 上部シェル・設定追随campaign再開
+
+- 利用者が、Activity Rail統一後の実画面を確認し、上部headerもObsidian寄りへ再構成することを明示選択した。
+- 「設定やその他もろもろも追いつかせたい」は、見た目だけの模倣ではなく、既存機能の入口・設定の情報設計・残るDaily Workspace差分を一つのcampaignとして監査し、段階実装する意思表示として扱う。
+- 今回の最初の実装sliceは、上部の常設button列を静かなworkspace chromeへ再配置し、既存設定dialogをカテゴリnavigation型へ再編する。既存の更新、Google同期、Vault選択、保存、Markdown正本の挙動は変更しない。
+- 残る差分は「完了／次の一手／Held／Research」へ戻し、設定項目や機能を数合わせで追加しない。
+- Orchestrated laneを再開し、`plan.md`と`state.json`をこの既存requirements directoryの状態正本とする。

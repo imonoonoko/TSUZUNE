@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "title": "Living Archive Field isolated art proof",
+  "slug": "20260904-living-archive-field-proof",
+  "status": "verifying",
+  "owner": "CEO-01",
+  "work_item": "tsuzune-living-archive-field-proof-20260904",
+  "packets": {
+    "A": "complete",
+    "B": "complete",
+    "C": "complete",
+    "D": "complete",
+    "E": "complete",
+    "F": "complete",
+    "G": "complete",
+    "H": "complete"
+  },
+  "verification": {
+    "status": "gate-3b5-baseline-restored-live-owner-rereview-pending",
+    "checks": [
+      "owner identified Gate 3B.5 as the exact desired earlier baseline",
+      "current in-app browser route is /work/archive-weather-prototype/ on the existing 4175 root server",
+      "38 Gate 3B.5 model, display-composition, and renderer-contract tests pass",
+      "Gate 3B.5 prototype syntax check passes",
+      "live Gate 3B.5 page reports WebGL error 0 and visibly retains the white changing star field",
+      "Living Archive Field remains isolated and is no longer the active owner-review surface",
+      "a new 12-minute run and workshop-owner aesthetic rereview remain pending"
+    ]
+  },
+  "approval": {
+    "isolated_art_proof": "authorized",
+    "technical_candidate": "gate-3b5-existing-verified-candidate",
+    "aesthetic_direction": "gate-3b5-restored_pending_owner_rereview",
+    "product_dependencies_production_git": "not_authorized"
+  }
+}

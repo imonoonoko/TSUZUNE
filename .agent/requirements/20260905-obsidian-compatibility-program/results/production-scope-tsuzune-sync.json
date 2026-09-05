@@ -1,0 +1,84 @@
+{
+  "workItem": "tsuzune-production-scope-audit-20260905",
+  "status": "completed",
+  "asOf": "2026-09-05T03:26:33.034Z",
+  "writes": [
+    {
+      "id": "30_知識/TSUZUNE-Obsidian互換性P0-1-Excluded-files-実施記録-2026-09-05.md",
+      "before": "sha256:29e0597f1a805d833aab50c2d274fd3b6c3a946d1e14743fb1c97d1b3e5b59bb",
+      "after": "sha256:4e8440b09a7ab7cc456616fb5e1ca46fd9932e9f4f24589e23cf8f509e00ab7e"
+    },
+    {
+      "id": "30_知識/TSUZUNE開発ロードマップ.md",
+      "before": "sha256:913afce04c1d381d23b40f8b2c78aa41117256309b9f9d2e4bdcac900a709b77",
+      "after": "sha256:6013c6e45bac16e61a2cc01e6753b20e9eb44347a9021ac156b3cec487d68ab9"
+    },
+    {
+      "id": "10_プロジェクト/TSUZUNE.md",
+      "before": "sha256:f6868f7520cb8c0eb86c2537e35fad226d279d3e1b849dcce25f24e158a52cdb",
+      "after": "sha256:ebd9c7400fed7543d9a8e471b5e6f0156c0a9d62776d0e029919c9b50db9715c"
+    },
+    {
+      "id": "00_入口/今やること.md",
+      "before": "sha256:6b0d962ac3f3c4fe6b2019a33bf22b74ba66b0799cb06eef07691a16d5d17061",
+      "after": "sha256:22ef36c3b7478247be447256ab633463a464bddb01f4a0ee8e3e4418d7134f48"
+    }
+  ],
+  "readBack": [
+    {
+      "id": "30_知識/TSUZUNE-Obsidian互換性P0-1-Excluded-files-実施記録-2026-09-05.md",
+      "revision": "sha256:4e8440b09a7ab7cc456616fb5e1ca46fd9932e9f4f24589e23cf8f509e00ab7e",
+      "truncated": false,
+      "exactMatch": true
+    },
+    {
+      "id": "30_知識/TSUZUNE開発ロードマップ.md",
+      "revision": "sha256:6013c6e45bac16e61a2cc01e6753b20e9eb44347a9021ac156b3cec487d68ab9",
+      "truncated": false,
+      "exactMatch": true
+    },
+    {
+      "id": "10_プロジェクト/TSUZUNE.md",
+      "revision": "sha256:ebd9c7400fed7543d9a8e471b5e6f0156c0a9d62776d0e029919c9b50db9715c",
+      "truncated": false,
+      "exactMatch": true
+    },
+    {
+      "id": "00_入口/今やること.md",
+      "revision": "sha256:22ef36c3b7478247be447256ab633463a464bddb01f4a0ee8e3e4418d7134f48",
+      "truncated": false,
+      "exactMatch": true
+    }
+  ],
+  "uniqueSearch": true,
+  "campaignBacklinks": [
+    {
+      "id": "30_知識/TSUZUNE開発ロードマップ.md",
+      "found": true
+    },
+    {
+      "id": "10_プロジェクト/TSUZUNE.md",
+      "found": true
+    },
+    {
+      "id": "00_入口/今やること.md",
+      "found": true
+    }
+  ],
+  "campaignForwardLinks": [
+    {
+      "id": "30_知識/TSUZUNE開発ロードマップ.md",
+      "found": true
+    },
+    {
+      "id": "10_プロジェクト/TSUZUNE.md",
+      "found": true
+    },
+    {
+      "id": "00_入口/今やること.md",
+      "found": true
+    }
+  ],
+  "productionPromoted": false,
+  "verificationNote": "Initial get_backlinks limit=100 rejected by validation; repeated read-only verification at supported limit=50."
+}

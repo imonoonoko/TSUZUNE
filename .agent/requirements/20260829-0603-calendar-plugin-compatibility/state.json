@@ -1,0 +1,26 @@
+{
+  "feature": "calendar-plugin-compatibility",
+  "lane": "orchestrated",
+  "state": "complete",
+  "target": {
+    "repository": "liamcain/obsidian-calendar-plugin",
+    "version": "1.5.10",
+    "commit": "7d2aebda7f4a280bedc6da6d25f4da611d1625ef",
+    "artifactSha256": "7fb339e9cf9fdbe5a801fa2b8ab85b366b5b3777fbd193cbc8728bc27711d125"
+  },
+  "success": [
+    "official artifact runs unmodified",
+    "documented desktop behavior and settings conformance is 100 percent",
+    "full regression and production update pass",
+    "note activity is visible and coordinate-operable in the real installed Vault path"
+  ],
+  "tracks": {
+    "upstream": "complete",
+    "architecture": "complete",
+    "conformance": "complete",
+    "integration": "complete",
+    "liveUserActivityVisibility": "complete"
+  },
+  "tsuzuneWriteback": "30_知識/TSUZUNE-Calendar-1.5.10限定互換・本番受入-実施記録-2026-08-29.md",
+  "updatedAt": "2026-08-30T19:58:24.6524034+09:00"
+}

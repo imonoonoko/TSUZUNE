@@ -90,4 +90,39 @@ describe('BookmarkDialog', () => {
       expect(document.activeElement).toBe(opener)
     })
   })
+
+  it('closes only when the backdrop itself is clicked', () => {
+    const onCancel = vi.fn()
+    render(
+      <BookmarkDialog
+        path="A.md"
+        onCancel={onCancel}
+        onSave={async () => undefined}
+        onDelete={async () => undefined}
+      />
+    )
+    const backdrop = document.querySelector('.modal-backdrop') as HTMLElement
+    fireEvent.click(screen.getByRole('dialog'))
+    expect(onCancel).not.toHaveBeenCalled()
+    fireEvent.click(backdrop)
+    expect(onCancel).toHaveBeenCalledOnce()
+  })
+
+  it('ignores a backdrop click while saving', () => {
+    const onCancel = vi.fn()
+    let resolveSave: () => void = () => undefined
+    render(
+      <BookmarkDialog
+        path="A.md"
+        onCancel={onCancel}
+        onSave={() => new Promise<void>((resolve) => { resolveSave = resolve })}
+        onDelete={async () => undefined}
+      />
+    )
+    const backdrop = document.querySelector('.modal-backdrop') as HTMLElement
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    fireEvent.click(backdrop)
+    expect(onCancel).not.toHaveBeenCalled()
+    resolveSave()
+  })
 })

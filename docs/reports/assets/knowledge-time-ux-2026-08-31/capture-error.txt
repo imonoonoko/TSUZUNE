@@ -1,0 +1,2 @@
+Error: 右文脈ペインの固定表示が不正です: {"scrollable":true,"scrollTop":270,"stickyPosition":"sticky","headingVisible":false,"tabsVisible":true}
+    at runCapture (file:///C:/Users/Humin/Documents/Codex/TSUZUNE/.agent/requirements/20260830-2030-knowledge-time-context-workspace/capture-knowledge-time.mjs:194:11)

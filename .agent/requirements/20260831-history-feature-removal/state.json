@@ -1,0 +1,33 @@
+{
+  "workflow": "history-feature-removal",
+  "lane": "orchestrated",
+  "status": "complete",
+  "primary": true,
+  "approvedDirection": "abolish-history-feature",
+  "currentStep": "complete",
+  "success": [
+    "no-new-history-generation-or-history-public-contract",
+    "normal-note-safety-and-context-remain-correct",
+    "production-and-live-acceptance-pass"
+  ],
+  "constraints": {
+    "deleteExistingHistoryData": false,
+    "replaceHistorySystem": false,
+    "newDependency": false,
+    "newDatabase": false,
+    "backgroundHooks": false,
+    "forceCloseProduction": false
+  },
+  "approvals": {
+    "existingHistoryDeletion": "required-before-action"
+  },
+  "evidence": {
+    "typecheck": "passed",
+    "tests": "867-passed-1-skipped",
+    "mcp": "passed",
+    "productionUpdate": "installed-and-verified",
+    "freshRuntime": "passed-stale-false-delivery-match",
+    "canonicalWriteback": "passed-one-record-six-backlinks"
+  },
+  "updatedAt": "2026-08-31T13:31:30+09:00"
+}

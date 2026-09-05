@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "TSUZUNE Browser Clipper",
+  "version": "0.2.2",
+  "description": "Clip ordinary pages and YouTube videos to local TSUZUNE.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3Y61gcDEqahhrM+20UFadbsA4h7pGj20ATk3t1Rb0l7rqEkIXshkeLKOg52VBtcoCXey+/a0jxuhbus18bu6CKu1P4ZZSFsI7qB/mDV3hAkLZcmIdzFz4eg6ORO7fLNU060qQMXkrnAeC8mbeyyIST6j6MP7HNG9nvWIiCRYiqlFGSaDt3+jPrzC5oJAUdeb/U8ROI1+T2IA/L6rtXsCpbtjIARwETo9suaJ/EuA2ovtGrbaYK/0WMmlQrcLBOETMFGEJs3DjXdRfYk5UIEFjNRPQaepugYtpM5vTmtCGtO5+qSqSLiu4No1l8WlW1BZW067xEX3abS+tXgFFnoHZQIDAQAB",
+  "action": { "default_popup": "popup.html" },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["http://127.0.0.1:27193/*"]
+}

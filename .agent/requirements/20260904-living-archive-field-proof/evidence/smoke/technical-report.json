@@ -1,0 +1,83 @@
+{
+  "protocolVersion": "laf-proof-v1",
+  "snapshotDigest": "ed137cb77ccce737b432cd52838d596e7765a97fa074ecac66d2c4812319d8c5",
+  "seed": 1369952969,
+  "runKind": "smoke",
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "visibility": "visible",
+    "canvas": [
+      1280,
+      720
+    ]
+  },
+  "captures": [
+    {
+      "name": "candidate-000s",
+      "path": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\.agent\\requirements\\20260904-living-archive-field-proof\\evidence\\smoke\\candidate-000s.png",
+      "size": {
+        "width": 1280,
+        "height": 720
+      }
+    }
+  ],
+  "frameCount": 2266,
+  "sampleCount": 1,
+  "liveMotion": {
+    "windowSeconds": 3,
+    "simulationDeltaSeconds": 3.0499999999999927,
+    "meanPixelDifference": 0.014462659427196805,
+    "startPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\.agent\\requirements\\20260904-living-archive-field-proof\\evidence\\smoke\\candidate-motion-start.png",
+    "endPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\.agent\\requirements\\20260904-living-archive-field-proof\\evidence\\smoke\\candidate-motion-end.png"
+  },
+  "liveMotionPass": true,
+  "controlComparison": {
+    "seconds": 90,
+    "sameWorldIdentity": true,
+    "meanPixelDifference": 0.010465910380355846,
+    "candidatePath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\.agent\\requirements\\20260904-living-archive-field-proof\\evidence\\smoke\\candidate-control-90s.png",
+    "controlPath": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\.agent\\requirements\\20260904-living-archive-field-proof\\evidence\\smoke\\control-90s.png"
+  },
+  "reducedMotionPass": true,
+  "contextLossPass": true,
+  "consoleErrors": [],
+  "kind": "living-archive-field-technical-report",
+  "pass": false,
+  "technicalPass": false,
+  "gates": {
+    "duration": false,
+    "macroCompositions": false,
+    "noBlackout": true,
+    "noFullSaturation": true,
+    "noFixedCentralAttractor": true,
+    "noShortReplay": true,
+    "framePerformance": true,
+    "webglErrors": true,
+    "unrecoveredContextLoss": true,
+    "cameraContinuity": true,
+    "worldIdentityStable": true
+  },
+  "metrics": {
+    "durationSeconds": 8.102168000000084,
+    "frameIntervals": {
+      "p95": 3.7,
+      "over50Fraction": 0,
+      "eligibleCount": 869,
+      "pass": true
+    },
+    "compositions": {
+      "distinctCount": 1,
+      "signatures": [
+        "witness:sprouting:d6f17028+membrane:atmosphere:c93d9564+witness:confluence:5cfead68|4.5,1.5,3>0,0,0|witness:sprouting:d6f17028+witness:sprouting:bfb673d9+filament:recurrence:b69bfc59+filament:recurrence:41c90ab5+membrane:atmosphere:d6f17028"
+      ],
+      "noFixedCentralAttractor": true,
+      "pass": false
+    }
+  },
+  "missingEvidence": [],
+  "pendingHumanGates": [
+    "blindControl",
+    "aestheticOwnerQuestions"
+  ]
+}

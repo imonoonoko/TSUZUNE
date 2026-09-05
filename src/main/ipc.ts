@@ -7,11 +7,12 @@ import {
   type IpcMainInvokeEvent
 } from 'electron'
 import { readFile } from 'node:fs/promises'
-import { dirnameRelative } from '../core/paths'
 import type {
   AppError,
   AiWriteReviewProposal,
   AppUpdateStatus,
+  CalendarPluginRuntimeStatus,
+  CalendarPluginSettings,
   CreateDirectoryInput,
   CreateNoteInput,
   DriveRemoteVault,
@@ -47,6 +48,12 @@ import { VaultError, VaultService } from './vault'
 import { EntryMoveCoordinator } from './entry-move'
 import { VaultWatcher } from './watcher'
 import type { GoogleConnectionService } from './google-connection'
+import { listObsidianPluginCandidates } from './obsidian-plugins'
+import {
+  CALENDAR_PLUGIN_CONTRACT,
+  verifyCalendarPluginArtifact
+} from './calendar-plugin-artifact'
+import { parseCalendarPluginSettings } from '../shared/calendar-plugin-settings'
 
 let ipcTail: Promise<void> = Promise.resolve()
 let googleIpcTail: Promise<void> = Promise.resolve()
@@ -260,7 +267,7 @@ export function registerIpc(
       await watcher.stop()
       await vault.setRootPath(rootPath)
       await entryMove.recover()
-      const snapshot = await vault.scan(previousSettings.userIgnoreFilters)
+      const snapshot = await vault.scan()
       await watcher.start(rootPath)
       settingsAttempted = true
       await updateSettings({
@@ -306,7 +313,7 @@ export function registerIpc(
       await vault.setRootPath(settings.lastVaultPath)
       await entryMove.recover()
       await watcher.start(settings.lastVaultPath)
-      return await vault.scan(settings.userIgnoreFilters)
+      return await vault.scan()
     } catch {
       vault.clearRootPath()
       await watcher.stop()
@@ -318,13 +325,39 @@ export function registerIpc(
     }
   })
 
-  registerTrusted('vault:snapshot', async () => {
-    const settings = await readSettings()
-    return vault.scan(settings.userIgnoreFilters)
-  })
+  registerTrusted('vault:snapshot', () => vault.scan())
   registerTrusted('vault:readNote', (path: string) => vault.readNote(path))
   registerTrusted('vault:readImage', (path: string) => vault.readImageDataUrl(path))
   registerTrusted('settings:get', () => readSettings())
+  registerTrusted('obsidianPlugins:list', () =>
+    listObsidianPluginCandidates(vault.getRootPath())
+  )
+  registerTrusted(
+    'calendarPlugin:status',
+    async (): Promise<CalendarPluginRuntimeStatus> => {
+      const verification = await verifyCalendarPluginArtifact(
+        vault.getRootPath() ?? ''
+      )
+      const missingReasons = new Set([
+        'invalid-vault-root',
+        'missing-plugin-directory',
+        'missing-main',
+        'missing-manifest'
+      ])
+      return {
+        state: verification.ok
+          ? 'ready'
+          : missingReasons.has(verification.reason)
+            ? 'missing'
+            : 'rejected',
+        id: CALENDAR_PLUGIN_CONTRACT.id,
+        version: CALENDAR_PLUGIN_CONTRACT.version,
+        mainSha256: CALENDAR_PLUGIN_CONTRACT.mainSha256,
+        manifestSha256: CALENDAR_PLUGIN_CONTRACT.manifestSha256,
+        reason: verification.ok ? null : verification.reason
+      }
+    }
+  )
 
   registerTrusted('note:save', async (input: SaveNoteInput) => {
     const saved = await vault.saveNote(input)
@@ -339,6 +372,25 @@ export function registerIpc(
 
   registerTrusted('entry:createNote', async (input: CreateNoteInput) => {
     return vault.createNote(input)
+  })
+
+  registerTrusted('attachment:import', async (destinationDirectory: string) => {
+    const options: Electron.OpenDialogOptions = {
+      title: '添付ファイルを選択',
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        {
+          name: '画像とPDF',
+          extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp', 'avif', 'pdf']
+        }
+      ]
+    }
+    const owner = getWindow()
+    const result = owner
+      ? await dialog.showOpenDialog(owner, options)
+      : await dialog.showOpenDialog(options)
+    if (result.canceled || result.filePaths.length === 0) return null
+    return vault.importAttachments(result.filePaths, destinationDirectory)
   })
 
   registerTrusted('entry:createDirectory', async (input: CreateDirectoryInput) => {
@@ -358,9 +410,7 @@ export function registerIpc(
           source: plan.source,
           destination: plan.destination,
           expected_fingerprint: plan.fingerprint,
-          actor: 'human',
-          reason: 'アプリでの名前変更',
-          source_refs: []
+          actor: 'human'
         })
       )
       return { oldPath: moved.old_path, path: moved.new_path }
@@ -376,9 +426,7 @@ export function registerIpc(
         source: plan.source,
         destination: plan.destination,
         expected_fingerprint: plan.fingerprint,
-        actor: 'human',
-        reason: 'アプリでのノート移動',
-        source_refs: []
+        actor: 'human'
       })
     )
     return { oldPath: moved.old_path, path: moved.new_path }
@@ -393,9 +441,7 @@ export function registerIpc(
           source: plan.source,
           destination: plan.destination,
           expected_fingerprint: plan.fingerprint,
-          actor: 'human',
-          reason: 'アプリでのノート移動',
-          source_refs: []
+          actor: 'human'
         })
       )
       return { oldPath: moved.old_path, path: moved.new_path }
@@ -443,6 +489,16 @@ export function registerIpc(
     })
     return null
   })
+
+  registerTrusted(
+    'settings:setCalendarPlugin',
+    async (settings: CalendarPluginSettings) => {
+      await updateSettings({
+        calendarPlugin: parseCalendarPluginSettings(settings)
+      })
+      return null
+    }
+  )
 
   registerTrusted('aiReview:list', async (): Promise<AiWriteReviewProposal[]> => {
     return new VaultMcpService({ settingsPath: settingsPath() }).listReviewProposals()

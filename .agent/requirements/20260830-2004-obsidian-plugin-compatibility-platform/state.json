@@ -1,0 +1,22 @@
+{
+  "feature": "obsidian-plugin-compatibility-platform",
+  "lane": "orchestrated",
+  "state": "blocked",
+  "tracks": {
+    "currentHostAudit": "completed",
+    "officialApiContract": "completed",
+    "wave1Targets": "completed",
+    "conformanceAndSecurity": "completed",
+    "implementation": "pending",
+    "verification": "pending",
+    "production": "pending",
+    "userAcceptance": "pending"
+  },
+  "decision": {
+    "status": "required",
+    "topic": "wave1-production-target",
+    "recommendation": "obsidian-tasks-plugin",
+    "reason": "The target fixes the public behavior denominator and materially changes implementation value, duration, and authority boundaries."
+  },
+  "updatedAt": "2026-08-30T20:41:00+09:00"
+}

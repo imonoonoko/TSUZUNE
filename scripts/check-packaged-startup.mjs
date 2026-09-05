@@ -9,7 +9,7 @@ const root = process.cwd()
 const appPath =
   process.argv[2] ?? join(root, 'dist', 'win-unpacked', 'TSUZUNE.exe')
 const smokeDirectory = await mkdtemp(join(tmpdir(), 'tsuzune-smoke-'))
-const readyFile = join(smokeDirectory, 'ready.txt')
+const readyFile = join(smokeDirectory, 'ready.json')
 const isolatedUserData = join(smokeDirectory, 'user-data')
 
 function windowsTsuzuneProcessIds() {
@@ -57,15 +57,18 @@ const child = spawn(appPath, [`--user-data-dir=${isolatedUserData}`], {
     TSUZUNE_HEADLESS_SMOKE: '1',
     TSUZUNE_HEADLESS_SMOKE_READY_FILE: readyFile
   },
-  stdio: 'ignore'
+  stdio: 'ignore',
+  windowsHide: true
 })
 
 try {
   const deadline = Date.now() + 15_000
   let ready = false
+  let profile
   while (Date.now() < deadline) {
     try {
-      ready = (await readFile(readyFile, 'utf8')) === 'ready'
+      profile = JSON.parse(await readFile(readyFile, 'utf8'))
+      ready = profile.ready === true
     } catch {
       // The renderer has not finished loading yet.
     }
@@ -77,9 +80,11 @@ try {
   }
 
   assert.ok(ready, 'packaged TSUZUNE did not report renderer readiness')
+  assert.equal(profile.userData.toLowerCase(), isolatedUserData.toLowerCase(), 'userData must be isolated')
+  assert.equal(profile.sessionData.toLowerCase(), isolatedUserData.toLowerCase(), 'sessionData must be isolated')
   console.log(
     JSON.stringify(
-      { packagedStartup: 'ready', isolatedUserData: true },
+      { packagedStartup: 'ready', isolatedUserData: true, isolatedSessionData: true },
       null,
       2
     )

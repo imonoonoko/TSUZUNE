@@ -106,7 +106,13 @@ export default function CommandPaletteDialog({
   }
 
   return (
-    <div className="modal-backdrop command-palette-backdrop">
+    <div
+      className="modal-backdrop command-palette-backdrop"
+      role="presentation"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
       <section
         ref={dialogRef}
         className="modal command-palette-modal"
@@ -115,7 +121,18 @@ export default function CommandPaletteDialog({
         aria-labelledby="command-palette-title"
         onKeyDown={handleDialogKeyDown}
       >
-        <h2 id="command-palette-title" className="command-palette-title">操作を実行</h2>
+        <header className="command-palette-heading">
+          <h2 id="command-palette-title" className="command-palette-title">操作を実行</h2>
+          <button
+            type="button"
+            className="command-palette-close"
+            aria-label="閉じる"
+            title="閉じる（Esc）"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </header>
         <input
           ref={inputRef}
           className="command-palette-input"

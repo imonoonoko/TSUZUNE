@@ -19,6 +19,39 @@ afterEach(() => {
 })
 
 describe('QuickSwitcherDialog', () => {
+  it('keeps excluded candidates but places them after ordinary candidates', () => {
+    const hidden = {
+      ...note('80_excluded/Hidden.md', 'Hidden'),
+      content: 'shared-token'
+    }
+    const visible = {
+      ...note('Visible.md', 'Visible'),
+      content: 'shared-token'
+    }
+
+    render(
+      <QuickSwitcherDialog
+        notes={[hidden, visible]}
+        recentPaths={[hidden.path, visible.path]}
+        deprioritizedPaths={new Set([hidden.path])}
+        onOpen={vi.fn()}
+        onOpenInNewTab={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    const optionNames = () =>
+      screen
+        .getAllByRole('option')
+        .map((item) => item.querySelector('.quick-switcher-option-name')?.textContent)
+
+    expect(optionNames()).toEqual(['Visible', 'Hidden'])
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'shared-token' }
+    })
+    expect(optionNames()).toEqual(['Visible', 'Hidden'])
+  })
+
   it('limits rendered search results while keeping deterministic rank order', () => {
     const notes = Array.from({ length: 80 }, (_, index) =>
       note(`notes/Result-${String(index).padStart(2, '0')}.md`, `Result ${index}`)
@@ -95,6 +128,25 @@ describe('QuickSwitcherDialog', () => {
       'Twotwo.md',
       'Oneone.md'
     ])
+  })
+
+  it('closes only when the true backdrop is clicked', () => {
+    const onClose = vi.fn()
+    render(
+      <QuickSwitcherDialog
+        notes={[note('one.md', 'One')]}
+        recentPaths={[]}
+        onOpen={vi.fn()}
+        onOpenInNewTab={vi.fn()}
+        onClose={onClose}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('dialog'))
+    expect(onClose).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByTestId('quick-switcher-backdrop'))
+    expect(onClose).toHaveBeenCalledOnce()
   })
 
   it('uses the renderer ranker for title, path, and content queries', () => {

@@ -84,6 +84,19 @@ const writeOutputSchema = {
   })
 }
 
+const pendingReviewOutputSchema = {
+  ...writeOutputSchema,
+  pending_review: z.literal(true),
+  proposal: z.object({
+    id: z.string(),
+    path: z.string(),
+    operation: z.enum(['create', 'update']),
+    reason: z.string(),
+    expected_revision: z.string().nullable(),
+    created_at: z.string()
+  })
+}
+
 const autonomousUpdateOutputSchema = {
   ...writeOutputSchema,
   unchanged: z.literal(true).optional(),
@@ -91,8 +104,7 @@ const autonomousUpdateOutputSchema = {
     actor: z.literal('ai'),
     reason: z.string(),
     source_refs: z.array(z.string()),
-    previous_revision: z.string(),
-    history_path: z.string().optional()
+    previous_revision: z.string()
   })
 }
 
@@ -129,7 +141,12 @@ const moveResultOutputSchema = {
   old_path: z.string(),
   new_path: z.string(),
   fingerprint: z.string(),
-  history_path: z.string().nullable()
+}
+
+const trashResultOutputSchema = {
+  old_path: z.string(),
+  new_path: z.string(),
+  source_revision: z.string()
 }
 
 function parseArguments(args: string[]): ServerArguments {
@@ -306,17 +323,10 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEノート検索',
       description:
-        'Use first when the note id is unknown. Search the active TSUZUNE Vault by title, relative path, and Markdown content, then use fetch for one note or build_context for linked or temporal context. Space-separated terms use implicit AND; natural Japanese sentences are segmented and ranked; quoted phrases, -negation, tag:, path:, and file: filters are supported. 50_履歴 is excluded by default; pass include_history: true to include it.',
+        'Use first when the note id is unknown. Search the active TSUZUNE Vault by title, relative path, and Markdown content, then use fetch for one note or build_context for linked or temporal context. Space-separated terms use implicit AND; natural Japanese sentences are segmented and ranked; quoted phrases, -negation, tag:, path:, file:, category:, topic:, type:, role:, and lifecycle: filters are supported. Legacy 50_履歴 is always excluded.',
       inputSchema: {
         query: z.string().min(1).describe('Search query'),
         limit: z.number().int().min(1).max(50).optional().default(10),
-        include_history: z
-          .boolean()
-          .optional()
-          .default(false)
-          .describe(
-            'Include 50_履歴 audit-history notes in results. Defaults to false.'
-          )
       },
       outputSchema: {
         results: z.array(
@@ -333,8 +343,7 @@ async function main(): Promise<void> {
       },
       annotations: readOnlyAnnotations
     },
-    async ({ query, limit, include_history }) =>
-      textResult(await vault.search(query, limit, include_history))
+    async ({ query, limit }) => textResult(await vault.search(query, limit))
   )
 
   server.registerTool(
@@ -342,9 +351,10 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEノート取得',
       description:
-        'Fetch one note by the relative-path id returned from search. Use when the full Markdown and revision of one note are needed; use build_context instead for linked or temporal context.',
+        'Fetch one Markdown chunk and revision by the relative-path id returned from search. Large notes return next_after; repeat with the same id and next_after as after until it is absent. Use build_context instead for linked or temporal context.',
       inputSchema: {
-        id: z.string().min(1).describe('Relative note path returned by search')
+        id: z.string().min(1).describe('Relative note path returned by search'),
+        after: z.number().int().min(0).optional().default(0).describe('Character cursor returned as next_after')
       },
       outputSchema: {
         id: z.string(),
@@ -356,12 +366,16 @@ async function main(): Promise<void> {
           revision: z.string(),
           size_bytes: z.number(),
           truncated: z.boolean(),
-          editable: z.boolean()
-        })
+          editable: z.boolean(),
+          start_character: z.number(),
+          end_character: z.number(),
+          total_characters: z.number()
+        }),
+        next_after: z.number().optional()
       },
       annotations: readOnlyAnnotations
     },
-    async ({ id }) => textResult(await vault.fetch(id))
+    async ({ id, after }) => textResult(await vault.fetch(id, after))
   )
 
   server.registerTool(
@@ -468,6 +482,144 @@ async function main(): Promise<void> {
   )
 
   server.registerTool(
+    'create_derived_note',
+    {
+      title: 'TSUZUNE派生知識ノート作成',
+      description:
+        'Create one concept-keyed, category- and topic-tagged derived knowledge note under 30_知識 from an immutable 01_受信箱 or 40_情報源 source. Fetch first and pass the exact source revision. The source remains unchanged. Use for routine low-risk Inbox organization after checking existing knowledge; multiple distinct concept keys may be created from one source revision. An exactly matching review proposal is applied automatically, while mismatched legacy output is replaced.',
+      inputSchema: {
+        destination: z
+          .string()
+          .min(1)
+          .max(500)
+          .describe('New 30_知識-relative Markdown path'),
+        content: z
+          .string()
+          .min(1)
+          .max(MAX_EDITABLE_CHARACTERS)
+          .describe('Markdown body without frontmatter'),
+        category: z
+          .string()
+          .min(1)
+          .max(80)
+          .describe('Exactly one quote-free category from the live canonical note 30_知識/TSUZUNE分類と保存基準.md; fetch it before creating'),
+        topics: z
+          .array(z.string().min(1).max(80))
+          .min(1)
+          .max(3)
+          .describe('One to three precise topics without double quotes'),
+        derivation_key: z
+          .string()
+          .min(1)
+          .max(80)
+          .describe('Stable concept key unique within this exact source revision'),
+        source_id: z
+          .string()
+          .min(1)
+          .max(500)
+          .describe('Existing Wiki-link-safe 01_受信箱 or 40_情報源 Markdown path, excluding knowledge.md'),
+        source_revision: z
+          .string()
+          .regex(/^sha256:[a-f0-9]{64}$/)
+          .describe('Exact opaque revision returned by fetch')
+      },
+      outputSchema: writeOutputSchema,
+      annotations: createAnnotations
+    },
+    async ({
+      destination,
+      content,
+      category,
+      topics,
+      derivation_key,
+      source_id,
+      source_revision
+    }) => {
+      await assertFreshRuntime()
+      return textResult(
+        await vault.createDerivedNote({
+          destination,
+          content,
+          category,
+          topics,
+          derivationKey: derivation_key,
+          sourceId: source_id,
+          sourceRevision: source_revision
+        })
+      )
+    }
+  )
+
+  server.registerTool(
+    'propose_derived_note',
+    {
+      title: 'TSUZUNE派生知識ノート提案',
+      description:
+        'Propose one concept-keyed, category- and topic-tagged derived knowledge note under 30_知識 from an immutable 01_受信箱 or 40_情報源 source. Fetch first and pass the exact source revision. The source remains unchanged, and human approval in AI Review is required before the destination note is written.',
+      inputSchema: {
+        destination: z
+          .string()
+          .min(1)
+          .max(500)
+          .describe('New 30_知識-relative Markdown path'),
+        content: z
+          .string()
+          .min(1)
+          .max(MAX_EDITABLE_CHARACTERS)
+          .describe('Markdown body without frontmatter'),
+        category: z
+          .string()
+          .min(1)
+          .max(80)
+          .describe('Exactly one quote-free category from the live canonical note 30_知識/TSUZUNE分類と保存基準.md; fetch it before proposing'),
+        topics: z
+          .array(z.string().min(1).max(80))
+          .min(1)
+          .max(3)
+          .describe('One to three precise topics without double quotes'),
+        derivation_key: z
+          .string()
+          .min(1)
+          .max(80)
+          .describe('Stable concept key unique within this exact source revision'),
+        source_id: z
+          .string()
+          .min(1)
+          .max(500)
+          .describe('Existing Wiki-link-safe 01_受信箱 or 40_情報源 Markdown path, excluding knowledge.md'),
+        source_revision: z
+          .string()
+          .regex(/^sha256:[a-f0-9]{64}$/)
+          .describe('Exact opaque revision returned by fetch')
+      },
+      outputSchema: pendingReviewOutputSchema,
+      annotations: createAnnotations
+    },
+    async ({
+      destination,
+      content,
+      category,
+      topics,
+      derivation_key,
+      source_id,
+      source_revision
+    }) => {
+      await assertFreshRuntime()
+      return textResult(
+        await vault.proposeDerivedNote({
+          destination,
+          content,
+          category,
+          topics,
+          derivationKey: derivation_key,
+          sourceId: source_id,
+          sourceRevision: source_revision
+        })
+      )
+    }
+  )
+
+  server.registerTool(
     'update_note',
     {
       title: 'TSUZUNEノート更新',
@@ -498,7 +650,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNE AI自動ノート更新',
       description:
-        'Update one existing Markdown note without waiting for human approval. A supplied revision guard is checked first. Identical content is a no-op with no history; changed content preserves the previous version in 50_履歴/AI更新 and returns reason/source references as provenance. Use for AI-assisted knowledge maintenance; never use for raw source notes.',
+        'Update one existing Markdown note without waiting for human approval. A supplied revision guard is checked first. Identical content is a no-op; changed content is saved only when the revision still matches. Reason and source references are returned as response provenance but no history note is created. Use for AI-assisted knowledge maintenance; never use for raw source notes.',
       inputSchema: {
         id: z.string().min(1).max(500).describe('Vault-relative note path'),
         content: z
@@ -542,7 +694,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEノート部分更新',
       description:
-        'Apply find/replace patches to an existing Markdown note without replacing its full content. Fetch first and pass its revision. Each find must match exactly once by default (replace_all: true replaces every occurrence); all operations apply atomically or the note is left unchanged. The previous content is preserved in 50_履歴/AI更新 with the given reason and source references. Never use for raw source notes.',
+        'Apply find/replace patches to an existing Markdown note without replacing its full content. Fetch first and pass its revision. Each find must match exactly once by default (replace_all: true replaces every occurrence); all operations apply atomically or the note is left unchanged. No history note is created. Never use for raw source notes.',
       inputSchema: {
         id: z.string().min(1).max(500).describe('Vault-relative note path'),
         expected_revision: z
@@ -726,31 +878,44 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEノート移動の適用',
       description:
-        'Apply one preflighted Markdown note move through the running TSUZUNE app. Rejects stale fingerprints and records one AI success audit.',
+        'Apply one preflighted Markdown note move through the running TSUZUNE app. Rejects stale fingerprints.',
       inputSchema: {
         source: z.string().min(1).max(500),
         destination: z.string().min(1).max(500),
-        expected_fingerprint: z.string().min(1).max(100),
-        reason: z.string().min(1).max(2_000),
-        source_refs: z
-          .array(z.string().min(1).max(500))
-          .max(50)
-          .optional()
-          .default([])
+        expected_fingerprint: z.string().min(1).max(100)
       },
       outputSchema: moveResultOutputSchema,
       annotations: updateAnnotations
     },
-    async ({ source, destination, expected_fingerprint, reason, source_refs }) => {
+    async ({ source, destination, expected_fingerprint }) => {
       await assertFreshRuntime()
       return textResult(
         await driveSync.moveEntry({
           source,
           destination,
-          expected_fingerprint,
-          reason,
-          source_refs
+          expected_fingerprint
         })
+      )
+    }
+  )
+
+  server.registerTool(
+    'trash_entry',
+    {
+      title: 'TSUZUNE受信箱原典をごみ箱へ移動',
+      description:
+        'Move one unlinked 01_受信箱 Markdown source directly to the Vault .trash. Requires the exact revision returned by fetch and explicit user authorization. The move is recoverable and works without the desktop app; permanent deletion is not exposed.',
+      inputSchema: {
+        source: z.string().min(1).max(500),
+        expected_revision: z.string().regex(/^sha256:[a-f0-9]{64}$/)
+      },
+      outputSchema: trashResultOutputSchema,
+      annotations: updateAnnotations
+    },
+    async ({ source, expected_revision }) => {
+      await assertFreshRuntime()
+      return textResult(
+        await vault.trashInboxSource(source, expected_revision)
       )
     }
   )
@@ -760,11 +925,10 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEバックリンク取得',
       description:
-        'List resolved Wiki-link sources. Excludes 50_履歴 by default; use include_history to opt in and next_after as after to continue.',
+        'List resolved Wiki-link sources. Excludes 50_履歴; use next_after as after to continue.',
       inputSchema: {
         id: z.string().min(1).describe('Relative note path'),
         limit: z.number().int().min(1).max(50).optional().default(20),
-        include_history: z.boolean().optional().default(false),
         after: z.string().max(500).optional()
       },
       outputSchema: {
@@ -783,8 +947,8 @@ async function main(): Promise<void> {
       },
       annotations: readOnlyAnnotations
     },
-    async ({ id, limit, include_history, after }) =>
-      textResult(await vault.backlinks(id, limit, include_history, after))
+    async ({ id, limit, after }) =>
+      textResult(await vault.backlinks(id, limit, after))
   )
 
   directTools?.registerTool(
@@ -855,7 +1019,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNE Wikiリンク追加',
       description:
-        'Safely add one Wiki link from an existing note to an existing note. TSUZUNE decides the insertion position, refuses duplicates, immutable/review-protected sources, missing targets, and stale revisions, and records a note_link_add audit entry in 50_履歴/AI更新.',
+        'Safely add one Wiki link from an existing note to an existing note. TSUZUNE decides the insertion position and refuses duplicates, immutable/review-protected sources, missing targets, and stale revisions. No history note is created.',
       inputSchema: {
         source: z
           .string()
@@ -893,7 +1057,6 @@ async function main(): Promise<void> {
         strategy: z.string(),
         previous_revision: z.string(),
         new_revision: z.string().optional(),
-        history_path: z.string().optional(),
         pending_review: z.boolean().optional(),
         proposal: z
           .object({
@@ -925,7 +1088,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEコンテキスト作成',
       description:
-        'Build a bounded Markdown bundle from one note, linked notes, and related temporal state or event notes. Use after search when linked or temporal context is needed; use fetch for one note only. Returns Markdown plus included-source metadata.',
+        'Build a bounded Markdown bundle from one note, linked notes, and related temporal state or event notes. Use after search when linked or temporal context is needed; use fetch for one note only. Returns Markdown, included-source metadata, a read-only usage receipt, and explicit state lineage without inferring missing evidence or decisions.',
       inputSchema: {
         id: z.string().min(1).describe('Relative note path'),
         query: z
@@ -947,11 +1110,6 @@ async function main(): Promise<void> {
           .union([z.iso.date(), z.iso.datetime({ offset: true })])
           .optional()
           .describe('Optional ISO 8601 date or timezone-aware date-time'),
-        include_history: z
-          .boolean()
-          .optional()
-          .default(false)
-          .describe('Include historical and superseded temporal notes'),
         temporal_perspective: z
           .enum(['valid-time', 'knowledge-time'])
           .optional()
@@ -1006,7 +1164,115 @@ async function main(): Promise<void> {
             path: z.string().optional(),
             paths: z.array(z.string()).optional()
           })
-        )
+        ),
+        state_lineage: z.object({
+          schema_version: z.literal(1),
+          subject: z.object({
+            note_id: z.string(),
+            revision: z.string(),
+            modified_at: z.string()
+          }),
+          current_states: z.union([
+            z.object({
+              status: z.literal('observed'),
+              states: z.array(
+                z.object({
+                  note_id: z.string(),
+                  state: z.string(),
+                  valid_from: z.string(),
+                  valid_to: z.string().optional(),
+                  observed_at: z.string().optional(),
+                  verified_at: z.string().optional(),
+                  review_after: z.string().optional(),
+                  revision: z.string(),
+                  modified_at: z.string()
+                })
+              )
+            }),
+            z.object({ status: z.literal('unknown') })
+          ]),
+          explicit_sources: z.union([
+            z.object({
+              status: z.literal('observed'),
+              relations: z.array(
+                z.object({
+                  from_note_id: z.string(),
+                  source_ref: z.string(),
+                  resolution: z.enum([
+                    'resolved',
+                    'missing',
+                    'ambiguous',
+                    'invalid'
+                  ]),
+                  source_note_id: z.string().optional(),
+                  source_revision: z.string().optional()
+                })
+              )
+            }),
+            z.object({ status: z.literal('unknown') })
+          ]),
+          supersession: z.union([
+            z.object({
+              status: z.literal('observed'),
+              relations: z.array(
+                z.object({
+                  successor_note_id: z.string(),
+                  superseded_ref: z.string(),
+                  resolution: z.literal('resolved'),
+                  superseded_note_id: z.string(),
+                  successor_revision: z.string(),
+                  superseded_revision: z.string()
+                })
+              )
+            }),
+            z.object({ status: z.literal('unknown') })
+          ]),
+          conflicts: z.union([
+            z.object({
+              status: z.literal('observed'),
+              current_state_note_ids: z.array(z.string())
+            }),
+            z.object({ status: z.literal('unknown') })
+          ]),
+          freshness: z.union([
+            z.object({
+              status: z.literal('observed'),
+              value: z.enum(['current', 'review_due']),
+              as_of: z.string(),
+              review_due_note_ids: z.array(z.string())
+            }),
+            z.object({
+              status: z.literal('unknown'),
+              as_of: z.string()
+            })
+          ]),
+          decision_records: z.object({
+            status: z.literal('not_observable')
+          })
+        }),
+        usage_receipt: z.object({
+          schema_version: z.literal(1),
+          search_candidates: z.object({
+            status: z.literal('not_observable')
+          }),
+          context_candidates: z.object({
+            status: z.literal('observed'),
+            note_ids: z.array(z.string())
+          }),
+          context_included: z.object({
+            status: z.literal('observed'),
+            note_ids: z.array(z.string())
+          }),
+          evidence_cited: z.object({
+            status: z.literal('not_observable')
+          }),
+          decision_or_action: z.object({
+            status: z.literal('not_observable')
+          }),
+          outcome_verified: z.object({
+            status: z.literal('not_observable')
+          })
+        })
       },
       annotations: readOnlyAnnotations
     },
@@ -1015,13 +1281,11 @@ async function main(): Promise<void> {
       query,
       max_characters,
       as_of,
-      include_history,
       temporal_perspective
     }) =>
       textResult(
         await vault.buildContext(id, max_characters, {
           asOf: as_of,
-          includeHistory: include_history,
           query,
           temporalPerspective: temporal_perspective
         })

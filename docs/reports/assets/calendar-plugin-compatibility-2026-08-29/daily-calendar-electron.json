@@ -1,0 +1,94 @@
+{
+  "mode": {
+    "iframe": false,
+    "calendar": true
+  },
+  "month": "2026年8月",
+  "activity": {
+    "legend": "ノート活動\n＋\n作成\n•\n更新\n印で一覧",
+    "trigger": true,
+    "label": "8月17日: 作成1件、最終更新2件",
+    "triggerRect": {
+      "left": 1072.28125,
+      "top": 234,
+      "right": 1094.28125,
+      "bottom": 252,
+      "width": 22,
+      "height": 18
+    },
+    "cellRect": {
+      "left": 1065.140625,
+      "top": 214,
+      "right": 1095.28125,
+      "bottom": 253
+    },
+    "hitLabel": "8月17日: 作成1件、最終更新2件",
+    "days": [
+      "2026年8月1日、ノートなし",
+      "2026年8月2日、ノートなし",
+      "2026年8月3日、ノートなし",
+      "2026年8月4日、ノートなし",
+      "2026年8月5日、ノートなし",
+      "2026年8月6日、ノートなし",
+      "2026年8月7日、ノートなし",
+      "2026年8月8日、ノートなし",
+      "2026年8月9日、ノートなし",
+      "2026年8月10日、ノートなし",
+      "2026年8月11日、ノートなし",
+      "2026年8月12日、ノートなし",
+      "2026年8月13日、ノートなし",
+      "2026年8月14日、ノートなし",
+      "2026年8月15日、ノートなし",
+      "2026年8月16日、ノートなし",
+      "2026年8月17日、ノートあり",
+      "2026年8月18日、ノートなし",
+      "2026年8月19日、ノートなし",
+      "2026年8月20日、ノートなし",
+      "2026年8月21日、ノートなし",
+      "2026年8月22日、ノートなし",
+      "2026年8月23日、ノートなし",
+      "2026年8月24日、ノートなし",
+      "2026年8月25日、ノートなし",
+      "2026年8月26日、ノートなし",
+      "2026年8月27日、ノートなし",
+      "2026年8月28日、ノートなし",
+      "2026年8月29日、ノートなし",
+      "2026年8月30日、ノートなし",
+      "2026年8月31日、ノートなし"
+    ]
+  },
+  "dialog": {
+    "text": "2026年8月17日\n×\n作成 1\n最終更新 2\nCalendar Created\n10_projects/Calendar Created.md\n作成\n更新\nCalendar Updated\n20_knowledge/Calendar Updated.md\n更新",
+    "rows": [
+      "Calendar Created\n10_projects/Calendar Created.md\n作成\n更新",
+      "Calendar Updated\n20_knowledge/Calendar Updated.md\n更新"
+    ]
+  },
+  "interactions": {
+    "activityCoordinateClick": true,
+    "outsideCoordinateClose": true,
+    "escapeClose": true,
+    "dailyCoordinateClick": true,
+    "outsidePoint": {
+      "x": 663,
+      "y": 430.5,
+      "hit": "markdown-preview"
+    },
+    "dailyPoint": {
+      "x": 1080.2109375,
+      "y": 223,
+      "hit": "2026年8月17日、ノートあり"
+    }
+  },
+  "dailyOpened": true,
+  "fixture": {
+    "createdPath": "10_projects/Calendar Created.md",
+    "updatedPath": "20_knowledge/Calendar Updated.md",
+    "historyPath": "50_履歴/AI更新/Calendar Hidden.md"
+  },
+  "screenshots": {
+    "markers": "docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-markers.png",
+    "activityList": "docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-activity-list.png",
+    "final": "docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-electron.png"
+  }
+}
