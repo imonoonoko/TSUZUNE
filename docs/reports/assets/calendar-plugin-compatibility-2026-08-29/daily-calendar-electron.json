@@ -3,24 +3,30 @@
     "iframe": false,
     "calendar": true
   },
+  "annual": {
+    "heading": "2026年",
+    "heatmap": true,
+    "selectedTab": "年表示",
+    "cells": 370
+  },
   "month": "2026年8月",
   "activity": {
-    "legend": "ノート活動\n＋\n作成\n•\n更新\n印で一覧",
+    "legend": "ノート活動\n日付の印を押すと一覧\n＋\n作成\n•\n更新",
     "trigger": true,
     "label": "8月17日: 作成1件、最終更新2件",
     "triggerRect": {
-      "left": 1072.28125,
-      "top": 234,
-      "right": 1094.28125,
-      "bottom": 252,
+      "left": 489.84375,
+      "top": 662,
+      "right": 511.84375,
+      "bottom": 680,
       "width": 22,
       "height": 18
     },
     "cellRect": {
-      "left": 1065.140625,
-      "top": 214,
-      "right": 1095.28125,
-      "bottom": 253
+      "left": 420.421875,
+      "top": 642,
+      "right": 512.84375,
+      "bottom": 681
     },
     "hitLabel": "8月17日: 作成1件、最終更新2件",
     "days": [
@@ -70,13 +76,13 @@
     "escapeClose": true,
     "dailyCoordinateClick": true,
     "outsidePoint": {
-      "x": 663,
-      "y": 430.5,
-      "hit": "markdown-preview"
+      "x": 655.5,
+      "y": 45,
+      "hit": "daily-profile-topbar"
     },
     "dailyPoint": {
-      "x": 1080.2109375,
-      "y": 223,
+      "x": 466.6328125,
+      "y": 651,
       "hit": "2026年8月17日、ノートあり"
     }
   },
@@ -87,6 +93,7 @@
     "historyPath": "50_履歴/AI更新/Calendar Hidden.md"
   },
   "screenshots": {
+    "heatmap": "docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-heatmap.png",
     "markers": "docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-markers.png",
     "activityList": "docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-activity-list.png",
     "final": "docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-electron.png"

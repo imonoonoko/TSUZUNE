@@ -84,19 +84,6 @@ const writeOutputSchema = {
   })
 }
 
-const pendingReviewOutputSchema = {
-  ...writeOutputSchema,
-  pending_review: z.literal(true),
-  proposal: z.object({
-    id: z.string(),
-    path: z.string(),
-    operation: z.enum(['create', 'update']),
-    reason: z.string(),
-    expected_revision: z.string().nullable(),
-    created_at: z.string()
-  })
-}
-
 const autonomousUpdateOutputSchema = {
   ...writeOutputSchema,
   unchanged: z.literal(true).optional(),
@@ -486,7 +473,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNE派生知識ノート作成',
       description:
-        'Create one concept-keyed, category- and topic-tagged derived knowledge note under 30_知識 from an immutable 01_受信箱 or 40_情報源 source. Fetch first and pass the exact source revision. The source remains unchanged. Use for routine low-risk Inbox organization after checking existing knowledge; multiple distinct concept keys may be created from one source revision. An exactly matching review proposal is applied automatically, while mismatched legacy output is replaced.',
+        'Create one concept-keyed, category- and topic-tagged derived knowledge note under 30_知識 from an immutable 01_受信箱 or 40_情報源 source. Fetch first and pass the exact source revision. The source remains unchanged. Use for routine low-risk Inbox organization after checking existing knowledge; multiple distinct concept keys may be created from one source revision. Legacy review proposals do not block this direct write or get applied implicitly.',
       inputSchema: {
         destination: z
           .string()
@@ -553,9 +540,9 @@ async function main(): Promise<void> {
   server.registerTool(
     'propose_derived_note',
     {
-      title: 'TSUZUNE派生知識ノート提案',
+      title: 'TSUZUNE派生知識ノート作成（互換名）',
       description:
-        'Propose one concept-keyed, category- and topic-tagged derived knowledge note under 30_知識 from an immutable 01_受信箱 or 40_情報源 source. Fetch first and pass the exact source revision. The source remains unchanged, and human approval in AI Review is required before the destination note is written.',
+        'Compatibility alias for create_derived_note. Immediately create one concept-keyed, category- and topic-tagged derived knowledge note under 30_知識 from an immutable 01_受信箱 or 40_情報源 source. Fetch first and pass the exact source revision. The source remains unchanged. Human approval and pending proposals are no longer used; the validated note is written immediately.',
       inputSchema: {
         destination: z
           .string()
@@ -592,7 +579,7 @@ async function main(): Promise<void> {
           .regex(/^sha256:[a-f0-9]{64}$/)
           .describe('Exact opaque revision returned by fetch')
       },
-      outputSchema: pendingReviewOutputSchema,
+      outputSchema: writeOutputSchema,
       annotations: createAnnotations
     },
     async ({
@@ -650,7 +637,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNE AI自動ノート更新',
       description:
-        'Update one existing Markdown note without waiting for human approval. A supplied revision guard is checked first. Identical content is a no-op; changed content is saved only when the revision still matches. Reason and source references are returned as response provenance but no history note is created. Use for AI-assisted knowledge maintenance; never use for raw source notes.',
+        'Update one existing Markdown note without waiting for human approval. Fetch the note first and supply its required revision guard. On conflict, fetch again and reconcile changes before retrying. Identical content is a no-op only when the revision matches. Reason and source references are returned as response provenance but no history note is created. Use for AI-assisted knowledge maintenance; never use for raw source notes.',
       inputSchema: {
         id: z.string().min(1).max(500).describe('Vault-relative note path'),
         content: z
@@ -660,8 +647,7 @@ async function main(): Promise<void> {
         expected_revision: z
           .string()
           .regex(/^sha256:[a-f0-9]{64}$/)
-          .optional()
-          .describe('Optional revision guard returned by fetch'),
+          .describe('Required revision guard returned by fetch'),
         reason: z
           .string()
           .max(2_000)
@@ -1019,7 +1005,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNE Wikiリンク追加',
       description:
-        'Safely add one Wiki link from an existing note to an existing note. TSUZUNE decides the insertion position and refuses duplicates, immutable/review-protected sources, missing targets, and stale revisions. No history note is created.',
+        'Safely add one Wiki link from an existing note to an existing note. TSUZUNE decides the insertion position and refuses duplicates, immutable sources, missing targets, and stale revisions. No history note is created.',
       inputSchema: {
         source: z
           .string()
@@ -1056,18 +1042,7 @@ async function main(): Promise<void> {
         link: z.string(),
         strategy: z.string(),
         previous_revision: z.string(),
-        new_revision: z.string().optional(),
-        pending_review: z.boolean().optional(),
-        proposal: z
-          .object({
-            id: z.string(),
-            path: z.string(),
-            operation: z.enum(['create', 'update']),
-            reason: z.string(),
-            expected_revision: z.string().nullable(),
-            created_at: z.string()
-          })
-          .optional()
+        new_revision: z.string()
       },
       annotations: updateAnnotations
     },
@@ -1088,7 +1063,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEコンテキスト作成',
       description:
-        'Build a bounded Markdown bundle from one note, linked notes, and related temporal state or event notes. Use after search when linked or temporal context is needed; use fetch for one note only. Returns Markdown, included-source metadata, a read-only usage receipt, and explicit state lineage without inferring missing evidence or decisions.',
+        'Build a bounded Markdown bundle from one note and linked or temporal sources. Use after search for linked or temporal evidence; use fetch for one note. Returns content_mode, revisions, omissions, a read-only usage receipt, and state_lineage. section_projection can omit requested sections even when truncated is false; full_note can still be truncated. Empty warnings do not establish current validity. Fetch missing source text when needed. If the complete sources are already present, do not call build_context or fetch again just to resolve unknown lineage or conflicting claims; report what remains unresolved.',
       inputSchema: {
         id: z.string().min(1).describe('Relative note path'),
         query: z
@@ -1097,7 +1072,7 @@ async function main(): Promise<void> {
           .max(500)
           .optional()
           .describe(
-            'Optional question used when the full context would exceed the bundle budget: preserve every intent delimited by commas, periods, semicolons, question marks, exclamation marks, colons, or newlines; project matching heading branches including bodyless parents and descendants without duplication; share compact seed budget across selected branches; reserve the projected ordinary seed before related source bodies; and prioritize remaining related note bodies. MOC titles are not filtered'
+            'Optional question for heading-based selection when the full context exceeds the budget. Punctuation and newlines separate matching groups; matching does not guarantee coverage of every semantic intent. Selected branches preserve parent headings and descendants and share the compact seed budget before related bodies. MOC titles and candidate selection are unchanged. Check the returned text for missing evidence.'
           ),
         max_characters: z
           .number()
@@ -1131,6 +1106,12 @@ async function main(): Promise<void> {
             name: z.string(),
             relation: z.enum(['seed', 'outgoing', 'backlink']),
             truncated: z.boolean(),
+            content_mode: z.enum([
+              'full_note',
+              'section_projection',
+              'moc_index',
+              'body_omitted'
+            ]),
             revision: z.string(),
             modified_at: z.string(),
             content_omitted: z.boolean().optional(),

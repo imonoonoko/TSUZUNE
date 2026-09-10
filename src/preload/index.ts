@@ -1,8 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppSettings,
-  AiWriteReviewProposal,
   AppUpdateStatus,
+  BaseDocument,
   CalendarPluginRuntimeStatus,
   CalendarPluginSettings,
   CreateDirectoryInput,
@@ -35,6 +35,11 @@ import type {
   VaultBookmark,
   VaultSnapshot
 } from '../shared/types'
+import type {
+  WorkspaceCollection,
+  WorkspaceScope,
+  WorkspaceSnapshotV1
+} from '../shared/workspace-state'
 
 const invoke = <T>(channel: string, ...args: unknown[]): Promise<Result<T>> =>
   ipcRenderer.invoke(channel, ...args)
@@ -43,12 +48,36 @@ const api: TsuzuneApi = {
   chooseVault: () => invoke<VaultSnapshot | null>('vault:choose'),
   openLastVault: () => invoke<VaultSnapshot | null>('vault:openLast'),
   getSettings: () => invoke<AppSettings>('settings:get'),
+  getWorkspaces: (expectedVaultPath: string) =>
+    invoke<WorkspaceCollection>('workspaces:get', expectedVaultPath),
+  saveWorkspace: (
+    scope: WorkspaceScope,
+    name: string,
+    snapshot: WorkspaceSnapshotV1,
+    replaceExisting: boolean
+  ) =>
+    invoke<WorkspaceCollection>(
+      'workspaces:save',
+      scope,
+      name,
+      snapshot,
+      replaceExisting
+    ),
+  deleteWorkspace: (scope: WorkspaceScope, name: string) =>
+    invoke<WorkspaceCollection>('workspaces:delete', scope, name),
+  saveLastWorkspaceSession: (
+    scope: WorkspaceScope,
+    snapshot: WorkspaceSnapshotV1
+  ) => invoke<null>('workspaces:saveLastSession', scope, snapshot),
   listObsidianPluginCandidates: () =>
     invoke<ObsidianPluginCandidate[]>('obsidianPlugins:list'),
   getCalendarPluginStatus: () =>
     invoke<CalendarPluginRuntimeStatus>('calendarPlugin:status'),
   getSnapshot: () => invoke<VaultSnapshot>('vault:snapshot'),
   readNote: (path: string) => invoke<NoteDocument>('vault:readNote', path),
+  readBase: (path: string) => invoke<BaseDocument>('vault:readBase', path),
+  listBases: (expectedVaultPath: string) =>
+    invoke<string[]>('vault:listBases', expectedVaultPath),
   readVaultImage: (path: string) => invoke<string>('vault:readImage', path),
   openVaultFile: (path: string) => invoke<null>('system:openVaultFile', path),
   revealVaultFile: (path: string) =>
@@ -79,18 +108,10 @@ const api: TsuzuneApi = {
     invoke<null>('settings:setLastNote', path),
   setUserIgnoreFilters: (filters: string[]) =>
     invoke<null>('settings:setUserIgnoreFilters', filters),
-  setAiReviewPaths: (paths: string[]) =>
-    invoke<null>('settings:setAiReviewPaths', paths),
   setTemplateSettings: (settings: TemplateSettings) =>
     invoke<null>('settings:setTemplates', settings),
   setCalendarPluginSettings: (settings: CalendarPluginSettings) =>
     invoke<null>('settings:setCalendarPlugin', settings),
-  listAiReviewProposals: () =>
-    invoke<AiWriteReviewProposal[]>('aiReview:list'),
-  approveAiReviewProposal: (id: string) =>
-    invoke<EntryOperationOutput>('aiReview:approve', id),
-  cancelAiReviewProposal: (id: string) =>
-    invoke<null>('aiReview:cancel', id),
   setGraphForces: (settings: GraphForceSettings) =>
     invoke<null>('settings:setGraphForces', settings),
   setGraphDisplay: (settings: GraphDisplaySettings) =>

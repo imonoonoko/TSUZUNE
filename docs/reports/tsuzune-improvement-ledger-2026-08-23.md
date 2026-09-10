@@ -1,5 +1,7 @@
 # TSUZUNE 改善・未達成項目 実行台帳 — 2026-08-23
 
+> 現在の候補整理は[2026-09-09の未実装案整理](tsuzune-unimplemented-ideas-2026-09-09.md)、Primary／Nextは[PLAN.mdのCurrent Decision](../../PLAN.md#current-decision)を参照する。以下の状態・再開順は2026-08-23の判断履歴。AI履歴圧縮はその後廃止し、旧Graph／Excludedやrepository closeoutを現在のNextへ戻さない。
+
 ## 結論
 
 - 現役の製品実装Primaryはありません。

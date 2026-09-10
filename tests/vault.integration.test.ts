@@ -438,6 +438,7 @@ describe('VaultService path and scan boundaries', () => {
 
   it.each([
     () => vault.readNote('../outside.md'),
+    () => vault.readBase('../outside.base'),
     () => vault.createDirectory({ parent: '../outside', name: '逃走先' }),
     () => vault.createNote({ directory: 'folder//nested', name: 'ノート' })
   ])('rejects an operation that contains an invalid relative path', async (operation) => {
@@ -445,6 +446,96 @@ describe('VaultService path and scan boundaries', () => {
       appError: { code: 'INVALID_PATH' }
     })
   })
+
+  it('reads a Vault-relative .base without exposing protected history', async () => {
+    await mkdir(absolute('views'), { recursive: true })
+    await mkdir(absolute('50_履歴'), { recursive: true })
+    await writeFile(absolute('views/projects.base'), 'views:\n  - type: table\n', 'utf8')
+    await writeFile(absolute('50_履歴/audit.base'), 'views: []\n', 'utf8')
+
+    await expect(vault.readBase('views/projects.base')).resolves.toMatchObject({
+      path: 'views/projects.base',
+      content: 'views:\n  - type: table\n',
+      modifiedAt: expect.any(Number)
+    })
+    await expect(vault.readBase('views/projects.md')).rejects.toMatchObject({
+      appError: { code: 'INVALID_PATH' }
+    })
+    await expect(vault.readBase('50_履歴/audit.base')).rejects.toMatchObject({
+      appError: { code: 'ACCESS_DENIED' }
+    })
+  })
+
+  it('lists Base paths deterministically without reading or changing their contents', async () => {
+    await Promise.all([
+      mkdir(absolute('archive'), { recursive: true }),
+      mkdir(absolute('views/日本語 フォルダー'), { recursive: true }),
+      mkdir(absolute('40_情報源'), { recursive: true }),
+      mkdir(absolute('50_履歴'), { recursive: true }),
+      mkdir(absolute('.private'), { recursive: true })
+    ])
+    await Promise.all([
+      writeFile(absolute('projects.base'), 'root bytes', 'utf8'),
+      writeFile(absolute('archive/projects.base'), 'archive bytes', 'utf8'),
+      writeFile(absolute('views/日本語 フォルダー/計画.BASE'), 'unicode bytes', 'utf8'),
+      writeFile(absolute('40_情報源/source.base'), 'source bytes', 'utf8'),
+      writeFile(absolute('50_履歴/audit.base'), 'history bytes', 'utf8'),
+      writeFile(absolute('.private/hidden.base'), 'hidden bytes', 'utf8'),
+      writeFile(absolute('.hidden.base'), 'hidden bytes', 'utf8'),
+      writeFile(absolute('ignored.txt'), 'not a Base', 'utf8')
+    ])
+
+    await expect(vault.listBases(rootPath, [])).resolves.toEqual([
+      '40_情報源/source.base',
+      'archive/projects.base',
+      'projects.base',
+      'views/日本語 フォルダー/計画.BASE'
+    ])
+    expect(await readFile(absolute('projects.base'), 'utf8')).toBe('root bytes')
+    await expect(access(absolute('.tsuzune'))).rejects.toBeDefined()
+  })
+
+  it('applies existing exclusions only to the full Base path without pruning directories', async () => {
+    await mkdir(absolute('Folder'), { recursive: true })
+    await writeFile(absolute('Folder/Visible.base'), 'visible', 'utf8')
+    await writeFile(absolute('Folder/Hidden.base'), 'hidden', 'utf8')
+
+    await expect(
+      vault.listBases(rootPath, ['/^Folder$/', '/Hidden\\.base$/', '/[invalid/'])
+    ).resolves.toEqual(['Folder/Visible.base'])
+    await expect(vault.listBases(rootPath, ['Folder/'])).resolves.toEqual([])
+  })
+
+  it('rejects invalid and stale expected Vault paths and requires a selected Vault', async () => {
+    await expect(vault.listBases('', [])).rejects.toMatchObject({
+      appError: { code: 'INVALID_PATH' }
+    })
+    await expect(vault.listBases('relative', [])).rejects.toMatchObject({
+      appError: { code: 'INVALID_PATH' }
+    })
+    await expect(vault.listBases(join(rootPath, 'other'), [])).rejects.toMatchObject({
+      appError: { code: 'FILE_CHANGED' }
+    })
+    vault.clearRootPath()
+    await expect(vault.listBases(rootPath, [])).rejects.toMatchObject({
+      appError: { code: 'NO_VAULT' }
+    })
+  })
+
+  it.skipIf(process.platform !== 'win32')(
+    'does not enter a static junction while listing Bases',
+    async () => {
+      const outsidePath = await mkdtemp(join(tmpdir(), 'tsuzune-base-list-outside-'))
+      try {
+        await writeFile(join(outsidePath, 'outside.base'), 'outside', 'utf8')
+        await symlink(outsidePath, absolute('linked'), 'junction')
+
+        await expect(vault.listBases(rootPath, [])).resolves.toEqual([])
+      } finally {
+        await rm(outsidePath, { recursive: true, force: true })
+      }
+    }
+  )
 
   it('rejects a Windows-reserved note name without creating a file', async () => {
     await expect(

@@ -41,6 +41,7 @@ interface MarkdownEditorProps {
   templateDirectory?: string
   onImportAttachments?: () => Promise<string[]>
   deprioritizedPaths?: ReadonlySet<string>
+  onCompositionChange?: (composing: boolean) => void
 }
 
 function PropertyValueFields({ property, onChange, label, disabled, autoFocus = false }: {
@@ -98,12 +99,16 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   noteTitle,
   templateDirectory = '90_テンプレート',
   onImportAttachments,
-  deprioritizedPaths
+  deprioritizedPaths,
+  onCompositionChange
 }: MarkdownEditorProps, ref): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
+  const onCompositionChangeRef = useRef(onCompositionChange)
   const applyingValueRef = useRef(false)
+  const compositionEndPendingRef = useRef(false)
+  const composingRef = useRef(false)
   const readOnlyCompartmentRef = useRef(new Compartment())
   const orderedNotes = useMemo(
     () =>
@@ -144,6 +149,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   }, [value])
 
   onChangeRef.current = onChange
+  onCompositionChangeRef.current = onCompositionChange
 
   useImperativeHandle(ref, () => ({
     scrollToOffset: (offset) => {
@@ -178,13 +184,41 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !applyingValueRef.current) {
             onChangeRef.current(update.state.doc.toString())
+            if (compositionEndPendingRef.current) {
+              compositionEndPendingRef.current = false
+              composingRef.current = false
+              onCompositionChangeRef.current?.(false)
+            }
           }
         })
       ]
     })
 
+    const handleCompositionStart = (): void => {
+      compositionEndPendingRef.current = false
+      if (composingRef.current) return
+      composingRef.current = true
+      onCompositionChangeRef.current?.(true)
+    }
+    const handleCompositionEnd = (): void => {
+      compositionEndPendingRef.current = true
+      queueMicrotask(() => {
+        if (!compositionEndPendingRef.current) return
+        compositionEndPendingRef.current = false
+        composingRef.current = false
+        onCompositionChangeRef.current?.(false)
+      })
+    }
+    view.dom.addEventListener('compositionstart', handleCompositionStart)
+    view.dom.addEventListener('compositionend', handleCompositionEnd)
+
     viewRef.current = view
     return () => {
+      view.dom.removeEventListener('compositionstart', handleCompositionStart)
+      view.dom.removeEventListener('compositionend', handleCompositionEnd)
+      if (composingRef.current) onCompositionChangeRef.current?.(false)
+      compositionEndPendingRef.current = false
+      composingRef.current = false
       view.destroy()
       viewRef.current = null
     }

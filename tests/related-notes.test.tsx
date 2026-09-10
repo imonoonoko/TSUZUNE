@@ -117,6 +117,39 @@ describe('RelatedNotes', () => {
       .toContain('ありません')
   })
 
+  it('uses a controlled active tab when supplied and reports selection changes', () => {
+    const onActiveTabChange = vi.fn()
+    const { rerender } = render(
+      <RelatedNotes
+        activeTab="backlinks"
+        onActiveTabChange={onActiveTabChange}
+        outgoing={outgoing}
+        backlinks={[backlink]}
+        temporal={null}
+        onOpen={() => undefined}
+        onMissing={() => undefined}
+      />
+    )
+
+    expect(screen.getByRole('tab', { name: 'バックリンク 1件' }).getAttribute('aria-selected')).toBe('true')
+    fireEvent.click(screen.getByRole('tab', { name: '時間' }))
+    expect(onActiveTabChange).toHaveBeenCalledWith('temporal')
+    expect(screen.getByRole('tab', { name: 'バックリンク 1件' }).getAttribute('aria-selected')).toBe('true')
+
+    rerender(
+      <RelatedNotes
+        activeTab="temporal"
+        onActiveTabChange={onActiveTabChange}
+        outgoing={outgoing}
+        backlinks={[backlink]}
+        temporal={null}
+        onOpen={() => undefined}
+        onMissing={() => undefined}
+      />
+    )
+    expect(screen.getByRole('tab', { name: '時間' }).getAttribute('aria-selected')).toBe('true')
+  })
+
   it('shows an outline and reports the selected heading', () => {
     const onHeadingSelect = vi.fn()
     const headings: MarkdownHeading[] = [

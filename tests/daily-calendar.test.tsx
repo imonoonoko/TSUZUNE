@@ -33,6 +33,11 @@ describe('DailyCalendar', () => {
       />
     )
 
+    expect(screen.getByRole('heading', { name: '2026年' })).toBeTruthy()
+    expect(screen.getByLabelText('2026年のノート活動ヒートマップ')).toBeTruthy()
+    expect(screen.getByRole('tab', { name: '年表示' }).getAttribute('aria-selected')).toBe('true')
+
+    fireEvent.click(screen.getByRole('tab', { name: '月表示' }))
     expect(screen.getByRole('heading', { name: '2026年12月' })).toBeTruthy()
     expect(
       screen.getByRole('button', { name: '2026年12月15日、ノートなし' }).getAttribute('aria-current')
@@ -101,6 +106,14 @@ describe('DailyCalendar', () => {
       />
     )
 
+    const heatmapDay = screen.getByRole('button', {
+      name: '2026年8月17日、ノート活動2件、デイリーノートあり'
+    })
+    fireEvent.click(heatmapDay)
+    expect(onSelectDate).toHaveBeenCalledWith(new Date(2026, 7, 17))
+    expect(screen.getByRole('dialog', { name: '2026年8月17日のノート活動' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('tab', { name: '月表示' }))
     const legend = screen.getByLabelText('ノート活動の見方')
     expect(legend.textContent).toContain('作成')
     expect(legend.textContent).toContain('更新')

@@ -1,25 +1,41 @@
 # TSUZUNE Project Status
 
-## 2026-09-05 P0-7 参照元リンク追従の現在地
-
-P0-7の参照元リンク追従を実装・source検証済み。単一Markdownノートの名前変更・移動にWiki／Markdown／frontmatter参照が追従し、別名・見出し・コメント・BOM・改行を保持する。32件の安全性test、実画面の4操作と再起動後の全file一致、隔離先userData／sessionDataの実測、本番profile 273 files不変を確認した。独立reviewのblocking findingは解消済み。本番反映の完了は、このsource fingerprintに対応する最新production receiptとinstalled実画面検証を記録した既存Vault campaignを正本とする。repo内記録はgate前に確定し、gate後に結果を重複追記しない。P0-6のprofile差分は原因未特定の過去証拠として保持する。 [実装・検証証拠](.agent/requirements/20260905-obsidian-compatibility-program/results/p0-7-lossless-link-maintenance.md)。以下は各区切りの記録。
-
-更新日: 2026-09-06（JST）
+更新日: 2026-09-10（JST）
 
 この文書は、TSUZUNEの「今」を一枚で確認するための入口です。実行順と将来計画は[PLAN.md](PLAN.md)、製品の不変条件は[PRODUCT.md](PRODUCT.md)、画面・ブランド規約は[DESIGN.md](DESIGN.md)を正本とします。完了証拠は[docs/INDEX.md](docs/INDEX.md)から辿ります。
 
 ## 現在地
+
+2026-09-10、Contextの読取境界をtool説明と既存利用案内へ反映した。質問の意味を全て収録するという保証を外し、抜粋不足・現在性不明・既読本文の再取得の扱いを明確にした。検索・本文・schema構造は変更していない。固定6ケースの最終実AI受入はPASSで、baselineもPASSのため一般的な行動改善は未確認。本番反映・fresh MCP・最終同期は対応receiptとVault実施記録で判定する。[実装・受入境界](docs/reports/context-reading-boundary-2026-09-10.md)。
+
+2026-09-09、A6としてBaseを一覧・検索から選んで開く操作を実装した。左railとCtrl+Pの両入口、名前・folder検索、一覧更新、手入力を備え、保存失敗時は入力と選択を保持する。除外設定・Vault世代・junction差替えの拒否と、既存の読み取り専用表・path-only復元を検証した。本番反映は対応する最新receipt、隔離installedの操作とfresh MCP・最終同期はVault実施記録で確認する。[実装・受入境界](.agent/requirements/20260908-bases-design/implementation.md)。
+
+2026-09-09、S2としてContext／MCPに本文の変換種別を追加した。通常本文・質問に合わせた節選択・MOC索引・本文省略を区別し、全文読取と取り違えないための判断材料を返す。本文、収録順、revision、既存の切断・省略情報は保持する。24ケースの実装前比較と全1,222 tests（1 SKIP）はPASS。本番反映・fresh MCP・最終Vault同期は対応receiptと実施記録で判定する。[実装証拠・完了条件](docs/reports/context-content-mode-2026-09-09.md)。画面の見た目は変わらない。
+
+2026-09-09、起動時の欠落タブ通知に表示スタイルを適用し、「見つからないタブを前回の配置から外す」を追加した。通知だけ閉じる操作と、lastSessionの参照を明示的に外す操作を分け、ノート本文と名前付き配置を保持する。対象ノートは既存の受信箱整理で派生後trashされた記録があり、今回の修正では移動・復元しない。関連126 testsと隔離Electronの表示・再読込・保存保持検査はPASS。本番完了は対応する最新receiptとVault実施記録で判定する。[原因・検証・受入境界](docs/reports/missing-tab-notice-2026-09-09.md)。
+
+2026-09-09、利用者の依頼により「AIとレビュー」の承認機能を撤去した。通常ノートの作成・更新・派生知識作成は、人間の承認待ちを挟まず検証後に直接保存する。取得時revision、原典保護、カテゴリ／topic検証、衝突防止は維持する。旧提案は自動適用せず、そのまま不活性に保持する。typecheck、全1,217 tests（1 SKIP）、MCP検査、限定reviewはPASS。本番反映は対応する最新receipt、最終Vault同期は実施記録で判定する。[変更・受入境界](docs/reports/ai-direct-write-2026-09-09.md)。
+
+2026-09-09、S1の検索一致抜粋を実装した。自然文の最初の検索語が本文にそのまま存在しない時、候補選定に使った正の語の一致箇所を検索一覧とMCPへ返す。既存の一致抜粋・検索順位・候補・ノート本文は保持する。固定20ケースと全1,220 testsがPASS。本番反映は対応する最新receipt、隔離installedでの表示確認と最終同期はVault実施記録を参照する。[実装証拠・受入境界](docs/reports/search-matching-excerpts-2026-09-09.md)。画面構成は変えず、検索結果の抜粋内容を改善した。
+
+2026-09-08、ワークフロー改善第1段階として`autonomous_update_note`の取得時revisionを必須化した。省略・空値・競合はno-opやReview提案より先に拒否する。既存の通常更新・同一本文・Review・原典保護を回帰検証し、現在地と承認済み範囲の案内を整合した。本番同一性と最終Vault同期は対応する最新receipt・Vault実施記録で判定し、この文書のsource記載だけで完了としない。[作業境界](PLAN.md#ワークフロー改善第1段階--2026-09-08)／[API契約](docs/mcp-integration.md)。画面の見た目は変更していない。
+
+2026-09-08、利用者が選択したBasesの読み取り専用表を本番反映し、隔離installed受入を確認した。コマンドパレットの「Baseを開く」からVault相対の`.base`を指定し、対応profileの表、診断、再読込、ノート遷移を利用する。workspaceにはpathだけを保存し、除外設定と外部snapshot更新を反映する。その後のレビューで、Properties一覧への除外設定適用と、Basesの重複キーを不正値として診断する修正をsource実装・回帰テスト済み。修正版の本番同一性は最新receipt、隔離installed受入は最終Vault実施記録で確認する。[範囲・検証・制限](.agent/requirements/20260908-bases-design/plan.md)。
+
+2026-09-06、本人はAIとの再利用まで既に行えていると報告した。未確認なのは必要なノートの根拠が回答に適切に反映されているか。[AI再利用の基盤レビュー](docs/reports/ai-reuse-foundation-review-2026-09-06.md)で取得・Context・利用観測の境界を確認した。次の実行状態はPLAN.mdへ集約し、今回のレビューでは画面・製品コードを変更していない。
+
+2026-09-06、本人が現状評価を今後の方針として採用した。[PRODUCT.md](PRODUCT.md#adopted-direction--2026-09-06)に製品価値を定義し、現在のPrimary／Nextは[PLAN.md](PLAN.md#current-decision)に一本化した。当日の文書変更とdelivery判定は日付付き証拠であり、現在の本番判定は最新receiptで確認する。
 
 Obsidian互換性はP0-7までの選択済み範囲を本番反映・隔離installed受入済み。2026-09-06にGitHub main統合と、レビューで選んだ保守へ進んだ。保守のsource証拠は[保守結果](docs/reports/review-maintenance-2026-09-06.md)、本番完了はそれに対応する最新receipt・Vault実施記録を参照する。
 
 | 対象 | 現在の状態 | 正本 |
 |---|---|---|
 | インストール済み本番 | 最新のstatus、source fingerprint、packaged／installed hash、profile不変性、MCP再登録はmachine-readable receiptを唯一の正本とする。製品source変更後は、その変更を含む`production:update`のreceiptが`installed-and-verified`になるまでinstalled productionと同一視しない | [production-update-latest.json](docs/reports/production-update-latest.json) |
-| Obsidian互換性Program | 現行Primary。P0-1 Excluded files、P0-2文字列に続きP0-3数値／単純list Propertiesをsource実装・検証。型区別、周辺byte／コメント保持、revision保護と再読込を確認。focused 117／全体1099 tests PASS（1 SKIP）、typecheck／独立review PASS。P0-2で先行したOOMの原因解消は未証明。P0-5のチェックボックス型Propertiesは追加・切替・削除・preview・保存・再読込をsource実装し、全体1124 tests PASS（1 SKIP）、隔離した固定Obsidian 1.13.4との実機26検査をPASSした。真偽値の切替・再起動後の状態は一致。新規未チェック値（TSUZUNE=false／Obsidian=空欄）とコメント／BOM／改行の保存は異なり、TSUZUNEの非破壊保存を維持する。再起動後にMCPの記録同期を完了し、既存campaignと3入口をrevision付きで更新、読み戻し・一意検索・相互リンクを確認した。Ownerが2026-09-05に現source全体を既存の検証・更新手順で導入することを明示承認した。対象はExcluded files、各型Properties編集、Context利用・状態由来レシートを含む現tree。導入結果はdocs/reports/production-update-latest.jsonの本承認後のreceiptとdelivery_infoを正本にし、既存campaignへ受入証拠を保存する。新機能やGit公開は自動着手しない。本番反映・Git deliveryは未実施。fresh GUI比較は固定Obsidian 1.13.4とcurrent-source TSUZUNEの5ケースに限定して完了 | [互換性Program](.agent/requirements/20260905-obsidian-compatibility-program/plan.md)／[台帳](.agent/requirements/20260905-obsidian-compatibility-program/compatibility-ledger.md)／[P0-4 Evidence](.agent/requirements/20260905-obsidian-compatibility-program/results/p0-4-properties-paired-comparison.md) |
-| 観測宙域MVP | 初回の全量Graph／camera prototypeは利用者鑑賞受入で不採用。R2では明示Wiki linkからroot最大3枝・depth 2・最大9星／8本の局所treeを場面ごとに構成し、全量背景、global layout、camera、Canvas、技術件数captionを表示経路から除去した。全974 testsとbuild-bound Electronのdense 589/4175・singleton 1/0受入はPASS。sourceは検証済みで、利用者鑑賞受入待ち。本番未反映 | [開発計画](.agent/requirements/20260903-0032-existence-phase-observatory-mvp/implementation-plan.md)／[機械的受入結果](.agent/requirements/20260903-0032-existence-phase-observatory-mvp/acceptance-result.json) |
+| Obsidian互換性Program | P0-1〜P0-7の選択済み範囲は2026-09-05本番反映・隔離installed受入済み。全文法・全面互換を証明したものではない。型・byte保持・profile差分などの個別境界は台帳と各受入記録を参照する。現在の優先順位はPLANが所有する | [互換性台帳](.agent/requirements/20260905-obsidian-compatibility-program/compatibility-ledger.md) |
+| 観測宙域／Life Weather | 終了。2026-09-06利用者判断で製品の専用機能を撤去。App安全性99 tests PASS。installed完了は撤去sourceに対応する最新receiptで判定。研究ノート・履歴・試作成果は保持する | [終了済み開発計画](.agent/requirements/20260903-0032-existence-phase-observatory-mvp/implementation-plan.md)／[receipt](docs/reports/production-update-latest.json) |
 | 受信箱capture first slice | Command Paletteから現在のfolderや分類を問わず`01_受信箱`へcollision-safeな空メモを作成して開くsource実装を完了。このcapture操作自体には分類DB・Hook・background処理・履歴を追加していない。typecheck、全test、MCP check、独立reviewはPASS。本番反映は最新receiptのsource fingerprintがcurrent sourceと一致する時だけ成立する | [実装・検証packet](.agent/requirements/20260831-note-organization-video/packets/D5-D6-implementation-verification.md)／[receipt](docs/reports/production-update-latest.json) |
 | Browser Clipper | Chrome／Edgeの明示操作でWeb／YouTubeを出典付きMarkdownとして`01_受信箱`へcreate-only保存するsource実装を完了。通常WebとYouTube字幕はクリップ時に文字数・64 KiBで切らず、10万文字超の原典はMCP `fetch` cursorでAIがrevisionを保ったまま分割読取できる。Mozilla Readability 0.6.0をローカル同梱し、YouTubeは可視文字起こし、パネル展開、現在動画IDと一致する字幕トラック、取得不能時のローカル`yt-dlp`の順に探す。`yt-dlp`は設定・Cookie・remote componentを読まず、一時字幕を変換後に削除する。固定拡張ID、6桁pairing、OS暗号化token、exact Origin／Host、一回8 MiBの入力上限、同時冪等性、衝突非上書きを維持し、広域host権限、cloud文字起こし、汎用履歴、新しい`50_履歴`は追加しない。installed一致は最新receipt、実ブラウザのtoolbar操作は利用者確認を別に判定する | [利用方法](docs/browser-clipper.md)／[強化packet](.agent/requirements/20260901-browser-clipper-existing-tech/plan.md)／[receipt](docs/reports/production-update-latest.json) |
-| AI派生知識整理 | `01_受信箱`または`40_情報源`の一件をAIが非信頼入力として読み、既存主カテゴリ1件・トピック1〜3件・exact source revision・Wiki原典linkを持つ`30_知識`候補をAI Reviewへ登録するsource実装を完了。承認前は派生ノートを作らず、原典は変更しない。同じsource path＋revisionの重複候補、stale revision、destination衝突を拒否する。独立反証reviewはPASS、source必須checkもPASS。自動承認、原典の移動／削除、bulk分類、Hook、scheduleは実装していない。installed一致は最新receiptを正本とする | [現行計画](.agent/requirements/20260831-note-organization-video/plan.md#v5-category-aware-derivation-continuation--2026-09-01)／[実装packet](.agent/requirements/20260831-note-organization-video/packets/D20-D22-integration.md)／[receipt](docs/reports/production-update-latest.json) |
+| AI派生知識整理 | `create_derived_note`で概念単位に直接作成し、`propose_derived_note`も同じ直接作成を行う互換名とする。アプリ内の人間承認は廃止。原典revision、カテゴリ／topic、Wiki出典、concept key、衝突を検査し、派生時に原典を変更しない。未承認の重要判断は必要なら会話で確認する。受信箱日次整理・条件付き復元可能trashの権限はVaultの`30_知識/TSUZUNE-AI整理運用契約.md`を参照し、今回の承認画面撤去で操作範囲を増やさない | [現行APIと安全境界](docs/mcp-integration.md)／[receipt](docs/reports/production-update-latest.json) |
 | Icon refresh | Interwoven Bellのapp／tray専用assetを本番反映済み。全626 tests、10/10 checks、build／installed hash一致、profile 57 files不変。タイトルバー、アプリ内ヘッダー、タスクバー、通知領域のinstalled実機目視もPASSし、slice完了 | [icon refresh](docs/reports/tsuzune-icon-refresh-2026-08-14.md) |
 | 公開配布 | commit `6a51986`をtag `v0.6.0`としてLatest Releaseへ公開。installer、blockmap、`latest.yml`の匿名HTTP 200とdigest一致、本番10/10、installed 0.6.0、profile 58 files不変を確認。public feedのtoken必須gateは修正済み。未署名のSmartScreen警告と、隔離Windowsを要するv0.5.0→v0.6.0実更新受入は残る | [v0.6.0 release](docs/reports/v0.6.0-public-release-2026-08-26.md) |
 | Graph直近slice | CP1-B-02で実在Markdownノートにも`フォルダで表示`を接続。公式production updateの全529 tests／10 checksを通して本番反映済み | [CP1-B-02](docs/reports/cp1-b-02-note-folder-reveal-2026-08-13.md) |
@@ -33,9 +49,9 @@ Obsidian互換性はP0-7までの選択済み範囲を本番反映・隔離insta
 | Full-text Search P0-3/R3 | `Ctrl+Shift+F`でpersistent searchをreveal／focusし、`Ctrl+K`互換を維持。既存operatorに加えてexact `category:`／`topic:` facetをsource実装し、結果を「知識」「情報源」「受信箱」「その他」の排他的4群で表示する。派生知識ではカテゴリ／トピックchipを表示し、未分類ノートも「その他」から消さない。installed一致は最新receiptを正本とする | [acceptance](docs/reports/full-text-search-2026-08-18.md)／[現行計画](.agent/requirements/20260831-note-organization-video/plan.md#v5-category-aware-derivation-continuation--2026-09-01)／[receipt](docs/reports/production-update-latest.json) |
 | PCTX-A1設計受入 | 初回AC1 FAIL／AC2・AC3 PASSを受けてartifact契約を補正。別の自然作業「右コンテキスト3タブ化」で独立したno-retry受入を行い、AC1／AC2／AC3すべてPASS。製品機能の追加は不要と判断 | [要件](.agent/requirements/20260817-0510-portable-context-handoff/4_requirements.md) |
 | 起動安全性 | Electronのsingle-instance lockを本番反映。後続起動は終了し、既存windowを表示・復元・focusする。installed appの2回連続起動で主プロセス1件・同一PIDを実測 | [single-instance acceptance](docs/reports/single-instance-startup-2026-08-15.md) |
-| Graph／Excluded files checkpoint | CP0-T05のMCP除外境界を保ったまま、P0-1でrenderer snapshotの早すぎる除外を解消。current sourceではFile Explorer visible/open、Search/Graph hidden、Quick Switcher/link suggestion deprioritizedを固定した。linked backlinks、実GUI、installed runtimeは未確認 | [P0-1 Evidence](.agent/requirements/20260905-obsidian-compatibility-program/results/p0-1-excluded-files.md)／[historical CP0-T05](docs/reports/cp0-t05-excluded-files-mcp-retrieval-2026-08-12.md) |
+| Graph／Excluded files checkpoint | P0-1〜P0-7の選択済み範囲は本番受入済み。P0-1単独のsource-only記録は当時の証拠で、現在の未反映判定には使わない。surface別の互換差、未確認事項とinstalled受入は互換性台帳とVaultの同一campaignで確認する | [現行互換性台帳](.agent/requirements/20260905-obsidian-compatibility-program/compatibility-ledger.md)／[当時のP0-1 Evidence](.agent/requirements/20260905-obsidian-compatibility-program/results/p0-1-excluded-files.md) |
 | Context checkpoint | X1-M1は`type: moc`を全タイトル一覧へ投影し、X1-D1はbaseline candidate集合を変えず通常本文だけを質問で優先する。X1-S1aはstable scanで同一canonical creation-time sidecarを再書込みせず、X1-S1bはmatching revisionと同一本文のAI自律更新を履歴なしno-opにして本番反映した。X1-T1は`build_context`だけをstructured-onlyにし、Codex Desktop local stdioで意味指標不変・wire 54.7%減・p95非悪化、fixture 12/12、回答品質4/4、source trace 3/3、future leakage 0、write 0を確認して本番反映した | [X1-T1 report](docs/reports/x1-t1-structured-only-transport-2026-08-12.md) |
-| MCP runtime | `build_context`のtransport契約を維持し、Codex／Freebuff共通17ツール、direct 19ツール（read 10／write 9）。追加した`propose_derived_note`はsource exact revisionを要求し、原典を変更せずAI Review proposalだけを登録する。`delivery_info`はsourceとlatest receiptのstatus一つだけを明示呼出しで返す。Drive preview／確認付きapplyと単一Markdownのpreflight／moveは起動中本体へ委譲し、本体停止中はfail-closed | [MCP integration](docs/mcp-integration.md)／[Delivery info](docs/reports/delivery-info-implementation-2026-08-18.md)／[Drive bridge](docs/reports/drive-sync-mcp-bridge-2026-08-14.md) |
+| MCP runtime | 公開toolとapproval設定はcatalog、各操作の契約はMCP integrationへ集約する。`autonomous_update_note`は取得時revision必須。runtime freshnessとsource／receipt一致は別々のread-only toolで確認する。Drive applyと単一Markdown moveは既存本体bridgeの確認付き経路を維持し、停止中はfail-closed | [tool catalog](src/mcp/tool-catalog.json)／[MCP integration](docs/mcp-integration.md)／[Delivery info](docs/reports/delivery-info-implementation-2026-08-18.md) |
 | Google Drive current baseline | 既定の片側削除preserveは維持し、明示opt-in時だけlocal→Drive trash／remote→local `.trash`を伝播する。隔離実Driveでrestart収束まで受入済み。本番分類5件は同じremote objectのmetadata relocationとPath Alias同期を完了 | [Drive deletion](docs/reports/drive-deletion-propagation-acceptance-2026-08-17.md)／[classification](docs/reports/classification-production-gate-2026-08-17.md)／[receipt](docs/reports/production-update-latest.json) |
 | MCP retrieval observation | MCP-R1の履歴近似重複を受け、通常discoveryからの`50_履歴`除外と同一本文no-opは本番反映済み。既存履歴のread-only圧縮previewは153/153 targetsが旧形式で連鎖検証不能のため未適用 | [history preview](docs/reports/history-compaction-preview-2026-08-16.md) |
 | Context remaining | host usageはrolloutからtask別に再取得済み。single-worker pairのfresh側88.58%減は一対だけで一般化しない。CP1-B 3件はFAIL／PASS／BLOCKED、sample 3もinput 2,303,178・cached 96.06%。source／revision／range単位の再読と実費は未観測。X1-C2はContext bundle量が次の主要因と判明するまでheld。Stale runtime write guardは公開mutation 8件をfail-closed化。Delivery infoは18〜21-byte応答、646-byte schema増分、repository外cwd／非書込みfixtureで実装済み。installed同一性はreceiptを正本とする。2026-08-31にTSUZUNE内部のInbox fact-only Hookは利用者選択で設計laneへ昇格したが、Codex Lifecycle Hookによるsemantic自動書戻しは未採用 | [AI文脈エンジン設計](.agent/requirements/20260831-note-organization-video/context-engine-v4.md)／[Stale guard implementation](docs/reports/stale-runtime-write-guard-implementation-2026-08-18.md) |
@@ -45,7 +61,7 @@ Obsidian互換性はP0-7までの選択済み範囲を本番反映・隔離insta
 ## 実装済みの基盤
 
 - ローカルMarkdown編集、folder、Wiki link、backlink、検索、添付preview。
-- MCPによる検索、取得、backlink、Context、directory inventory、runtime／delivery境界、明示作成、revision付きで履歴を作らない更新、狭いpatch、Review-gated派生知識proposal、Drive同期preview／apply、単一Markdownのpreflight／move。Codex／Freebuff共通17、direct 19ツール。Drive同期とmoveは起動中本体へ委譲する。`40_情報源`はAIの作成・編集を拒否し、派生知識proposalではread-only原典としてだけ参照する。legacy `50_履歴`はmoveを含め不変で、通常導線から外す。
+- MCPによる検索、取得、backlink、Context、directory inventory、runtime／delivery境界、明示作成、revision付きで履歴を作らない更新、狭いpatch、承認待ちなしの派生知識作成、Drive同期preview／apply、単一Markdownのpreflight／move。Drive同期とmoveは起動中本体へ委譲する。`40_情報源`はAIの作成・編集を拒否し、派生知識作成ではread-only原典としてだけ参照する。legacy `50_履歴`はmoveを含め不変で、通常導線から外す。
 - Path Alias読取基盤。旧pathを現行ノートへ一意に解決しつつ、実在する旧path、壊れた設定、MCP revision、bookmark／last noteの整合性を保護する。
 - Temporal Memory Lite M0〜M5。valid-timeとknowledge-timeを分け、過去時点への未来情報混入を保守的に抑制する。
 - Local／Global Graph、円形node、Canvas edge、Force runtime、Graph設定、Groups、検索、Animate、状態復元のcheckpoint実装。
@@ -179,7 +195,21 @@ SemVerやHEADだけで同一性を判断しません。現在の本番commit、s
 8. **P1 completed production apply:** 明示5 notesの分類移動、remote relocation、Path Alias、両ledger、recovery clean-upを本番で完了した。
 9. **P1 completed and installed:** 右コンテキストをリンク／バックリンク／時間の3タブへ整理し、全725 tests、隔離UI、10/10 production checksで受入完了。PCTX-A1の補正後受入もAC1／AC2／AC3すべてPASSし、新しい製品機能は不要と判断した。
 10. **P0-4/R4 and R5 completed and installed:** FileTree keyboard／ARIAとWorkspace Tabs keyboard／ARIAを全770 PASS／1 SKIP、隔離Electron、10/10 production checksで本番受入した。Phase Bのinstalled実機境界も確認済み。
-11. **Current Primary:** Obsidian互換性。P0-1 Excluded filesとP0-2〜3文字列／数値／単純list Propertiesはcurrent-source検証済み、本番未反映。工房主承認順は、データを壊さない互換性 → 毎日の操作互換性 → 構造表現の互換性 → 選択した拡張だけの互換性。P0-5のチェックボックス型Propertiesは追加・切替・削除・preview・保存・再読込をsource実装し、全体1124 tests PASS（1 SKIP）、隔離した固定Obsidian 1.13.4との実機26検査をPASSした。真偽値の切替・再起動後の状態は一致。新規未チェック値（TSUZUNE=false／Obsidian=空欄）とコメント／BOM／改行の保存は異なり、TSUZUNEの非破壊保存を維持する。再起動後にMCPの記録同期を完了し、既存campaignと3入口をrevision付きで更新、読み戻し・一意検索・相互リンクを確認した。Ownerが2026-09-05に現source全体を既存の検証・更新手順で導入することを明示承認した。対象はExcluded files、各型Properties編集、Context利用・状態由来レシートを含む現tree。導入結果はdocs/reports/production-update-latest.jsonの本承認後のreceiptとdelivery_infoを正本にし、既存campaignへ受入証拠を保存する。新機能やGit公開は自動着手しない。Canvas／Graph差分は第3層、BasesはProperties安定後、実利用pluginは工房主選択後に限定する。community plugin無制限runtime、cloud Sync／Publish模倣はHeld。
+11. **互換性の判断履歴:** P0-1〜P0-7の選択済み範囲は受入済み。現在のPrimary／Nextは[PLAN.mdのCurrent Decision](PLAN.md#current-decision)を参照し、ここへ複製しない。
+
+## 過去の区切り（当時のsource確定記録）
+
+以下の完了条件・承認・未反映表現は記録時点のもの。現在状態や次の作業として扱わない。
+
+### 2026-09-06 観測宙域の終了・製品撤去
+
+利用者の「では諦めよう。本番TSUZUNEからも観測宙域を消そう」により、観測宙域とLife Weather派生試作の継続を終了。製品のナビゲーション、コマンド、専用タブ、粒子描画・simulation・CSS・専用受入scriptを削除した。通常のノートとグラフを維持し、Vaultの研究ノート・履歴・試作成果は削除しない。既存の主操作テストで入口とコマンドの不在、通常グラフ操作を確認し、App安全性99 tests PASS。Ponytail Reviewで不要な残存処理・新規抽象化なし。
+
+完了条件は (1) 製品から専用機能がなくなる、(2) 通常操作の回帰検証が通る、(3) 本番更新でpackaged／installed一致と本番profile不変を確認すること。本番反映の結果は、このsourceを含む[最新production receipt](docs/reports/production-update-latest.json)と既存Vault実施記録へ保存する。gate後はこのsourceを変更しない。撤去は本番更新まで承認済み、Git公開は今回の対象外。再開には利用者の新たな明示選択が必要。
+
+### 2026-09-05 P0-7 参照元リンク追従の現在地
+
+P0-7の参照元リンク追従を実装・source検証済み。単一Markdownノートの名前変更・移動にWiki／Markdown／frontmatter参照が追従し、別名・見出し・コメント・BOM・改行を保持する。32件の安全性test、実画面の4操作と再起動後の全file一致、隔離先userData／sessionDataの実測、本番profile 273 files不変を確認した。独立reviewのblocking findingは解消済み。本番反映の完了は、このsource fingerprintに対応する最新production receiptとinstalled実画面検証を記録した既存Vault campaignを正本とする。repo内記録はgate前に確定し、gate後に結果を重複追記しない。P0-6のprofile差分は原因未特定の過去証拠として保持する。 [実装・検証証拠](.agent/requirements/20260905-obsidian-compatibility-program/results/p0-7-lossless-link-maintenance.md)。以下は各区切りの記録。
 
 ## CheckpointとWorking treeの扱い
 

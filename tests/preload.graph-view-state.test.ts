@@ -60,6 +60,33 @@ describe('graph view state preload API', () => {
     )
   })
 
+  it('reads a trusted .base through its dedicated IPC channel', async () => {
+    electron.invoke.mockResolvedValue({
+      ok: true,
+      value: { path: 'views/projects.base', content: 'views: []\n', modifiedAt: 1 }
+    })
+    await import('../src/preload/index')
+
+    await electron.api!.readBase('views/projects.base')
+
+    expect(electron.invoke).toHaveBeenCalledWith(
+      'vault:readBase',
+      'views/projects.base'
+    )
+  })
+
+  it('lists trusted .base paths for the expected Vault through its dedicated IPC channel', async () => {
+    electron.invoke.mockResolvedValue({
+      ok: true,
+      value: ['views/projects.base']
+    })
+    await import('../src/preload/index')
+
+    await electron.api!.listBases('C:\\Vault')
+
+    expect(electron.invoke).toHaveBeenCalledWith('vault:listBases', 'C:\\Vault')
+  })
+
   it('requests an internal Vault attachment window through trusted IPC', async () => {
     electron.invoke.mockResolvedValue({ ok: true, value: null })
     await import('../src/preload/index')
@@ -103,6 +130,33 @@ describe('graph view state preload API', () => {
     expect(electron.invoke).toHaveBeenCalledWith(
       'bookmark:remove',
       'attachments/diagram.svg'
+    )
+  })
+
+  it('forwards the four workspace operations without reshaping their arguments', async () => {
+    electron.invoke.mockResolvedValue({ ok: true, value: null })
+    await import('../src/preload/index')
+    const scope = { rootPath: 'c:/vault', rootRevision: 4 }
+    const snapshot = {
+      tabs: [],
+      activeIndex: null,
+      noteView: 'edit' as const,
+      left: { open: true, view: 'files' as const, query: '' },
+      right: { open: false, view: 'outline' as const }
+    }
+
+    await electron.api!.getWorkspaces('C:/Vault')
+    await electron.api!.saveWorkspace(scope, '調査', snapshot, true)
+    await electron.api!.deleteWorkspace(scope, '調査')
+    await electron.api!.saveLastWorkspaceSession(scope, snapshot)
+
+    expect(electron.invoke).toHaveBeenCalledWith('workspaces:get', 'C:/Vault')
+    expect(electron.invoke).toHaveBeenCalledWith(
+      'workspaces:save', scope, '調査', snapshot, true
+    )
+    expect(electron.invoke).toHaveBeenCalledWith('workspaces:delete', scope, '調査')
+    expect(electron.invoke).toHaveBeenCalledWith(
+      'workspaces:saveLastSession', scope, snapshot
     )
   })
 })

@@ -3,6 +3,7 @@
 import React from 'react'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { searchRendererRanked } from '../src/core/search'
 import FileTree from '../src/renderer/components/FileTree'
 import type { VaultSnapshot } from '../src/shared/types'
 
@@ -190,22 +191,19 @@ describe('FileTree context menu', () => {
     expect(onMove).toHaveBeenCalledWith('Inbox/Note.md')
   })
 
-  it('summarizes search results and separates the excerpt from metadata', () => {
+  it('summarizes ranked matching excerpts and separates them from metadata', () => {
+    const query = '再利用の導線'
+    const searchResults = searchRendererRanked([
+      { ...snapshot.notes[0], content: 'X'.repeat(200) + '\n再利用の話。' }
+    ], query)
+
     render(
       <FileTree
         snapshot={snapshot}
         selectedNotePath={null}
         treeSelection={null}
-        searchResults={[
-          {
-            path: 'Inbox/Note.md',
-            name: 'Note',
-            excerpt: 'Noteを含む長い本文の抜粋',
-            modifiedAt: 1,
-            score: 1
-          }
-        ]}
-        query="Note"
+        searchResults={searchResults}
+        query={query}
         onSelectNote={vi.fn()}
         onSelectEntry={vi.fn()}
         onRename={vi.fn()}
@@ -228,7 +226,7 @@ describe('FileTree context menu', () => {
       '検索結果 1件'
     )
     expect(results.querySelector('.search-result-excerpt')?.textContent).toBe(
-      'Noteを含む長い本文の抜粋'
+      '…' + 'X'.repeat(44) + ' 再利用の話。'
     )
     expect(results.querySelector('.search-result-path')?.textContent).toBe('Inbox/Note.md')
   })

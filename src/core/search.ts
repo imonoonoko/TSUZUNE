@@ -122,15 +122,28 @@ export function parseRendererSearchQuery(rawQuery: string): RendererSearchClause
   return clauses
 }
 
-function excerptFor(content: string, query: string): string {
+function excerptFor(content: string, query: string, fallbackTerms: string[] = []): string {
   const lowerContent = normalized(content)
-  const index = lowerContent.indexOf(normalized(query))
+  let index = lowerContent.indexOf(normalized(query))
+  let matchLength = query.length
+  if (index < 0) {
+    for (const term of fallbackTerms) {
+      const candidateIndex = lowerContent.indexOf(normalized(term))
+      if (
+        candidateIndex >= 0 &&
+        (index < 0 || candidateIndex < index || (candidateIndex === index && term.length > matchLength))
+      ) {
+        index = candidateIndex
+        matchLength = term.length
+      }
+    }
+  }
   if (index < 0) {
     return content.replace(/\s+/g, ' ').trim().slice(0, 120)
   }
 
   const start = Math.max(0, index - 45)
-  const end = Math.min(content.length, index + query.length + 75)
+  const end = Math.min(content.length, index + matchLength + 75)
   const prefix = start > 0 ? '…' : ''
   const suffix = end < content.length ? '…' : ''
   return `${prefix}${content.slice(start, end).replace(/\s+/g, ' ').trim()}${suffix}`
@@ -323,7 +336,7 @@ export function searchRendererRanked(notes: NoteDocument[], rawQuery: string): S
       return {
         path: note.path,
         name: note.name,
-        excerpt: excerptFor(note.content, excerptQuery),
+        excerpt: excerptFor(note.content, excerptQuery, groupTerms.flat()),
         modifiedAt: note.modifiedAt,
         score,
         ...(metadata.category ? { category: metadata.category } : {}),

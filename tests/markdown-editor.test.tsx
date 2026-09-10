@@ -9,6 +9,24 @@ import MarkdownEditor, { type MarkdownEditorHandle } from '../src/renderer/compo
 afterEach(cleanup)
 
 describe('MarkdownEditor navigation', () => {
+  it('keeps composition active until the real editor delivers the final document change', async () => {
+    const events: string[] = []
+    const onChange = vi.fn((next: string) => events.push(`change:${next}`))
+    const onCompositionChange = vi.fn((composing: boolean) => events.push(`composition:${composing}`))
+    const { container } = render(
+      <MarkdownEditor value="" onChange={onChange} onCompositionChange={onCompositionChange} />
+    )
+    const editor = container.querySelector('.cm-editor') as HTMLElement
+    const view = EditorView.findFromDOM(editor)!
+
+    fireEvent.compositionStart(editor)
+    fireEvent.compositionEnd(editor)
+    view.dispatch({ changes: { from: 0, insert: 'あ' } })
+    await Promise.resolve()
+
+    expect(events).toEqual(['composition:true', 'change:あ', 'composition:false'])
+  })
+
   it('adds an unchecked property, accepts a checked value, and deletes it through the existing form', () => {
     const onChange = vi.fn()
     const { rerender } = render(<MarkdownEditor value="本文" onChange={onChange} />)

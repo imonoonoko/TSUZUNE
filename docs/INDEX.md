@@ -1,6 +1,6 @@
 # TSUZUNE Documentation Index
 
-更新日: 2026-09-06
+更新日: 2026-09-09
 
 ## まず読む
 
@@ -14,6 +14,17 @@
 ## 現在の開発
 
 - [改善・未達成項目 実行台帳](reports/tsuzune-improvement-ledger-2026-08-23.md) — する／しない／条件成立時だけを確定した判断索引。現在のPrimary／Nextは[PLAN.mdのCurrent Decision](../PLAN.md#current-decision)を正本とし、ここでは可変状態を複製しない。
+- [Context読取境界の実装・検証 2026-09-10](reports/context-reading-boundary-2026-09-10.md) — tool説明の保証範囲、固定6ケースの実AI受入、不要再取得への修正と本番完了条件。
+- [欠落タブ通知と前回配置の整理 2026-09-09](reports/missing-tab-notice-2026-09-09.md) — 整理済みノートの古いタブ参照、通知表示、明示的な配置更新と本文・名前付き配置の保持。
+- [AI承認廃止・直接反映 2026-09-09](reports/ai-direct-write-2026-09-09.md) — 承認画面・待機処理の撤去、直接保存、安全性回帰、旧提案の不活性保持と本番完了条件。
+- [S2 Context本文の変換種別 2026-09-09](reports/context-content-mode-2026-09-09.md) — 4種の出力契約、24ケースの既存出力不変比較、MCP経路と本番完了条件。
+- [S1 検索一致抜粋の実装 2026-09-09](reports/search-matching-excerpts-2026-09-09.md) — 既存一致を優先したfallback、20ケースの実装前比較、MCP／検索一覧、全testと本番完了条件。
+- [未実装案の整理・現在の優先順位 2026-09-09](reports/tsuzune-unimplemented-ideas-2026-09-09.md) — 本番反映済みS1／S2を外し、Supermemory公開SDK参考のC10をHeld／Researchへ追加した29候補群。A6候補一覧完了後の上位5件の検討順は維持する。実装の選択と現在の実行状態はPLAN.mdを参照する。
+- [A6 Bases候補一覧の実装・受入](../.agent/requirements/20260908-bases-design/implementation.md) — 両入口、検索・更新・手入力、保存・Vault世代・junction差替え、隔離実操作の検証。設計契約は[候補一覧設計](../.agent/requirements/20260908-bases-design/chooser-design.md)。
+- [ワークスペース保存・復元 設計 2026-09-06](../.agent/requirements/20260906-0559-named-workspaces/requirements.md) — 名前付き配置、Vault別の前回状態、本文保存・競合・欠落・IME・設定保存の境界と11受入ケース。技術設計・受入条件は同directory、実行状態はPLAN.mdを参照。
+- [AI再利用 S0実AI評価 2026-09-06](reports/ai-reuse-s0-evaluation-2026-09-06.md) — 隔離8ノート・5問の取得本文と回答の照合、条件付きの追加取得判定、未検証境界。
+- [AI再利用の読取・根拠契約 設計 2026-09-06／S1具体化 2026-09-09](../.agent/requirements/20260906-0410-ai-reuse-contract/design.md) — 呼出し契約、一致抜粋と本文変換種別の変更仕様。S1は最小変更箇所・表示経路・20ケースの固定受入を具体化。現在の実行状態はPLAN.mdを参照。
+- [AI再利用の基盤レビュー 2026-09-06](reports/ai-reuse-foundation-review-2026-09-06.md) — 検索・本文取得・Context収録・回答根拠の境界、live観測と隔離反例。製品変更の採用は含まない。
 - [レビュー後の保守 2026-09-06](reports/review-maintenance-2026-09-06.md) — 公開対象保護、依存3件更新、LF方針と本番source archive、現在欄の整合。受入結果は対応する最新receiptとVault実施記録。
 - [プロジェクトレビュー 2026-09-06](reports/project-review-2026-09-06.md) — 本番・Git・公開Release・計画の照合、公開対象保護と依存更新候補、現在欄のずれ、限定source review。新機能の採用は含まない。
 - [v0.6.0 公開Release・本番受入](reports/v0.6.0-public-release-2026-08-26.md) — verified commit/tag、Latest Release、3 assetsの匿名HTTP到達性とdigest、本番10/10、profile不変、匿名updater修正、隔離Windows待ちの二版間更新境界を固定。

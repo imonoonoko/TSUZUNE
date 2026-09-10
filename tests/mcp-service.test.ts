@@ -37,7 +37,10 @@ describe('MCP vault service', () => {
       '# TSUZUNE\n\nAI連携を試す。',
       'utf8'
     )
-    service = new VaultMcpService({ explicitVaultPath: root })
+    service = new VaultMcpService({
+      explicitVaultPath: root,
+      settingsPath: join(root, 'settings.json')
+    })
   })
 
   afterEach(async () => {
@@ -128,9 +131,8 @@ describe('MCP vault service', () => {
       sourceRevision: fetched.metadata.revision
     })
     expect(created.id).toBe('30_知識/派生.md')
-    expect(created.pending_review).toBeUndefined()
+    expect(created).not.toHaveProperty('pending_review')
     expect(await readFile(sourcePath, 'utf8')).toBe(before)
-    expect(await scoped.listReviewProposals()).toEqual([])
     const derived = await readFile(join(root, '30_知識', '派生.md'), 'utf8')
     expect(derived).toContain('type: knowledge')
     expect(derived).toContain('role: knowledge')
@@ -145,7 +147,7 @@ describe('MCP vault service', () => {
     expect(await readFile(sourcePath, 'utf8')).toBe(before)
   })
 
-  it('applies an existing valid derived proposal instead of leaving legacy review work', async () => {
+  it('creates directly even when a legacy proposal file is present', async () => {
     await mkdir(join(root, '01_受信箱'))
     await writeFile(join(root, '01_受信箱', '旧提案.md'), '# 旧提案', 'utf8')
     const settingsPath = join(root, 'settings.json')
@@ -160,12 +162,13 @@ describe('MCP vault service', () => {
       sourceId: fetched.id,
       sourceRevision: fetched.metadata.revision
     }
-    await scoped.proposeDerivedNote(input)
+    const legacy = JSON.stringify({ version: 1, proposals: [{ id: 'old', path: input.destination, content: 'old pending content' }] })
+    await writeFile(join(root, 'ai-write-review-proposals.json'), legacy, 'utf8')
 
     const created = await scoped.createDerivedNote(input)
 
     expect(created.id).toBe('30_知識/旧提案の派生.md')
-    expect(await scoped.listReviewProposals()).toEqual([])
+    expect(await readFile(join(root, 'ai-write-review-proposals.json'), 'utf8')).toBe(legacy)
   })
 
   it('creates multiple concept notes from one source revision and rejects only the same concept key', async () => {
@@ -209,7 +212,7 @@ describe('MCP vault service', () => {
     )
   })
 
-  it('replaces a mismatched legacy review proposal with the current concept output', async () => {
+  it('uses current concept output without applying mismatched legacy content', async () => {
     await mkdir(join(root, '01_受信箱'))
     await writeFile(join(root, '01_受信箱', '再抽出.md'), '# 再抽出', 'utf8')
     const settingsPath = join(root, 'settings.json')
@@ -223,11 +226,9 @@ describe('MCP vault service', () => {
       sourceRevision: fetched.metadata.revision,
       derivationKey: '再抽出概念'
     }
-    await scoped.proposeDerivedNote({
-      ...base,
-      destination: '30_知識/古い案.md',
-      content: '古い内容。'
-    })
+    await writeFile(join(root, 'ai-write-review-proposals.json'), JSON.stringify({
+      version: 1, proposals: [{ path: '30_知識/古い案.md', content: '古い内容。', derivedGuard: base }]
+    }), 'utf8')
 
     const created = await scoped.createDerivedNote({
       ...base,
@@ -240,10 +241,9 @@ describe('MCP vault service', () => {
     expect(await readFile(join(root, '30_知識', '現在の案.md'), 'utf8')).toContain(
       '現在の内容。'
     )
-    expect(await scoped.listReviewProposals()).toEqual([])
   })
 
-  it('quotes derived metadata and rejects a second proposal for the same source revision', async () => {
+  it('writes quoted metadata immediately and rejects a duplicate source revision', async () => {
     await mkdir(join(root, '01_受信箱'))
     await mkdir(join(root, '30_知識'), { recursive: true })
     await writeFile(join(root, '01_受信箱', '原典.md'), '# 原典', 'utf8')
@@ -261,9 +261,9 @@ describe('MCP vault service', () => {
       sourceRevision: fetched.metadata.revision
     })
 
-    const proposal = (await scoped.listReviewProposals())[0]
-    expect(proposal.content).toContain('category: "UX"')
-    expect(proposal.content).toContain('topics: ["原典,追跡", "引用"]')
+    const content = await readFile(join(root, '30_知識/一件目.md'), 'utf8')
+    expect(content).toContain('category: "UX"')
+    expect(content).toContain('topics: ["原典,追跡", "引用"]')
     await expect(
       scoped.proposeDerivedNote({
         destination: '30_知識/二件目.md',
@@ -276,7 +276,7 @@ describe('MCP vault service', () => {
     ).rejects.toThrow('同じ原典revision')
   })
 
-  it('registers at most one pending proposal for the same source revision under concurrency', async () => {
+  it('creates at most one derived note for the same source revision under concurrency', async () => {
     await mkdir(join(root, '01_受信箱'))
     await writeFile(join(root, '01_受信箱', '並行原典.md'), '# 並行原典', 'utf8')
     const settingsPath = join(root, 'settings.json')
@@ -298,10 +298,12 @@ describe('MCP vault service', () => {
 
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
     expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1)
-    expect(await scoped.listReviewProposals()).toHaveLength(1)
+    const a = await stat(join(root, '30_知識/並行A.md')).then(() => 1, () => 0)
+    const b = await stat(join(root, '30_知識/並行B.md')).then(() => 1, () => 0)
+    expect(a + b).toBe(1)
   })
 
-  it('rejects unsafe derived-note inputs before registering a proposal', async () => {
+  it('rejects unsafe derived-note inputs before writing', async () => {
     await mkdir(join(root, '01_受信箱'))
     await mkdir(join(root, '01_受信箱', '深い'))
     await mkdir(join(root, '30_知識'), { recursive: true })
@@ -365,10 +367,9 @@ describe('MCP vault service', () => {
         sourceRevision: `sha256:${'0'.repeat(64)}`
       })
     ).rejects.toThrow('原典が変更')
-    expect(await scoped.listReviewProposals()).toEqual([])
   })
 
-  it('allows a derived proposal from a large source read in chunks', async () => {
+  it('directly creates a derived note from a large source read in chunks', async () => {
     await mkdir(join(root, '01_受信箱'))
     const source = `# 長い原典\n\n${'あ'.repeat(220_000)}`
     await writeFile(join(root, '01_受信箱', '長い原典.md'), source, 'utf8')
@@ -389,7 +390,7 @@ describe('MCP vault service', () => {
       topics: ['長文原典'],
       sourceId: first.id,
       sourceRevision: first.metadata.revision
-    })).resolves.toMatchObject({ pending_review: true })
+    })).resolves.toMatchObject({ id: '30_知識/長い原典からの派生.md' })
   })
 
   it('fails closed for empty or case-insensitively duplicated canonical categories', async () => {
@@ -418,10 +419,9 @@ describe('MCP vault service', () => {
     await expect(scoped.proposeDerivedNote(input)).rejects.toThrow(
       'TSUZUNE主カテゴリ正本'
     )
-    expect(await scoped.listReviewProposals()).toEqual([])
   })
 
-  it('invalidates a derived proposal when its source changes before approval', async () => {
+  it('rejects direct creation after the fetched source changes', async () => {
     await mkdir(join(root, '01_受信箱'))
     const sourcePath = join(root, '01_受信箱', '更新原典.md')
     await writeFile(sourcePath, '# 更新原典', 'utf8')
@@ -429,38 +429,37 @@ describe('MCP vault service', () => {
     await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root }), 'utf8')
     const scoped = new VaultMcpService({ settingsPath })
     const fetched = await scoped.fetch('01_受信箱/更新原典.md')
-    const proposed = await scoped.proposeDerivedNote({
+    const input = {
       destination: '30_知識/失効.md',
       content: '本文。',
       category: '知識管理',
       topics: ['失効'],
       sourceId: fetched.id,
       sourceRevision: fetched.metadata.revision
-    })
+    }
     await writeFile(sourcePath, '# 更新された原典', 'utf8')
 
     await expect(
-      scoped.approveReviewProposal(proposed.proposal?.id ?? '')
-    ).rejects.toThrow('失効')
-    expect(await scoped.listReviewProposals()).toEqual([])
+      scoped.proposeDerivedNote(input)
+    ).rejects.toThrow('原典が変更')
     await expect(stat(join(root, '30_知識', '失効.md'))).rejects.toThrow()
   })
 
-  it('invalidates a derived proposal when its canonical category is removed before approval', async () => {
+  it('rejects direct creation after the category is removed', async () => {
     await mkdir(join(root, '01_受信箱'))
     await writeFile(join(root, '01_受信箱', 'カテゴリ原典.md'), '# カテゴリ原典', 'utf8')
     const settingsPath = join(root, 'settings.json')
     await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root }), 'utf8')
     const scoped = new VaultMcpService({ settingsPath })
     const fetched = await scoped.fetch('01_受信箱/カテゴリ原典.md')
-    const proposed = await scoped.proposeDerivedNote({
+    const input = {
       destination: '30_知識/カテゴリ失効.md',
       content: '本文。',
       category: 'UX',
       topics: ['分類'],
       sourceId: fetched.id,
       sourceRevision: fetched.metadata.revision
-    })
+    }
     await writeFile(
       join(root, '30_知識', 'TSUZUNE分類と保存基準.md'),
       '- 30_知識: AI・記憶 / ソフトウェア開発 / 知識管理 / 検証・品質 / 生活・創作\n',
@@ -468,13 +467,12 @@ describe('MCP vault service', () => {
     )
 
     await expect(
-      scoped.approveReviewProposal(proposed.proposal?.id ?? '')
-    ).rejects.toThrow('失効')
-    expect(await scoped.listReviewProposals()).toEqual([])
+      scoped.proposeDerivedNote(input)
+    ).rejects.toThrow('既存主カテゴリ')
     await expect(stat(join(root, '30_知識', 'カテゴリ失効.md'))).rejects.toThrow()
   })
 
-  it('invalidates a derived-note proposal when its destination appears before approval', async () => {
+  it('rejects direct creation when its destination already exists', async () => {
     await mkdir(join(root, '01_受信箱'))
     await mkdir(join(root, '30_知識'), { recursive: true })
     await writeFile(join(root, '01_受信箱', '原典.md'), '# 原典', 'utf8')
@@ -482,23 +480,22 @@ describe('MCP vault service', () => {
     await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root }), 'utf8')
     const scoped = new VaultMcpService({ settingsPath })
     const fetched = await scoped.fetch('01_受信箱/原典.md')
-    const proposed = await scoped.proposeDerivedNote({
+    const input = {
       destination: '30_知識/衝突.md',
       content: '本文。',
       category: '知識管理',
       topics: ['衝突'],
       sourceId: fetched.id,
       sourceRevision: fetched.metadata.revision
-    })
+    }
     await writeFile(join(root, '30_知識', '衝突.md'), '# 人間のノート', 'utf8')
 
     await expect(
-      scoped.approveReviewProposal(proposed.proposal?.id ?? '')
-    ).rejects.toThrow('同じノートが作成')
+      scoped.proposeDerivedNote(input)
+    ).rejects.toThrow('既に存在')
     expect(await readFile(join(root, '30_知識', '衝突.md'), 'utf8')).toBe(
       '# 人間のノート'
     )
-    expect(await scoped.listReviewProposals()).toEqual([])
   })
 
   it('does not repair malformed creation-time metadata during a read-only fetch', async () => {
@@ -529,6 +526,10 @@ describe('MCP vault service', () => {
 
     const context = await service.buildContext('Home.md')
     expect(context.markdown).toContain('Path: Projects/TSUZUNE.md')
+    expect(context.included.map((source) => source.content_mode)).toEqual([
+      'full_note',
+      'full_note'
+    ])
   })
 
   it('separates observed context selection from unobservable downstream use', async () => {
@@ -669,6 +670,25 @@ describe('MCP vault service', () => {
     const search = await service.search('TSUZUNEの検索を良くしたい')
 
     expect(search.results[0]?.id).toBe('Projects/TSUZUNE.md')
+  })
+
+  it('returns matching excerpts through MCP search without changing order or limits', async () => {
+    const padding = 'X'.repeat(200)
+    const lateContent = padding + '\n再利用の話。'
+    const completeContent = '再利用' + padding + '再利用の導線'
+    await writeFile(join(root, 'Projects', 'S1-late.md'), lateContent, 'utf8')
+    await writeFile(join(root, 'Projects', 'S1-complete.md'), completeContent, 'utf8')
+    const query = 'path:Projects 再利用の導線'
+
+    const search = await service.search(query)
+
+    expect(search.results.map(({ id, text }) => ({ id, text }))).toEqual([
+      { id: 'Projects/S1-complete.md', text: '…' + 'X'.repeat(45) + '再利用の導線' },
+      { id: 'Projects/S1-late.md', text: '…' + 'X'.repeat(44) + ' 再利用の話。' }
+    ])
+    expect((await service.search(query, 1)).results).toEqual(search.results.slice(0, 1))
+    expect(await readFile(join(root, 'Projects', 'S1-late.md'), 'utf8')).toBe(lateContent)
+    expect(await readFile(join(root, 'Projects', 'S1-complete.md'), 'utf8')).toBe(completeContent)
   })
 
   it('lists bounded directory metadata without note content and continues after a page', async () => {
@@ -1158,6 +1178,38 @@ describe('MCP vault service', () => {
     )
   })
 
+  it('exposes a section projection as content_mode without marking it truncated', async () => {
+    await writeFile(
+      join(root, 'Reform.md'),
+      [
+        '# Reform',
+        '',
+        'INTRO_SENTINEL '.repeat(200),
+        '',
+        '## 13. 現在事実',
+        '',
+        '### 完了',
+        '',
+        '完了境界はここ。CURRENT_BOUNDARY_SENTINEL',
+        '',
+        '## 14. 次の安全な一手',
+        '',
+        '次の自然task。NEXT_TASK_SENTINEL'
+      ].join('\n'),
+      'utf8'
+    )
+
+    const context = await service.buildContext('Reform.md', 1_200, {
+      query: '現在の完了境界、次の自然task'
+    })
+
+    expect(context.included[0]).toMatchObject({
+      path: 'Reform.md',
+      content_mode: 'section_projection',
+      truncated: false
+    })
+  })
+
   it('returns an explicit MOC as a title-only router', async () => {
     await writeFile(
       join(root, 'Map.md'),
@@ -1186,6 +1238,7 @@ describe('MCP vault service', () => {
         name: 'Map',
         relation: 'seed',
         truncated: false,
+        content_mode: 'moc_index',
         revision: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         modified_at: expect.any(String),
         selection_reasons: ['MOCタイトル索引']
@@ -1238,7 +1291,8 @@ describe('MCP vault service', () => {
 
     const autonomous = await service.autonomousUpdateNote(
       'Projects/TSUZUNE.md',
-      '# TSUZUNE\n\n旧IDから自動更新。'
+      '# TSUZUNE\n\n旧IDから自動更新。',
+      { expectedRevision: updated.metadata.revision }
     )
     expect(autonomous.id).toBe('Knowledge/TSUZUNE.md')
     expect('history_path' in autonomous.provenance).toBe(false)
@@ -1319,6 +1373,7 @@ describe('MCP vault service', () => {
       name: 'Home',
       relation: 'seed',
       truncated: false,
+      content_mode: 'body_omitted',
       revision: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       modified_at: expect.any(String),
       content_omitted: true,
@@ -1336,6 +1391,7 @@ describe('MCP vault service', () => {
       name: 'Home-planning',
       relation: 'backlink',
       truncated: false,
+      content_mode: 'full_note',
       revision: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       modified_at: expect.any(String),
       temporal_status: 'review_due',
@@ -1665,11 +1721,13 @@ describe('MCP vault service', () => {
     )
   })
 
-  it('lets AI update a note without human approval and records a reversible provenance snapshot', async () => {
+  it('lets AI update a revision-checked note without human approval and returns provenance without history', async () => {
+    const opened = await service.fetch('Projects/TSUZUNE.md')
     const updated = await service.autonomousUpdateNote(
       'Projects/TSUZUNE.md',
       '# TSUZUNE\n\nNotebookLMで確認した連携方針。',
       {
+        expectedRevision: opened.metadata.revision,
         reason: '調査結果を知識ノートへ反映',
         sourceRefs: ['NotebookLM/research-package-001.md']
       }
@@ -1690,107 +1748,26 @@ describe('MCP vault service', () => {
 
   })
 
-  it('queues one review proposal without changing the note or history', async () => {
+  it('directly creates, updates, patches and links despite saved review paths', async () => {
     const settingsPath = join(root, 'settings.json')
-    await writeFile(
-      settingsPath,
-      JSON.stringify({
-        lastVaultPath: root,
-        aiReviewPaths: ['Projects']
-      }),
-      'utf8'
-    )
-    const reviewService = new VaultMcpService({ settingsPath })
-
-    const proposed = await reviewService.autonomousUpdateNote(
-      'Projects/TSUZUNE.md',
-      '# TSUZUNE\n\n承認後に反映する。',
-      { reason: 'Review動作を確認' }
-    )
-
-    expect(proposed).toMatchObject({
-      pending_review: true,
-      proposal: {
-        path: 'Projects/TSUZUNE.md',
-        operation: 'update',
-        reason: 'Review動作を確認'
-      }
+    await writeFile(settingsPath, JSON.stringify({ lastVaultPath: root, aiReviewPaths: ['Projects'] }), 'utf8')
+    const direct = new VaultMcpService({ settingsPath })
+    const created = await direct.createNote('Projects/Direct.md', '# Direct')
+    expect(created).not.toHaveProperty('pending_review')
+    const updated = await direct.updateNote(created.id, '# Updated', created.metadata.revision)
+    expect(await readFile(join(root, created.id), 'utf8')).toBe('# Updated')
+    const autonomous = await direct.autonomousUpdateNote(created.id, '# Auto', {
+      expectedRevision: updated.metadata.revision
     })
-    expect(await readFile(join(root, 'Projects/TSUZUNE.md'), 'utf8')).toContain(
-      'AI連携を試す。'
-    )
-    await expect(stat(join(root, '50_履歴', 'AI更新'))).rejects.toThrow()
-    expect(
-      await new VaultMcpService({ settingsPath }).listReviewProposals()
-    ).toHaveLength(1)
-
-    await expect(
-      reviewService.autonomousUpdateNote(
-        'Projects/TSUZUNE.md',
-        '# TSUZUNE\n\n別の提案。'
-      )
-    ).rejects.toThrow('承認待ち')
-  })
-
-  it('routes create and guarded update through review, then approves or cancels explicitly', async () => {
-    const settingsPath = join(root, 'settings.json')
-    await writeFile(
-      settingsPath,
-      JSON.stringify({ lastVaultPath: root, aiReviewPaths: ['Projects'] }),
-      'utf8'
-    )
-    const reviewService = new VaultMcpService({ settingsPath })
-
-    const created = await reviewService.createNote(
-      'Projects/Review-created.md',
-      '# Review created'
-    )
-    expect(created.pending_review).toBe(true)
-    await expect(stat(join(root, 'Projects', 'Review-created.md'))).rejects.toThrow()
-    await reviewService.cancelReviewProposal(created.proposal?.id ?? '')
-    expect(await reviewService.listReviewProposals()).toEqual([])
-
-    const opened = await reviewService.fetch('Projects/TSUZUNE.md')
-    const updated = await reviewService.updateNote(
-      opened.id,
-      '# TSUZUNE\n\n承認済み。',
-      opened.metadata.revision
-    )
-    expect(updated.pending_review).toBe(true)
-    expect(await readFile(join(root, opened.id), 'utf8')).toContain('AI連携を試す。')
-
-    const applied = await reviewService.approveReviewProposal(
-      updated.proposal?.id ?? ''
-    )
-    expect(applied.id).toBe(opened.id)
-    expect(await readFile(join(root, opened.id), 'utf8')).toContain('承認済み。')
-    expect(await reviewService.listReviewProposals()).toEqual([])
-    await expect(stat(join(root, '50_履歴', 'AI更新'))).rejects.toThrow()
-  })
-
-  it('invalidates a review proposal when the target revision changed', async () => {
-    const settingsPath = join(root, 'settings.json')
-    await writeFile(
-      settingsPath,
-      JSON.stringify({ lastVaultPath: root, aiReviewPaths: ['Projects'] }),
-      'utf8'
-    )
-    const reviewService = new VaultMcpService({ settingsPath })
-    const opened = await reviewService.fetch('Projects/TSUZUNE.md')
-    const proposed = await reviewService.updateNote(
-      opened.id,
-      '# TSUZUNE\n\n古い提案。',
-      opened.metadata.revision
-    )
-    await writeFile(join(root, 'Projects', 'TSUZUNE.md'), '外部変更', 'utf8')
-
-    await expect(
-      reviewService.approveReviewProposal(proposed.proposal?.id ?? '')
-    ).rejects.toMatchObject({ appError: { code: 'FILE_CHANGED' } })
-    expect(await reviewService.listReviewProposals()).toEqual([])
-    expect(await readFile(join(root, 'Projects', 'TSUZUNE.md'), 'utf8')).toBe(
-      '外部変更'
-    )
+    const patched = await direct.patchNote(created.id, autonomous.metadata.revision, [{ find: 'Auto', replace: 'Patched' }])
+    await direct.addLink(created.id, 'Home.md', { expectedRevision: patched.metadata.revision })
+    const result = await direct.fetch(created.id)
+    expect(result.text).toContain('# Patched')
+    expect(result.text).toContain('[[Home]]')
+    await expect(stat(join(root, 'ai-write-review-proposals.json'))).rejects.toThrow()
+    await expect(stat(join(root, '50_履歴'))).rejects.toThrow()
+    await expect(direct.updateNote(created.id, '# Stale', created.metadata.revision)).rejects.toMatchObject({ appError: { code: 'FILE_CHANGED' } })
+    expect((await direct.fetch(created.id)).text).toBe(result.text)
   })
 
   it('returns a matching revision and identical autonomous update as an unchanged no-op', async () => {
@@ -1884,20 +1861,38 @@ describe('MCP vault service', () => {
     )
   })
 
-  it('returns an unchanged no-op for identical content without a revision guard', async () => {
+  it('rejects an autonomous update without a revision guard before changing the note', async () => {
     const opened = await service.fetch('Projects/TSUZUNE.md')
-    const updated = await service.autonomousUpdateNote(opened.id, opened.text)
-
-    expect(updated.unchanged).toBe(true)
-    expect(updated.metadata.revision).toBe(opened.metadata.revision)
-    expect(updated.provenance.previous_revision).toBe(
-      opened.metadata.revision
-    )
-    expect('history_path' in updated.provenance).toBe(false)
+    await expect(
+      // @ts-expect-error Exercise a caller omitting the required revision.
+      service.autonomousUpdateNote(opened.id, '# Unchecked replacement')
+    ).rejects.toThrow('expected_revision')
+    expect(await readFile(join(root, opened.id), 'utf8')).toBe(opened.text)
     await expect(stat(join(root, '50_履歴', 'AI更新'))).rejects.toMatchObject({
       code: 'ENOENT'
     })
   })
+
+  it.each([undefined, {}, { expectedRevision: '' }])(
+    'rejects missing or empty revision options even for identical content in a review path: %j',
+    async (options) => {
+      const settingsPath = join(root, 'settings.json')
+      await writeFile(
+        settingsPath,
+        JSON.stringify({ lastVaultPath: root, aiReviewPaths: ['Projects'] }),
+        'utf8'
+      )
+      const reviewService = new VaultMcpService({ settingsPath })
+      const opened = await reviewService.fetch('Projects/TSUZUNE.md')
+      const before = await stat(join(root, opened.id))
+      await expect(
+        // @ts-expect-error Exercise malformed options from untyped callers.
+        reviewService.autonomousUpdateNote(opened.id, opened.text, options)
+      ).rejects.toThrow('expected_revision')
+      expect(await readFile(join(root, opened.id), 'utf8')).toBe(opened.text)
+      expect((await stat(join(root, opened.id))).mtimeMs).toBe(before.mtimeMs)
+      }
+  )
 
   it('rejects a stale autonomous revision before considering identical content', async () => {
     const targetPath = join(root, 'Projects', 'TSUZUNE.md')

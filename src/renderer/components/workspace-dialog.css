@@ -1,0 +1,110 @@
+.workspace-dialog-backdrop {
+  padding: min(12vh, 96px) 16px;
+  place-items: start center;
+}
+
+.workspace-dialog {
+  display: grid;
+  gap: 16px;
+  width: min(580px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+
+.workspace-dialog-heading,
+.workspace-dialog-save-row,
+.workspace-dialog-item,
+.workspace-dialog-item > div:last-child {
+  display: flex;
+  align-items: center;
+}
+
+.workspace-dialog-heading,
+.workspace-dialog-item {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workspace-dialog-heading h2,
+.workspace-dialog-list h3 {
+  margin: 0;
+}
+
+.workspace-dialog-save {
+  display: grid;
+  gap: 7px;
+}
+
+.workspace-dialog-save-row {
+  gap: 8px;
+}
+
+.workspace-dialog-save-row input {
+  min-width: 0;
+  flex: 1;
+}
+
+.workspace-dialog-list {
+  display: grid;
+  gap: 8px;
+}
+
+.workspace-dialog-item {
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.workspace-dialog-item > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.workspace-dialog-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.workspace-dialog-item > div:last-child {
+  flex: none;
+  gap: 6px;
+}
+
+.workspace-dialog-error {
+  margin: 0;
+  color: var(--danger);
+}
+
+.workspace-dialog-status {
+  min-height: 1.4em;
+  margin: 0;
+}
+
+.workspace-dialog-danger {
+  color: var(--danger);
+}
+
+@media (max-width: 720px) {
+  .workspace-dialog-backdrop {
+    padding: 16px;
+    place-items: center;
+  }
+
+  .workspace-dialog-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (forced-colors: active) {
+  .workspace-dialog button:focus-visible,
+  .workspace-dialog input:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .workspace-dialog-danger {
+    color: ButtonText;
+    border-color: Highlight;
+  }
+}

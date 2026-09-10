@@ -64,3 +64,32 @@ This is the selected A slice: Night Workshop on the current shell. The target's 
 These require the real installed application or the user's environment and are not represented as passed by the isolated fixture.
 
 final result: passed
+
+## Calendar overview QA — 2026-09-10
+
+### Reference and rendered evidence
+
+- Reference: user-provided calendar screenshots in the task conversation; no separate repository asset was supplied.
+- Annual overview capture: `docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-heatmap.png`
+- Monthly activity-marker capture: `docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-markers.png`
+- Activity-list capture: `docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-activity-list.png`
+- Final daily-note interaction capture: `docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-electron.png`
+- Machine-readable result: `docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-electron.json`
+
+### Result
+
+- The native DailyCalendar now opens on an annual activity heatmap with year selection, month labels, weekday cues, activity levels, recent activity rows, and a preserved monthly view.
+- Heatmap cells retain date selection and open the existing activity list; the monthly view retains daily-note selection and created/updated activity markers.
+- The isolated Electron acceptance passed for the standard component, all activity interactions, and the generated screenshots. Month-label duplication found during review was corrected before this result.
+- Visual review found the heatmap legible in the narrow right context panel; its horizontal scroll remains available for the full year.
+
+### Verification
+
+- `npx vitest run tests/daily-calendar.test.tsx --maxWorkers=1`: 2 tests passed
+- `npm test`: 116 test files passed, 1 skipped; 1,254 tests passed, 1 skipped
+- `npm run typecheck`: passed
+- `npm run build`: passed
+- `npm run check:calendar:native`: passed
+- `git diff --check` on the calendar implementation and acceptance files: passed
+
+final result: passed

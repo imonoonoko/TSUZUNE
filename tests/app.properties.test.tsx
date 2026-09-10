@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   AppUpdateStatus,
@@ -35,6 +35,15 @@ function ok<T>(value: T): Promise<Result<T>> {
   return Promise.resolve({ ok: true, value })
 }
 
+async function advanceAutosaveDelay(): Promise<void> {
+  vi.useFakeTimers()
+  try {
+    await vi.advanceTimersByTimeAsync(700)
+  } finally {
+    vi.useRealTimers()
+  }
+}
+
 beforeEach(() => {
   currentNote = { ...note }
   vaultChanged = null
@@ -58,6 +67,13 @@ beforeEach(() => {
       })
     ),
     openLastVault: vi.fn(() => ok(snapshot())),
+    getWorkspaces: vi.fn(() => ok({
+      scope: { rootPath: 'C:\\Vault', rootRevision: 1 },
+      state: { version: 1 as const, lastSession: null, named: [] }
+    })),
+    saveWorkspace: vi.fn(),
+    deleteWorkspace: vi.fn(),
+    saveLastWorkspaceSession: vi.fn(() => ok(null)),
     getSnapshot: vi.fn(() => ok(snapshot())),
     readNote: vi.fn(() => ok({ ...currentNote })),
     saveNote: vi.fn((input) => {
@@ -109,6 +125,44 @@ afterEach(() => {
 })
 
 describe('App properties integration', () => {
+  it('excludes configured notes from the inventory and updates when settings change', async () => {
+    const settings = await api.getSettings()
+    if (!settings.ok) throw new Error('Expected settings')
+    vi.mocked(api.getSettings).mockResolvedValue(ok({ ...settings.value, userIgnoreFilters: ['A.md'] }))
+    api.setUserIgnoreFilters = vi.fn(() => ok(null))
+    api.setTemplateSettings = vi.fn(() => ok(null))
+    api.setCalendarPluginSettings = vi.fn(() => ok(null))
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'プロパティ一覧' }))
+    const inventory = await screen.findByRole('region', { name: 'プロパティ一覧' })
+    expect(within(inventory).queryByRole('button', { name: 'statusのサンプルを表示' })).toBeNull()
+    expect(within(inventory).getByText('可視ノート 0件・Properties使用ノート 0件')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '設定' }))
+    const dialog = await screen.findByRole('dialog', { name: '設定' })
+    fireEvent.change(within(dialog).getByRole('textbox', { name: '除外するファイル' }), { target: { value: '' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: '設定を保存' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '設定' })).toBeNull())
+    expect(within(inventory).getByRole('button', { name: 'statusのサンプルを表示' })).toBeTruthy()
+    expect(within(inventory).getByText('可視ノート 1件・Properties使用ノート 1件')).toBeTruthy()
+  })
+
+  it('opens the read-only global property inventory from the activity rail', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'プロパティ一覧' }))
+
+    expect(await screen.findByRole('heading', { name: 'プロパティ一覧' })).toBeTruthy()
+    expect(screen.getByText('status')).toBeTruthy()
+    const inventoryView = screen.getByRole('region', { name: 'プロパティ一覧' })
+    expect(within(inventoryView).queryByRole('button', { name: /変更|編集|変換/ })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'statusのサンプルを表示' }))
+    fireEvent.click(screen.getByRole('button', { name: 'A.md' }))
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'A' }).getAttribute('aria-selected')).toBe('true')
+    })
+  })
+
   it('saves and reloads typed list edits through the existing App revision path', async () => {
     const source = initialContent.replace('status: active # keep this comment', 'items: ["42", 2] # keep this comment')
     currentNote = { ...note, content: source, size: new TextEncoder().encode(source).byteLength }
@@ -237,7 +291,7 @@ describe('App properties integration', () => {
     expect(screen.getByText('local-only')).toBeTruthy()
     expect(document.querySelector('.cm-content')?.textContent).toContain('local-only')
     expect(vi.mocked(api.saveNote).mock.calls[0][0].force).toBe(false)
-    await new Promise((resolve) => setTimeout(resolve, 700))
+    await advanceAutosaveDelay()
     expect(api.saveNote).toHaveBeenCalledTimes(1)
     expect(vi.mocked(api.saveNote).mock.calls.every(([input]) => input.force === false)).toBe(true)
   })
@@ -259,7 +313,7 @@ describe('App properties integration', () => {
     expect(document.querySelector('.cm-content')?.textContent).toContain('- 3')
     expect((screen.getByRole('button', { name: 'itemsを編集' }) as HTMLButtonElement).disabled).toBe(true)
     expect((screen.getByRole('button', { name: 'itemsを削除' }) as HTMLButtonElement).disabled).toBe(true)
-    await new Promise((resolve) => setTimeout(resolve, 700))
+    await advanceAutosaveDelay()
     expect(api.saveNote).toHaveBeenCalledTimes(1)
   })
 })

@@ -32,6 +32,8 @@ import type { CopyPathFormat } from '../core/paths'
 import { compilePathAliases, resolvePathAlias } from '../core/path-aliases'
 import { searchRendererRanked } from '../core/search'
 import { getNoteFreshness } from '../core/freshness'
+import { evaluateBase } from '../core/base-evaluator'
+import { parseBaseProfile } from '../core/base-profile'
 import {
   TEMPLATE_DIRECTORY,
   dailyTemplatePath,
@@ -46,7 +48,6 @@ import {
 } from '../core/templates'
 import type {
   AppError,
-  AiWriteReviewProposal,
   AppUpdateStatus,
   CalendarPluginRuntimeStatus,
   DriveRemoteVault,
@@ -76,6 +77,7 @@ import { DEFAULT_GRAPH_FILTER_SETTINGS } from '../shared/graph-filters'
 import { DEFAULT_GRAPH_GROUPS } from '../shared/graph-groups'
 import { DEFAULT_GRAPH_VIEW_STATES } from '../shared/graph-view-state'
 import { createExcludedFileMatcher } from '../shared/excluded-files'
+import { buildPropertyInventory } from '../core/property-inventory'
 import FileTree, { type TreeSelection } from './components/FileTree'
 import AttachmentPreview from './components/AttachmentPreview'
 import HumanNoteCaptureDialog, {
@@ -96,23 +98,28 @@ import ConflictBanner, {
 } from './components/ConflictBanner'
 import RenameDialog from './components/RenameDialog'
 import DailyCalendar from './components/DailyCalendar'
+import DailyProfile from './components/DailyProfile'
 import CalendarPluginFrame, {
   type CalendarPluginFrameHandle
 } from './components/CalendarPluginFrame'
 import RelatedNotes from './components/RelatedNotes'
 import TemporalDetails from './components/TemporalDetails'
 import WikiGraphView from './components/WikiGraphView'
-import ObservatoryView from './components/ObservatoryView'
 import WorkspaceTabBar, {
   WORKSPACE_TAB_PANEL_ID,
   workspaceTabDomId,
   workspaceTabLabel,
   type WorkspaceTab
 } from './components/WorkspaceTabBar'
+import WorkspaceDialog from './components/WorkspaceDialog'
+import PropertyInventoryView from './components/PropertyInventoryView'
+import BasePathDialog from './components/BasePathDialog'
+import BaseTableView, { type BaseTableState } from './components/BaseTableView'
 import tsuzuneMark from './assets/tsuzune-app-icon.png'
+import type { WorkspaceCollection, WorkspaceSnapshotV1 } from '../shared/workspace-state'
 
 type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict'
-type SettingsCategory = 'files' | 'templates' | 'plugins' | 'calendar' | 'ai'
+type SettingsCategory = 'files' | 'templates' | 'plugins' | 'calendar'
 
 const isNormalDiscoveryExcluded = createExcludedFileMatcher(['50_履歴'])
 
@@ -229,6 +236,31 @@ export default function App(): React.JSX.Element {
   const [activeAttachmentPath, setActiveAttachmentPath] = useState<string | null>(null)
   const [activeLinkedViewPath, setActiveLinkedViewPath] = useState<string | null>(null)
   const nextTabIdRef = useRef(1)
+  const workspaceCollectionRef = useRef<WorkspaceCollection | null>(null)
+  const [workspaceCollection, setWorkspaceCollection] = useState<WorkspaceCollection | null>(null)
+  const [rightSidebarView, setRightSidebarView] = useState<WorkspaceSnapshotV1['right']['view']>('links')
+  const [workspaceMissingPaths, setWorkspaceMissingPaths] = useState<string[]>([])
+  const [workspaceDialogMode, setWorkspaceDialogMode] = useState<'save' | 'open' | null>(null)
+  const [workspaceBusy, setWorkspaceBusy] = useState(false)
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null)
+  const [basePathDialogOpen, setBasePathDialogOpen] = useState(false)
+  const [basePathDialogError, setBasePathDialogError] = useState<string | null>(null)
+  const [baseListRefresh, setBaseListRefresh] = useState(0)
+  const [baseList, setBaseList] = useState<{ key: string; paths: string[]; error: string | null } | null>(null)
+  const baseDialogSessionRef = useRef(0)
+  const baseDialogPreviousFocusRef = useRef<HTMLElement | null>(null)
+  const [baseState, setBaseState] = useState<BaseTableState | null>(null)
+  const [baseReloadKey, setBaseReloadKey] = useState(0)
+  const workspaceSnapshotRef = useRef<WorkspaceSnapshotV1 | null>(null)
+  const workspaceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const workspaceSavePromiseRef = useRef<Promise<boolean>>(Promise.resolve(true))
+  const workspaceLastSavedKeyRef = useRef<string | null>(null)
+  const workspaceObservedKeyRef = useRef<string | null>(null)
+  const workspaceRestorePendingRef = useRef(false)
+  const workspaceMissingRef = useRef(false)
+  const editorComposingRef = useRef(false)
+  const [searchComposing, setSearchComposing] = useState(false)
+  const closeHandlerRef = useRef<() => Promise<void>>(async () => undefined)
   const [treeSelection, setTreeSelection] = useState<TreeSelection | null>(null)
   const [content, setContent] = useState('')
   const contentRef = useRef('')
@@ -259,8 +291,8 @@ export default function App(): React.JSX.Element {
     DEFAULT_GRAPH_VIEW_STATES
   )
   const [userIgnoreFilters, setUserIgnoreFilters] = useState<string[]>([])
-  const [aiReviewPaths, setAiReviewPaths] = useState<string[]>([])
-  const [aiReviewProposals, setAiReviewProposals] = useState<AiWriteReviewProposal[]>([])
+  const userIgnoreFiltersRef = useRef(userIgnoreFilters)
+  userIgnoreFiltersRef.current = userIgnoreFilters
   const [obsidianPluginCandidates, setObsidianPluginCandidates] = useState<
     ObsidianPluginCandidate[]
   >([])
@@ -279,7 +311,6 @@ export default function App(): React.JSX.Element {
   const [settingsError, setSettingsError] = useState<string | null>(null)
   const [settingsCategory, setSettingsCategory] = useState<SettingsCategory>('files')
   const [excludedFilesDraft, setExcludedFilesDraft] = useState('')
-  const [aiReviewPathsDraft, setAiReviewPathsDraft] = useState('')
   const [templateDirectory, setTemplateDirectory] = useState(TEMPLATE_DIRECTORY)
   const [templateDirectoryDraft, setTemplateDirectoryDraft] = useState(TEMPLATE_DIRECTORY)
   const [showBuiltInTemplates, setShowBuiltInTemplates] = useState(true)
@@ -314,6 +345,8 @@ export default function App(): React.JSX.Element {
   const [leftSidebarView, setLeftSidebarView] = useState<'files' | 'search' | 'bookmarks'>('files')
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(true)
+  const [dailyViewOpen, setDailyViewOpen] = useState(false)
+  const [pendingCalendarCommand, setPendingCalendarCommand] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [updateBusy, setUpdateBusy] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<AppUpdateStatus>({
@@ -340,9 +373,12 @@ export default function App(): React.JSX.Element {
     Boolean(movePath) ||
     Boolean(renameRequest) ||
     Boolean(bookmarkPath) ||
-    Boolean(captureKind)
+    Boolean(captureKind) ||
+    Boolean(workspaceDialogMode) ||
+    basePathDialogOpen
   const settingsDialogRef = useRef<HTMLElement | null>(null)
   const settingsDialogPreviousFocusRef = useRef<HTMLElement | null>(null)
+  const workspaceDialogPreviousFocusRef = useRef<HTMLElement | null>(null)
   const googleDialogRef = useRef<HTMLElement | null>(null)
   const googleDialogPreviousFocusRef = useRef<HTMLElement | null>(null)
   const quickSwitcherPreviousFocusRef = useRef<HTMLElement | null>(null)
@@ -366,6 +402,19 @@ export default function App(): React.JSX.Element {
   const calendarPluginSessionRef = useRef(
     `calendar-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
   )
+
+  const closeDailyOverview = (): void => {
+    setDailyViewOpen(false)
+    setPendingCalendarCommand(null)
+    calendarPluginActivatedRef.current = false
+    setCalendarPluginActivated(false)
+  }
+
+  const openDailyOverview = (calendarCommand?: string): void => {
+    setDailyViewOpen(true)
+    setPendingCalendarCommand(calendarCommand ?? null)
+  }
+
   const handleCaptureDirtyChange = useCallback((dirty: boolean): void => {
     captureDirtyRef.current = dirty
   }, [])
@@ -527,7 +576,7 @@ export default function App(): React.JSX.Element {
   }
 
   const beginOperation = (): boolean => {
-    if (busyRef.current) {
+    if (busyRef.current || editorComposingRef.current) {
       return false
     }
     busyRef.current = true
@@ -576,6 +625,349 @@ export default function App(): React.JSX.Element {
     if (persistLastNote) {
       void window.tsuzune.setLastNote(path)
     }
+  }
+
+  // Resolve against a fresh scan, then commit all tabs and the one active buffer together.
+  const applyWorkspaceSnapshot = (saved: WorkspaceSnapshotV1, vault: VaultSnapshot): string[] => {
+    const missing: string[] = []
+    let savedActiveId: number | null = null
+    const tabs: WorkspaceTab[] = []
+    saved.tabs.forEach((tab, index) => {
+      let path: string | null = null
+      if (tab.kind === 'base') {
+        // .base files are intentionally outside the Vault Markdown snapshot.
+        // Keep the tab and let the table state report a missing source.
+        path = tab.path
+      } else if (tab.kind !== 'global-graph' && tab.kind !== 'global-properties') {
+        path = tab.kind !== 'attachment'
+          ? restoredLastNote(vault.notes, tab.path, vault.pathAliases)?.path ?? null
+          : null
+        if (!path && tab.kind !== 'note') {
+          path = vault.attachments?.find((attachment) =>
+            attachment.path.toLocaleLowerCase() === tab.path.toLocaleLowerCase())?.path ?? null
+        }
+        if (!path) { missing.push(tab.path); return }
+      }
+      const id = nextTabIdRef.current++
+      tabs.push(
+        tab.kind === 'global-graph' || tab.kind === 'global-properties'
+          ? { kind: tab.kind, id }
+          : { kind: tab.kind, id, path: path! }
+      )
+      if (index === saved.activeIndex) savedActiveId = id
+    })
+    const active = tabs.find((tab) => tab.id === savedActiveId) ?? tabs[0] ?? null
+    const note = active?.kind === 'note'
+      ? vault.notes.find((candidate) => candidate.path === active.path) ?? null
+      : null
+    setCurrentSnapshot(vault)
+    loadNoteState(note, false)
+    setWorkspaceTabs(tabs)
+    setActiveTabId(active?.id ?? null)
+    setTreeSelection(active?.kind === 'note'
+      ? { kind: 'note', path: active.path }
+      : { kind: 'directory', path: '' })
+    setActiveAttachmentPath(active?.kind === 'attachment' ? active.path : null)
+    setActiveLinkedViewPath(active?.kind === 'linked-view' ? active.path : null)
+    setGraphScope(active?.kind === 'global-graph' ? 'vault' : 'local')
+    setViewMode(active?.kind === 'global-graph' || (note && saved.noteView === 'local-graph')
+      ? 'graph' : note && saved.noteView === 'edit' ? 'edit' : 'preview')
+    setLeftSidebarOpen(saved.left.open)
+    setLeftSidebarView(saved.left.view)
+    setQuery(saved.left.query)
+    setRightSidebarOpen(saved.right.open)
+    setRightSidebarView(saved.right.view)
+    setWorkspaceMissingPaths(missing)
+    workspaceMissingRef.current = missing.length > 0
+    workspaceRestorePendingRef.current = true
+    if (active) focusWorkspaceTab(active.id)
+    else setTimeout(() => document.querySelector<HTMLButtonElement>('.activity-rail [aria-label="ファイル"]')?.focus(), 0)
+    return missing
+  }
+
+  const currentWorkspace = useMemo<WorkspaceSnapshotV1>(() => {
+    const tabs: WorkspaceSnapshotV1['tabs'] = workspaceTabs.length
+      ? workspaceTabs.map((tab) =>
+        tab.kind === 'global-graph' || tab.kind === 'global-properties'
+          ? { kind: tab.kind }
+          : { kind: tab.kind, path: tab.path }
+      )
+      : selectedPath ? [{ kind: 'note', path: selectedPath }] : []
+    const activeIndex = tabs.length ? Math.max(0, workspaceTabs.findIndex((tab) => tab.id === activeTabId)) : null
+    return {
+      tabs, activeIndex,
+      noteView: tabs[activeIndex ?? -1]?.kind !== 'note' ? 'preview'
+        : viewMode === 'graph' ? 'local-graph' : viewMode,
+      left: { open: leftSidebarOpen, view: leftSidebarView, query },
+      right: { open: rightSidebarOpen, view: rightSidebarView }
+    }
+  }, [workspaceTabs, activeTabId, selectedPath, viewMode, leftSidebarOpen, leftSidebarView, query, rightSidebarOpen, rightSidebarView])
+  workspaceSnapshotRef.current = currentWorkspace
+
+  const clearWorkspaceTimer = (): void => {
+    if (workspaceTimerRef.current) clearTimeout(workspaceTimerRef.current)
+    workspaceTimerRef.current = null
+  }
+
+  const workspaceRequestIsCurrent = (generation: number, rootPath: string): boolean =>
+    generation === vaultGenerationRef.current && snapshotRef.current?.rootPath === rootPath
+
+  const checkpointWorkspace = (saved = workspaceSnapshotRef.current, allowMissing = false): Promise<boolean> => {
+    clearWorkspaceTimer()
+    if (!saved || !snapshotRef.current || (workspaceMissingRef.current && !allowMissing)) return Promise.resolve(true)
+    const collection = workspaceCollectionRef.current
+    if (!collection) return Promise.resolve(false)
+    const generation = vaultGenerationRef.current
+    const rootPath = snapshotRef.current.rootPath
+    const key = JSON.stringify(saved)
+    if (key === workspaceLastSavedKeyRef.current) return workspaceSavePromiseRef.current
+    const pending = window.tsuzune.saveLastWorkspaceSession(collection.scope, saved).then((result) => {
+      if (!workspaceRequestIsCurrent(generation, rootPath)) return false
+      if (!result.ok) {
+        setMessage(`前回の配置を保存できませんでした。次回は最後に保存できた配置から再開します。${errorMessage(result.error)}`)
+        return false
+      }
+      workspaceLastSavedKeyRef.current = key
+      return true
+    })
+    workspaceSavePromiseRef.current = pending
+    return pending
+  }
+
+  const removeMissingWorkspaceTabs = async (): Promise<void> => {
+    if (!beginOperation()) return
+    try {
+      if (!await checkpointWorkspace(undefined, true)) return
+      workspaceMissingRef.current = false
+      setWorkspaceMissingPaths([])
+      if (activeTabId !== null) focusWorkspaceTab(activeTabId)
+      else setTimeout(() => document.querySelector<HTMLButtonElement>('.activity-rail [aria-label="ファイル"]')?.focus(), 0)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '前回の配置を保存できませんでした。')
+    } finally {
+      finishOperation()
+    }
+  }
+
+  const commitWorkspaceCollection = (next: WorkspaceCollection): void => {
+    workspaceCollectionRef.current = next
+    setWorkspaceCollection(next)
+    workspaceLastSavedKeyRef.current = next.state.lastSession
+      ? JSON.stringify(next.state.lastSession)
+      : null
+  }
+
+  const closeWorkspaceDialog = (): void => {
+    if (workspaceBusy) return
+    setWorkspaceDialogMode(null)
+    setWorkspaceError(null)
+  }
+
+  const openWorkspaceDialog = (
+    mode: 'save' | 'open',
+    previousFocus: HTMLElement | null = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+  ): void => {
+    if (!snapshotRef.current || !workspaceCollectionRef.current || busyRef.current) return
+    if (previousFocus?.isConnected) previousFocus.focus()
+    workspaceDialogPreviousFocusRef.current = previousFocus
+    setWorkspaceError(null)
+    setWorkspaceDialogMode(mode)
+  }
+
+  const saveNamedWorkspace = async (
+    name: string,
+    replaceExisting: boolean
+  ): Promise<void> => {
+    if (workspaceBusy) return
+    const collection = workspaceCollectionRef.current
+    const snapshot = snapshotRef.current
+    if (!collection || !snapshot) return
+    const generation = vaultGenerationRef.current
+    const rootPath = snapshot.rootPath
+    setWorkspaceBusy(true)
+    setWorkspaceError(null)
+    try {
+      if (!(await flushSave())) {
+        setWorkspaceError('編集中のノートを保存できなかったため、ワークスペースを保存できません。')
+        return
+      }
+      if (!workspaceRequestIsCurrent(generation, rootPath)) return
+      const saved = workspaceSnapshotRef.current
+      if (!saved) return
+      const result = await window.tsuzune.saveWorkspace(
+        collection.scope,
+        name,
+        saved,
+        replaceExisting
+      )
+      if (!workspaceRequestIsCurrent(generation, rootPath)) return
+      if (!result.ok) {
+        setWorkspaceError(errorMessage(result.error))
+        return
+      }
+      commitWorkspaceCollection(result.value)
+      setWorkspaceDialogMode(null)
+      setMessage(`${name}を保存しました。`)
+    } catch (error) {
+      setWorkspaceError(error instanceof Error ? error.message : 'ワークスペースを保存できません。')
+    } finally {
+      setWorkspaceBusy(false)
+    }
+  }
+
+  const loadNamedWorkspace = async (
+    saved: WorkspaceSnapshotV1,
+    name: string
+  ): Promise<void> => {
+    if (workspaceBusy) return
+    const collection = workspaceCollectionRef.current
+    const current = snapshotRef.current
+    if (!collection || !current) return
+    const generation = vaultGenerationRef.current
+    const rootPath = current.rootPath
+    setWorkspaceBusy(true)
+    setWorkspaceError(null)
+    try {
+      if (!(await flushSave())) {
+        setWorkspaceError('編集中のノートを保存できなかったため、ワークスペースを開けません。')
+        return
+      }
+      if (!workspaceRequestIsCurrent(generation, rootPath)) return
+      const latest = snapshotRef.current
+      if (!latest) return
+      const missing = applyWorkspaceSnapshot(saved, latest)
+      setWorkspaceDialogMode(null)
+      setMessage(
+        missing.length > 0
+          ? `${name}を開きました。${saved.tabs.length - missing.length}タブを開きました。${missing.length}件は見つかりません。`
+          : `${name}を開きました。`
+      )
+    } catch (error) {
+      setWorkspaceError(error instanceof Error ? error.message : 'ワークスペースを開けません。')
+    } finally {
+      setWorkspaceBusy(false)
+    }
+  }
+
+  const deleteNamedWorkspace = async (name: string): Promise<void> => {
+    if (workspaceBusy) return
+    const collection = workspaceCollectionRef.current
+    const current = snapshotRef.current
+    if (!collection || !current) return
+    const generation = vaultGenerationRef.current
+    const rootPath = current.rootPath
+    setWorkspaceBusy(true)
+    setWorkspaceError(null)
+    try {
+      const result = await window.tsuzune.deleteWorkspace(collection.scope, name)
+      if (!workspaceRequestIsCurrent(generation, rootPath)) return
+      if (!result.ok) {
+        setWorkspaceError(errorMessage(result.error))
+        return
+      }
+      commitWorkspaceCollection(result.value)
+      setMessage(`${name}を削除しました。`)
+    } catch (error) {
+      setWorkspaceError(error instanceof Error ? error.message : 'ワークスペースを削除できません。')
+    } finally {
+      setWorkspaceBusy(false)
+    }
+  }
+
+  const resetWorkspaceView = (): void => {
+    setWorkspaceTabs([])
+    setActiveTabId(null)
+    setWorkspaceTabFocusId(null)
+    setActiveAttachmentPath(null)
+    setActiveLinkedViewPath(null)
+    setGraphScope('local')
+    setViewMode('preview')
+    setWorkspaceMissingPaths([])
+    workspaceMissingRef.current = false
+    workspaceRestorePendingRef.current = false
+    workspaceObservedKeyRef.current = null
+    loadNoteState(null, false)
+    setTreeSelection({ kind: 'directory', path: '' })
+  }
+
+  const loadWorkspaceCollection = async (
+    vault: VaultSnapshot,
+    resetViewOnEmpty: boolean
+  ): Promise<WorkspaceCollection | null> => {
+    const result = await window.tsuzune.getWorkspaces(vault.rootPath)
+    if (!result.ok) {
+      workspaceCollectionRef.current = null
+      setWorkspaceCollection(null)
+      workspaceLastSavedKeyRef.current = null
+      if (resetViewOnEmpty) resetWorkspaceView()
+      setMessage(`前回の配置を読み込めませんでした。${errorMessage(result.error)}`)
+      return null
+    }
+    commitWorkspaceCollection(result.value)
+    if (result.value.state.lastSession) {
+      applyWorkspaceSnapshot(result.value.state.lastSession, vault)
+    } else if (resetViewOnEmpty) {
+      resetWorkspaceView()
+    }
+    return result.value
+  }
+
+  useEffect(() => {
+    clearWorkspaceTimer()
+    if (loading || busy || searchComposing || !workspaceCollectionRef.current) return
+    const key = JSON.stringify(currentWorkspace)
+    const previousKey = workspaceObservedKeyRef.current
+    if (workspaceRestorePendingRef.current) {
+      workspaceRestorePendingRef.current = false
+    } else if (previousKey !== key) {
+      workspaceMissingRef.current = false
+    }
+    workspaceObservedKeyRef.current = key
+    if (workspaceMissingRef.current || key === workspaceLastSavedKeyRef.current) return
+    const generation = vaultGenerationRef.current
+    const rootPath = snapshotRef.current?.rootPath
+    const previousQuery = previousKey ? (JSON.parse(previousKey) as WorkspaceSnapshotV1).left.query : query
+    workspaceTimerRef.current = setTimeout(() => {
+      workspaceTimerRef.current = null
+      if (rootPath && workspaceRequestIsCurrent(generation, rootPath) && !busyRef.current) {
+        void checkpointWorkspace(currentWorkspace)
+      }
+    }, previousQuery !== query ? 500 : 300)
+    return clearWorkspaceTimer
+  }, [currentWorkspace, loading, busy, searchComposing])
+
+  useEffect(() => {
+    if (!workspaceDialogMode) return
+    return () => {
+      const previousFocus = workspaceDialogPreviousFocusRef.current
+      workspaceDialogPreviousFocusRef.current = null
+      if (previousFocus?.isConnected) previousFocus.focus()
+    }
+  }, [workspaceDialogMode])
+
+  closeHandlerRef.current = async (): Promise<void> => {
+    if (busyRef.current || editorComposingRef.current || searchComposing) {
+      setMessage('入力の確定と処理の完了後にアプリを閉じてください。')
+      window.tsuzune.confirmClose(false)
+      return
+    }
+    if (captureDirtyRef.current && !window.confirm('入力フォームに未保存の内容があります。破棄してアプリを閉じますか？')) {
+      window.tsuzune.confirmClose(false)
+      return
+    }
+    if (!beginOperation()) { window.tsuzune.confirmClose(false); return }
+    try {
+      clearWorkspaceTimer()
+      if (!(await flushSave()) || dirtyRef.current) {
+        window.tsuzune.confirmClose(false)
+        return
+      }
+      await workspaceSavePromiseRef.current
+      const saved = await checkpointWorkspace()
+      window.tsuzune.confirmClose(saved || window.confirm('前回の配置を保存できません。配置を保存せず終了しますか？'))
+    } finally { finishOperation() }
   }
 
   const updateSnapshotNote = (
@@ -754,7 +1146,7 @@ export default function App(): React.JSX.Element {
       return
     }
     const activeTab = workspaceTabs.find((tab) => tab.id === activeTabId)
-    if (activeTab?.kind === 'global-graph' || activeTab?.kind === 'observatory') {
+    if (activeTab?.kind === 'global-graph' || activeTab?.kind === 'global-properties' || activeTab?.kind === 'base') {
       const existing = workspaceTabs.find(
         (tab) => tab.kind === 'note' && tab.path === path
       )
@@ -780,6 +1172,8 @@ export default function App(): React.JSX.Element {
   }
 
   const openNote = async (path: string): Promise<void> => {
+    setDailyViewOpen(false)
+    setPendingCalendarCommand(null)
     if (path === selectedPathRef.current || !beginOperation()) {
       return
     }
@@ -948,8 +1342,6 @@ export default function App(): React.JSX.Element {
       if (settingsResult.ok) {
         setUserIgnoreFilters(settingsResult.value.userIgnoreFilters)
         setExcludedFilesDraft(settingsResult.value.userIgnoreFilters.join('\n'))
-        setAiReviewPaths(settingsResult.value.aiReviewPaths ?? [])
-        setAiReviewPathsDraft((settingsResult.value.aiReviewPaths ?? []).join('\n'))
         const nextTemplateDirectory =
           settingsResult.value.templateDirectory ?? TEMPLATE_DIRECTORY
         const nextShowBuiltIns = settingsResult.value.showBuiltInTemplates ?? true
@@ -972,7 +1364,9 @@ export default function App(): React.JSX.Element {
         setMessage(errorMessage(vaultResult.error))
       } else if (vaultResult.value) {
         setCurrentSnapshot(vaultResult.value)
-        if (settingsResult.ok && settingsResult.value.lastNotePath) {
+        const workspaces = await loadWorkspaceCollection(vaultResult.value, false)
+        if (disposed) return
+        if ((workspaces === null || workspaces.state.lastSession === null) && settingsResult.ok && settingsResult.value.lastNotePath) {
           const previous = restoredLastNote(
             vaultResult.value.notes,
             settingsResult.value.lastNotePath,
@@ -996,25 +1390,7 @@ export default function App(): React.JSX.Element {
     void initialize()
 
     const unsubscribeVault = window.tsuzune.onVaultChanged(queueExternalChange)
-    const unsubscribeClose = window.tsuzune.onRequestClose(() => {
-      if (busyRef.current) {
-        setMessage('処理が終わってからアプリを閉じてください。')
-        window.tsuzune.confirmClose(false)
-        return
-      }
-      if (
-        captureDirtyRef.current &&
-        !window.confirm(
-          '入力フォームに未保存の内容があります。破棄してアプリを閉じますか？'
-        )
-      ) {
-        window.tsuzune.confirmClose(false)
-        return
-      }
-      void flushSave().then((saved) => {
-        window.tsuzune.confirmClose(saved)
-      })
-    })
+    const unsubscribeClose = window.tsuzune.onRequestClose(() => { void closeHandlerRef.current() })
     const unsubscribeUpdate = window.tsuzune.onUpdateStatus((status) => {
       setUpdateStatus(status)
     })
@@ -1025,6 +1401,7 @@ export default function App(): React.JSX.Element {
       unsubscribeClose()
       unsubscribeUpdate()
       clearSaveTimer()
+      clearWorkspaceTimer()
       if (externalChangeTimerRef.current) {
         clearTimeout(externalChangeTimerRef.current)
         externalChangeTimerRef.current = null
@@ -1057,6 +1434,16 @@ export default function App(): React.JSX.Element {
       disposed = true
     }
   }, [snapshot?.rootPath])
+
+  useEffect(() => {
+    if (!dailyViewOpen || !pendingCalendarCommand || !calendarPluginActivated) {
+      return
+    }
+    const frame = calendarPluginFrameRef.current
+    if (!frame) return
+    frame.runCommand(pendingCalendarCommand)
+    setPendingCalendarCommand(null)
+  }, [calendarPluginActivated, dailyViewOpen, pendingCalendarCommand])
 
   useEffect(() => {
     if (!settingsDialogOpen) {
@@ -1117,6 +1504,10 @@ export default function App(): React.JSX.Element {
   }, [focusVaultSearch, modalOpen, openCommandPalette, openQuickSwitcher])
 
   const savedNotes = snapshot?.notes ?? []
+  const dailyNoteCount = savedNotes.filter((note) => note.path.startsWith('02_デイリー/')).length
+  const todayNoteAvailable = savedNotes.some(
+    (note) => note.path === dailyNoteLocation(new Date()).path
+  )
   const normalDiscoveryNotes = useMemo(
     () => savedNotes.filter((note) => !isNormalDiscoveryExcluded(note.path)),
     [savedNotes]
@@ -1125,6 +1516,33 @@ export default function App(): React.JSX.Element {
     () => createExcludedFileMatcher(userIgnoreFilters),
     [userIgnoreFilters]
   )
+  const baseListKey = JSON.stringify([
+    snapshot?.rootPath, vaultGenerationRef.current, userIgnoreFilters, baseListRefresh, baseDialogSessionRef.current
+  ])
+  const currentBaseList = baseList?.key === baseListKey ? baseList : null
+  useEffect(() => {
+    if (!basePathDialogOpen || loading || !snapshot) return
+    let disposed = false
+    const rootPath = snapshot.rootPath
+    const generation = vaultGenerationRef.current
+    const session = baseDialogSessionRef.current
+    const filters = JSON.stringify(userIgnoreFilters)
+    const isCurrent = (): boolean => !disposed &&
+      session === baseDialogSessionRef.current &&
+      workspaceRequestIsCurrent(generation, rootPath) &&
+      filters === JSON.stringify(userIgnoreFiltersRef.current)
+    void window.tsuzune.listBases(rootPath).then((result) => {
+      if (!isCurrent()) return
+      setBaseList({
+        key: baseListKey,
+        paths: result.ok ? result.value.filter((path) => !userExcludedMatcher(path)) : [],
+        error: result.ok ? null : errorMessage(result.error)
+      })
+    }).catch((error) => {
+      if (isCurrent()) setBaseList({ key: baseListKey, paths: [], error: error instanceof Error ? error.message : 'Baseの一覧を取得できませんでした。' })
+    })
+    return () => { disposed = true }
+  }, [basePathDialogOpen, loading, baseListKey])
   const userExcludedNotePaths = useMemo(
     () =>
       new Set(
@@ -1137,6 +1555,10 @@ export default function App(): React.JSX.Element {
   const searchNotes = useMemo(
     () => normalDiscoveryNotes.filter((note) => !userExcludedMatcher(note.path)),
     [normalDiscoveryNotes, userExcludedMatcher]
+  )
+  const propertyInventory = useMemo(
+    () => buildPropertyInventory(searchNotes),
+    [searchNotes]
   )
   const pathAliases = useMemo(
     () => compilePathAliases(snapshot?.pathAliases ?? {}),
@@ -1299,6 +1721,12 @@ export default function App(): React.JSX.Element {
 
     vaultGenerationRef.current += 1
     vaultSwitchingRef.current = true
+    baseDialogSessionRef.current += 1
+    baseDialogPreviousFocusRef.current = null
+    setBasePathDialogOpen(false)
+    setBasePathDialogError(null)
+    setBaseList(null)
+    setBaseState(null)
     if (externalChangeTimerRef.current) {
       clearTimeout(externalChangeTimerRef.current)
       externalChangeTimerRef.current = null
@@ -1307,6 +1735,11 @@ export default function App(): React.JSX.Element {
     pendingExternalEventsRef.current.length = 0
     try {
       if (!(await flushSave())) {
+        vaultSwitchingRef.current = false
+        await refreshSnapshot(vaultGenerationRef.current)
+        return
+      }
+      if (!(await checkpointWorkspace())) {
         vaultSwitchingRef.current = false
         await refreshSnapshot(vaultGenerationRef.current)
         return
@@ -1323,9 +1756,8 @@ export default function App(): React.JSX.Element {
         setRecentNotePaths([])
         const recoveryResult = await window.tsuzune.getMoveRecovery()
         if (recoveryResult.ok) setMoveRecovery(recoveryResult.value)
-        loadNoteState(null)
-        setTreeSelection({ kind: 'directory', path: '' })
         setQuery('')
+        await loadWorkspaceCollection(result.value, true)
       } else {
         vaultSwitchingRef.current = false
         await refreshSnapshot(vaultGenerationRef.current)
@@ -1376,6 +1808,8 @@ export default function App(): React.JSX.Element {
     preferredName: string,
     content?: string | ((name: string) => string)
   ): Promise<boolean> => {
+    setDailyViewOpen(false)
+    setPendingCalendarCommand(null)
     if (!snapshot || !beginOperation()) {
       return false
     }
@@ -1814,7 +2248,7 @@ export default function App(): React.JSX.Element {
       setWorkspaceTabs((current) =>
         current.map((tab) =>
           tab.kind !== 'global-graph' &&
-          tab.kind !== 'observatory' &&
+          tab.kind !== 'global-properties' &&
           isPathInsideOrEqual(tab.path, path)
             ? { ...tab, path: mapMovedPath(tab.path) }
             : tab
@@ -2094,6 +2528,7 @@ export default function App(): React.JSX.Element {
   }
 
   const loadWorkspaceTab = async (tab: WorkspaceTab): Promise<boolean> => {
+    closeDailyOverview()
     if (!beginOperation()) {
       return false
     }
@@ -2101,13 +2536,29 @@ export default function App(): React.JSX.Element {
       if (!(await flushSave())) {
         return false
       }
-      if (tab.kind === 'global-graph' || tab.kind === 'observatory') {
+      if (tab.kind === 'global-properties') {
+        setActiveTabId(tab.id)
+        loadNoteState(null, false)
+        setActiveAttachmentPath(null)
+        setActiveLinkedViewPath(null)
+        setGraphScope('local')
+        setViewMode('preview')
+        setMessage(null)
+        return true
+      }
+      if (tab.kind === 'base') {
+        setActiveTabId(tab.id)
+        loadNoteState(null, false)
+        setActiveAttachmentPath(null)
+        setActiveLinkedViewPath(null)
+        setGraphScope('local')
+        setViewMode('preview')
+        return true
+      }
+      if (tab.kind === 'global-graph') {
         setActiveTabId(tab.id)
         setActiveAttachmentPath(null)
         setActiveLinkedViewPath(null)
-        if (tab.kind === 'observatory') {
-          loadNoteState(null, false)
-        }
         setGraphScope('vault')
         setViewMode('graph')
         setMessage(null)
@@ -2145,6 +2596,7 @@ export default function App(): React.JSX.Element {
   }
 
   const openGlobalGraphWorkspace = (): void => {
+    closeDailyOverview()
     const existing = workspaceTabs.find((tab) => tab.kind === 'global-graph')
     if (existing) {
       setActiveTabId(existing.id)
@@ -2167,21 +2619,123 @@ export default function App(): React.JSX.Element {
     setViewMode('graph')
   }
 
-  const openObservatoryWorkspace = (): void => {
-    const existing = workspaceTabs.find((tab) => tab.kind === 'observatory')
-    const observatoryTab: WorkspaceTab = existing ?? {
-      id: nextTabIdRef.current++,
-      kind: 'observatory'
+  const openPropertyInventoryWorkspace = (): void => {
+    closeDailyOverview()
+    const existing = workspaceTabs.find((tab) => tab.kind === 'global-properties')
+    if (existing) {
+      setActiveTabId(existing.id)
+      void loadWorkspaceTab(existing)
+      return
     }
-    if (!existing) {
+    const currentTabs = workspaceTabs.length > 0
+      ? workspaceTabs
+      : selectedPathRef.current
+        ? [{ id: nextTabIdRef.current++, kind: 'note' as const, path: selectedPathRef.current }]
+        : []
+    const propertiesTab: WorkspaceTab = {
+      id: nextTabIdRef.current++,
+      kind: 'global-properties'
+    }
+    setWorkspaceTabs([...currentTabs, propertiesTab])
+    void loadWorkspaceTab(propertiesTab)
+  }
+
+  const openBasePath = async (path: string, mode: 'list' | 'manual'): Promise<boolean> => {
+    const rootPath = snapshotRef.current?.rootPath
+    const generation = vaultGenerationRef.current
+    if (!rootPath || !beginOperation()) {
+      setBasePathDialogError('入力の確定と処理の完了後に、もう一度開いてください。')
+      return false
+    }
+    try {
+      if (!(await flushSave())) {
+        setBasePathDialogError('編集中のノートを保存できませんでした。外部変更や保存エラーを確認してください。')
+        return false
+      }
+      if (!workspaceRequestIsCurrent(generation, rootPath) || vaultSwitchingRef.current) return false
+      if (mode === 'list' && createExcludedFileMatcher(userIgnoreFiltersRef.current)(path)) {
+        setBasePathDialogError('このBaseは除外設定の対象です。一覧を更新してください。')
+        return false
+      }
+      const existing = workspaceTabs.find(
+        (tab): tab is Extract<WorkspaceTab, { kind: 'base' }> =>
+          tab.kind === 'base' && tab.path.toLocaleLowerCase() === path.toLocaleLowerCase()
+      )
+      if (existing) {
+        setActiveTabId(existing.id)
+        setActiveAttachmentPath(null)
+        setActiveLinkedViewPath(null)
+        loadNoteState(null, false)
+        setViewMode('preview')
+        setBaseReloadKey((key) => key + 1)
+        focusWorkspaceTab(existing.id)
+        return true
+      }
+
       const currentTabs = workspaceTabs.length > 0
         ? workspaceTabs
-        : selectedPathRef.current
-          ? [{ id: nextTabIdRef.current++, kind: 'note' as const, path: selectedPathRef.current }]
-          : []
-      setWorkspaceTabs([...currentTabs, observatoryTab])
+        : viewMode === 'graph' && graphScope === 'vault'
+          ? [{ id: nextTabIdRef.current++, kind: 'global-graph' as const }]
+          : selectedPathRef.current
+            ? [{ id: nextTabIdRef.current++, kind: 'note' as const, path: selectedPathRef.current }]
+            : []
+      const baseTab: WorkspaceTab = {
+        id: nextTabIdRef.current++,
+        kind: 'base',
+        path
+      }
+      setWorkspaceTabs([...currentTabs, baseTab])
+      setActiveTabId(baseTab.id)
+      setActiveAttachmentPath(null)
+      setActiveLinkedViewPath(null)
+      loadNoteState(null, false)
+      setViewMode('preview')
+      focusWorkspaceTab(baseTab.id)
+      return true
+    } finally {
+      finishOperation()
     }
-    void loadWorkspaceTab(observatoryTab)
+  }
+
+  const openBasePathDialog = (previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null): void => {
+    if (!snapshotRef.current || busyRef.current || loading) return
+    baseDialogSessionRef.current += 1
+    baseDialogPreviousFocusRef.current = previousFocus
+    setBaseList(null)
+    setBasePathDialogError(null)
+    setBasePathDialogOpen(true)
+  }
+
+  const closeBasePathDialog = (): void => {
+    if (busyRef.current) return
+    baseDialogSessionRef.current += 1
+    const previousFocus = baseDialogPreviousFocusRef.current
+    baseDialogPreviousFocusRef.current = null
+    setBasePathDialogOpen(false)
+    setBasePathDialogError(null)
+    setBaseList(null)
+    setTimeout(() => { if (previousFocus?.isConnected) previousFocus.focus() }, 0)
+  }
+
+  const confirmBasePath = async (path: string, mode: 'list' | 'manual'): Promise<void> => {
+    if (mode === 'list' && (!currentBaseList?.paths.includes(path) || userExcludedMatcher(path))) return
+    const session = baseDialogSessionRef.current
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setBasePathDialogError(null)
+    try {
+      if (await openBasePath(path, mode) && session === baseDialogSessionRef.current) {
+        baseDialogSessionRef.current += 1
+        baseDialogPreviousFocusRef.current = null
+        setBasePathDialogOpen(false)
+        setBaseList(null)
+      }
+    } catch (error) {
+      if (session === baseDialogSessionRef.current) setBasePathDialogError(error instanceof Error ? error.message : 'Baseを開けませんでした。')
+    } finally {
+      setTimeout(() => {
+        if (session === baseDialogSessionRef.current && previousFocus?.isConnected) previousFocus.focus()
+      }, 0)
+    }
   }
 
   const openVaultEntryInNewTab = async (
@@ -2515,21 +3069,17 @@ export default function App(): React.JSX.Element {
     settingsDialogPreviousFocusRef.current = previousFocus
     setSettingsError(null)
     setExcludedFilesDraft(userIgnoreFilters.join('\n'))
-    setAiReviewPathsDraft(aiReviewPaths.join('\n'))
     setTemplateDirectoryDraft(templateDirectory)
     setShowBuiltInTemplatesDraft(showBuiltInTemplates)
     setCalendarPluginSettingsDraft({ ...calendarPluginSettings })
     setSettingsCategory('files')
     setSettingsDialogOpen(true)
     setObsidianPluginsLoading(true)
-    const [proposals, plugins, calendarStatus] = await Promise.all([
-      window.tsuzune.listAiReviewProposals(),
+    const [plugins, calendarStatus] = await Promise.all([
       window.tsuzune.listObsidianPluginCandidates(),
       window.tsuzune.getCalendarPluginStatus()
     ])
     const errors: string[] = []
-    if (proposals.ok) setAiReviewProposals(proposals.value)
-    else errors.push(errorMessage(proposals.error))
     if (plugins.ok) setObsidianPluginCandidates(plugins.value)
     else errors.push(errorMessage(plugins.error))
     if (calendarStatus.ok) setCalendarPluginStatus(calendarStatus.value)
@@ -2583,7 +3133,6 @@ export default function App(): React.JSX.Element {
 
   const settingsHaveUnsavedChanges =
     excludedFilesDraft !== userIgnoreFilters.join('\n') ||
-    aiReviewPathsDraft !== aiReviewPaths.join('\n') ||
     templateDirectoryDraft !== templateDirectory ||
     showBuiltInTemplatesDraft !== showBuiltInTemplates ||
     JSON.stringify(calendarPluginSettingsDraft) !==
@@ -2619,11 +3168,6 @@ export default function App(): React.JSX.Element {
       .split(/\r?\n/)
       .map((filter) => filter.trim())
       .filter(Boolean)
-    const nextAiReviewPaths = aiReviewPathsDraft
-      .split(/\r?\n/)
-      .map((path) => path.trim())
-      .filter(Boolean)
-
     setSettingsBusy(true)
     setSettingsError(null)
     try {
@@ -2634,22 +3178,13 @@ export default function App(): React.JSX.Element {
       }
       setUserIgnoreFilters(nextFilters)
       setExcludedFilesDraft(nextFilters.join('\n'))
-      const reviewResult = await window.tsuzune.setAiReviewPaths(nextAiReviewPaths)
-      if (!reviewResult.ok) {
-        setSettingsError(
-          `ファイルとリンクは保存済みです。${errorMessage(reviewResult.error)}`
-        )
-        return
-      }
-      setAiReviewPaths(nextAiReviewPaths)
-      setAiReviewPathsDraft(nextAiReviewPaths.join('\n'))
       const templateResult = await window.tsuzune.setTemplateSettings({
         directory: templateDirectoryDraft,
         includeBuiltIns: showBuiltInTemplatesDraft
       })
       if (!templateResult.ok) {
         setSettingsError(
-          `ファイルとリンク、AIとレビューは保存済みです。${errorMessage(templateResult.error)}`
+          `ファイルとリンクは保存済みです。${errorMessage(templateResult.error)}`
         )
         return
       }
@@ -2663,7 +3198,7 @@ export default function App(): React.JSX.Element {
       )
       if (!calendarResult.ok) {
         setSettingsError(
-          `ファイル、AI、テンプレートは保存済みです。${errorMessage(calendarResult.error)}`
+          `ファイルとリンク、テンプレートは保存済みです。${errorMessage(calendarResult.error)}`
         )
         return
       }
@@ -2671,28 +3206,6 @@ export default function App(): React.JSX.Element {
       setCalendarPluginSettingsDraft({ ...nextCalendarSettings })
       await refreshSnapshot()
       setSettingsDialogOpen(false)
-    } finally {
-      setSettingsBusy(false)
-    }
-  }
-
-  const resolveAiReviewProposal = async (
-    proposal: AiWriteReviewProposal,
-    approve: boolean
-  ): Promise<void> => {
-    setSettingsBusy(true)
-    setSettingsError(null)
-    try {
-      const result = approve
-        ? await window.tsuzune.approveAiReviewProposal(proposal.id)
-        : await window.tsuzune.cancelAiReviewProposal(proposal.id)
-      if (!result.ok) {
-        setSettingsError(errorMessage(result.error))
-      }
-      const proposals = await window.tsuzune.listAiReviewProposals()
-      if (proposals.ok) setAiReviewProposals(proposals.value)
-      else setSettingsError(errorMessage(proposals.error))
-      if (approve && result.ok) await refreshSnapshot()
     } finally {
       setSettingsBusy(false)
     }
@@ -3082,13 +3595,42 @@ export default function App(): React.JSX.Element {
     {
       id: 'today-note',
       label: '今日のノートを開く',
-      keywords: ['今日', 'デイリー', 'daily', 'today']
+      keywords: ['今日', '今日のノート', 'daily', 'today']
+    },
+    {
+      id: 'daily-overview',
+      label: 'ノート活動を開く',
+      keywords: ['ノート活動', 'カレンダー', '活動', 'daily', 'calendar'],
+      state: dailyViewOpen ? '表示中' : undefined
     },
     {
       id: 'open-note',
       label: 'ノートを開く',
       keywords: ['クイックスイッチャー', 'quick switcher', 'open', 'note'],
       shortcut: 'Ctrl+O / Meta+O'
+    },
+    {
+      id: 'workspace-save',
+      label: 'ワークスペースを保存',
+      keywords: ['ワークスペース', 'workspace', '保存', 'save']
+    },
+    {
+      id: 'workspace-open',
+      label: 'ワークスペースを開く',
+      keywords: ['ワークスペース', 'workspace', '開く', 'open']
+    },
+    {
+      id: 'property-inventory',
+      label: 'プロパティ一覧を開く',
+      keywords: ['プロパティ', '一覧', 'properties', 'inventory'],
+      state: workspaceTabs.some(
+        (tab) => tab.id === activeTabId && tab.kind === 'global-properties'
+      ) ? '表示中' : undefined
+    },
+    {
+      id: 'open-base',
+      label: 'Baseを開く',
+      keywords: ['base', 'bases', 'テーブル', 'ビュー', '開く']
     },
     {
       id: 'vault-search',
@@ -3138,14 +3680,6 @@ export default function App(): React.JSX.Element {
       ) ? '表示中' : undefined
     },
     {
-      id: 'observatory',
-      label: '観測宙域を開く',
-      keywords: ['観測宙域', '宇宙', '鑑賞', 'observatory'],
-      state: workspaceTabs.some(
-        (tab) => tab.id === activeTabId && tab.kind === 'observatory'
-      ) ? '表示中' : undefined
-    },
-    {
       id: 'show-bookmarks',
       label: 'ブックマークを表示',
       keywords: ['ブックマーク', 'bookmark', 'favorite', 'saved'],
@@ -3163,7 +3697,7 @@ export default function App(): React.JSX.Element {
         id: 'calendar-show-calendar-view',
         label: 'Calendar: ビューを開く',
         keywords: ['calendar', 'カレンダー', 'open view'],
-        state: rightSidebarOpen && calendarPluginActivated ? '表示中' : undefined
+        state: dailyViewOpen && calendarPluginActivated ? '表示中' : undefined
       },
       {
         id: 'calendar-open-weekly-note',
@@ -3195,11 +3729,32 @@ export default function App(): React.JSX.Element {
       case 'today-note':
         run(() => void openOrCreateDailyNote())
         return
+      case 'daily-overview':
+        run(() => openDailyOverview())
+        return
       case 'open-note': {
         const previousFocus = dismissCommandPalette()
         quickSwitcherPreviousFocusRef.current = previousFocus
         quickSwitcherRestoreFocusRef.current = true
         setQuickSwitcherOpen(true)
+        return
+      }
+      case 'workspace-save': {
+        const previousFocus = dismissCommandPalette()
+        openWorkspaceDialog('save', previousFocus)
+        return
+      }
+      case 'workspace-open': {
+        const previousFocus = dismissCommandPalette()
+        openWorkspaceDialog('open', previousFocus)
+        return
+      }
+      case 'property-inventory':
+        run(openPropertyInventoryWorkspace)
+        return
+      case 'open-base': {
+        const previousFocus = dismissCommandPalette()
+        openBasePathDialog(previousFocus)
         return
       }
       case 'vault-search':
@@ -3213,22 +3768,26 @@ export default function App(): React.JSX.Element {
         run(() => setRightSidebarOpen((current) => !current))
         return
       case 'edit-mode':
-        run(() => setViewMode('edit'))
+        run(() => {
+          closeDailyOverview()
+          setViewMode('edit')
+        })
         return
       case 'preview-mode':
-        run(() => setViewMode('preview'))
+        run(() => {
+          closeDailyOverview()
+          setViewMode('preview')
+        })
         return
       case 'local-graph':
         run(() => {
+          closeDailyOverview()
           setGraphScope('local')
           setViewMode('graph')
         })
         return
       case 'vault-graph':
         run(openGlobalGraphWorkspace)
-        return
-      case 'observatory':
-        run(openObservatoryWorkspace)
         return
       case 'show-bookmarks':
         run(() => {
@@ -3243,22 +3802,13 @@ export default function App(): React.JSX.Element {
         return
       }
       case 'calendar-show-calendar-view':
-        run(() => {
-          setRightSidebarOpen(true)
-          calendarPluginFrameRef.current?.runCommand('show-calendar-view')
-        })
+        run(() => openDailyOverview('show-calendar-view'))
         return
       case 'calendar-open-weekly-note':
-        run(() => {
-          setRightSidebarOpen(true)
-          calendarPluginFrameRef.current?.runCommand('open-weekly-note')
-        })
+        run(() => openDailyOverview('open-weekly-note'))
         return
       case 'calendar-reveal-active-note':
-        run(() => {
-          setRightSidebarOpen(true)
-          calendarPluginFrameRef.current?.runCommand('reveal-active-note')
-        })
+        run(() => openDailyOverview('reveal-active-note'))
         return
     }
   }
@@ -3276,6 +3826,46 @@ export default function App(): React.JSX.Element {
     />
   )
   const activeWorkspaceTab = workspaceTabs.find((tab) => tab.id === activeTabId) ?? null
+  const activeBasePath = activeWorkspaceTab?.kind === 'base' ? activeWorkspaceTab.path : null
+  const activeBaseState: BaseTableState | null = activeBasePath
+    ? baseState?.path === activeBasePath ? baseState : { status: 'loading', path: activeBasePath }
+    : null
+
+  useEffect(() => {
+    if (!activeBasePath || loading || !snapshot) return
+    const path = activeBasePath
+    const generation = vaultGenerationRef.current
+    let cancelled = false
+    const isCurrent = (): boolean => !cancelled &&
+      generation === vaultGenerationRef.current && snapshotRef.current === snapshot
+    setBaseState({ status: 'loading', path })
+
+    const load = async (): Promise<void> => {
+      try {
+        const result = await window.tsuzune.readBase(path)
+        if (!isCurrent()) return
+        if (!result.ok) {
+          setBaseState({
+            status: result.error.code === 'NOT_FOUND' ? 'missing' : 'error',
+            path,
+            message: errorMessage(result.error)
+          })
+          return
+        }
+        const parsed = parseBaseProfile(result.value.content)
+        setBaseState(parsed.ok
+          ? { status: 'ready', path, profile: parsed.profile, evaluation: evaluateBase(parsed.profile, searchNotes) }
+          : { status: 'diagnostic', path, diagnostics: parsed.diagnostics })
+      } catch (error) {
+        if (isCurrent()) setBaseState({
+          status: 'error', path,
+          message: error instanceof Error ? error.message : 'Baseを読み込めませんでした。'
+        })
+      }
+    }
+    void load()
+    return () => { cancelled = true }
+  }, [activeBasePath, loading, snapshot, searchNotes, baseReloadKey])
 
   if (loading) {
     return (
@@ -3314,6 +3904,18 @@ export default function App(): React.JSX.Element {
           <span>
             {moveRecovery.source || '不明'} → {moveRecovery.destination || '不明'}
           </span>
+        </div>
+      )}
+
+      {workspaceMissingPaths.length > 0 && (
+        <div className="workspace-missing-banner" role="status" inert={busy || modalOpen}>
+          <span>{workspaceMissingPaths.length}件のタブが見つかりません。</span>
+          <details>
+            <summary>見つからなかったファイル</summary>
+            <ul>{workspaceMissingPaths.map((path, index) => <li key={`${index}:${path}`}>{path}</li>)}</ul>
+          </details>
+          <button type="button" onClick={() => void removeMissingWorkspaceTabs()}>見つからないタブを前回の配置から外す</button>
+          <button type="button" aria-label="見つからなかったファイルの通知を閉じる" onClick={() => setWorkspaceMissingPaths([])}>閉じる</button>
         </div>
       )}
 
@@ -3423,7 +4025,7 @@ export default function App(): React.JSX.Element {
               title="今日のノート"
               onClick={() => void openOrCreateDailyNote()}
             >
-              <Icon name="calendar" />
+              <Icon name="note" />
               <span className="sr-only">今日のノート</span>
             </button>
             <button
@@ -3451,13 +4053,24 @@ export default function App(): React.JSX.Element {
             <button
               type="button"
               className="activity-rail-button"
-              aria-label="観測宙域"
-              title="観測宙域"
-              aria-pressed={activeWorkspaceTab?.kind === 'observatory'}
-              onClick={openObservatoryWorkspace}
+              aria-label="プロパティ一覧"
+              title="プロパティ一覧"
+              aria-pressed={activeWorkspaceTab?.kind === 'global-properties'}
+              onClick={openPropertyInventoryWorkspace}
             >
-              <Icon name="sparkles" />
-              <span className="sr-only">観測宙域</span>
+              <Icon name="settings" />
+              <span className="sr-only">プロパティ一覧</span>
+            </button>
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-label="Baseを開く"
+              title="Baseを開く"
+              aria-pressed={activeWorkspaceTab?.kind === 'base'}
+              onClick={() => openBasePathDialog()}
+            >
+              <Icon name="preview" />
+              <span className="sr-only">Baseを開く</span>
             </button>
             <button
               type="button"
@@ -3473,6 +4086,17 @@ export default function App(): React.JSX.Element {
             >
               <Icon name="bookmark" />
               <span className="sr-only">ブックマーク</span>
+            </button>
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-label="ノート活動"
+              title="ノート活動"
+              aria-pressed={dailyViewOpen}
+              onClick={() => openDailyOverview()}
+            >
+              <Icon name="calendar" />
+              <span className="sr-only">ノート活動</span>
             </button>
             <button
               type="button"
@@ -3577,6 +4201,8 @@ export default function App(): React.JSX.Element {
                     aria-keyshortcuts="Control+Shift+F Meta+Shift+F Control+K Meta+K"
                     aria-describedby="vault-search-description vault-search-help"
                     value={query}
+                    onCompositionStart={() => setSearchComposing(true)}
+                    onCompositionEnd={() => setSearchComposing(false)}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="内容を検索"
                     title="内容を検索（Ctrl+Shift+F、Ctrl+K）"
@@ -3703,14 +4329,91 @@ export default function App(): React.JSX.Element {
           </aside>
 
           <section
-            className="note-panel"
-            id={activeTabId === null ? undefined : WORKSPACE_TAB_PANEL_ID}
-            role={activeTabId === null ? undefined : 'tabpanel'}
+            className={`note-panel${dailyViewOpen ? ' is-daily-profile' : ''}`}
+            id={dailyViewOpen || activeTabId === null ? undefined : WORKSPACE_TAB_PANEL_ID}
+            role={dailyViewOpen || activeTabId === null ? undefined : 'tabpanel'}
             aria-labelledby={
-              activeTabId === null ? undefined : workspaceTabDomId(activeTabId)
+              dailyViewOpen || activeTabId === null ? undefined : workspaceTabDomId(activeTabId)
             }
           >
-            {activeLinkedViewPath ? (
+            {dailyViewOpen ? (
+              <DailyProfile
+                noteCount={savedNotes.length}
+                dailyNoteCount={dailyNoteCount}
+                selectedNoteName={selectedNote?.name ?? null}
+                todayNoteAvailable={todayNoteAvailable}
+                onOpenToday={() => void openOrCreateDailyNote()}
+                onReturnToNote={closeDailyOverview}
+              >
+                {calendarPluginStatus?.state === 'ready' && snapshot && !calendarPluginFailed ? (
+                  <section className="calendar-plugin-panel" aria-label="Calendarプラグイン">
+                    <CalendarPluginFrame
+                      ref={calendarPluginFrameRef}
+                      sessionId={calendarPluginSessionRef.current}
+                      snapshot={snapshot}
+                      settings={calendarPluginSettings}
+                      selectedPath={selectedPath}
+                      daily={{
+                        format: 'YYYY-MM-DD',
+                        folder: '02_デイリー',
+                        template: snapshot.notes.some(
+                          (note) => note.path === dailyTemplatePath(templateDirectory)
+                        )
+                          ? dailyTemplatePath(templateDirectory)
+                          : ''
+                      }}
+                      onOpenNote={openCalendarNote}
+                      onCreateNote={createCalendarNote}
+                      onCreateDirectory={createCalendarDirectory}
+                      onSaveSettings={saveCalendarPluginSettings}
+                      onTrashNote={trashCalendarNote}
+                      onActivated={() => {
+                        calendarPluginActivatedRef.current = true
+                        setCalendarPluginActivated(true)
+                        setCalendarPluginFailed(false)
+                        setCalendarPluginError(null)
+                      }}
+                      onError={(error) => {
+                        setCalendarPluginError(error)
+                        setMessage(`Calendar: ${error}`)
+                        if (!calendarPluginActivatedRef.current) {
+                          setCalendarPluginFailed(true)
+                        }
+                      }}
+                    />
+                    {calendarPluginError && (
+                      <p className="calendar-plugin-error" role="status">
+                        {calendarPluginError}
+                      </p>
+                    )}
+                  </section>
+                ) : (
+                  <DailyCalendar
+                    notes={savedNotes}
+                    selectedPath={selectedPath}
+                    onSelectDate={(date) => void openDailyNoteFromCalendar(date)}
+                    onOpenNote={(path) => void openCalendarNote(path, false)}
+                  />
+                )}
+              </DailyProfile>
+            ) : activeWorkspaceTab?.kind === 'base' && activeBaseState ? (
+              <>
+                <div className="note-top">{workspaceTabBar}</div>
+                <BaseTableView
+                  state={activeBaseState}
+                  onReload={() => setBaseReloadKey((key) => key + 1)}
+                  onOpenNote={(path) => void openNote(path)}
+                />
+              </>
+            ) : activeWorkspaceTab?.kind === 'global-properties' ? (
+              <>
+                <div className="note-top">{workspaceTabBar}</div>
+                <PropertyInventoryView
+                  inventory={propertyInventory}
+                  onOpenNote={(path) => void openNote(path)}
+                />
+              </>
+            ) : activeLinkedViewPath ? (
               <>
                 <div className="note-top">
                   {workspaceTabBar}
@@ -3754,15 +4457,6 @@ export default function App(): React.JSX.Element {
                   <span>{linkedViewBacklinks.length}件のバックリンク</span>
                   <span>{activeLinkedViewPath}</span>
                 </footer>
-              </>
-            ) : activeWorkspaceTab?.kind === 'observatory' ? (
-              <>
-                <div className="note-top">{workspaceTabBar}</div>
-                <ObservatoryView
-                  graph={visibleGraph}
-                  notes={graphNotes}
-                  onOpen={(path) => void openNote(path)}
-                />
               </>
             ) : !selectedPath && viewMode === 'graph' && graphScope === 'vault' ? (
               <>
@@ -3911,6 +4605,7 @@ export default function App(): React.JSX.Element {
                 </div>
                 {viewMode === 'edit' ? (
                   <MarkdownEditor
+                    onCompositionChange={(composing) => { editorComposingRef.current = composing }}
                     key={selectedPath}
                     ref={markdownEditorRef}
                     value={content}
@@ -4027,58 +4722,10 @@ export default function App(): React.JSX.Element {
               {rightSidebarOpen ? '›' : '‹'}
             </button>
             <div id="right-sidebar-content" className="sidebar-content" hidden={!rightSidebarOpen}>
-              {calendarPluginStatus?.state === 'ready' && snapshot && !calendarPluginFailed ? (
-                <section className="calendar-plugin-panel" aria-label="Calendarプラグイン">
-                  <CalendarPluginFrame
-                    ref={calendarPluginFrameRef}
-                    sessionId={calendarPluginSessionRef.current}
-                    snapshot={snapshot}
-                    settings={calendarPluginSettings}
-                    selectedPath={selectedPath}
-                    daily={{
-                      format: 'YYYY-MM-DD',
-                      folder: '02_デイリー',
-                      template: snapshot.notes.some(
-                        (note) => note.path === dailyTemplatePath(templateDirectory)
-                      )
-                        ? dailyTemplatePath(templateDirectory)
-                        : ''
-                    }}
-                    onOpenNote={openCalendarNote}
-                    onCreateNote={createCalendarNote}
-                    onCreateDirectory={createCalendarDirectory}
-                    onSaveSettings={saveCalendarPluginSettings}
-                    onTrashNote={trashCalendarNote}
-                    onActivated={() => {
-                      calendarPluginActivatedRef.current = true
-                      setCalendarPluginActivated(true)
-                      setCalendarPluginFailed(false)
-                      setCalendarPluginError(null)
-                    }}
-                    onError={(error) => {
-                      setCalendarPluginError(error)
-                      setMessage(`Calendar: ${error}`)
-                      if (!calendarPluginActivatedRef.current) {
-                        setCalendarPluginFailed(true)
-                      }
-                    }}
-                  />
-                  {calendarPluginError && (
-                    <p className="calendar-plugin-error" role="status">
-                      {calendarPluginError}
-                    </p>
-                  )}
-                </section>
-              ) : (
-                <DailyCalendar
-                  notes={savedNotes}
-                  selectedPath={selectedPath}
-                  onSelectDate={(date) => void openDailyNoteFromCalendar(date)}
-                  onOpenNote={(path) => void openCalendarNote(path, false)}
-                />
-              )}
               {selectedPath ? (
                 <RelatedNotes
+                  activeTab={rightSidebarView}
+                  onActiveTabChange={setRightSidebarView}
                   outgoing={outgoing}
                   backlinks={backlinks}
                   selectedNoteName={selectedNote?.name}
@@ -4137,6 +4784,32 @@ export default function App(): React.JSX.Element {
           commands={commandPaletteCommands}
           onExecute={executeCommandPaletteCommand}
           onClose={closeCommandPalette}
+        />
+      )}
+
+      {basePathDialogOpen && (
+        <BasePathDialog
+          candidates={currentBaseList?.paths ?? []}
+          loading={!currentBaseList}
+          listError={currentBaseList?.error ?? null}
+          busy={busy}
+          error={basePathDialogError}
+          onRefresh={() => setBaseListRefresh((key) => key + 1)}
+          onCancel={closeBasePathDialog}
+          onConfirm={(path, mode) => void confirmBasePath(path, mode)}
+        />
+      )}
+
+      {workspaceDialogMode && workspaceCollection && (
+        <WorkspaceDialog
+          named={workspaceCollection.state.named}
+          mode={workspaceDialogMode}
+          busy={workspaceBusy}
+          error={workspaceError}
+          onSave={(name, replaceExisting) => void saveNamedWorkspace(name, replaceExisting)}
+          onLoad={(saved, name) => void loadNamedWorkspace(saved, name)}
+          onDelete={(name) => void deleteNamedWorkspace(name)}
+          onClose={closeWorkspaceDialog}
         />
       )}
 
@@ -4310,22 +4983,6 @@ export default function App(): React.JSX.Element {
                       : calendarPluginStatus?.state === 'rejected'
                         ? '配布物を拒否'
                         : '公式配布物を確認'}
-                  </small>
-                </button>
-                <button
-                  type="button"
-                  aria-label="AIとレビュー"
-                  aria-current={settingsCategory === 'ai' ? 'page' : undefined}
-                  onClick={() => setSettingsCategory('ai')}
-                >
-                  <span>AIとレビュー</span>
-                  <small>
-                    承認と保留
-                    {aiReviewProposals.length > 0 && (
-                      <span className="settings-count" aria-hidden="true">
-                        {aiReviewProposals.length}
-                      </span>
-                    )}
                   </small>
                 </button>
               </nav>
@@ -4693,82 +5350,6 @@ export default function App(): React.JSX.Element {
                   </section>
                 )}
 
-                {settingsCategory === 'ai' && (
-                  <section className="app-settings-section" aria-labelledby="ai-review-title">
-                    <div className="app-settings-section-heading">
-                      <h3 id="ai-review-title">AIとレビュー</h3>
-                      <p>AIによる書き込みを、指定した場所だけ承認制にします。</p>
-                    </div>
-                    <label>
-                      <span>AI変更を承認制にするパス</span>
-                      <textarea
-                        aria-label="AI変更を承認制にするパス"
-                        value={aiReviewPathsDraft}
-                        disabled={settingsBusy}
-                        placeholder="例: 30_知識"
-                        onChange={(event) => {
-                          setSettingsError(null)
-                          setAiReviewPathsDraft(event.target.value)
-                        }}
-                      />
-                    </label>
-                    <p className="setting-help">
-                      対象ではAIの作成・更新を即時反映せず、ここで承認または取り消します。変更禁止の指定が優先されます。
-                    </p>
-                    <section className="ai-review-list" aria-labelledby="ai-review-proposals-title">
-                      <h4 id="ai-review-proposals-title">承認待ちのAI変更案</h4>
-                      {aiReviewProposals.length === 0 ? (
-                        <p>承認待ちの変更案はありません。</p>
-                      ) : (
-                        aiReviewProposals.map((proposal) => {
-                          const current = snapshot?.notes.find(
-                            (note) => note.path.toLowerCase() === proposal.path.toLowerCase()
-                          )
-                          return (
-                            <article key={proposal.id} className="ai-review-proposal">
-                              <strong>{proposal.path}</strong>
-                              <p>{proposal.reason}</p>
-                              <p>操作: {proposal.operation === 'create' ? '作成' : '更新'}</p>
-                              <p>
-                                作成時刻: {new Date(proposal.createdAt).toLocaleString('ja-JP')}
-                              </p>
-                              <p>
-                                出典: {proposal.sourceRefs.length > 0 ? proposal.sourceRefs.join('、') : 'なし'}
-                              </p>
-                              <div className="ai-review-comparison">
-                                <div>
-                                  <span>現在</span>
-                                  <pre>{current?.content ?? '（新規ノート）'}</pre>
-                                </div>
-                                <div>
-                                  <span>変更案</span>
-                                  <pre>{proposal.content}</pre>
-                                </div>
-                              </div>
-                              <div className="modal-actions">
-                                <button
-                                  type="button"
-                                  disabled={settingsBusy}
-                                  onClick={() => void resolveAiReviewProposal(proposal, false)}
-                                >
-                                  取り消す
-                                </button>
-                                <button
-                                  type="button"
-                                  className="primary-button"
-                                  disabled={settingsBusy}
-                                  onClick={() => void resolveAiReviewProposal(proposal, true)}
-                                >
-                                  承認して反映
-                                </button>
-                              </div>
-                            </article>
-                          )
-                        })
-                      )}
-                    </section>
-                  </section>
-                )}
               </div>
             </div>
 

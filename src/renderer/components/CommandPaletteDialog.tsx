@@ -67,6 +67,7 @@ export default function CommandPaletteDialog({
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing || event.key === 'Process') return
     if (event.key === 'ArrowDown') {
       event.preventDefault()
       if (results.length) setSelectedIndex((index) => Math.min(index + 1, results.length - 1))

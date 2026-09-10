@@ -1,4 +1,10 @@
-# 観測宙域 MVP R5 自律生成粒子場 Implementation Plan
+# 観測宙域 — 終了済み開発計画
+
+## 現在の決定 — 2026-09-06
+
+利用者が継続中止と本番TSUZUNEからの撤去を明示選択した。専用入口・タブ・描画・simulation・CSS・専用test／受入scriptを削除し、既存App安全性99 testsをPASSした。本番反映はrepoのPLANと最新production receipt、既存Vault実施記録を参照する。研究ノート・過去の試作資料・履歴は保持する。以下のR5 Task Contract、Remaining gates、Known boundariesは過去の状態であり、現在の実行指示や再開待ちではない。利用者の新たな明示選択なしに再開しない。
+
+## 過去のR5記録
 
 ## R5 Task Contract
 

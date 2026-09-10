@@ -1,0 +1,155 @@
+{
+  "observedAt": "2026-09-08",
+  "environment": {
+    "application": "Obsidian",
+    "version": "1.13.4",
+    "executable": "work/p0-4-properties-runtime/runtime/Obsidian.exe",
+    "executableSha256": "C01BBD79583037639F5422396CDDB457EF48E89E159CA50A8492BBD1F1F10775",
+    "userData": "output/playwright/bases-real-device-20260908/userdata",
+    "vault": "output/playwright/bases-real-device-20260908/vault"
+  },
+  "fixture": {
+    "base": "tests/fixtures/bases/projects.base",
+    "baseSha256": "ABC487360E78DD377977B1FF8E72B30B4C019A8018DBE826859991056417A56D",
+    "files": [
+      "10_アーカイブ/Archived.md",
+      "10_プロジェクト/Alpha.md",
+      "10_プロジェクト/Beta.md",
+      "10_プロジェクト/Draft.md",
+      "10_プロジェクト/Missing.md",
+      "10_プロジェクト/SameA.md",
+      "10_プロジェクト/SameB.md",
+      "projects.base"
+    ]
+  },
+  "comparison": {
+    "runtimeColumns": ["file.name", "note.status", "note.updated"],
+    "sourceColumns": ["file.name", "status", "updated"],
+    "columnOrderMatch": true,
+    "runtimeRows": [
+      "10_プロジェクト/Beta.md",
+      "10_プロジェクト/SameA.md",
+      "10_プロジェクト/SameB.md",
+      "10_プロジェクト/Alpha.md"
+    ],
+    "sourceRows": [
+      "10_プロジェクト/Beta.md",
+      "10_プロジェクト/SameA.md",
+      "10_プロジェクト/SameB.md",
+      "10_プロジェクト/Alpha.md"
+    ],
+    "includedPathIdsMatch": true,
+    "rowCountMatch": true,
+    "sortOrderMatch": true,
+    "tieBreak": "path ascending for updated=5: SameA then SameB",
+    "fileName": {
+      "runtime": ["Beta", "SameA", "SameB", "Alpha"],
+      "source": ["Beta", "SameA", "SameB", "Alpha"],
+      "match": true,
+      "note": "Obsidian 1.13.4 file.name uses TFile.getShortName() for Markdown; file.fullname retains .md."
+    },
+    "missingAndNullSort": {
+      "runtime": [
+        "10_プロジェクト/Value.md",
+        "10_プロジェクト/Second.md",
+        "10_プロジェクト/Empty.md",
+        "10_プロジェクト/Missing.md",
+        "10_プロジェクト/Null.md"
+      ],
+      "source": [
+        "10_プロジェクト/Value.md",
+        "10_プロジェクト/Second.md",
+        "10_プロジェクト/Empty.md",
+        "10_プロジェクト/Missing.md",
+        "10_プロジェクト/Null.md"
+      ],
+      "sortOrderMatch": true,
+      "display": "runtime renders empty, missing, and null cells blank"
+    },
+    "fileAttributes": {
+      "name": "Alpha",
+      "basename": "Alpha",
+      "fullname": "Alpha.md",
+      "path": "10_プロジェクト/Alpha.md",
+      "folder": "10_プロジェクト",
+      "ext": "md",
+      "size": 42,
+      "mtimeType": "Obsidian date value wrapper (constructor t; icon/date/time)",
+      "ctimeType": "Obsidian date value wrapper (constructor t; icon/date/time)",
+      "nativeDate": false,
+      "stringExample": "2026-09-08T04:54:23"
+    }
+  },
+  "boundaryComparison": {
+    "observedAt": "2026-09-08",
+    "fixtureRoot": "output/playwright/bases-parity-boundaries-20260908",
+    "excludedFiles": {
+      "userIgnoreFilters": ["90_excluded/"],
+      "markdownFilesBefore": ["10_プロジェクト/Visible.md", "90_excluded/Hidden.md"],
+      "markdownFilesAfter": ["10_プロジェクト/Visible.md", "90_excluded/Hidden.md"],
+      "baseRowsAfter": ["10_プロジェクト/Visible.md"],
+      "result": "Bases excludes the hidden row while app.vault.getMarkdownFiles() remains unchanged."
+    },
+    "settingsPersistence": {
+      "fixtureRoot": "output/playwright/bases-settings-restart-20260908",
+      "uiAction": "Settings > Files and links > Excluded files > add 90_excluded/",
+      "savedConfig": ["90_excluded/"],
+      "appJson": "{\n  \"userIgnoreFilters\": [\n    \"90_excluded/\"\n  ]\n}",
+      "afterUiRows": ["Visible.md"],
+      "afterRestartRows": ["Visible.md"],
+      "afterRestartMarkdownFiles": ["90_excluded/Hidden.md", "Visible.md"],
+      "result": "Normal Settings UI persistence and restart preserve the exclusion for Bases without removing the Markdown file from vault discovery."
+    },
+    "malformedBase": {
+      "controllerError": "query",
+      "rows": [],
+      "message": "ベースファイルを解析できません: Map keys must be unique ... direction",
+      "result": "Real device fails closed at query parsing."
+    },
+    "unsupportedView": {
+      "controllerError": "view",
+      "rows": [],
+      "message": "Base configured with an unknown view type: chart",
+      "result": "Real device fails closed at view construction."
+    },
+    "unsupportedOperator": {
+      "expression": "file.ext contains \"md\"",
+      "controllerError": null,
+      "rows": [],
+      "result": "Real device opens the table and returns zero rows; the infix form is outside the official function syntax and fixed TSUZUNE parser rejects it."
+    },
+    "containsFunctions": {
+      "fixtureRoot": "output/playwright/bases-contains-list-20260908",
+      "expressions": {
+        "file.ext.contains(\"md\")": ["Match.md"],
+        "tags.contains(\"one\")": ["Match.md"],
+        "status.contains(\"act\")": ["Match.md"]
+      },
+      "globalContainsRows": [],
+      "result": "Official string and list contains functions are supported in the fixed source profile; global/infix forms remain rejected."
+    },
+    "dateValues": {
+      "fixtureRoot": "output/playwright/bases-date-boundary-20260908",
+      "threshold": "2025-01-01 00:00:00",
+      "expressions": {
+        "file.mtime > date(\"2025-01-01 00:00:00\")": ["New.md"],
+        "number(file.mtime) > number(date(\"2025-01-01 00:00:00\"))": ["New.md"],
+        "file.mtime.date() > date(\"2025-01-01 00:00:00\")": ["New.md"]
+      },
+      "wrapper": "constructor t; own keys icon/date/time; native Date false",
+      "sourceNormalization": "date(quoted literal) parses to Unix milliseconds; NoteDocument modifiedAt/createdAt are compared as numbers",
+      "result": "Direct, number(), and date-only comparisons select the same row; the fixed source profile supports the literal date form."
+    }
+  },
+  "sourceVerification": {
+    "focusedCommand": "npx vitest run tests/base-evaluator.test.ts tests/base-profile.test.ts --maxWorkers=1",
+    "result": "18 passed",
+    "scope": "source evaluator and parser, including contains and date literal boundaries",
+    "fullCommand": "npm test",
+    "fullResult": "113 test files passed, 1 skipped; 1181 tests passed, 1 skipped"
+  },
+  "unresolved": [
+    "Dynamic date arithmetic and advanced containsAll/containsAny/file.tags functions remain outside the fixed profile.",
+    "The exact localized diagnostic text differs between Obsidian and TSUZUNE; source compatibility is the fail-closed diagnostic code and no partial rows."
+  ]
+}

@@ -19,10 +19,12 @@ vi.mock('../src/renderer/components/MarkdownEditor', async () => {
       {
         value,
         onChange,
+        onCompositionChange,
         readOnly
       }: {
         value: string
         onChange: (value: string) => void
+        onCompositionChange?: (composing: boolean) => void
         readOnly?: boolean
       },
       ref: React.ForwardedRef<{ scrollToOffset: (offset: number) => void }>
@@ -42,6 +44,8 @@ vi.mock('../src/renderer/components/MarkdownEditor', async () => {
         'aria-label': 'Markdown編集欄',
         value,
         readOnly,
+        onCompositionStart: () => onCompositionChange?.(true),
+        onCompositionEnd: () => onCompositionChange?.(false),
         onChange: readOnly
           ? undefined
           : (event: React.ChangeEvent<HTMLTextAreaElement>) =>
@@ -86,6 +90,8 @@ const snapshot: VaultSnapshot = {
   notes: [noteA, noteB, noteC]
 }
 
+const baseContent = 'filters:\n  and:\n    - file.ext == "md"\nviews:\n  - type: table\n    name: Notes\n    order:\n      - file.name\n'
+
 let vaultChanged: ((event: VaultChangeEvent) => void) | null
 let updateStatusChanged: ((status: AppUpdateStatus) => void) | null
 let requestClose: (() => void) | null
@@ -102,17 +108,19 @@ beforeEach(() => {
   api = {
     chooseVault: vi.fn(() => ok(null)),
     openLastVault: vi.fn(() => ok(snapshot)),
+    getWorkspaces: vi.fn(() => ok({
+      scope: { rootPath: snapshot.rootPath, rootRevision: 1 },
+      state: { version: 1 as const, lastSession: null, named: [] }
+    })),
+    saveWorkspace: vi.fn(),
+    deleteWorkspace: vi.fn(),
+    saveLastWorkspaceSession: vi.fn(() => ok(null)),
     getSettings: vi.fn(() =>
       ok({
         lastVaultPath: snapshot.rootPath,
         lastNotePath: noteA.path,
         userIgnoreFilters: [],
-        graphForces: {
-          centerForce: 50,
-          repelForce: 50,
-          linkForce: 50,
-          linkDistance: 50
-        },
+        graphForces: DEFAULT_GRAPH_FORCE_SETTINGS,
         graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
         graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
         graphGroups: DEFAULT_GRAPH_GROUPS,
@@ -120,6 +128,8 @@ beforeEach(() => {
       })
     ),
     getSnapshot: vi.fn(() => ok(snapshot)),
+    listBases: vi.fn(() => ok(['views/notes.base'])),
+    readBase: vi.fn((path) => ok({ path, content: baseContent, modifiedAt: 100 })),
     readNote: vi.fn((path) => {
       const note = snapshot.notes.find((candidate) => candidate.path === path)
       return note
@@ -156,9 +166,7 @@ beforeEach(() => {
     removeBookmark: vi.fn(() => ok(null)),
     setLastNote: vi.fn(() => ok(null)),
     setUserIgnoreFilters: vi.fn(() => ok(null)),
-    setAiReviewPaths: vi.fn(() => ok(null)),
     setTemplateSettings: vi.fn(() => ok(null)),
-    listAiReviewProposals: vi.fn(() => ok([])),
     listObsidianPluginCandidates: vi.fn(() => ok([])),
     getCalendarPluginStatus: vi.fn(() =>
       ok({
@@ -171,8 +179,6 @@ beforeEach(() => {
       })
     ),
     setCalendarPluginSettings: vi.fn(() => ok(null)),
-    approveAiReviewProposal: vi.fn((id: string) => ok({ path: id })),
-    cancelAiReviewProposal: vi.fn(() => ok(null)),
     setGraphForces: vi.fn(() => ok(null)),
     setGraphDisplay: vi.fn(() => ok(null)),
     setGraphFilters: vi.fn(() => ok(null)),
@@ -311,7 +317,454 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+describe('App Bases', () => {
+  const savedBase = {
+    tabs: [{ kind: 'base' as const, path: 'views/notes.base' }], activeIndex: 0,
+    noteView: 'preview' as const,
+    left: { open: true, view: 'files' as const, query: '' },
+    right: { open: true, view: 'outline' as const }
+  }
+
+  function restoreBase(): void {
+    vi.mocked(api.getWorkspaces).mockImplementation(() => ok({
+      scope: { rootPath: snapshot.rootPath, rootRevision: 1 },
+      state: { version: 1, lastSession: savedBase, named: [] }
+    }))
+  }
+
+  async function openBase(path: string): Promise<void> {
+    fireEvent.click(await screen.findByRole('button', { name: 'Baseを開く' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Baseを開く' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'パスを入力して開く' }))
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: path } })
+    fireEvent.click(within(dialog).getByRole('button', { name: '開く', exact: true }))
+  }
+
+  async function chooser(): Promise<HTMLElement> {
+    fireEvent.click(await screen.findByRole('button', { name: 'Baseを開く' }))
+    return screen.findByRole('dialog', { name: 'Baseを開く' })
+  }
+
+  it('opens listed paths from both entries, refreshes names, and restores the correct focus', async () => {
+    vi.mocked(api.listBases).mockResolvedValue(await ok(['archive/計画.base', 'views/計画.base']))
+    render(<App />)
+    const origin = await screen.findByRole('button', { name: 'Baseを開く' })
+    origin.focus()
+    let dialog = await chooser()
+    const query = within(dialog).getByRole('combobox')
+    await within(dialog).findByText('views/計画.base')
+    expect(api.listBases).toHaveBeenCalledWith(snapshot.rootPath)
+    fireEvent.change(query, { target: { value: 'ＶＩＥＷＳ　計画' } })
+    expect(within(dialog).getAllByRole('option')).toHaveLength(1)
+    expect(api.listBases).toHaveBeenCalledTimes(1)
+    fireEvent.keyDown(query, { key: 'Enter' })
+    const tab = await screen.findByRole('tab', { name: '計画.base' })
+    await screen.findByRole('table')
+    await waitFor(() => expect(document.activeElement).toBe(tab))
+    expect(api.readBase).toHaveBeenCalledWith('views/計画.base')
+
+    tab.focus()
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    fireEvent.click(within(await screen.findByRole('dialog', { name: '操作を実行' }))
+      .getByRole('option', { name: 'Baseを開く' }))
+    dialog = await screen.findByRole('dialog', { name: 'Baseを開く' })
+    await within(dialog).findByText('archive/計画.base')
+    fireEvent.keyDown(within(dialog).getByRole('combobox'), { key: 'Escape' })
+    await waitFor(() => expect(document.activeElement).toBe(tab))
+
+    dialog = await chooser()
+    await within(dialog).findByText('views/計画.base')
+    vi.mocked(api.listBases).mockResolvedValue(await ok(['views/new.base']))
+    fireEvent.click(within(dialog).getByRole('button', { name: '一覧を更新' }))
+    await within(dialog).findByText('views/new.base')
+    expect(within(dialog).queryByText('views/計画.base')).toBeNull()
+    fireEvent.doubleClick(within(dialog).getByRole('option'))
+    await screen.findByRole('tab', { name: 'new.base' })
+    await screen.findByRole('table')
+    expect(api.readBase).toHaveBeenCalledWith('views/new.base')
+  })
+
+  it('cancels a pending listing without writes and ignores old success and failure after reopening', async () => {
+    render(<App />)
+    await screen.findByText('Aの本文')
+    // Let the pre-existing initial workspace checkpoint settle before testing the chooser.
+    await waitFor(() => expect(api.saveLastWorkspaceSession).toHaveBeenCalled())
+    vi.mocked(api.saveLastWorkspaceSession).mockClear()
+    for (const stale of [await ok(['stale.base']), { ok: false as const, error: { code: 'UNKNOWN' as const, message: 'stale error' } }]) {
+      let resolveOld!: (value: Result<string[]>) => void
+      vi.mocked(api.listBases).mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve }))
+      let dialog = await chooser()
+      expect(within(dialog).queryByRole('option')).toBeNull()
+      fireEvent.click(within(dialog).getByRole('button', { name: 'キャンセル' }))
+      dialog = await chooser()
+      await within(dialog).findByText('views/notes.base')
+      await act(async () => resolveOld(stale))
+      expect(within(dialog).queryByText('stale.base')).toBeNull()
+      expect(within(dialog).queryByText('stale error')).toBeNull()
+      fireEvent.click(within(dialog).getByRole('button', { name: 'キャンセル' }))
+    }
+    expect(api.readBase).not.toHaveBeenCalled()
+    expect(api.saveNote).not.toHaveBeenCalled()
+    expect(api.saveLastWorkspaceSession).not.toHaveBeenCalled()
+    expect(api.setUserIgnoreFilters).not.toHaveBeenCalled()
+  })
+
+  it('closes the chooser on Vault switches and rejects an A to B to A stale result', async () => {
+    render(<App />)
+    await screen.findByText('Aの本文')
+    let resolveOld!: (value: Result<string[]>) => void
+    vi.mocked(api.listBases).mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve }))
+    await chooser()
+    const nextVault = { ...snapshot, rootPath: 'C:\\OtherVault', rootName: 'OtherVault' }
+    vi.mocked(api.chooseVault).mockResolvedValueOnce(await ok(nextVault))
+    fireEvent.click(screen.getByRole('button', { name: 'Vaultを切り替える: Vault' }))
+    await screen.findByRole('button', { name: 'Vaultを切り替える: OtherVault' })
+    expect(screen.queryByRole('dialog', { name: 'Baseを開く' })).toBeNull()
+    vi.mocked(api.chooseVault).mockResolvedValueOnce(await ok(snapshot))
+    fireEvent.click(screen.getByRole('button', { name: 'Vaultを切り替える: OtherVault' }))
+    await screen.findByRole('button', { name: 'Vaultを切り替える: Vault' })
+    const dialog = await chooser()
+    await within(dialog).findByText('views/notes.base')
+    await act(async () => resolveOld({ ok: false, error: { code: 'FILE_CHANGED', message: 'old Vault error' } }))
+    expect(within(dialog).queryByText('old Vault error')).toBeNull()
+    expect(within(dialog).getByRole('option')).toBeTruthy()
+  })
+
+  it('filters stale backend exclusions again and still permits explicit manual opening', async () => {
+    const settings = await api.getSettings()
+    if (!settings.ok) throw new Error('settings fixture missing')
+    vi.mocked(api.getSettings).mockResolvedValue(await ok({ ...settings.value, userIgnoreFilters: ['views'] }))
+    render(<App />)
+    const dialog = await chooser()
+    await waitFor(() => expect(api.listBases).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(within(dialog).queryByRole('option')).toBeNull())
+    fireEvent.click(within(dialog).getByRole('button', { name: 'パスを入力して開く' }))
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'views/notes.base' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: '開く', exact: true }))
+    await screen.findByRole('table')
+    expect(api.readBase).toHaveBeenCalledWith('views/notes.base')
+  })
+
+  it('invalidates a pending listing when settings change while preserving a manual path', async () => {
+    render(<App />)
+    await screen.findByText('Aの本文')
+    let resolveOld!: (value: Result<string[]>) => void
+    vi.mocked(api.listBases).mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve }))
+    const dialog = await chooser()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'パスを入力して開く' }))
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'views/notes.base' } })
+    // Drive the existing settings save to test this asynchronous boundary without a new runtime hook.
+    fireEvent.click(screen.getByRole('button', { name: '設定', exact: true }))
+    const settings = await screen.findByRole('dialog', { name: '設定' })
+    fireEvent.change(within(settings).getByRole('textbox', { name: '除外するファイル' }), { target: { value: 'views' } })
+    fireEvent.click(within(settings).getByRole('button', { name: '設定を保存' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '設定' })).toBeNull())
+    await waitFor(() => expect(api.listBases).toHaveBeenCalledTimes(2))
+    await act(async () => resolveOld({ ok: false, error: { code: 'ACCESS_DENIED', message: 'obsolete list failure' } }))
+    expect(within(dialog).queryByText('obsolete list failure')).toBeNull()
+    expect((within(dialog).getByRole('textbox') as HTMLInputElement).value).toBe('views/notes.base')
+    fireEvent.click(within(dialog).getByRole('button', { name: '開く', exact: true }))
+    await screen.findByRole('table')
+  })
+
+  it.each(['IO_ERROR', 'FILE_CHANGED'] as const)('keeps the buffer and choice on save failure (%s), and blocks duplicate submission', async (code) => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集', exact: true }))
+    const editor = await screen.findByLabelText('Markdown編集欄')
+    fireEvent.change(editor, { target: { value: '未保存の内容' } })
+    let resolveSave!: (value: Awaited<ReturnType<TsuzuneApi['saveNote']>>) => void
+    vi.mocked(api.saveNote).mockReturnValueOnce(new Promise((resolve) => { resolveSave = resolve }))
+    const dialog = await chooser()
+    await within(dialog).findByRole('option')
+    const open = within(dialog).getByRole('button', { name: '開く', exact: true })
+    await waitFor(() => expect((open as HTMLButtonElement).disabled).toBe(false))
+    open.focus()
+    fireEvent.click(open)
+    fireEvent.click(open)
+    await waitFor(() => expect(api.saveNote).toHaveBeenCalledTimes(1))
+    expect((within(dialog).getByRole('button', { name: 'キャンセル' }) as HTMLButtonElement).disabled).toBe(true)
+    await act(async () => resolveSave({ ok: false, error: { code, message: 'save failed' } }))
+    expect(await within(dialog).findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('保存できませんでした'))
+    expect((editor as HTMLTextAreaElement).value).toBe('未保存の内容')
+    expect(api.readBase).not.toHaveBeenCalled()
+    expect(screen.queryByRole('tab', { name: 'notes.base' })).toBeNull()
+    expect(within(dialog).getByRole('option').getAttribute('aria-selected')).toBe('true')
+    await waitFor(() => expect(document.activeElement).toBe(open))
+    if (code === 'IO_ERROR') {
+      fireEvent.click(open)
+      await screen.findByRole('table')
+      expect(api.saveNote).toHaveBeenCalledTimes(2)
+      expect(api.readBase).toHaveBeenCalledTimes(1)
+    }
+  })
+
+  it('preserves choice when the editor is composing and opens only after composition ends', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集', exact: true }))
+    const editor = await screen.findByLabelText('Markdown編集欄')
+    fireEvent.compositionStart(editor)
+    const dialog = await chooser()
+    await within(dialog).findByRole('option')
+    const open = within(dialog).getByRole('button', { name: '開く', exact: true }) as HTMLButtonElement
+    await waitFor(() => expect(open.disabled).toBe(false))
+    fireEvent.click(open)
+    expect(await within(dialog).findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('入力の確定'))
+    expect(api.readBase).not.toHaveBeenCalled()
+    fireEvent.compositionEnd(editor)
+    fireEvent.click(open)
+    await screen.findByRole('table')
+  })
+
+  it('recovers from listing errors by explicit refresh and keeps read failures in the Base tab', async () => {
+    vi.mocked(api.listBases).mockResolvedValueOnce({ ok: false, error: { code: 'ACCESS_DENIED', message: 'list denied' } })
+    render(<App />)
+    const dialog = await chooser()
+    await within(dialog).findByText(/list denied/)
+    expect(within(dialog).queryByRole('option')).toBeNull()
+    fireEvent.click(within(dialog).getByRole('button', { name: '一覧を更新' }))
+    await within(dialog).findByRole('option')
+    vi.mocked(api.readBase).mockResolvedValueOnce({ ok: false, error: { code: 'NOT_FOUND', message: 'selected Base disappeared' } })
+    const open = within(dialog).getByRole('button', { name: '開く', exact: true }) as HTMLButtonElement
+    await waitFor(() => expect(open.disabled).toBe(false))
+    fireEvent.click(open)
+    await screen.findByText('selected Base disappeared')
+    expect(screen.queryByRole('dialog', { name: 'Baseを開く' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '再読み込み' }))
+    await screen.findByRole('table')
+  })
+
+  it('opens from the palette, validates paths, saves only the path, and reuses the tab for note navigation', async () => {
+    render(<App />)
+    await screen.findByText('Aの本文')
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    fireEvent.click(within(await screen.findByRole('dialog', { name: '操作を実行' }))
+      .getByRole('option', { name: 'Baseを開く' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Baseを開く' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'パスを入力して開く' }))
+    const input = within(dialog).getByRole('textbox')
+    for (const path of ['../outside.base', 'C:\\outside.base', '50_履歴/audit.base', '.hidden/notes.base', 'notes.md']) {
+      fireEvent.change(input, { target: { value: path } })
+      expect((within(dialog).getByRole('button', { name: '開く', exact: true }) as HTMLButtonElement).disabled).toBe(true)
+      expect(api.readBase).not.toHaveBeenCalled()
+    }
+    fireEvent.change(input, { target: { value: 'views\\notes.base' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: '開く', exact: true }))
+    const table = await screen.findByRole('table', { name: 'Notes（読み取り専用）' })
+    expect(within(table).getAllByRole('row')).toHaveLength(4)
+    expect(table.querySelector('input, textarea, [contenteditable="true"]')).toBeNull()
+    await waitFor(() => expect(api.saveLastWorkspaceSession).toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({ tabs: [{ kind: 'note', path: 'A.md' }, ...savedBase.tabs] })
+    ))
+    await openBase('VIEWS/NOTES.BASE')
+    await screen.findByRole('table')
+    expect(screen.getAllByRole('tab', { name: 'notes.base', exact: true })).toHaveLength(1)
+    fireEvent.click(within(screen.getByRole('table')).getByRole('button', { name: 'B.mdを開く' }))
+    await screen.findByText('Bの本文')
+    expect(screen.getByRole('tab', { name: 'notes.base' })).toBeTruthy()
+    for (const method of [api.saveNote, api.createNote, api.renameEntry, api.moveEntry, api.trashEntry]) {
+      expect(method).not.toHaveBeenCalled()
+    }
+  })
+
+  it('retains a missing restored tab and recovers through malformed bytes to a valid table', async () => {
+    restoreBase()
+    vi.mocked(api.readBase).mockResolvedValueOnce({ ok: false, error: { code: 'NOT_FOUND', message: 'Baseがありません。' } })
+    render(<App />)
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Baseがありません。')
+    expect(screen.getByRole('tab', { name: 'notes.base' })).toBeTruthy()
+    vi.mocked(api.readBase).mockResolvedValueOnce({ ok: true, value: { path: 'views/notes.base', content: 'views: [', modifiedAt: 101 } })
+    fireEvent.click(screen.getByRole('button', { name: '再読み込み' }))
+    await screen.findByText('Baseを表示できません。')
+    expect(screen.queryByRole('table')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '再読み込み' }))
+    await screen.findByRole('table')
+    expect(screen.queryByRole('alert')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'notes.baseを閉じる' }))
+    await waitFor(() => expect(screen.queryByRole('tab', { name: 'notes.base' })).toBeNull())
+  })
+
+  it('waits for startup settings and re-evaluates exclusion settings and external Markdown changes', async () => {
+    restoreBase()
+    const settings = await api.getSettings()
+    if (!settings.ok) throw new Error('settings fixture missing')
+    let resolveSettings!: (value: typeof settings) => void
+    vi.mocked(api.getSettings).mockReturnValue(new Promise((resolve) => { resolveSettings = resolve }))
+    render(<App />)
+    expect(api.readBase).not.toHaveBeenCalled()
+    await act(async () => resolveSettings({ ...settings, value: { ...settings.value, userIgnoreFilters: ['B.md'] } }))
+    let table = await screen.findByRole('table')
+    expect(within(table).queryByRole('button', { name: 'B.mdを開く' })).toBeNull()
+    expect(within(table).getAllByRole('row')).toHaveLength(3)
+    fireEvent.click(screen.getByRole('button', { name: '設定' }))
+    const dialog = await screen.findByRole('dialog', { name: '設定' })
+    fireEvent.change(within(dialog).getByRole('textbox', { name: '除外するファイル' }), { target: { value: 'A.md' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: '設定を保存' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '設定' })).toBeNull())
+    await waitFor(() => expect(api.readBase).toHaveBeenCalledTimes(2))
+    await waitFor(() => {
+      table = screen.getByRole('table')
+      expect(within(table).queryByRole('button', { name: 'A.mdを開く' })).toBeNull()
+      expect(within(table).getByRole('button', { name: 'B.mdを開く' })).toBeTruthy()
+    })
+    vi.mocked(api.getSnapshot).mockImplementation(() => ok({ ...snapshot, notes: [
+      ...snapshot.notes, { ...noteA, path: 'D.md', name: 'D' },
+      { ...noteA, path: '50_履歴/audit.md', name: 'audit' }
+    ] }))
+    await act(async () => vaultChanged?.({ type: 'add', path: 'D.md' }))
+    await screen.findByRole('button', { name: 'D.mdを開く' })
+    table = screen.getByRole('table')
+    expect(within(table).getAllByRole('row')).toHaveLength(4)
+    expect(within(table).queryByRole('button', { name: '50_履歴/audit.mdを開く' })).toBeNull()
+  })
+
+  it('discards a pending read after closing and reopening the same Base path', async () => {
+    restoreBase()
+    let resolveOld!: (value: Awaited<ReturnType<TsuzuneApi['readBase']>>) => void
+    vi.mocked(api.readBase).mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve }))
+    render(<App />)
+    await screen.findByText('Baseを読み込んでいます…')
+    fireEvent.click(screen.getByRole('button', { name: 'notes.baseを閉じる' }))
+    await openBase('views/notes.base')
+    await screen.findByRole('table')
+    await act(async () => resolveOld({ ok: false, error: { code: 'NOT_FOUND', message: 'stale missing' } }))
+    expect(screen.getByRole('table')).toBeTruthy()
+    expect(screen.queryByText('stale missing')).toBeNull()
+  })
+
+  it('discards an old read when an external snapshot has already produced a new evaluation', async () => {
+    restoreBase()
+    let resolveOld!: (value: Awaited<ReturnType<TsuzuneApi['readBase']>>) => void
+    vi.mocked(api.readBase).mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve }))
+    render(<App />)
+    await screen.findByText('Baseを読み込んでいます…')
+    vi.mocked(api.getSnapshot).mockImplementation(() => ok({ ...snapshot, notes: [noteC] }))
+    await act(async () => vaultChanged?.({ type: 'unlink', path: 'A.md' }))
+    await screen.findByRole('table')
+    await act(async () => resolveOld({ ok: true, value: { path: 'views/notes.base', content: baseContent.replace('Notes', 'Stale'), modifiedAt: 100 } }))
+    const table = screen.getByRole('table', { name: 'Notes（読み取り専用）' })
+    expect(within(table).getAllByRole('row')).toHaveLength(2)
+    expect(within(table).getByRole('button', { name: 'C.mdを開く' })).toBeTruthy()
+  })
+})
+
 describe('App data-loss guards', () => {
+  it('saves the old Vault layout before switching and restores only the next Vault session', async () => {
+    const nextVault = { ...snapshot, rootPath: 'C:\\OtherVault', rootName: 'OtherVault', notes: [{ ...noteB, content: '別Vaultの本文' }] }
+    vi.mocked(api.chooseVault).mockResolvedValue(await ok(nextVault))
+    vi.mocked(api.getWorkspaces).mockImplementation((rootPath) => ok({
+      scope: { rootPath, rootRevision: rootPath === snapshot.rootPath ? 1 : 2 },
+      state: { version: 1, named: [], lastSession: {
+        tabs: rootPath === snapshot.rootPath ? [{ kind: 'global-graph' }] : [{ kind: 'note', path: 'B.md' }],
+        activeIndex: 0, noteView: 'preview',
+        left: { open: true, view: 'files', query: '' }, right: { open: true, view: 'links' }
+      } }
+    }))
+    render(<App />)
+    await screen.findByRole('tab', { name: 'グラフビュー' })
+    fireEvent.click(screen.getByRole('button', { name: '左サイドバーを閉じる' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Vaultを切り替える: Vault' }))
+    const tab = await screen.findByRole('tab', { name: 'B' })
+    expect(tab.getAttribute('aria-selected')).toBe('true')
+    expect(screen.queryByRole('tab', { name: 'グラフビュー' })).toBeNull()
+    expect(screen.getByText('別Vaultの本文')).toBeTruthy()
+    const [scope, saved] = vi.mocked(api.saveLastWorkspaceSession).mock.calls[0]
+    expect(scope.rootPath).toBe(snapshot.rootPath)
+    expect(saved.left.open).toBe(false)
+    expect(vi.mocked(api.saveLastWorkspaceSession).mock.invocationCallOrder[0])
+      .toBeLessThan(vi.mocked(api.chooseVault).mock.invocationCallOrder[0])
+  })
+
+  it('discloses missing restored tabs and preserves the stored session even on close', async () => {
+    vi.mocked(api.getWorkspaces).mockResolvedValue(await ok({
+      scope: { rootPath: snapshot.rootPath, rootRevision: 1 },
+      state: { version: 1, named: [], lastSession: {
+        tabs: [{ kind: 'note', path: 'Gone.md' }], activeIndex: 0, noteView: 'preview',
+        left: { open: true, view: 'files', query: '' }, right: { open: true, view: 'links' }
+      } }
+    }))
+    render(<App />)
+    expect(await screen.findByText('1件のタブが見つかりません。')).toBeTruthy()
+    fireEvent.click(screen.getByText('見つからなかったファイル'))
+    expect(screen.getByText('Gone.md')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '見つからなかったファイルの通知を閉じる' }))
+    expect(screen.queryByText('1件のタブが見つかりません。')).toBeNull()
+    await act(async () => { requestClose?.() })
+    await waitFor(() => expect(api.confirmClose).toHaveBeenCalledWith(true))
+    expect(api.saveLastWorkspaceSession).not.toHaveBeenCalled()
+    expect(screen.queryByRole('tab', { name: 'A' })).toBeNull()
+  })
+
+  it.each([false, true])('explicitly removes missing tabs from the last session, save failure: %s', async (saveFails) => {
+    const saved = {
+      tabs: [{ kind: 'note' as const, path: 'Gone.md' }, { kind: 'note' as const, path: 'B.md' }],
+      activeIndex: 0, noteView: 'preview' as const,
+      left: { open: true, view: 'files' as const, query: '' },
+      right: { open: true, view: 'links' as const }
+    }
+    vi.mocked(api.getWorkspaces).mockResolvedValue(await ok({
+      scope: { rootPath: snapshot.rootPath, rootRevision: 1 },
+      state: { version: 1, named: [{ name: 'Saved', savedAt: '2026-09-09T00:00:00.000Z', snapshot: saved }], lastSession: saved }
+    }))
+    if (saveFails) vi.mocked(api.saveLastWorkspaceSession).mockResolvedValue({
+      ok: false, error: { code: 'IO_ERROR', message: '書き込めません。' }
+    })
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '見つからないタブを前回の配置から外す' }))
+    await waitFor(() => expect(api.saveLastWorkspaceSession).toHaveBeenCalledWith(
+      { rootPath: snapshot.rootPath, rootRevision: 1 },
+      { ...saved, tabs: [{ kind: 'note', path: 'B.md' }], activeIndex: 0 }
+    ))
+    if (saveFails) {
+      expect(await screen.findByText(/前回の配置を保存できませんでした/)).toBeTruthy()
+      expect(screen.getByText('1件のタブが見つかりません。')).toBeTruthy()
+    } else {
+      await waitFor(() => expect(screen.queryByText('1件のタブが見つかりません。')).toBeNull())
+      expect(screen.getByRole('tab', { name: 'B', exact: true })).toBe(document.activeElement)
+    }
+    for (const method of [api.saveWorkspace, api.deleteWorkspace, api.saveNote, api.createNote, api.renameEntry, api.moveEntry, api.trashEntry]) {
+      expect(method).not.toHaveBeenCalled()
+    }
+  })
+
+  it('checkpoints the final layout before confirming close, including a pending display change', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '左サイドバーを閉じる' }))
+    let completeCheckpoint!: (result: Result<null>) => void
+    vi.mocked(api.saveLastWorkspaceSession).mockReturnValue(new Promise((resolve) => { completeCheckpoint = resolve }))
+    act(() => requestClose?.())
+    await waitFor(() => expect(api.saveLastWorkspaceSession).toHaveBeenCalled())
+    expect(api.confirmClose).not.toHaveBeenCalled()
+    const [, saved] = vi.mocked(api.saveLastWorkspaceSession).mock.calls.at(-1)!
+    expect(saved.tabs).toEqual([{ kind: 'note', path: 'A.md' }])
+    expect(saved.left.open).toBe(false)
+    await act(async () => completeCheckpoint({ ok: true, value: null }))
+    await waitFor(() => expect(api.confirmClose).toHaveBeenCalledWith(true))
+  })
+
+  it('restores the previous workspace with duplicate file tabs and the saved active graph', async () => {
+    vi.mocked(api.getWorkspaces).mockResolvedValue(await ok({
+      scope: { rootPath: snapshot.rootPath, rootRevision: 1 },
+      state: {
+        version: 1,
+        named: [],
+        lastSession: {
+          tabs: [{ kind: 'note', path: 'B.md' }, { kind: 'note', path: 'B.md' }, { kind: 'global-graph' }],
+          activeIndex: 2,
+          noteView: 'preview',
+          left: { open: false, view: 'search', query: '仮説' },
+          right: { open: false, view: 'outline' }
+        }
+      }
+    }))
+    render(<App />)
+    const graphTab = await screen.findByRole('tab', { name: 'グラフビュー' })
+    expect(screen.getAllByRole('tab', { name: 'B' })).toHaveLength(2)
+    expect(graphTab.getAttribute('aria-selected')).toBe('true')
+    expect(screen.queryByRole('tab', { name: 'A' })).toBeNull()
+    expect(screen.getByRole('button', { name: '左サイドバーを開く' }).getAttribute('aria-expanded')).toBe('false')
+    expect(screen.getByRole('button', { name: '右サイドバーを開く' }).getAttribute('aria-expanded')).toBe('false')
+  })
+
   it('creates a folder from the tree inline without opening a prompt', async () => {
     const prompt = vi.spyOn(window, 'prompt')
     vi.mocked(api.createDirectory).mockResolvedValue(await ok({ path: '資料' }))
@@ -371,12 +824,7 @@ describe('App data-loss guards', () => {
         lastVaultPath: snapshot.rootPath,
         lastNotePath: '旧分類/旧名.md',
         userIgnoreFilters: [],
-        graphForces: {
-          centerForce: 50,
-          repelForce: 50,
-          linkForce: 50,
-          linkDistance: 50
-        },
+        graphForces: DEFAULT_GRAPH_FORCE_SETTINGS,
         graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
         graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
         graphGroups: DEFAULT_GRAPH_GROUPS,
@@ -417,12 +865,7 @@ describe('App data-loss guards', () => {
         lastVaultPath: snapshot.rootPath,
         lastNotePath: liveOld.path,
         userIgnoreFilters: [],
-        graphForces: {
-          centerForce: 50,
-          repelForce: 50,
-          linkForce: 50,
-          linkDistance: 50
-        },
+        graphForces: DEFAULT_GRAPH_FORCE_SETTINGS,
         graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
         graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
         graphGroups: DEFAULT_GRAPH_GROUPS,
@@ -453,12 +896,7 @@ describe('App data-loss guards', () => {
         lastVaultPath: snapshot.rootPath,
         lastNotePath: '旧分類/旧名.md',
         userIgnoreFilters: [],
-        graphForces: {
-          centerForce: 50,
-          repelForce: 50,
-          linkForce: 50,
-          linkDistance: 50
-        },
+        graphForces: DEFAULT_GRAPH_FORCE_SETTINGS,
         graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
         graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
         graphGroups: DEFAULT_GRAPH_GROUPS,
@@ -509,12 +947,7 @@ describe('App data-loss guards', () => {
         lastVaultPath: snapshot.rootPath,
         lastNotePath: source.path,
         userIgnoreFilters: [],
-        graphForces: {
-          centerForce: 50,
-          repelForce: 50,
-          linkForce: 50,
-          linkDistance: 50
-        },
+        graphForces: DEFAULT_GRAPH_FORCE_SETTINGS,
         graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
         graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
         graphGroups: DEFAULT_GRAPH_GROUPS,
@@ -950,6 +1383,8 @@ describe('App data-loss guards', () => {
     )
 
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'ノート活動' }))
+    fireEvent.click(await screen.findByRole('tab', { name: '月表示' }))
     fireEvent.click(
       await screen.findByRole('button', {
         name: `${now.getFullYear()}年${now.getMonth() + 1}月${day}日、ノートあり`
@@ -968,6 +1403,8 @@ describe('App data-loss guards', () => {
     const path = `02_デイリー/${date}.md`
 
     render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'ノート活動' }))
+    fireEvent.click(await screen.findByRole('tab', { name: '月表示' }))
     fireEvent.click(
       await screen.findByRole('button', {
         name: `${now.getFullYear()}年${now.getMonth() + 1}月${day}日、ノートなし`
@@ -978,7 +1415,8 @@ describe('App data-loss guards', () => {
     expect(api.createNote).not.toHaveBeenCalled()
     expect(api.readNote).not.toHaveBeenCalledWith(path)
     expect(api.setLastNote).not.toHaveBeenCalledWith(path)
-    expect(await screen.findByText('Aの本文')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'ノート活動' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'ノートの文脈' })).toBeTruthy()
   })
 
   it('round-trips a generated daily note through the plain form', async () => {
@@ -1002,12 +1440,7 @@ describe('App data-loss guards', () => {
         lastVaultPath: snapshot.rootPath,
         lastNotePath: dailyNote.path,
         userIgnoreFilters: [],
-        graphForces: {
-          centerForce: 50,
-          repelForce: 50,
-          linkForce: 50,
-          linkDistance: 50
-        },
+        graphForces: DEFAULT_GRAPH_FORCE_SETTINGS,
         graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
         graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
         graphGroups: DEFAULT_GRAPH_GROUPS,
@@ -1063,12 +1496,7 @@ describe('App data-loss guards', () => {
         lastVaultPath: snapshot.rootPath,
         lastNotePath: dailyNote.path,
         userIgnoreFilters: [],
-        graphForces: {
-          centerForce: 50,
-          repelForce: 50,
-          linkForce: 50,
-          linkDistance: 50
-        },
+        graphForces: DEFAULT_GRAPH_FORCE_SETTINGS,
         graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
         graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
         graphGroups: DEFAULT_GRAPH_GROUPS,
@@ -1373,6 +1801,8 @@ describe('App data-loss guards', () => {
       '受信箱へメモを作成',
       '今日のノート',
       'ノートを開く',
+      'ワークスペースを保存',
+      'ワークスペースを開く',
       '内容を検索',
       '左サイドバー',
       '右サイドバー',
@@ -1391,6 +1821,72 @@ describe('App data-loss guards', () => {
     fireEvent.change(input, { target: { value: 'sidebar' } })
     expect(within(dialog).getByRole('option', { name: /左サイドバー/ })).toBeTruthy()
     expect(within(dialog).queryByRole('option', { name: /今日のノート/ })).toBeNull()
+  })
+
+  it('saves, opens, and deletes a named workspace from the command palette', async () => {
+    const namedSnapshot = {
+      tabs: [{ kind: 'note' as const, path: 'A.md' }],
+      activeIndex: 0,
+      noteView: 'preview' as const,
+      left: { open: true, view: 'files' as const, query: '' },
+      right: { open: true, view: 'links' as const }
+    }
+    const savedCollection = {
+      scope: { rootPath: snapshot.rootPath, rootRevision: 1 },
+      state: {
+        version: 1 as const,
+        lastSession: null,
+        named: [{ name: '調査', savedAt: '2026-09-08T00:00:00.000Z', snapshot: namedSnapshot }]
+      }
+    }
+    const emptyCollection = {
+      ...savedCollection,
+      state: { ...savedCollection.state, named: [] }
+    }
+    vi.mocked(api.saveWorkspace).mockResolvedValue(await ok(savedCollection))
+    vi.mocked(api.deleteWorkspace).mockResolvedValue(await ok(emptyCollection))
+
+    render(<App />)
+    await screen.findByText('Aの本文')
+
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    let palette = await screen.findByRole('dialog', { name: '操作を実行' })
+    fireEvent.click(within(palette).getByRole('option', { name: /^ワークスペースを保存/ }))
+    let workspace = await screen.findByRole('dialog', { name: 'ワークスペース' })
+    fireEvent.change(within(workspace).getByRole('textbox', { name: 'ワークスペース名' }), {
+      target: { value: '調査' }
+    })
+    fireEvent.click(within(workspace).getByRole('button', { name: '保存' }))
+    await waitFor(() => expect(api.saveWorkspace).toHaveBeenCalledWith(
+      savedCollection.scope,
+      '調査',
+      namedSnapshot,
+      false
+    ))
+    expect(screen.queryByRole('dialog', { name: 'ワークスペース' })).toBeNull()
+
+    fireEvent.keyDown(window, { key: 'o', ctrlKey: true })
+    const switcher = await screen.findByRole('combobox', { name: 'ノートを検索' })
+    fireEvent.change(switcher, { target: { value: 'B' } })
+    fireEvent.keyDown(switcher, { key: 'Enter', ctrlKey: true })
+    await screen.findByText('Bの本文')
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    palette = await screen.findByRole('dialog', { name: '操作を実行' })
+    fireEvent.click(within(palette).getByRole('option', { name: /^ワークスペースを開く/ }))
+    workspace = await screen.findByRole('dialog', { name: 'ワークスペース' })
+    fireEvent.click(within(workspace).getByRole('button', { name: '開く' }))
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'A' }).getAttribute('aria-selected')).toBe('true'))
+    expect(screen.getByText('調査を開きました。')).toBeTruthy()
+
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
+    palette = await screen.findByRole('dialog', { name: '操作を実行' })
+    fireEvent.click(within(palette).getByRole('option', { name: /^ワークスペースを開く/ }))
+    workspace = await screen.findByRole('dialog', { name: 'ワークスペース' })
+    fireEvent.click(within(workspace).getByRole('button', { name: '削除' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: '調査を削除' })).getByRole('button', { name: '削除する' }))
+    await waitFor(() => expect(api.deleteWorkspace).toHaveBeenCalledWith(savedCollection.scope, '調査'))
+    expect(screen.getByText('調査を削除しました。')).toBeTruthy()
+    expect(screen.getByText('保存済みのワークスペースはありません。')).toBeTruthy()
   })
 
   it('creates an untitled note in the Inbox from the command palette', async () => {
@@ -2140,84 +2636,14 @@ describe('App data-loss guards', () => {
     expect(api.listObsidianPluginCandidates).toHaveBeenCalledOnce()
   })
 
-  it('does not expose retired additional AI immutable paths in settings', async () => {
+  it('does not expose AI review settings', async () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: '設定' }))
     const settingsDialog = await screen.findByRole('dialog', { name: '設定' })
-    fireEvent.click(within(settingsDialog).getByRole('button', { name: 'AIとレビュー' }))
 
-    expect(
-      screen.queryByRole('textbox', { name: 'AIから変更させないパス' })
-    ).toBeNull()
-    expect(screen.getByRole('textbox', { name: 'AI変更を承認制にするパス' })).not.toBeNull()
-  })
-
-  it('saves review paths and lets the user approve a pending AI change', async () => {
-    vi.mocked(api.getSettings).mockResolvedValue(
-      await ok({
-        lastVaultPath: snapshot.rootPath,
-        lastNotePath: noteA.path,
-        userIgnoreFilters: [],
-        aiReviewPaths: ['Projects'],
-        graphForces: DEFAULT_GRAPH_FORCE_SETTINGS,
-        graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
-        graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
-        graphGroups: DEFAULT_GRAPH_GROUPS,
-        graphViewStates: DEFAULT_GRAPH_VIEW_STATES
-      })
-    )
-    vi.mocked(api.listAiReviewProposals)
-      .mockResolvedValueOnce(
-        await ok([
-          {
-            id: 'proposal-1',
-            path: noteA.path,
-            operation: 'update',
-            content: '# A\n\nAI change',
-            expectedRevision: 'sha256:old',
-            reason: '知識を更新',
-            sourceRefs: ['30_知識/設計.md', 'docs/reports/evidence.md'],
-            createdAt: '2026-08-12T00:00:00.000Z'
-          }
-        ])
-      )
-      .mockResolvedValue(await ok([]))
-
-    render(<App />)
-    fireEvent.click(await screen.findByRole('button', { name: '設定' }))
-    const settingsDialog = await screen.findByRole('dialog', { name: '設定' })
-    fireEvent.click(within(settingsDialog).getByRole('button', { name: 'AIとレビュー' }))
-
-    expect(
-      (await screen.findByRole('textbox', {
-        name: 'AI変更を承認制にするパス'
-      }) as HTMLTextAreaElement).value
-    ).toBe('Projects')
-    expect(await screen.findByText('知識を更新')).not.toBeNull()
-    expect(screen.getByText('操作: 更新')).not.toBeNull()
-    expect(
-      screen.getByText(
-        `作成時刻: ${new Date('2026-08-12T00:00:00.000Z').toLocaleString('ja-JP')}`
-      )
-    ).not.toBeNull()
-    expect(
-      screen.getByText('出典: 30_知識/設計.md、docs/reports/evidence.md')
-    ).not.toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: '承認して反映' }))
-
-    await waitFor(() => {
-      expect(api.approveAiReviewProposal).toHaveBeenCalledWith('proposal-1')
-      expect(api.getSnapshot).toHaveBeenCalled()
-    })
-
-    fireEvent.change(
-      screen.getByRole('textbox', { name: 'AI変更を承認制にするパス' }),
-      { target: { value: ' 30_知識\n\nDrafts ' } }
-    )
-    fireEvent.click(screen.getByRole('button', { name: '設定を保存' }))
-    await waitFor(() => {
-      expect(api.setAiReviewPaths).toHaveBeenCalledWith(['30_知識', 'Drafts'])
-    })
+    expect(within(settingsDialog).queryByRole('button', { name: 'AIとレビュー' })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'AI変更を承認制にするパス' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '承認して反映' })).toBeNull()
   })
 
   it('restores graph groups, colors matching nodes, and persists query edits', async () => {
@@ -2408,12 +2834,7 @@ describe('App data-loss guards', () => {
         lastVaultPath: snapshot.rootPath,
         lastNotePath: null,
         userIgnoreFilters: [],
-        graphForces: {
-          centerForce: 50,
-          repelForce: 50,
-          linkForce: 50,
-          linkDistance: 50
-        },
+        graphForces: DEFAULT_GRAPH_FORCE_SETTINGS,
         graphDisplay: DEFAULT_GRAPH_DISPLAY_SETTINGS,
         graphFilters: DEFAULT_GRAPH_FILTER_SETTINGS,
         graphGroups: DEFAULT_GRAPH_GROUPS,
@@ -2473,7 +2894,6 @@ describe('App data-loss guards', () => {
     const categories = within(dialog).getByRole('navigation', { name: '設定カテゴリ' })
     const files = within(categories).getByRole('button', { name: 'ファイルとリンク' })
     const templates = within(categories).getByRole('button', { name: 'テンプレート' })
-    const ai = within(categories).getByRole('button', { name: 'AIとレビュー' })
 
     expect(files.getAttribute('aria-current')).toBe('page')
     expect(within(dialog).getByRole('textbox', { name: '除外するファイル' })).not.toBeNull()
@@ -2483,11 +2903,6 @@ describe('App data-loss guards', () => {
     expect(templates.getAttribute('aria-current')).toBe('page')
     expect(within(dialog).getByRole('combobox', { name: 'テンプレートフォルダ' })).not.toBeNull()
     expect(within(dialog).queryByRole('textbox', { name: '除外するファイル' })).toBeNull()
-
-    fireEvent.click(ai)
-    expect(ai.getAttribute('aria-current')).toBe('page')
-    expect(within(dialog).getByRole('textbox', { name: 'AI変更を承認制にするパス' })).not.toBeNull()
-    expect(within(dialog).queryByRole('combobox', { name: 'テンプレートフォルダ' })).toBeNull()
 
     fireEvent.keyDown(dialog, { key: 'Escape' })
     await waitFor(() => {
@@ -2542,53 +2957,11 @@ describe('App data-loss guards', () => {
       '除外設定を保存できません。'
     )
     expect(excluded.value).toBe('90_Archive')
-    expect(api.setAiReviewPaths).not.toHaveBeenCalled()
     expect(screen.getByRole('dialog', { name: '設定' })).toBe(dialog)
 
     fireEvent.change(excluded, { target: { value: '80_Archive' } })
     expect(within(dialog).queryByRole('alert')).toBeNull()
     expect(within(dialog).getByRole('status').textContent).toBe('未保存の変更があります')
-  })
-
-  it('設定の部分保存後は保存済みと未保存のカテゴリを正しく保つ', async () => {
-    vi.mocked(api.setAiReviewPaths).mockResolvedValue({
-      ok: false,
-      error: { code: 'SAVE_FAILED', message: 'AIレビュー設定を保存できません。' }
-    })
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
-    render(<App />)
-    fireEvent.click(await screen.findByRole('button', { name: '設定' }))
-
-    let dialog = await screen.findByRole('dialog', { name: '設定' })
-    fireEvent.change(within(dialog).getByRole('textbox', { name: '除外するファイル' }), {
-      target: { value: ' 90_Archive ' }
-    })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'AIとレビュー' }))
-    fireEvent.change(
-      within(dialog).getByRole('textbox', { name: 'AI変更を承認制にするパス' }),
-      { target: { value: '30_知識' } }
-    )
-    fireEvent.click(within(dialog).getByRole('button', { name: '設定を保存' }))
-
-    expect((await within(dialog).findByRole('alert')).textContent).toContain(
-      'ファイルとリンクは保存済みです'
-    )
-    fireEvent.click(within(dialog).getByRole('button', { name: 'キャンセル' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: '設定' })).toBeNull())
-    expect(confirmSpy).toHaveBeenCalled()
-
-    fireEvent.click(screen.getByRole('button', { name: '設定' }))
-    dialog = await screen.findByRole('dialog', { name: '設定' })
-    expect(
-      (within(dialog).getByRole('textbox', { name: '除外するファイル' }) as HTMLTextAreaElement)
-        .value
-    ).toBe('90_Archive')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'AIとレビュー' }))
-    expect(
-      (within(dialog).getByRole('textbox', {
-        name: 'AI変更を承認制にするパス'
-      }) as HTMLTextAreaElement).value
-    ).toBe('')
   })
 
   it('設定ダイアログ内でTabとShift+Tabを循環させる', async () => {
@@ -2615,12 +2988,14 @@ describe('App data-loss guards', () => {
     const openButton = within(rail).getByRole('button', { name: 'ノートを開く' })
     const noteButton = within(rail).getByRole('button', { name: '新規ノート' })
     const folderButton = within(rail).getByRole('button', { name: '新規フォルダ' })
+    const dailyButton = within(rail).getByRole('button', { name: 'ノート活動' })
     const todayButton = within(rail).getByRole('button', { name: '今日のノート' })
     const ideaButton = within(rail).getByRole('button', { name: 'アイデアを追加' })
     const graphButton = within(rail).getByRole('button', { name: 'グラフビュー' })
-    const observatoryButton = within(rail).getByRole('button', { name: '観測宙域' })
+    expect(within(rail).queryByRole('button', { name: '観測宙域' })).toBeNull()
     const bookmarkButton = within(rail).getByRole('button', { name: 'ブックマーク' })
     const commandButton = within(rail).getByRole('button', { name: '操作' })
+    const railButtons = within(rail).getAllByRole('button')
 
     expect(searchButton.getAttribute('aria-keyshortcuts')).toBe(
       'Control+Shift+F Meta+Shift+F Control+K Meta+K'
@@ -2628,6 +3003,7 @@ describe('App data-loss guards', () => {
     expect(openButton.getAttribute('aria-keyshortcuts')).toBe('Control+O Meta+O')
     expect(noteButton).toBeTruthy()
     expect(folderButton).toBeTruthy()
+    expect(railButtons.indexOf(dailyButton)).toBe(railButtons.indexOf(bookmarkButton) + 1)
     expect(todayButton).toBeTruthy()
     expect(ideaButton).toBeTruthy()
     expect(document.querySelector('.tree-toolbar')).toBeNull()
@@ -2649,16 +3025,16 @@ describe('App data-loss guards', () => {
     fireEvent.click(graphButton)
     expect(await screen.findByRole('tab', { name: 'グラフビュー' })).toBeTruthy()
 
-    fireEvent.click(observatoryButton)
-    expect(await screen.findByRole('tab', { name: '観測宙域' })).toBeTruthy()
-    expect(screen.getByRole('region', { name: '観測宙域' })).toBeTruthy()
-
     fireEvent.click(within(rail).getByRole('button', { name: '左サイドバーを閉じる' }))
     expect(screen.getByRole('navigation', { name: '主なナビゲーション' })).toBe(rail)
     expect(within(rail).getByRole('button', { name: '左サイドバーを開く' })).toBeTruthy()
 
     fireEvent.click(commandButton)
-    expect(await screen.findByRole('dialog', { name: '操作を実行' })).toBeTruthy()
+    const dialog = await screen.findByRole('dialog', { name: '操作を実行' })
+    fireEvent.change(within(dialog).getByRole('combobox', { name: 'コマンドを検索' }), {
+      target: { value: '観測宙域' }
+    })
+    expect(within(dialog).queryAllByRole('option')).toHaveLength(0)
   })
 
   it('jumps from the outline in Preview and Edit without saving the note', async () => {
@@ -2750,7 +3126,7 @@ describe('App data-loss guards', () => {
     expect(rightToggle.getAttribute('aria-expanded')).toBe('true')
     expect(leftToggle.getAttribute('title')).toBe('左サイドバーを閉じる')
     expect(rightToggle.getAttribute('title')).toBe('右サイドバーを閉じる')
-    expect(screen.getByRole('region', { name: 'デイリーカレンダー' })).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'ノート活動カレンダー' })).toBeNull()
 
     fireEvent.click(leftToggle)
     const leftReopen = screen.getByRole('button', { name: '左サイドバーを開く' })
@@ -2767,14 +3143,19 @@ describe('App data-loss guards', () => {
       '右サイドバーを開く'
     )
     expect(document.getElementById('right-sidebar-content')?.hasAttribute('hidden')).toBe(true)
-    expect(screen.queryByRole('region', { name: 'デイリーカレンダー' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'ノート活動カレンダー' })).toBeNull()
     expect(screen.getByText('Aの本文')).toBe(noteBody)
 
     fireEvent.click(screen.getByRole('button', { name: '左サイドバーを開く' }))
     fireEvent.click(screen.getByRole('button', { name: '右サイドバーを開く' }))
     expect(document.getElementById('left-sidebar-content')?.hasAttribute('hidden')).toBe(false)
     expect(document.getElementById('right-sidebar-content')?.hasAttribute('hidden')).toBe(false)
-    expect(screen.getByRole('region', { name: 'デイリーカレンダー' })).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'ノート活動カレンダー' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'ノート活動' }))
+    expect(screen.getByRole('heading', { name: 'ノート活動' })).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'ノート活動カレンダー' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'ノートの文脈' })).toBeTruthy()
   })
 
   it('shows unresolved Wiki links until the existing-files-only filter is enabled and persisted', async () => {

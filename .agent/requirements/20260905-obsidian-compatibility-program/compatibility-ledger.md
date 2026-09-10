@@ -1,6 +1,6 @@
 # Obsidian Compatibility Ledger
 
-As of: 2026-09-06
+As of: 2026-09-09 (inventory correction for Properties, Workspaces, and Bases; other paired evidence retains its recorded date)
 TSUZUNE baseline: P0-7 source and exact-byte UI conformance verified. Installed identity and acceptance belong to the latest production receipt and final Vault campaign; P0-6 is historical installed paired evidence.  
 Obsidian baseline: current official Help checked 2026-09-05; paired desktop evidence is limited to the fixed Obsidian 1.13.4 fixtures named below.
 
@@ -19,7 +19,7 @@ No row implies pixel parity, mobile parity, every Obsidian setting, or arbitrary
 | Obsidian surface | TSUZUNE status | Current evidence | Compatibility gap / next proof | Priority |
 |---|---|---|---|---|
 | Local Markdown source of truth | matched | `src/main/vault.ts`, `tests/vault.integration.test.ts`, official [file formats](https://obsidian.md/help/file-formats) | Bound is `.md` round-trip and collision-safe local handling, not every accepted format. | — |
-| Accepted non-Markdown files | different | `src/shared/attachments.ts`, attachment integration tests | TSUZUNE supports a bounded attachment set; `.canvas` and `.base` are not treated as product documents. | P1 |
+| Accepted non-Markdown files | different | `src/shared/attachments.ts`, attachment integration tests, [Bases implementation](../20260908-bases-design/plan.md) | TSUZUNE supports a bounded attachment set and fixed-profile read-only `.base` documents. `.canvas` and broader `.base` syntax remain outside the implemented surface. | P1 |
 | Markdown editing / save | different | `src/renderer/components/MarkdownEditor.tsx`, revision-checked `note:save`, editor/app tests | Core source editing and safe save exist; Obsidian Live Preview, source-mode breadth, and full syntax interaction are not paired. | P1 |
 | Attach, preview, move, open | different | `src/main/vault.ts`, `MarkdownPreview.tsx`, graph attachment reports/tests | Core local attachment flow exists; supported types and context actions are narrower. | P1 |
 | Properties in document | different | Text/number/list [P0-4 evidence](results/p0-4-properties-paired-comparison.md) and checkbox [P0-5 evidence](results/p0-5-checkbox-properties.md), fixed Obsidian 1.13.4 and current-source TSUZUNE, save and fresh-process reopen | Mixed lists, comments, number spelling, BOM/EOL and initial unchecked values differ. Preserve TSUZUNE lossless behavior. Complex YAML/global types remain outside. These changes were included in the 2026-09-05 whole-tree production promotion; subsequent P0-7 installed acceptance is recorded in the final Vault campaign. This does not expand the paired Properties cases or claim whole-Properties parity. | P0-5 source/comparison verified |
@@ -27,7 +27,7 @@ No row implies pixel parity, mobile parity, every Obsidian setting, or arbitrary
 | Properties: newly created unchecked value | different | P0-5 TSUZUNE creation writes false; Obsidian type selection leaves an empty value until toggled | Preserve explicit boolean creation. Null/empty conversion and global registry need a separately selected contract. | Observed difference |
 | Properties: text / ordinary decimal / text-list final values | matched | P0-4 cases 01, 02, 05; public edits, list add/item edit/item delete/property delete and fresh-process reopen | Bounded semantic results only; quote/EOL/comment bytes and huge-number initial display differ. | — |
 | Properties: mixed text/number lists | different | P0-4 cases 03/04: TSUZUNE retains mixed types; Obsidian requires a list-type selection and converts numeric items to text when editing | Type selection alone left Markdown unchanged; first item edit triggered conversion. No lossy compatibility change authorized. | Observed difference |
-| Properties view / global type management | missing | no current user-facing implementation | Needs active-note and all-properties contracts before implementation. | P1 |
+| Properties view / global type management | different | [Inventory Steps 1-2](../20260908-properties-global-management-design/plan.md), `src/core/property-inventory.ts`, `PropertyInventoryView.tsx`, inventory/app tests | Read-only global Inventory, note navigation and workspace restoration are implemented. Type Registry, global rename/value conversion and complete YAML remain Held; installed identity belongs to the latest receipt and existing Vault campaign. | Inventory implemented; extensions Held |
 | File explorer | different | `src/renderer/components/FileTree.tsx`, keyboard/ARIA acceptance | Core local tree works; exact Obsidian context actions and Excluded files interaction are not fully paired. | P0 |
 | Rename / move / collision handling | different | [P0-6 installed paired evidence](results/p0-6-file-operations.md), fixed Obsidian 1.13.4, fresh-process reopen | Path operations and collision non-overwrite match; incoming-link updates and byte preservation differ. Profile-invariance check failed (cache/session changes); do not claim fully isolated PASS. | P0-6 compared |
 | Rename rejection / move collision numbering | matched | P0-6 both reject an existing rename target and move to `Source 1.md`; source and destination bytes survive restart | Bounded to the four anonymous collision files; crash, case-only and folder moves are untested. | — |
@@ -55,7 +55,7 @@ No row implies pixel parity, mobile parity, every Obsidian setting, or arbitrary
 | Obsidian surface | TSUZUNE status | Current evidence | Compatibility gap / next proof | Priority |
 |---|---|---|---|---|
 | Tabs within the current session | not_proven | `WorkspaceTabBar.tsx`, app tests, installed accessibility report | Keyboard/focus behavior is strong, but no fresh paired Obsidian fixture for the current checkout. | P1 |
-| Named Workspaces / restart restore | missing | no named save/load/delete layout contract | Obsidian stores open files/tabs and sidebar visibility/width in named layouts. | P0 |
+| Named Workspaces / restart restore | different | `src/main/workspaces.ts`, `WorkspaceDialog.tsx`, workspace/app tests; Vault `TSUZUNE-名前付きワークスペース実装・本番受入-2026-09-08` records installed and owner acceptance including Japanese IME | Named save/load/update/delete and per-Vault last-session restoration are implemented and accepted. Fixed sidebar widths and incomplete paired Obsidian evidence remain; the 2026-09-06 design is historical design evidence. Execution state belongs to root PLAN.md. | Selected scope complete |
 | Daily notes | different | daily-note core, calendar, app tests | Create/open/templates work; settings and all Obsidian date/template behaviors are not paired. | P1 |
 | Templates | different | `src/core/templates.ts`, editor/app tests | Insert works; property merge and cursor behavior need explicit contracts. | P1 |
 | Command palette | different | command-palette component/tests | Core commands work; command breadth and plugin command registration differ. | P1 |
@@ -79,7 +79,7 @@ No row implies pixel parity, mobile parity, every Obsidian setting, or arbitrary
 | Unresolved Graph nodes | matched | exact Obsidian 1.13.4 query fixture encoded in `tests/graph.test.ts` | Bound is node identity/retention for the recorded malformed queries, not all Graph behavior. | — |
 | Graph search/camera restart subsets | not_proven | paired GP0 reports and capture scripts | Historical 1.13.4 evidence exists; current dirty source has not been recaptured. | P1 |
 | Canvas document/view | missing | HTML Canvas used by Graph is unrelated to Obsidian `.canvas` | First define file round-trip and card/edge minimum; do not start with visual cloning. | P1 |
-| Bases | missing | no `.base` parser or view found | Official syntax is broad; start only after Properties foundation. | P1 |
+| Bases | different | [Fixed-profile implementation and paired fixture](../20260908-bases-design/plan.md), `base-profile.ts`, `base-evaluator.ts`, `BaseTableView.tsx`; Vault `TSUZUNE-Bases読み取り専用表・本番受入-2026-09-08` | Read-only table, supported filters/sort, reload and note navigation are implemented and accepted. The selected candidate chooser adds on-demand path listing, search, refresh and manual entry; [chooser acceptance](../20260908-bases-design/implementation.md) separates source verification from receipt/installed acceptance. Cell edits, formula and other views remain separate; unsupported syntax is diagnosed. | Read-only table complete; chooser source verified; other extensions Held |
 
 ## Settings, Extension, and Transport
 
@@ -133,7 +133,7 @@ Compatibility means opening the same local Vault in TSUZUNE without losing conte
 
 1. **Lossless data compatibility:** Markdown/YAML/Properties; attachments/files/links; rename/move/collision; external edits/conflict/recovery boundaries. Text/decimal-number/simple-list add/edit/delete/save/reload is source-verified (P0-2/3). Next: paired isolated Obsidian/TSUZUNE fixtures for the implemented subset, then select concrete remaining differences.
 2. **Daily operation compatibility:** Editor, Search, Quick Switcher, Backlinks, named Workspaces/restart restore, Daily Notes, Templates, and Hotkeys.
-3. **Structural representation compatibility:** Canvas; Bases only after Properties is stable; remaining Graph/Local Graph differences.
+3. **Structural representation compatibility:** Canvas; separately selected Bases extensions beyond the completed read-only table; remaining Graph/Local Graph differences. Current candidate inventory: [2026-09-09](../../../docs/reports/tsuzune-unimplemented-ideas-2026-09-09.md).
 4. **Selected extension compatibility:** only an actual plugin and use selected by the owner; never a generic or unrestricted community-plugin runtime.
 
 Held: Obsidian Sync or Publish imitation, cloud/account scope, unrestricted plugin execution, and a new DB/daemon/Hook added only for parity.
