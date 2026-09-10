@@ -200,19 +200,34 @@ try {
       'lifecycle:'
     ],
     fetch: ['Markdown chunk', 'revision', 'build_context', 'Large notes', 'next_after'],
-    build_context: ['linked or temporal context', 'fetch', 'one note', 'included-source metadata'],
+    build_context: [
+      'linked or temporal sources',
+      'fetch',
+      'one note',
+      'content_mode',
+      'revisions',
+      'omissions',
+      'state_lineage',
+      'section_projection',
+      'truncated is false',
+      'full_note',
+      'Empty warnings do not establish current validity',
+      'Fetch missing source text when needed',
+      'do not call build_context or fetch again',
+      'report what remains unresolved'
+    ],
     create_note: ['user directly asks', 'active project contract explicitly requires'],
     create_derived_note: [
       'exact source revision',
       'source remains unchanged',
       'multiple distinct concept keys',
-      'mismatched legacy output'
+      'Legacy review proposals'
     ],
     propose_derived_note: [
       'exact source revision',
       'source remains unchanged',
-      'human approval',
-      'AI Review'
+      'Human approval',
+      'written immediately'
     ]
   }
   for (const [name, terms] of Object.entries(requiredDescriptionTerms)) {
@@ -247,11 +262,14 @@ try {
   if (
     contextSourceSchema?.properties?.revision?.type !== 'string' ||
     contextSourceSchema?.properties?.modified_at?.type !== 'string' ||
+    JSON.stringify(contextSourceSchema?.properties?.content_mode?.enum) !==
+      JSON.stringify(['full_note', 'section_projection', 'moc_index', 'body_omitted']) ||
     !contextSourceSchema.required?.includes('revision') ||
-    !contextSourceSchema.required?.includes('modified_at')
+    !contextSourceSchema.required?.includes('modified_at') ||
+    !contextSourceSchema.required?.includes('content_mode')
   ) {
     throw new Error(
-      'build_context must expose required revision and modified_at source descriptors.'
+      'build_context must expose required revision, modified_at, and content_mode source descriptors.'
     )
   }
   if (
@@ -523,10 +541,10 @@ try {
     derivedInputSchema?.properties?.source_id?.maxLength !== 500 ||
     derivedInputSchema?.properties?.source_revision?.pattern !==
       '^sha256:[a-f0-9]{64}$' ||
-    derivedOutputSchema?.properties?.pending_review?.const !== true ||
-    derivedOutputSchema?.properties?.proposal?.type !== 'object'
+    derivedOutputSchema?.properties?.pending_review !== undefined ||
+    derivedOutputSchema?.properties?.metadata?.type !== 'object'
   ) {
-    throw new Error('propose_derived_note lost its bounded review contract.')
+    throw new Error('propose_derived_note lost its direct creation contract.')
   }
 
   const organizerSourcePath = join(vaultPath, '01_受信箱', 'Organizer-source.md')
@@ -550,15 +568,15 @@ try {
   if (
     organizerSource.isError ||
     proposedDerived.isError ||
-    proposedDerived.structuredContent?.pending_review !== true ||
-    proposedDerived.structuredContent?.proposal?.path !==
+    proposedDerived.structuredContent?.pending_review !== undefined ||
+    proposedDerived.structuredContent?.id !==
       '30_知識/Organizer-derived.md' ||
     (await readFile(organizerSourcePath, 'utf8')) !== organizerSourceBefore
   ) {
-    throw new Error('propose_derived_note did not preserve its pending-review boundary.')
+    throw new Error('propose_derived_note did not preserve its direct creation boundary.')
   }
-  if (await pathExists(join(vaultPath, '30_知識', 'Organizer-derived.md'))) {
-    throw new Error('propose_derived_note wrote its destination before approval.')
+  if (!(await pathExists(join(vaultPath, '30_知識', 'Organizer-derived.md')))) {
+    throw new Error('propose_derived_note did not write its destination immediately.')
   }
 
   const directSourcePath = join(vaultPath, '01_受信箱', 'Organizer-direct-source.md')
@@ -591,6 +609,14 @@ try {
     throw new Error('create_derived_note did not preserve its direct derived-note contract.')
   }
 
+  const autonomousInputSchema = toolsByName.get('autonomous_update_note')?.inputSchema
+  if (
+    autonomousInputSchema?.required?.includes('expected_revision') !== true ||
+    autonomousInputSchema?.properties?.expected_revision?.pattern !==
+      '^sha256:[a-f0-9]{64}$'
+  ) {
+    throw new Error('autonomous_update_note must require a fetch revision token.')
+  }
   const autonomousOutputSchema = toolsByName.get('autonomous_update_note')?.outputSchema
   const addLinkOutputSchema = toolsByName.get('add_link')?.outputSchema
   const moveInputSchema = toolsByName.get('move_entry')?.inputSchema
@@ -677,7 +703,8 @@ try {
   )
   if (
     contextSource?.revision !== fetched.structuredContent?.metadata?.revision ||
-    contextSource?.modified_at !== fetched.structuredContent?.metadata?.modified_at
+    contextSource?.modified_at !== fetched.structuredContent?.metadata?.modified_at ||
+    contextSource?.content_mode !== 'full_note'
   ) {
     throw new Error(
       'build_context source descriptors did not match fetch for the same note.'
@@ -985,11 +1012,32 @@ try {
     throw new Error('patch_note did not honor replace_all through MCP.')
   }
 
+  const beforeAutonomous = await callReadOnlyTool({
+    name: 'fetch',
+    arguments: { id: 'Projects/AI-created.md' }
+  })
+  for (const expected_revision of [undefined, '']) {
+    const unguarded = await client.callTool({
+      name: 'autonomous_update_note',
+      arguments: {
+        id: 'Projects/AI-created.md',
+        content: '# Unchecked replacement',
+        ...(expected_revision === undefined ? {} : { expected_revision })
+      }
+    })
+    if (
+      !unguarded.isError ||
+      (await readFile(join(vaultPath, 'Projects', 'AI-created.md'), 'utf8')) !== patchedText
+    ) {
+      throw new Error('autonomous_update_note must reject missing or empty revisions without writing.')
+    }
+  }
   const autonomous = await client.callTool({
     name: 'autonomous_update_note',
     arguments: {
       id: 'Projects/AI-created.md',
       content: '# AI-created\n\nUpdated autonomously through MCP.',
+      expected_revision: beforeAutonomous.structuredContent?.metadata?.revision,
       reason: 'MCP smoke test',
       source_refs: ['NotebookLM/smoke-test.md']
     }
@@ -1038,6 +1086,21 @@ try {
   const currentInfo = await stat(updatedPath)
   const externalTime = new Date(currentInfo.mtimeMs + 10_000)
   await utimes(updatedPath, externalTime, externalTime)
+  const autonomousConflict = await client.callTool({
+    name: 'autonomous_update_note',
+    arguments: {
+      id: 'Projects/AI-created.md',
+      content: 'External change',
+      expected_revision: autonomousRevision
+    }
+  })
+  if (
+    !autonomousConflict.isError ||
+    (await readFile(updatedPath, 'utf8')) !== 'External change' ||
+    (await stat(updatedPath)).mtimeMs !== externalTime.getTime()
+  ) {
+    throw new Error('autonomous_update_note must reject a stale revision before its no-op path.')
+  }
   const conflict = await client.callTool({
     name: 'update_note',
     arguments: {

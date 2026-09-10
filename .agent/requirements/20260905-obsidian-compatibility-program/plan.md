@@ -1,5 +1,9 @@
 # Obsidian Compatibility Program
 
+## 現行方針との関係 — 2026-09-06
+
+製品全体のPrimary／Nextは[PLAN.mdのCurrent Decision](../../../PLAN.md#current-decision)を参照する。Obsidian互換性は、安全なVault利用と日常の知識再利用を支える土台として継続する。全面互換を完了条件にせず、データ非破壊 → 毎日の操作 → 構造表現 → 選択済み拡張の順で、具体的な利用者の支障に対応する範囲を選ぶ。以下のTask ContractとP0記録は各採用・検証時点の証拠であり、現在の製品全体Primaryや新しい承認を表さない。
+
 ## Task Contract
 
 - objective: TSUZUNEの現行PrimaryをObsidian互換性へ戻し、同じVault入力・同じ利用者操作・保存後・再起動後の公開挙動で差を測り、差分を小さな検証可能単位で閉じる。

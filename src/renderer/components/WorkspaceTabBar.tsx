@@ -17,11 +17,16 @@ export type WorkspaceTab =
     }
   | {
       id: number
+      kind: 'base'
+      path: string
+    }
+  | {
+      id: number
       kind: 'global-graph'
     }
   | {
       id: number
-      kind: 'observatory'
+      kind: 'global-properties'
     }
 
 export const WORKSPACE_TAB_PANEL_ID = 'workspace-tabpanel'
@@ -40,11 +45,14 @@ export function workspaceTabLabel(tab: WorkspaceTab): string {
   if (tab.kind === 'global-graph') {
     return 'グラフビュー'
   }
-  if (tab.kind === 'observatory') {
-    return '観測宙域'
+  if (tab.kind === 'global-properties') {
+    return 'プロパティ一覧'
   }
   if (tab.kind === 'linked-view') {
     return `${withoutFileExtension(tab.path)} へのバックリンク`
+  }
+  if (tab.kind === 'base') {
+    return basenameRelative(tab.path)
   }
   return tab.kind === 'note'
     ? withoutMarkdownExtension(basenameRelative(tab.path))

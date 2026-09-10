@@ -95,18 +95,38 @@ async function runAcceptance(window) {
   window.setPosition(-32000, -32000, false)
   window.showInactive()
   await waitFor(window, `Boolean(document.querySelector('.app-shell'))`, 'app shell')
+  await waitFor(window, `Boolean(document.querySelector('button[aria-label="ノート活動"]'))`, 'note activity navigation')
+  await evaluate(window, `document.querySelector('button[aria-label="ノート活動"]')?.click()`)
+  await waitFor(window, `Boolean(document.querySelector('.daily-profile-view'))`, 'daily profile')
   const mode = await evaluate(window, `(() => ({ iframe: Boolean(document.querySelector('iframe[title="Calendar"]')), calendar: Boolean(document.querySelector('.daily-calendar')) }))()`)
   assert(!mode.iframe && mode.calendar, '標準DailyCalendarではありません', mode)
 
-  let month = await evaluate(window, `document.querySelector('.daily-calendar-header h2')?.textContent.trim() || ''`)
-  for (let i = 0; i < 24 && month !== '2026年8月'; i += 1) {
-    const [year, targetMonth] = month.match(/(\d+)年(\d+)月/).slice(1).map(Number)
-    const direction = year > 2026 || (year === 2026 && targetMonth > 8) ? '前の月を表示' : '次の月を表示'
-    await evaluate(window, `document.querySelector('button[aria-label="${direction}"]')?.click()`)
-    await delay(100)
-    month = await evaluate(window, `document.querySelector('.daily-calendar-header h2')?.textContent.trim() || ''`)
+  const annual = await evaluate(window, `(() => ({
+    heading: document.querySelector('.daily-calendar-header h2')?.textContent.trim() || '',
+    heatmap: Boolean(document.querySelector('.daily-calendar-heatmap')),
+    selectedTab: document.querySelector('.daily-calendar-view-toggle button[aria-selected="true"]')?.getAttribute('aria-label') || '',
+    cells: document.querySelectorAll('.daily-calendar-heatmap-cell:not(.is-outside)').length
+  }))()`)
+  assert(annual.heading === '2026年' && annual.heatmap && annual.selectedTab === '年表示' && annual.cells >= 365, '年次活動ヒートマップが初期表示されません', annual)
+  await mkdir(outputDirectory, { recursive: true })
+  window.webContents.invalidate()
+  await delay(150)
+  await writeFile(resolve(outputDirectory, 'daily-calendar-heatmap.png'), (await window.webContents.capturePage()).toPNG())
+  const openFixtureMonth = async () => {
+    await evaluate(window, `document.querySelector('button[aria-label="月表示"]')?.click()`)
+    await waitFor(window, `Boolean(document.querySelector('.daily-calendar-weekdays'))`, 'monthly calendar')
+    let currentMonth = await evaluate(window, `document.querySelector('.daily-calendar-header h2')?.textContent.trim() || ''`)
+    for (let i = 0; i < 24 && currentMonth !== '2026年8月'; i += 1) {
+      const [year, targetMonth] = currentMonth.match(/(\d+)年(\d+)月/).slice(1).map(Number)
+      const direction = year > 2026 || (year === 2026 && targetMonth > 8) ? '前の月を表示' : '次の月を表示'
+      await evaluate(window, `document.querySelector('button[aria-label="${direction}"]')?.click()`)
+      await delay(100)
+      currentMonth = await evaluate(window, `document.querySelector('.daily-calendar-header h2')?.textContent.trim() || ''`)
+    }
+    assert(currentMonth === '2026年8月', 'fixture月へ移動できません', { month: currentMonth })
+    return currentMonth
   }
-  assert(month === '2026年8月', 'fixture月へ移動できません', { month })
+  let month = await openFixtureMonth()
   const targetTrigger = `Array.from(document.querySelectorAll('.daily-calendar-cell')).find((cell) => cell.querySelector('.daily-calendar-day[aria-label^="2026年8月17日"]'))?.querySelector('.daily-calendar-activity-trigger')`
   const state = await evaluate(window, `(() => {
     const trigger = ${targetTrigger}
@@ -133,7 +153,6 @@ async function runAcceptance(window) {
     '活動印の可視サイズまたはクリック座標が不正です',
     state
   )
-  await mkdir(outputDirectory, { recursive: true })
   window.webContents.invalidate()
   await delay(150)
   await writeFile(resolve(outputDirectory, 'daily-calendar-markers.png'), (await window.webContents.capturePage()).toPNG())
@@ -151,12 +170,23 @@ async function runAcceptance(window) {
   await waitFor(window, `Boolean(document.querySelector('.note-header strong'))`, 'activity note open')
   const openedNote = await evaluate(window, `document.querySelector('.note-header strong')?.textContent.trim() || ''`)
   assert(openedNote.includes('Calendar Updated'), '活動ノートを開けません', { openedNote })
-  await clickAt(window, activityPoint)
+  await evaluate(window, `document.querySelector('button[aria-label="ノート活動"]')?.click()`)
+  await waitFor(window, `Boolean(document.querySelector('.daily-profile-view'))`, 'daily profile reopen')
+  month = await openFixtureMonth()
+  const reopenPoint = await evaluate(window, `(() => {
+    const trigger = [...document.querySelectorAll('.daily-calendar-cell')]
+      .find((cell) => cell.querySelector('.daily-calendar-day[aria-label^="2026年8月17日"]'))
+      ?.querySelector('.daily-calendar-activity-trigger')
+    const rect = trigger?.getBoundingClientRect()
+    return rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : null
+  })()`)
+  assert(reopenPoint, '活動印の再表示座標を取得できません')
+  await clickAt(window, reopenPoint)
   await waitFor(window, `Boolean(document.querySelector('.daily-calendar-activity-popover'))`, 'activity reopen')
-  const outsidePoint = await evaluate(window, `(() => { const r = document.querySelector('.note-panel').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, hit: document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.className || null } })()`)
+  const outsidePoint = await evaluate(window, `(() => { const r = document.querySelector('.daily-profile-topbar').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, hit: document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.className || null } })()`)
   await clickAt(window, outsidePoint)
   await waitFor(window, `!document.querySelector('.daily-calendar-activity-popover')`, 'outside close')
-  await clickAt(window, activityPoint)
+  await clickAt(window, reopenPoint)
   await waitFor(window, `Boolean(document.querySelector('.daily-calendar-activity-popover'))`, 'activity second reopen')
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
   window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' })
@@ -173,6 +203,7 @@ async function runAcceptance(window) {
   await writeFile(resolve(outputDirectory, 'daily-calendar-electron.png'), image.toPNG())
   const result = {
     mode,
+    annual,
     month,
     activity: state,
     dialog: opened,
@@ -180,6 +211,7 @@ async function runAcceptance(window) {
     dailyOpened: true,
     fixture: { createdPath, updatedPath, historyPath },
     screenshots: {
+      heatmap: 'docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-heatmap.png',
       markers: 'docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-markers.png',
       activityList: 'docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-activity-list.png',
       final: 'docs/reports/assets/calendar-plugin-compatibility-2026-08-29/daily-calendar-electron.png'

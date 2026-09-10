@@ -21,6 +21,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
   return {
     ...actual,
+    readFile: vi.fn(actual.readFile),
     writeFile: vi.fn(
       async (...args: Parameters<typeof actual.writeFile>) => {
         const result = await actual.writeFile(...args)
@@ -90,6 +91,18 @@ afterEach(async () => {
 })
 
 describe('VaultService atomic save', () => {
+  it('rejects a Base changed during reading and preserves the external bytes', async () => {
+    const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')
+    const path = join(rootPath, 'notes.base')
+    await actual.writeFile(path, 'original', 'utf8')
+    vi.mocked(readFile).mockImplementationOnce(async (...args) => {
+      const content = await actual.readFile(...args)
+      await actual.writeFile(path, 'externally changed', 'utf8')
+      return content
+    })
+    await expect(vault.readBase('notes.base')).rejects.toMatchObject({ appError: { code: 'FILE_CHANGED' } })
+    expect(await readFile(path, 'utf8')).toBe('externally changed')
+  })
   it('keeps the original Markdown and removes the temporary file when replace fails', async () => {
     await vault.createNote({
       directory: '',

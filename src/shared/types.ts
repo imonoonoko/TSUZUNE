@@ -1,5 +1,10 @@
 import type { ObsidianPluginCandidate } from './obsidian-plugins'
 import type { CalendarPluginSettings } from './calendar-plugin-settings'
+import type {
+  WorkspaceCollection,
+  WorkspaceScope,
+  WorkspaceSnapshotV1
+} from './workspace-state'
 export type { ObsidianPluginCandidate } from './obsidian-plugins'
 export type { CalendarPluginSettings } from './calendar-plugin-settings'
 
@@ -36,6 +41,12 @@ export interface NoteDocument {
   modifiedAt: number
   createdAt?: number | null
   size: number
+}
+
+export interface BaseDocument {
+  path: string
+  content: string
+  modifiedAt: number
 }
 
 export interface VaultAttachment {
@@ -124,7 +135,6 @@ export interface AppSettings {
   lastNotePath: string | null
   userIgnoreFilters: string[]
   graphForces: GraphForceSettings
-  aiReviewPaths?: string[]
   graphDisplay: GraphDisplaySettings
   graphFilters: GraphFilterSettings
   graphGroups: GraphGroup[]
@@ -132,6 +142,7 @@ export interface AppSettings {
   templateDirectory?: string
   showBuiltInTemplates?: boolean
   calendarPlugin?: CalendarPluginSettings
+  workspaceStateByVault?: Record<string, unknown>
 }
 
 export interface CalendarPluginRuntimeStatus {
@@ -149,23 +160,6 @@ export interface TemplateSettings {
 }
 
 export type GraphViewScope = 'local' | 'vault'
-export interface AiWriteReviewProposal {
-  id: string
-  path: string
-  operation: 'create' | 'update'
-  content: string
-  expectedRevision: string | null
-  reason: string
-  sourceRefs: string[]
-  createdAt: string
-  derivedGuard?: {
-    sourcePath: string
-    sourceRevision: string
-    category: string
-    derivationKey?: string
-  }
-}
-
 
 export interface GraphSettingsSectionState {
   filters: boolean
@@ -355,10 +349,27 @@ export interface TsuzuneApi {
   chooseVault(): Promise<Result<VaultSnapshot | null>>
   openLastVault(): Promise<Result<VaultSnapshot | null>>
   getSettings(): Promise<Result<AppSettings>>
+  getWorkspaces(expectedVaultPath: string): Promise<Result<WorkspaceCollection>>
+  saveWorkspace(
+    scope: WorkspaceScope,
+    name: string,
+    snapshot: WorkspaceSnapshotV1,
+    replaceExisting: boolean
+  ): Promise<Result<WorkspaceCollection>>
+  deleteWorkspace(
+    scope: WorkspaceScope,
+    name: string
+  ): Promise<Result<WorkspaceCollection>>
+  saveLastWorkspaceSession(
+    scope: WorkspaceScope,
+    snapshot: WorkspaceSnapshotV1
+  ): Promise<Result<null>>
   listObsidianPluginCandidates(): Promise<Result<ObsidianPluginCandidate[]>>
   getCalendarPluginStatus(): Promise<Result<CalendarPluginRuntimeStatus>>
   getSnapshot(): Promise<Result<VaultSnapshot>>
   readNote(path: string): Promise<Result<NoteDocument>>
+  readBase(path: string): Promise<Result<BaseDocument>>
+  listBases(expectedVaultPath: string): Promise<Result<string[]>>
   readVaultImage(path: string): Promise<Result<string>>
   openVaultFile(path: string): Promise<Result<null>>
   revealVaultFile(path: string): Promise<Result<null>>
@@ -380,12 +391,8 @@ export interface TsuzuneApi {
   setLastNote(path: string | null): Promise<Result<null>>
   setUserIgnoreFilters(filters: string[]): Promise<Result<null>>
   setGraphForces(settings: GraphForceSettings): Promise<Result<null>>
-  setAiReviewPaths(paths: string[]): Promise<Result<null>>
   setTemplateSettings(settings: TemplateSettings): Promise<Result<null>>
   setCalendarPluginSettings(settings: CalendarPluginSettings): Promise<Result<null>>
-  listAiReviewProposals(): Promise<Result<AiWriteReviewProposal[]>>
-  approveAiReviewProposal(id: string): Promise<Result<EntryOperationOutput>>
-  cancelAiReviewProposal(id: string): Promise<Result<null>>
   setGraphDisplay(settings: GraphDisplaySettings): Promise<Result<null>>
   setGraphFilters(settings: GraphFilterSettings): Promise<Result<null>>
   setGraphGroups(groups: GraphGroup[]): Promise<Result<null>>

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { DEFAULT_GRAPH_FORCE_SETTINGS } from '../src/core/graph-layout'
@@ -21,7 +21,12 @@ vi.mock('electron', () => ({
   }
 }))
 
-import { readSettings, updateSettings } from '../src/main/settings'
+import {
+  readSettings,
+  readRawSettingsForUpdate,
+  updateSettings,
+  writeRawSettings
+} from '../src/main/settings'
 
 describe('App settings', () => {
   beforeEach(async () => {
@@ -30,6 +35,18 @@ describe('App settings', () => {
 
   afterEach(async () => {
     await rm(appData.path, { recursive: true, force: true })
+  })
+
+  it('ignores legacy review paths and removes them on the next settings save', async () => {
+    const path = join(appData.path, 'settings.json')
+    const legacy = JSON.stringify({ lastVaultPath: 'C:/Vault', aiReviewPaths: ['30_知識'], custom: 'keep' })
+    await writeFile(path, legacy, 'utf8')
+    expect(await readSettings()).not.toHaveProperty('aiReviewPaths')
+    expect(await readFile(path, 'utf8')).toBe(legacy)
+    await updateSettings({ lastNotePath: 'Home.md' })
+    const saved = JSON.parse(await readFile(path, 'utf8'))
+    expect(saved).not.toHaveProperty('aiReviewPaths')
+    expect(saved).toMatchObject({ lastVaultPath: 'C:/Vault', lastNotePath: 'Home.md', custom: 'keep' })
   })
 
   it('adds default graph settings when reading an older version', async () => {
@@ -48,7 +65,6 @@ describe('App settings', () => {
       graphGroups: DEFAULT_GRAPH_GROUPS,
       graphViewStates: DEFAULT_GRAPH_VIEW_STATES,
       userIgnoreFilters: [],
-      aiReviewPaths: [],
       templateDirectory: '90_テンプレート',
       showBuiltInTemplates: true
     })
@@ -81,7 +97,6 @@ describe('App settings', () => {
       graphGroups: DEFAULT_GRAPH_GROUPS,
       graphViewStates: DEFAULT_GRAPH_VIEW_STATES,
       userIgnoreFilters: [],
-      aiReviewPaths: [],
       templateDirectory: '90_テンプレート',
       showBuiltInTemplates: true
     })
@@ -225,7 +240,6 @@ describe('App settings', () => {
       graphGroups: DEFAULT_GRAPH_GROUPS,
       graphViewStates: DEFAULT_GRAPH_VIEW_STATES,
       userIgnoreFilters: [],
-      aiReviewPaths: [],
       templateDirectory: '90_テンプレート',
       showBuiltInTemplates: true
     })
@@ -348,5 +362,50 @@ describe('App settings', () => {
       await readFile(join(appData.path, 'settings.json'), 'utf8')
     ) as Record<string, unknown>
     expect(stored.aiImmutablePaths).toBeUndefined()
+  })
+
+  it('preserves unrelated unknown fields while updating known settings', async () => {
+    await writeFile(
+      join(appData.path, 'settings.json'),
+      JSON.stringify({
+        lastVaultPath: 'C:/Vault',
+        futureFeature: { version: 7, enabled: true },
+        workspaceStateByVault: { 'c:/other': { version: 99, opaque: true } }
+      }),
+      'utf8'
+    )
+
+    await updateSettings({ lastNotePath: 'A.md' })
+
+    await expect(readRawSettingsForUpdate()).resolves.toMatchObject({
+      lastVaultPath: 'C:/Vault',
+      lastNotePath: 'A.md',
+      futureFeature: { version: 7, enabled: true },
+      workspaceStateByVault: { 'c:/other': { version: 99, opaque: true } }
+    })
+  })
+
+  it('refuses to replace malformed existing settings', async () => {
+    const path = join(appData.path, 'settings.json')
+    await writeFile(path, '{ broken', 'utf8')
+
+    await expect(updateSettings({ lastNotePath: 'A.md' })).rejects.toThrow()
+    await expect(readFile(path, 'utf8')).resolves.toBe('{ broken')
+  })
+
+  it('keeps old bytes and cleans only its temp file when atomic rename fails', async () => {
+    const path = join(appData.path, 'settings.json')
+    const oldBytes = '{"lastVaultPath":"C:/Vault"}'
+    await writeFile(path, oldBytes, 'utf8')
+
+    await expect(
+      writeRawSettings(
+        { lastVaultPath: 'D:/Vault' },
+        async () => Promise.reject(new Error('rename failed'))
+      )
+    ).rejects.toThrow('rename failed')
+
+    await expect(readFile(path, 'utf8')).resolves.toBe(oldBytes)
+    await expect(readdir(appData.path)).resolves.toEqual(['settings.json'])
   })
 })

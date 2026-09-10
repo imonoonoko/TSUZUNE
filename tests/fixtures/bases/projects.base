@@ -1,0 +1,15 @@
+filters:
+  and:
+    - file.inFolder("10_プロジェクト")
+    - file.ext == "md"
+    - status == "active"
+views:
+  - type: table
+    name: Active projects
+    order:
+      - file.name
+      - status
+      - updated
+    sort:
+      - property: updated
+        direction: DESC

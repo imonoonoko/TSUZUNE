@@ -9,12 +9,14 @@ interface RelatedNotesProps {
   selectedNoteName?: string
   headings?: MarkdownHeading[]
   onHeadingSelect?: (heading: MarkdownHeading) => void
+  activeTab?: ContextTab
+  onActiveTabChange?: (tab: ContextTab) => void
   onOpen: (path: string) => void
   onMissing: (target: string) => void
 }
 
 const contextTabs = ['outline', 'links', 'backlinks', 'temporal'] as const
-type ContextTab = (typeof contextTabs)[number]
+export type ContextTab = (typeof contextTabs)[number]
 
 function Section({
   title,
@@ -40,10 +42,13 @@ export default function RelatedNotes({
   selectedNoteName,
   headings = [],
   onHeadingSelect = () => undefined,
+  activeTab: controlledActiveTab,
+  onActiveTabChange,
   onOpen,
   onMissing
 }: RelatedNotesProps): React.JSX.Element {
-  const [activeTab, setActiveTab] = useState<ContextTab>('links')
+  const [uncontrolledActiveTab, setUncontrolledActiveTab] = useState<ContextTab>('links')
+  const activeTab = controlledActiveTab ?? uncontrolledActiveTab
   const resolved = outgoing.filter((link) => link.status === 'resolved')
   const missing = outgoing.filter((link) => link.status === 'missing')
   const ambiguous = outgoing.filter((link) => link.status === 'ambiguous')
@@ -74,10 +79,15 @@ export default function RelatedNotes({
 
     event.preventDefault()
     const nextTab = contextTabs[nextIndex]
-    setActiveTab(nextTab)
+    selectTab(nextTab)
     event.currentTarget.parentElement
       ?.querySelector<HTMLButtonElement>(`#context-tab-${nextTab}`)
       ?.focus()
+  }
+
+  const selectTab = (tab: ContextTab): void => {
+    if (controlledActiveTab === undefined) setUncontrolledActiveTab(tab)
+    onActiveTabChange?.(tab)
   }
 
   return (
@@ -97,7 +107,7 @@ export default function RelatedNotes({
             aria-selected={activeTab === 'outline'}
             aria-controls="context-panel-outline"
             tabIndex={activeTab === 'outline' ? 0 : -1}
-            onClick={() => setActiveTab('outline')}
+            onClick={() => selectTab('outline')}
             onKeyDown={selectTabFromKeyboard}
           >
             アウトライン <span aria-hidden="true">{headings.length}</span>
@@ -111,7 +121,7 @@ export default function RelatedNotes({
             aria-selected={activeTab === 'links'}
             aria-controls="context-panel-links"
             tabIndex={activeTab === 'links' ? 0 : -1}
-            onClick={() => setActiveTab('links')}
+            onClick={() => selectTab('links')}
             onKeyDown={selectTabFromKeyboard}
           >
             リンク <span aria-hidden="true">{outgoing.length}</span>
@@ -125,7 +135,7 @@ export default function RelatedNotes({
             aria-selected={activeTab === 'backlinks'}
             aria-controls="context-panel-backlinks"
             tabIndex={activeTab === 'backlinks' ? 0 : -1}
-            onClick={() => setActiveTab('backlinks')}
+            onClick={() => selectTab('backlinks')}
             onKeyDown={selectTabFromKeyboard}
           >
             バックリンク <span aria-hidden="true">{backlinks.length}</span>
@@ -138,7 +148,7 @@ export default function RelatedNotes({
             aria-selected={activeTab === 'temporal'}
             aria-controls="context-panel-temporal"
             tabIndex={activeTab === 'temporal' ? 0 : -1}
-            onClick={() => setActiveTab('temporal')}
+            onClick={() => selectTab('temporal')}
             onKeyDown={selectTabFromKeyboard}
           >
             時間

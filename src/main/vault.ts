@@ -37,6 +37,7 @@ import {
 } from '../core/paths'
 import type {
   AppError,
+  BaseDocument,
   CreateDirectoryInput,
   CreateNoteInput,
   EntryOperationOutput,
@@ -87,6 +88,10 @@ function fromNodeError(error: unknown, fallback: AppError['code'], message: stri
 
 function isMarkdownFile(path: string): boolean {
   return extname(path).toLocaleLowerCase() === '.md'
+}
+
+function isBaseFile(path: string): boolean {
+  return extname(path).toLocaleLowerCase() === '.base'
 }
 
 const IMAGE_MIME_TYPES = new Map([
@@ -200,6 +205,10 @@ export class VaultService {
 
   getRootPath(): string | null {
     return this.rootPath
+  }
+
+  getRootRevision(): number {
+    return this.rootRevision
   }
 
   async setRootPath(rootPath: string): Promise<void> {
@@ -770,6 +779,157 @@ export class VaultService {
     }
   }
 
+  async listBases(
+    expectedVaultPath: string,
+    userIgnoreFilters: readonly string[] = []
+  ): Promise<string[]> {
+    if (
+      typeof expectedVaultPath !== 'string' ||
+      expectedVaultPath.length === 0 ||
+      !isAbsolute(expectedVaultPath)
+    ) {
+      throw new VaultError({
+        code: 'INVALID_PATH',
+        message: 'Vaultの場所が不正です。'
+      })
+    }
+
+    const root = this.requireRoot()
+    const revision = this.rootRevision
+    if (resolve(expectedVaultPath) !== root) {
+      throw new VaultError({
+        code: 'FILE_CHANGED',
+        message: '別のVaultが開かれています。'
+      })
+    }
+
+    const assertCurrentRoot = (): void => {
+      if (this.rootPath !== root || this.rootRevision !== revision) {
+        throw new VaultError({
+          code: 'FILE_CHANGED',
+          message: 'Vaultが切り替わったため、古い一覧を破棄しました。'
+        })
+      }
+    }
+    const inspectRoot = async (): Promise<void> => {
+      assertCurrentRoot()
+      let info
+      try {
+        info = await lstat(root)
+      } catch (error) {
+        assertCurrentRoot()
+        throw fromNodeError(error, 'UNKNOWN', 'Vaultの場所を確認できませんでした。')
+      }
+      assertCurrentRoot()
+      if (info.isSymbolicLink() || !info.isDirectory()) {
+        throw new VaultError({
+          code: 'INVALID_PATH',
+          message: 'Vaultの場所を安全に確認できませんでした。'
+        })
+      }
+    }
+    const inspectEntry = async (absolutePath: string) => {
+      await inspectRoot()
+      try {
+        const info = await lstat(absolutePath)
+        assertCurrentRoot()
+        return info
+      } catch (error) {
+        assertCurrentRoot()
+        throw fromNodeError(error, 'UNKNOWN', 'Baseの場所を確認できませんでした。')
+      }
+    }
+    const assertSafeDirectoryChain = async (relativeDirectory: string): Promise<void> => {
+      await inspectRoot()
+      let absoluteDirectory = root
+      for (const segment of relativeDirectory.split('/').filter(Boolean)) {
+        absoluteDirectory = join(absoluteDirectory, segment)
+        const info = await inspectEntry(absoluteDirectory)
+        if (info.isSymbolicLink() || !info.isDirectory()) {
+          throw new VaultError({
+            code: 'INVALID_PATH',
+            message: 'Baseの探索場所を安全に確認できませんでした。'
+          })
+        }
+      }
+    }
+
+    const isExcluded = createExcludedFileMatcher(userIgnoreFilters)
+    const bases = new Map<string, string>()
+    const walk = async (absoluteDirectory: string, relativeDirectory: string): Promise<void> => {
+      await inspectRoot()
+      if (relativeDirectory) {
+        const directoryInfo = await inspectEntry(absoluteDirectory)
+        if (directoryInfo.isSymbolicLink() || !directoryInfo.isDirectory()) {
+          return
+        }
+      }
+
+      let entries
+      try {
+        entries = await readdir(absoluteDirectory, { withFileTypes: true })
+      } catch (error) {
+        assertCurrentRoot()
+        throw fromNodeError(error, 'UNKNOWN', 'Baseの一覧を取得できませんでした。')
+      }
+      await assertSafeDirectoryChain(relativeDirectory)
+
+      for (const entry of entries) {
+        if (entry.name.startsWith('.') || entry.isSymbolicLink()) {
+          continue
+        }
+        const relativePath = joinRelative(relativeDirectory, entry.name)
+        const validation = validateRelativePath(relativePath)
+        if (!validation.valid || !validation.normalized) {
+          continue
+        }
+        const normalizedPath = validation.normalized
+        if (isPathInsideOrEqual(normalizedPath, '50_履歴')) {
+          continue
+        }
+
+        const absolutePath = join(absoluteDirectory, entry.name)
+        if (entry.isDirectory()) {
+          const directoryInfo = await inspectEntry(absolutePath)
+          if (!directoryInfo.isSymbolicLink() && directoryInfo.isDirectory()) {
+            await walk(absolutePath, normalizedPath)
+          }
+          continue
+        }
+        if (!entry.isFile() || !isBaseFile(entry.name)) {
+          continue
+        }
+
+        const fileInfo = await inspectEntry(absolutePath)
+        if (fileInfo.isSymbolicLink() || !fileInfo.isFile() || isExcluded(normalizedPath)) {
+          continue
+        }
+        await assertSafeDirectoryChain(relativeDirectory)
+        const key = normalizedPath.toLocaleLowerCase('en-US')
+        const existing = bases.get(key)
+        if (existing && existing !== normalizedPath) {
+          throw new VaultError({
+            code: 'INVALID_PATH',
+            message: '大文字と小文字だけが異なるBaseを区別できません。'
+          })
+        }
+        if (!existing) {
+          bases.set(key, normalizedPath)
+        }
+      }
+    }
+
+    await walk(root, '')
+    await inspectRoot()
+    return [...bases.values()].sort((left, right) => {
+      const foldedLeft = left.toLocaleLowerCase('en-US')
+      const foldedRight = right.toLocaleLowerCase('en-US')
+      if (foldedLeft < foldedRight) return -1
+      if (foldedLeft > foldedRight) return 1
+      return left < right ? -1 : left > right ? 1 : 0
+    })
+  }
+
   async saveBookmark(input: SaveBookmarkInput): Promise<VaultBookmark> {
     const root = this.requireRoot()
     const revision = this.rootRevision
@@ -869,6 +1029,49 @@ export class VaultService {
       }
     } catch (error) {
       throw fromNodeError(error, 'UNKNOWN', 'ノートを読み込めませんでした。')
+    }
+  }
+
+  async readBase(relativePath: string): Promise<BaseDocument> {
+    if (!isBaseFile(relativePath)) {
+      throw new VaultError({
+        code: 'INVALID_PATH',
+        message: '.baseファイルだけを読み込めます。'
+      })
+    }
+    if (isAuditHistoryPath(relativePath)) {
+      throw new VaultError({
+        code: 'ACCESS_DENIED',
+        message: '監査履歴はBasesの入力にできません。'
+      })
+    }
+
+    const root = this.requireRoot()
+    const absolute = this.absolutePath(relativePath)
+    try {
+      await this.assertNoSymlinkTraversal(absolute)
+      const info = await stat(absolute)
+      if (!info.isFile()) {
+        throw new VaultError({
+          code: 'INVALID_PATH',
+          message: '.baseファイルだけを読み込めます。'
+        })
+      }
+      const content = await readFile(absolute, 'utf8')
+      const currentInfo = await stat(absolute)
+      if (currentInfo.mtimeMs !== info.mtimeMs || currentInfo.size !== info.size) {
+        throw new VaultError({
+          code: 'FILE_CHANGED',
+          message: '.baseが読み込み中に変更されました。再読み込みしてください。'
+        })
+      }
+      return {
+        path: this.relativePathFrom(root, absolute),
+        content,
+        modifiedAt: info.mtimeMs
+      }
+    } catch (error) {
+      throw fromNodeError(error, 'UNKNOWN', '.baseを読み込めませんでした。')
     }
   }
 

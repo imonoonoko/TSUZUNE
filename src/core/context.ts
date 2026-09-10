@@ -21,6 +21,12 @@ import type { NoteDocument, ResolvedWikiLink } from '../shared/types'
 
 export type ContextRelation = 'seed' | 'outgoing' | 'backlink'
 
+export type ContextContentMode =
+  | 'full_note'
+  | 'section_projection'
+  | 'moc_index'
+  | 'body_omitted'
+
 export type ContextTemporalStatus =
   | 'current'
   | 'historical'
@@ -50,6 +56,7 @@ export interface ContextSource {
   path: string
   name: string
   relation: ContextRelation
+  contentMode: ContextContentMode
   truncated: boolean
   contentOmitted?: boolean
   temporalStatus?: ContextTemporalStatus
@@ -128,7 +135,7 @@ function projectQuerySections(
   note: NoteDocument,
   query: string,
   maxContentCharacters: number
-): { note: NoteDocument; projected: boolean } {
+): { note: NoteDocument; projected: boolean; budgetClipped: boolean } {
   const parsed = parseFrontmatter(note.content)
   const body = parsed.body
   const headings = [
@@ -139,7 +146,7 @@ function projectQuerySections(
     title: match[2].trim()
   }))
   if (headings.length < 2) {
-    return { note, projected: false }
+    return { note, projected: false, budgetClipped: false }
   }
 
   const termGroups = query
@@ -156,7 +163,7 @@ function projectQuerySections(
     .filter((terms) => terms.length > 0)
   const terms = [...new Set(termGroups.flat())]
   if (terms.length === 0) {
-    return { note, projected: false }
+    return { note, projected: false, budgetClipped: false }
   }
 
   const sections = headings.map((heading, index) => {
@@ -224,7 +231,7 @@ function projectQuerySections(
     selected.add(candidate.index)
   }
   if (selected.size === 0) {
-    return { note, projected: false }
+    return { note, projected: false, budgetClipped: false }
   }
 
   for (const selectedIndex of [...selected]) {
@@ -293,10 +300,12 @@ function projectQuerySections(
   if (fullProjection.length <= maxContentCharacters) {
     return {
       note: { ...note, content: fullProjection },
-      projected: true
+      projected: true,
+      budgetClipped: false
     }
   }
 
+  const compactContentBudget = Math.max(0, maxContentCharacters - TRUNCATION_MARKER.length)
   const headingsOnly = projectedSections.map(({ heading }) => heading).join('\n\n')
   const fixedContent = [parsed.raw, headingsOnly].filter(Boolean).join('\n\n')
   const bodyIndexes = projectedSections
@@ -305,7 +314,7 @@ function projectQuerySections(
   const bodySeparatorBudget = bodyIndexes.length * 2
   const bodyBudgets = allocateSectionBudgets(
     bodyIndexes.map((index) => projectedSections[index].body.length),
-    Math.max(0, maxContentCharacters - fixedContent.length - bodySeparatorBudget)
+    Math.max(0, compactContentBudget - fixedContent.length - bodySeparatorBudget)
   )
   const budgetByIndex = new Map(
     bodyIndexes.map((index, position) => [index, bodyBudgets[position]])
@@ -325,9 +334,10 @@ function projectQuerySections(
   return {
     note: {
       ...note,
-      content: compactProjection.slice(0, maxContentCharacters)
+      content: compactProjection.slice(0, compactContentBudget)
     },
-    projected: true
+    projected: true,
+    budgetClipped: true
   }
 }
 
@@ -566,6 +576,7 @@ function buildContextBundleInternal(
       : seed
   let projectedContextSeed = contextSeed
   let seedWasQueryProjected = false
+  let seedWasBudgetClipped = false
   if (seedIsUnscoped) {
     omittedNormalPaths.add(seed.path)
   }
@@ -589,6 +600,11 @@ function buildContextBundleInternal(
         path: seed.path,
         name: seed.name,
         relation: 'seed',
+        contentMode: seedContentOmitted
+          ? 'body_omitted'
+          : seedIsMoc
+            ? 'moc_index'
+            : 'full_note',
         ...(seedContentOmitted ? { contentOmitted: true } : {}),
         ...(seedIsFuture ? { temporalStatus: 'future' as const } : {}),
         selectionReasons: [seedOmissionReason]
@@ -620,8 +636,9 @@ function buildContextBundleInternal(
         ? [note]
         : []
     })
-  const baselineOutgoing = outgoingNotes.slice(0, maxOutgoing)
-  for (const note of outgoingNotes.slice(maxOutgoing)) {
+  const rankedOutgoing = rankNotesForQuery(outgoingNotes, query)
+  const baselineOutgoing = rankedOutgoing.slice(0, maxOutgoing)
+  for (const note of rankedOutgoing.slice(maxOutgoing)) {
     selectionOmittedPaths.add(note.path)
   }
   for (const note of baselineOutgoing) {
@@ -638,6 +655,7 @@ function buildContextBundleInternal(
           path: note.path,
           name: note.name,
           relation: 'outgoing',
+          contentMode: 'full_note',
           selectionReasons: [
             '起点ノートからの明示リンク',
             ...(queryMatched ? ['質問語に一致'] : [])
@@ -657,8 +675,9 @@ function buildContextBundleInternal(
         )
       )
     : []
-  const baselineBacklinks = backlinkNotes.slice(0, maxBacklinks)
-  for (const note of backlinkNotes.slice(maxBacklinks)) {
+  const rankedBacklinks = rankNotesForQuery(backlinkNotes, query)
+  const baselineBacklinks = rankedBacklinks.slice(0, maxBacklinks)
+  for (const note of rankedBacklinks.slice(maxBacklinks)) {
     selectionOmittedPaths.add(note.path)
   }
   for (const note of baselineBacklinks) {
@@ -675,6 +694,7 @@ function buildContextBundleInternal(
           path: note.path,
           name: note.name,
           relation: 'backlink',
+          contentMode: 'full_note',
           selectionReasons: [
             '起点ノートへのバックリンク',
             ...(queryMatched ? ['質問語に一致'] : [])
@@ -928,21 +948,22 @@ function buildContextBundleInternal(
   let truncated = header.length > maxCharacters || omittedPaths.length > 0
   const renderCandidates = () =>
     candidates.map((candidate) => {
-      const displayNote =
-        candidate.source.contentOmitted || !isMocNote(candidate.note)
-          ? candidate.note
-          : projectMocTitles(
-              candidate.note,
-              snapshot?.outgoingByPath.get(candidate.note.path) ??
-                getOutgoingLinks(candidate.note.content, notes, pathAliases)
-            )
+      let displayNote = candidate.note
+      if (!candidate.source.contentOmitted && isMocNote(candidate.note)) {
+        displayNote = projectMocTitles(
+          candidate.note,
+          snapshot?.outgoingByPath.get(candidate.note.path) ??
+            getOutgoingLinks(candidate.note.content, notes, pathAliases)
+        )
+        candidate.source.contentMode = 'moc_index'
+      }
       const parts = sourceSectionParts(displayNote, candidate.source)
       const prefix = `\n${parts.prefix}`
       return {
         candidate,
         parts,
         prefix,
-        section: `${prefix}${parts.body}${parts.suffix}`
+        section: `${prefix}${parts.body}${candidate.source.relation === 'seed' && seedWasBudgetClipped ? TRUNCATION_MARKER : ''}${parts.suffix}`
       }
     })
   let renderedCandidates = renderCandidates()
@@ -976,8 +997,10 @@ function buildContextBundleInternal(
     )
     projectedContextSeed = projection.note
     seedWasQueryProjected = projection.projected
+    seedWasBudgetClipped = projection.budgetClipped
     if (seedWasQueryProjected) {
       candidates[0].note = projectedContextSeed
+      candidates[0].source.contentMode = 'section_projection'
       candidates[0].source.selectionReasons.push(projectedSelectionReason)
       renderedCandidates = renderCandidates()
     }
@@ -1046,8 +1069,9 @@ function buildContextBundleInternal(
       markdown += section
       included.push({
         ...candidate.source,
-        truncated: false
+        truncated: candidate.source.relation === 'seed' && seedWasBudgetClipped
       })
+      truncated ||= candidate.source.relation === 'seed' && seedWasBudgetClipped
       continue
     }
 
@@ -1228,6 +1252,7 @@ function temporalSource(
       path: note.path,
       name: note.name,
       relation: 'backlink',
+      contentMode: 'full_note',
       temporalStatus: 'superseded',
       selectionReasons: ['履歴として保持された置き換え済み情報']
     }
@@ -1238,6 +1263,7 @@ function temporalSource(
       path: note.path,
       name: note.name,
       relation: 'backlink',
+      contentMode: 'full_note',
       temporalStatus: 'occurred',
       selectionReasons: ['指定時点までに発生した出来事']
     }
@@ -1248,6 +1274,7 @@ function temporalSource(
       path: note.path,
       name: note.name,
       relation: 'backlink',
+      contentMode: 'full_note',
       temporalStatus: 'historical',
       selectionReasons: ['指定時点より前に終了した状態']
     }
@@ -1257,6 +1284,7 @@ function temporalSource(
     path: note.path,
     name: note.name,
     relation: 'backlink',
+    contentMode: 'full_note',
     temporalStatus: entry.evaluation.reviewDue ? 'review_due' : 'current',
     selectionReasons: [
       entry.evaluation.reviewDue
@@ -1291,6 +1319,14 @@ function resolveProvenance(
     : undefined
 }
 
+function rankNotesForQuery(notes: NoteDocument[], query: string | undefined): NoteDocument[] {
+  if (!query) return notes
+  return notes
+    .map((note, index) => ({ note, index, score: queryScore(note, query) }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map(({ note }) => note)
+}
+
 function queryScore(note: NoteDocument, rawQuery: string | undefined): number {
   const query = rawQuery?.trim().toLocaleLowerCase()
   if (!query) {
@@ -1302,7 +1338,8 @@ function queryScore(note: NoteDocument, rawQuery: string | undefined): number {
   const content = note.content.toLocaleLowerCase()
   const terms = [
     query,
-    ...query.split(/[\s、。,.!?！？:：/]+/).filter((term) => term.length >= 2)
+    ...query.split(/[\s、。,.!?！？:：/]+/).filter((term) => term.length >= 2),
+    ...segmentJapaneseQuery(query).filter((term) => term.length >= 2 || /^\p{Script=Han}$/u.test(term))
   ].filter((term, index, all) => all.indexOf(term) === index)
 
   return terms.reduce((score, term) => {

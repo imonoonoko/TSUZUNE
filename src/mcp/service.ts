@@ -25,13 +25,9 @@ import {
 } from './link-ops'
 import type { TemporalPerspective } from '../core/temporal'
 import { VaultError, VaultService } from '../main/vault'
-import {
-  isAiImmutablePath,
-  isAiReviewPath
-} from '../shared/ai-write-policy'
+import { isAiImmutablePath } from '../shared/ai-write-policy'
 import { isExcludedFilePath } from '../shared/excluded-files'
 import type {
-  AiWriteReviewProposal,
   LinkStatus,
   NoteDocument,
   VaultSnapshot
@@ -41,9 +37,7 @@ import {
   resolveVaultSource,
   type VaultSourceOptions
 } from './vault-source'
-import {
-  AiWriteReviewStore
-} from './review-proposals'
+import { withDerivedNoteWriteLock } from './derived-note-write'
 
 export interface SearchItem {
   id: string
@@ -174,6 +168,7 @@ export interface ContextOutput {
     name: string
     relation: ContextBundle['included'][number]['relation']
     truncated: boolean
+    content_mode: ContextBundle['included'][number]['contentMode']
     revision: string
     modified_at: string
     content_omitted?: boolean
@@ -200,15 +195,6 @@ export interface WriteOutput {
     modified_at: string
     revision: string
     size_bytes: number
-  }
-  pending_review?: true
-  proposal?: {
-    id: string
-    path: string
-    operation: 'create' | 'update'
-    reason: string
-    expected_revision: string | null
-    created_at: string
   }
 }
 export type DirectoryListEntry =
@@ -257,35 +243,8 @@ function directoryFingerprint(
     .digest('hex')
   return `sha256:${digest}`
 }
-function pendingReviewOutput(
-  proposal: AiWriteReviewProposal,
-  note: Pick<NoteDocument, 'name' | 'modifiedAt' | 'size'> | null
-): WriteOutput {
-  return {
-    id: proposal.path,
-    title: note?.name ?? basenameRelative(proposal.path).replace(/\.md$/i, ''),
-    metadata: {
-      path: proposal.path,
-      modified_at: note
-        ? new Date(note.modifiedAt).toISOString()
-        : proposal.createdAt,
-      revision: proposal.expectedRevision ?? `pending:${proposal.id}`,
-      size_bytes: note?.size ?? Buffer.byteLength(proposal.content, 'utf8')
-    },
-    pending_review: true,
-    proposal: {
-      id: proposal.id,
-      path: proposal.path,
-      operation: proposal.operation,
-      reason: proposal.reason,
-      expected_revision: proposal.expectedRevision,
-      created_at: proposal.createdAt
-    }
-  }
-}
-
 export interface AutonomousUpdateOptions {
-  expectedRevision?: string
+  expectedRevision: string
   reason?: string
   sourceRefs?: string[]
 }
@@ -360,16 +319,7 @@ export interface AddLinkOutput {
   link: string
   strategy: string
   previous_revision: string
-  new_revision?: string
-  pending_review?: true
-  proposal?: {
-    id: string
-    path: string
-    operation: 'create' | 'update'
-    reason: string
-    expected_revision: string | null
-    created_at: string
-  }
+  new_revision: string
 }
 
 export const MAX_EDITABLE_CHARACTERS = 100_000
@@ -486,15 +436,6 @@ function derivedNoteContent(input: {
 function assertAiWritable(path: string): void {
   if (isAiImmutablePath(path)) {
     throw new Error(`AIから変更できないノートです: ${path}`)
-  }
-}
-
-function assertNotReviewProtected(
-  path: string,
-  reviewPaths: readonly string[]
-): void {
-  if (isAiReviewPath(path, reviewPaths)) {
-    throw new Error('Review対象のノートは移動できません: ' + path)
   }
 }
 
@@ -643,13 +584,7 @@ function applyPatchOperations(
 }
 
 export class VaultMcpService {
-  private readonly reviewStore: AiWriteReviewStore
-
-  constructor(private readonly source: VaultSourceOptions = {}) {
-    this.reviewStore = new AiWriteReviewStore(
-      source.settingsPath || defaultSettingsPath()
-    )
-  }
+  constructor(private readonly source: VaultSourceOptions = {}) {}
 
   async vaultIdentity(): Promise<string> {
     const source = await resolveVaultSource(this.source)
@@ -661,146 +596,14 @@ export class VaultMcpService {
   ): Promise<{
     vault: VaultService
     snapshot: VaultSnapshot
-    aiReviewPaths: string[]
   }> {
     const vault = new VaultService()
     const source = await resolveVaultSource(this.source)
     await vault.setRootPath(source.vaultPath)
     return {
       vault,
-      snapshot: await vault.scan(source.userIgnoreFilters, { persistCreationTimes }),
-      aiReviewPaths: source.aiReviewPaths
+      snapshot: await vault.scan(source.userIgnoreFilters, { persistCreationTimes })
     }
-  }
-
-  async listReviewProposals(): Promise<AiWriteReviewProposal[]> {
-    return this.reviewStore.list()
-  }
-
-  async cancelReviewProposal(id: string): Promise<void> {
-    if (!(await this.reviewStore.remove(id))) {
-      throw new Error('AI変更案が見つかりません。')
-    }
-  }
-
-  async approveReviewProposal(id: string): Promise<WriteOutput> {
-    const proposal = await this.reviewStore.get(id)
-    if (!proposal) throw new Error('AI変更案が見つかりません。')
-
-    const { vault, snapshot } = await this.snapshot()
-    assertAiWritable(proposal.path)
-    if (proposal.derivedGuard) {
-      const guard = proposal.derivedGuard
-      const invalidate = async (message: string): Promise<never> => {
-        await this.reviewStore.remove(id)
-        throw new VaultError({ code: 'FILE_CHANGED', message })
-      }
-      const source = snapshot.notes.find(
-        (note) => note.path.toLowerCase() === guard.sourcePath.toLowerCase()
-      )
-      if (!source) {
-        return invalidate('原典またはカテゴリが変更されたため変更案は失効しました。')
-      }
-      const root = source.path.split('/')[0].toLowerCase()
-      let categoryIsCurrent = false
-      try {
-        categoryIsCurrent = canonicalCategories(snapshot).includes(guard.category)
-      } catch {
-        categoryIsCurrent = false
-      }
-      if (
-        (root !== '01_受信箱' && root !== '40_情報源') ||
-        basenameRelative(source.path).toLowerCase() === 'knowledge.md' ||
-        revisionFor(snapshot.rootPath, source) !== guard.sourceRevision ||
-        !categoryIsCurrent
-      ) {
-        await invalidate('原典またはカテゴリが変更されたため変更案は失効しました。')
-      }
-      let link = ''
-      try {
-        link = derivedSourceLink(source.path)
-        const resolved = resolveLinkTarget(
-          snapshot,
-          proposal.path,
-          source.path.replace(/\.md$/i, ''),
-          compilePathAliases(snapshot.pathAliases ?? {})
-        )
-        if (resolved.path.toLowerCase() !== source.path.toLowerCase()) {
-          throw new Error('原典以外へ解決されました。')
-        }
-      } catch {
-        await invalidate('原典リンクを解決できないため変更案は失効しました。')
-      }
-      if (
-        snapshot.notes.some(
-          (note) =>
-            note.path.startsWith('30_知識/') &&
-            hasDerivedSource(
-              note.content,
-              link,
-              guard.sourceRevision,
-              guard.derivationKey
-            )
-        )
-      ) {
-        await invalidate('同じ原典revisionの派生ノートが既に存在します。')
-      }
-    }
-
-    if (proposal.operation === 'create') {
-      if (
-        snapshot.notes.some(
-          (note) => note.path.toLowerCase() === proposal.path.toLowerCase()
-        )
-      ) {
-        await this.reviewStore.remove(id)
-        throw new VaultError({
-          code: 'FILE_CHANGED',
-          message:
-            '承認待ちの間に同じノートが作成されました。変更案は失効しました。'
-        })
-      }
-      const created = await vault.createNote({
-        directory: dirnameRelative(proposal.path),
-        name: basenameRelative(proposal.path),
-        content: proposal.content
-      })
-      const note = await vault.readNote(created.path)
-      await this.reviewStore.remove(id)
-      return writeOutput(snapshot.rootPath, note)
-    }
-
-    const existing = snapshot.notes.find(
-      (note) => note.path.toLowerCase() === proposal.path.toLowerCase()
-    )
-    if (!existing) {
-      await this.reviewStore.remove(id)
-      throw new VaultError({
-        code: 'FILE_CHANGED',
-        message: '承認待ちの間にノートが削除されました。変更案は失効しました。'
-      })
-    }
-    const canonical = canonicalNote(snapshot, existing.path)
-    const current = await vault.readNote(canonical.path)
-    const currentRevision = revisionFor(snapshot.rootPath, current)
-    if (currentRevision !== proposal.expectedRevision) {
-      await this.reviewStore.remove(id)
-      throw new VaultError({
-        code: 'FILE_CHANGED',
-        message: '承認待ちの間にノートが変更されました。変更案は失効しました。',
-        currentModifiedAt: current.modifiedAt
-      })
-    }
-
-    await vault.saveNote({
-      path: canonical.path,
-      content: proposal.content,
-      expectedModifiedAt: current.modifiedAt,
-      expectedContent: current.content
-    })
-    const note = await vault.readNote(canonical.path)
-    await this.reviewStore.remove(id)
-    return writeOutput(snapshot.rootPath, note)
   }
 
   async search(query: string, limit = 10): Promise<SearchOutput> {
@@ -837,7 +640,7 @@ export class VaultMcpService {
       )
     }
 
-    const { vault, snapshot, aiReviewPaths } = await this.snapshot()
+    const { vault, snapshot } = await this.snapshot()
     assertAiWritable(validation.normalized)
 
     if (
@@ -847,17 +650,6 @@ export class VaultMcpService {
       )
     ) {
       throw new Error(`ノートは既に存在します: ${validation.normalized}`)
-    }
-    if (isAiReviewPath(validation.normalized, aiReviewPaths)) {
-      const proposal = await this.reviewStore.add({
-        path: validation.normalized,
-        operation: 'create',
-        content,
-        expectedRevision: null,
-        reason: 'AIによるノート作成',
-        sourceRefs: []
-      })
-      return pendingReviewOutput(proposal, null)
     }
 
     const created = await vault.createNote({
@@ -880,6 +672,17 @@ export class VaultMcpService {
   }
 
   async proposeDerivedNote(input: DerivedNoteInput): Promise<WriteOutput> {
+    return this.createDerivedNote(input)
+  }
+
+  async createDerivedNote(input: DerivedNoteInput): Promise<WriteOutput> {
+    return withDerivedNoteWriteLock(
+      this.source.settingsPath || defaultSettingsPath(),
+      () => this.writeDerivedNote(input)
+    )
+  }
+
+  private async writeDerivedNote(input: DerivedNoteInput): Promise<WriteOutput> {
     assertEditableLength(input.content)
     if (!input.content.trim()) {
       throw new Error('派生ノートの本文を指定してください。')
@@ -936,7 +739,7 @@ export class VaultMcpService {
     }
     derivedSourceLink(sourceValidation.normalized)
 
-    const { snapshot } = await this.snapshot()
+    const { vault, snapshot } = await this.snapshot()
     const category = assertDerivedCategory(normalizedCategory, snapshot)
 
     if (
@@ -983,22 +786,6 @@ export class VaultMcpService {
     ) {
       throw new Error('同じ原典revisionから派生ノートが既に存在します。')
     }
-    if (
-      (await this.reviewStore.list()).some(
-        (proposal) =>
-          proposal.operation === 'create' &&
-          proposal.path.startsWith('30_知識/') &&
-          hasDerivedSource(
-            proposal.content,
-            sourceLink,
-            input.sourceRevision,
-            derivationKey
-          )
-      )
-    ) {
-      throw new Error('同じ原典revisionの派生ノート提案が既に存在します。')
-    }
-
     const derivedContent = derivedNoteContent({
       destination: validation.normalized,
       content: input.content,
@@ -1010,73 +797,19 @@ export class VaultMcpService {
     })
     assertEditableLength(derivedContent)
 
-    const proposal = await this.reviewStore.add({
-      path: validation.normalized,
-      operation: 'create',
-      content: derivedContent,
-      expectedRevision: null,
-      reason: `カテゴリ付き派生知識ノート作成（${category}）`,
-      sourceRefs: [source.path],
-      derivedGuard: {
-        sourcePath: source.path,
-        sourceRevision: input.sourceRevision,
-        category,
-        ...(derivationKey ? { derivationKey } : {})
-      }
+    // Recheck the source and category at the write boundary without a human wait.
+    const currentSource = await vault.readNote(source.path)
+    if (revisionFor(snapshot.rootPath, currentSource) !== input.sourceRevision) {
+      throw new VaultError({ code: 'FILE_CHANGED', message: '原典が変更されています。再取得してください。' })
+    }
+    const currentCategory = await vault.readNote('30_知識/TSUZUNE分類と保存基準.md')
+    assertDerivedCategory(category, { ...snapshot, notes: [currentCategory] })
+    const created = await vault.createNote({
+      directory: dirnameRelative(validation.normalized),
+      name: basenameRelative(validation.normalized),
+      content: derivedContent
     })
-    return pendingReviewOutput(proposal, null)
-  }
-
-  async createDerivedNote(input: DerivedNoteInput): Promise<WriteOutput> {
-    const sourcePath = input.sourceId.trim().replaceAll('\\', '/')
-    const derivationKey = input.derivationKey
-      ? normalizeDerivedLabel(input.derivationKey, 'derivation_key')
-      : undefined
-    const sameRevision = (await this.reviewStore.list()).filter(
-      (proposal) =>
-        proposal.derivedGuard?.sourcePath.toLowerCase() ===
-          sourcePath.toLowerCase() &&
-        proposal.derivedGuard.sourceRevision === input.sourceRevision
-    )
-    const existing = sameRevision.find(
-      (proposal) => proposal.derivedGuard?.derivationKey === derivationKey
-    )
-    if (existing) {
-      const destination = input.destination.trim().replaceAll('\\', '/')
-      const category = normalizeDerivedLabel(input.category, 'category')
-      const topics = input.topics.map((topic) =>
-        normalizeDerivedLabel(topic, 'topic')
-      )
-      const expectedContent = derivedNoteContent({
-        destination,
-        content: input.content,
-        category,
-        topics,
-        sourcePath: existing.derivedGuard!.sourcePath,
-        sourceRevision: input.sourceRevision,
-        derivationKey
-      })
-      if (
-        existing.path.toLowerCase() === destination.toLowerCase() &&
-        existing.content === expectedContent
-      ) {
-        return this.approveReviewProposal(existing.id)
-      }
-      await this.reviewStore.remove(existing.id)
-    }
-    if (derivationKey) {
-      for (const legacy of sameRevision.filter(
-        (proposal) => proposal.derivedGuard?.derivationKey === undefined
-      )) {
-        await this.reviewStore.remove(legacy.id)
-      }
-    }
-
-    const staged = await this.proposeDerivedNote(input)
-    if (!staged.proposal) {
-      throw new Error('派生ノートの内部検証に失敗しました。')
-    }
-    return this.approveReviewProposal(staged.proposal.id)
+    return writeOutput(snapshot.rootPath, await vault.readNote(created.path))
   }
 
   async createDirectory(path: string): Promise<{ path: string }> {
@@ -1086,13 +819,8 @@ export class VaultMcpService {
       throw new Error('Vault内の新しいフォルダの相対パスを指定してください。')
     }
 
-    const { vault, aiReviewPaths } = await this.snapshot()
+    const { vault } = await this.snapshot()
     assertAiWritable(validation.normalized)
-    if (isAiReviewPath(validation.normalized, aiReviewPaths)) {
-      throw new Error(
-        `Review対象のフォルダは作成できません: ${validation.normalized}`
-      )
-    }
     return vault.createDirectory({
       parent: dirnameRelative(validation.normalized),
       name: basenameRelative(validation.normalized)
@@ -1229,7 +957,7 @@ export class VaultMcpService {
     expectedRevision: string
   ): Promise<WriteOutput> {
     assertEditableLength(content)
-    const { vault, snapshot, aiReviewPaths } = await this.snapshot()
+    const { vault, snapshot } = await this.snapshot()
     const canonical = canonicalNote(snapshot, id)
     assertAiWritable(canonical.path)
     const current = await vault.readNote(canonical.path)
@@ -1241,17 +969,6 @@ export class VaultMcpService {
           'このノートは取得後に変更されたか、別のVaultへ切り替わりました。再取得してから更新してください。',
         currentModifiedAt: current.modifiedAt
       })
-    }
-    if (isAiReviewPath(canonical.path, aiReviewPaths)) {
-      const proposal = await this.reviewStore.add({
-        path: canonical.path,
-        operation: 'update',
-        content,
-        expectedRevision,
-        reason: 'AI変更案の承認',
-        sourceRefs: []
-      })
-      return pendingReviewOutput(proposal, current)
     }
     await vault.saveNote({
       path: canonical.path,
@@ -1276,20 +993,20 @@ export class VaultMcpService {
   async autonomousUpdateNote(
     id: string,
     content: string,
-    options: AutonomousUpdateOptions = {}
+    options: AutonomousUpdateOptions
   ): Promise<AutonomousUpdateOutput> {
+    if (!options?.expectedRevision) {
+      throw new Error('expected_revision is required. Fetch the note and reconcile changes before updating.')
+    }
     assertEditableLength(content)
-    const { vault, snapshot, aiReviewPaths } = await this.snapshot()
+    const { vault, snapshot } = await this.snapshot()
     const canonical = canonicalNote(snapshot, id)
     assertAiWritable(canonical.path)
     const current = await vault.readNote(canonical.path)
     assertEditableLength(current.content)
     const previousRevision = revisionFor(snapshot.rootPath, current)
 
-    if (
-      options.expectedRevision &&
-      options.expectedRevision !== previousRevision
-    ) {
+    if (options.expectedRevision !== previousRevision) {
       throw new VaultError({
         code: 'FILE_CHANGED',
         message:
@@ -1323,25 +1040,6 @@ export class VaultMcpService {
       }
     }
 
-    if (isAiReviewPath(canonical.path, aiReviewPaths)) {
-      const proposal = await this.reviewStore.add({
-        path: canonical.path,
-        operation: 'update',
-        content,
-        expectedRevision: previousRevision,
-        reason,
-        sourceRefs
-      })
-      return {
-        ...pendingReviewOutput(proposal, current),
-        provenance: {
-          actor: 'ai',
-          reason,
-          source_refs: sourceRefs,
-          previous_revision: previousRevision
-        }
-      }
-    }
 
     await vault.saveNote({
       path: canonical.path,
@@ -1378,7 +1076,7 @@ export class VaultMcpService {
     if (operations.length === 0 || operations.length > 20) {
       throw new Error('operationsは1〜20件で指定してください。')
     }
-    const { vault, snapshot, aiReviewPaths } = await this.snapshot()
+    const { vault, snapshot } = await this.snapshot()
     const canonical = canonicalNote(snapshot, id)
     assertAiWritable(canonical.path)
     const current = await vault.readNote(canonical.path)
@@ -1407,26 +1105,6 @@ export class VaultMcpService {
     const content = restoreNewlines(patch.content, newlineStyle)
     assertEditableLength(content)
 
-    if (isAiReviewPath(canonical.path, aiReviewPaths)) {
-      const proposal = await this.reviewStore.add({
-        path: canonical.path,
-        operation: 'update',
-        content,
-        expectedRevision: previousRevision,
-        reason,
-        sourceRefs
-      })
-      return {
-        ...pendingReviewOutput(proposal, current),
-        provenance: {
-          actor: 'ai',
-          reason,
-          source_refs: sourceRefs,
-          previous_revision: previousRevision
-        },
-        patch: { operations: patch.operations }
-      }
-    }
 
     await vault.saveNote({
       path: canonical.path,
@@ -1554,7 +1232,7 @@ export class VaultMcpService {
     target: string,
     options: AddLinkOptions = {}
   ): Promise<AddLinkOutput> {
-    const { vault, snapshot, aiReviewPaths } = await this.snapshot()
+    const { vault, snapshot } = await this.snapshot()
     const aliases = compilePathAliases(snapshot.pathAliases ?? {})
     const canonical = canonicalNote(snapshot, source, aliases)
     assertAiWritable(canonical.path)
@@ -1604,37 +1282,6 @@ export class VaultMcpService {
       plan.insertedText
     )
     assertEditableLength(plan.newContent)
-    const reason = options.reason?.trim() || 'AIによるWikiリンク追加'
-    const sourceRefs = (options.sourceRefs ?? [])
-      .map((sourceRef) => sourceRef.trim())
-      .filter(Boolean)
-
-    if (isAiReviewPath(canonical.path, aiReviewPaths)) {
-      const proposal = await this.reviewStore.add({
-        path: canonical.path,
-        operation: 'update',
-        content: plan.newContent,
-        expectedRevision: previousRevision,
-        reason,
-        sourceRefs
-      })
-      return {
-        source: canonical.path,
-        target: targetNote.path,
-        link: plan.link,
-        strategy: plan.strategy,
-        previous_revision: previousRevision,
-        pending_review: true,
-        proposal: {
-          id: proposal.id,
-          path: proposal.path,
-          operation: proposal.operation,
-          reason: proposal.reason,
-          expected_revision: proposal.expectedRevision,
-          created_at: proposal.createdAt
-        }
-      }
-    }
 
     await vault.saveNote({
       path: canonical.path,
@@ -1679,6 +1326,7 @@ export class VaultMcpService {
         path,
         name,
         relation,
+        contentMode,
         truncated,
         contentOmitted,
         temporalStatus,
@@ -1693,6 +1341,7 @@ export class VaultMcpService {
           name,
           relation,
           truncated,
+          content_mode: contentMode,
           revision: revisionFor(snapshot.rootPath, source),
           modified_at: new Date(source.modifiedAt).toISOString(),
           ...(contentOmitted ? { content_omitted: true } : {}),

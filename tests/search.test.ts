@@ -173,4 +173,67 @@ describe('ranked note search', () => {
       '30_知識/原則.md'
     ])
   })
+
+  const padding = 'X'.repeat(200)
+  const leadingContext = '…' + 'X'.repeat(45)
+  const firstPage = 'X'.repeat(120)
+  const excerptCases: [string, string, string, string, string | null][] = [
+    ['D01: late segmented match', '再利用の導線', 'cases/entry.md',
+      padding + '\n再利用の話。', '…' + 'X'.repeat(44) + ' 再利用の話。'],
+    ['D02: preserves an existing phrase', '再利用の導線', 'cases/entry.md',
+      '再利用' + padding + '再利用の導線', leadingContext + '再利用の導線'],
+    ['D03: preserves excerptQuery after a filter', 'path:cases 再利用の導線', 'cases/entry.md',
+      '再利用' + padding + '再利用の導線', leadingContext + '再利用の導線'],
+    ['D04: case-insensitive fallback', 'ALPHA BETA', 'cases/ALPHA.md',
+      padding + 'bEtA', leadingContext + 'bEtA'],
+    ['D05: preserves a quoted space phrase', '"alpha beta" gamma', 'cases/alpha beta.md',
+      'alphaZZbeta' + padding + 'gamma', leadingContext + 'gamma'],
+    ['D06: existing Japanese quote segmentation', '"再利用の導線"', 'cases/entry.md',
+      padding + '再利用', leadingContext + '再利用'],
+    ['D07: longest match at the same position', 'anchor abc abcdef', 'cases/anchor.md',
+      padding + 'abcdef' + 'Y'.repeat(75) + 'END', leadingContext + 'abcdef' + 'Y'.repeat(75) + '…'],
+    ['D08: title-only match', '再利用の導線', 'cases/再利用.md', padding, firstPage],
+    ['D09: path-only match', '再利用の導線', 'cases/再利用/entry.md', padding, firstPage],
+    ['D10: filter-only keeps its existing excerpt', 'path:cases', 'cases/entry.md',
+      padding + 'path:cases', leadingContext + 'path:cases'],
+    ['D11: negative-only keeps its existing excerpt', '-secret', 'cases/entry.md', padding, firstPage],
+    ['D12: never uses a filter as a fallback term', 'path:cases 再利用の導線 -secret', 'cases/entry.md',
+      'cases' + padding + '再利用', leadingContext + '再利用'],
+    ['D13: first body position before term order', 'anchor beta gamma', 'cases/anchor.md',
+      'gamma' + padding + 'beta', 'gamma' + 'X'.repeat(75) + '…'],
+    ['D14: empty query', '', 'cases/entry.md', padding, null],
+    ['D15: filter still rejects', 'path:absent 再利用の導線', 'cases/entry.md', padding + '再利用', null],
+    ['D16: negation still rejects', '再利用の導線 -secret', 'cases/entry.md', padding + '再利用 secret', null],
+    ['D17: a quoted phrase is not split', '"alpha beta"', 'cases/entry.md', padding + 'alphaZZbeta', null],
+    ['D18: standalone dash', '-', 'cases/entry.md', padding + '-', null],
+    ['D19: start and whitespace boundaries', '再利用の導線', 'cases/entry.md', '再利用\n\n説明', '再利用 説明']
+  ]
+
+  it.each(excerptCases)('%s', (_label, query, path, content, expectedExcerpt) => {
+    const results = searchRendererRanked([note(path, content)], query)
+
+    if (expectedExcerpt === null) {
+      expect(results).toEqual([])
+    } else {
+      expect(results).toHaveLength(1)
+      expect(results[0]).toMatchObject({ path, excerpt: expectedExcerpt })
+    }
+  })
+
+  it('D20: preserves score, time, path order and search metadata', () => {
+    const results = searchRendererRanked([
+      note('cases/b.md', padding + '再利用', 2),
+      note('cases/a.md', padding + '再利用', 2),
+      note('cases/old.md', padding + '再利用', 1),
+      note('cases/再利用.md', padding, 1),
+      note('cases/unrelated.md', padding, 9)
+    ], '再利用の導線')
+
+    expect(results.map(({ excerpt, ...metadata }) => metadata)).toEqual([
+      { path: 'cases/再利用.md', name: '再利用', modifiedAt: 1, score: 120 },
+      { path: 'cases/a.md', name: 'a', modifiedAt: 2, score: 10 },
+      { path: 'cases/b.md', name: 'b', modifiedAt: 2, score: 10 },
+      { path: 'cases/old.md', name: 'old', modifiedAt: 1, score: 10 }
+    ])
+  })
 })

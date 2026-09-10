@@ -7,9 +7,9 @@ import {
   type IpcMainInvokeEvent
 } from 'electron'
 import { readFile } from 'node:fs/promises'
+import { isAbsolute, resolve } from 'node:path'
 import type {
   AppError,
-  AiWriteReviewProposal,
   AppUpdateStatus,
   CalendarPluginRuntimeStatus,
   CalendarPluginSettings,
@@ -41,10 +41,10 @@ import { parseGraphFilterSettings } from '../shared/graph-filters'
 import { parseGraphGroups } from '../shared/graph-groups'
 import { parseGraphViewState } from '../shared/graph-view-state'
 import { parseUserIgnoreFilters } from '../shared/excluded-files'
-import { parseAiReviewPaths } from '../shared/ai-write-policy'
-import { updateSettings, readSettings, settingsPath } from './settings'
-import { VaultMcpService } from '../mcp/service'
+import { updateSettings, readSettings } from './settings'
 import { VaultError, VaultService } from './vault'
+import { WorkspaceService } from './workspaces'
+import type { WorkspaceScope, WorkspaceSnapshotV1 } from '../shared/workspace-state'
 import { EntryMoveCoordinator } from './entry-move'
 import { VaultWatcher } from './watcher'
 import type { GoogleConnectionService } from './google-connection'
@@ -241,6 +241,7 @@ export function registerIpc(
 
   const entryMove =
     entryMoveOverride ?? new EntryMoveCoordinator({ vault, drive: google.driveSync })
+  const workspaces = new WorkspaceService(vault)
 
   registerTrusted('vault:choose', async () => {
     const options: Electron.OpenDialogOptions = {
@@ -327,8 +328,54 @@ export function registerIpc(
 
   registerTrusted('vault:snapshot', () => vault.scan())
   registerTrusted('vault:readNote', (path: string) => vault.readNote(path))
+  registerTrusted('vault:readBase', (path: string) => vault.readBase(path))
+  registerTrusted('vault:listBases', async (expectedVaultPath: string) => {
+    if (
+      typeof expectedVaultPath !== 'string' ||
+      expectedVaultPath.length === 0 ||
+      !isAbsolute(expectedVaultPath)
+    ) {
+      throw new VaultError({ code: 'INVALID_PATH', message: 'Vaultの場所が不正です。' })
+    }
+    const root = vault.getRootPath()
+    const revision = vault.getRootRevision()
+    if (!root) {
+      throw new VaultError({ code: 'NO_VAULT', message: '先にVaultを開いてください。' })
+    }
+    if (resolve(expectedVaultPath) !== root) {
+      throw new VaultError({ code: 'FILE_CHANGED', message: '別のVaultが開かれています。' })
+    }
+    const settings = await readSettings()
+    if (vault.getRootPath() !== root || vault.getRootRevision() !== revision) {
+      throw new VaultError({
+        code: 'FILE_CHANGED',
+        message: 'Vaultが切り替わったため、古い一覧を破棄しました。'
+      })
+    }
+    return vault.listBases(expectedVaultPath, settings.userIgnoreFilters)
+  })
   registerTrusted('vault:readImage', (path: string) => vault.readImageDataUrl(path))
   registerTrusted('settings:get', () => readSettings())
+  registerTrusted('workspaces:get', (expectedVaultPath: string) =>
+    workspaces.getWorkspaces(expectedVaultPath)
+  )
+  registerTrusted(
+    'workspaces:save',
+    (
+      scope: WorkspaceScope,
+      name: string,
+      snapshot: WorkspaceSnapshotV1,
+      replaceExisting: boolean
+    ) => workspaces.saveWorkspace(scope, name, snapshot, replaceExisting)
+  )
+  registerTrusted('workspaces:delete', (scope: WorkspaceScope, name: string) =>
+    workspaces.deleteWorkspace(scope, name)
+  )
+  registerTrusted(
+    'workspaces:saveLastSession',
+    (scope: WorkspaceScope, snapshot: WorkspaceSnapshotV1) =>
+      workspaces.saveLastWorkspaceSession(scope, snapshot)
+  )
   registerTrusted('obsidianPlugins:list', () =>
     listObsidianPluginCandidates(vault.getRootPath())
   )
@@ -472,11 +519,6 @@ export function registerIpc(
     return null
   })
 
-  registerTrusted('settings:setAiReviewPaths', async (paths: string[]) => {
-    await updateSettings({ aiReviewPaths: parseAiReviewPaths(paths) })
-    return null
-  })
-
   registerTrusted('settings:setTemplates', async (settings: TemplateSettings) => {
     const directory = settings.directory.trim().replaceAll('\\', '/').replace(/^\/+|\/+$/g, '')
     const snapshot = await vault.scan()
@@ -499,22 +541,6 @@ export function registerIpc(
       return null
     }
   )
-
-  registerTrusted('aiReview:list', async (): Promise<AiWriteReviewProposal[]> => {
-    return new VaultMcpService({ settingsPath: settingsPath() }).listReviewProposals()
-  })
-
-  registerTrusted('aiReview:approve', async (id: string) => {
-    const result = await new VaultMcpService({
-      settingsPath: settingsPath()
-    }).approveReviewProposal(id)
-    return { path: result.id }
-  })
-
-  registerTrusted('aiReview:cancel', async (id: string) => {
-    await new VaultMcpService({ settingsPath: settingsPath() }).cancelReviewProposal(id)
-    return null
-  })
 
   registerTrusted('settings:setGraphForces', async (settings: GraphForceSettings) => {
     await updateSettings({ graphForces: parseGraphForceSettings(settings) })

@@ -41,6 +41,12 @@ describe('context bundle', () => {
       'outgoing',
       'backlink'
     ])
+    expect(bundle.included.map((source) => source.contentMode)).toEqual([
+      'full_note',
+      'full_note',
+      'full_note',
+      'full_note'
+    ])
     expect(bundle.markdown).toContain('Path: Project.md')
     expect(bundle.truncated).toBe(false)
   })
@@ -100,6 +106,7 @@ describe('context bundle', () => {
         path: '00_入口/知識地図.md',
         name: '知識地図',
         relation: 'seed',
+        contentMode: 'moc_index',
         truncated: false,
         selectionReasons: ['MOCタイトル索引']
       }
@@ -159,6 +166,18 @@ describe('context bundle', () => {
     expect(queried.truncated).toBe(false)
     expect(queried.query).toBe(query)
     expect(queried.markdown).not.toContain('Query:')
+    expect(queried.included[0]).toMatchObject({
+      contentMode: 'moc_index',
+      truncated: false
+    })
+    const compact = buildContextBundle('Map.md', mocNotes, {
+      maxCharacters: 600,
+      generatedAt
+    })
+    expect(compact.included[0]).toMatchObject({
+      contentMode: 'moc_index',
+      truncated: true
+    })
   })
 
   it('does not infer MOC behavior from a note name', () => {
@@ -176,35 +195,49 @@ describe('context bundle', () => {
     expect(bundle.markdown).toContain('ALPHA_BODY_SENTINEL')
   })
 
-  it('projects a linked MOC without expanding its descriptions', () => {
-    const linkedMoc = [
-      note('Home.md', '# Home\n\n[[知識地図]]'),
-      note(
-        '知識地図.md',
-        [
-          '---',
-          'type: moc',
-          '---',
-          '# 知識地図',
-          '',
-          'MOC_DESCRIPTION_SENTINEL',
-          '- [[Alpha]] — ALPHA_DESCRIPTION_SENTINEL'
-        ].join('\n')
-      ),
-      note('Alpha.md', '# Alpha\n\nALPHA_BODY_SENTINEL')
-    ]
+  it.each(['outgoing', 'backlink', 'temporal'])(
+    'projects a %s MOC without expanding its descriptions',
+    (relation) => {
+      const linkedMoc = [
+        note('Home.md', relation === 'outgoing' ? '# Home\n\n[[知識地図]]' : '# Home'),
+        note(
+          '知識地図.md',
+          [
+            '---',
+            'type: moc',
+            ...(relation === 'temporal'
+              ? ['kind: state', 'subject: "[[Home]]"', 'status: active', 'valid_from: 2026-08-01']
+              : []),
+            '---',
+            '# 知識地図',
+            '',
+            'MOC_DESCRIPTION_SENTINEL',
+            ...(relation === 'backlink' ? ['[[Home]]'] : []),
+            '- [[Alpha]] — ALPHA_DESCRIPTION_SENTINEL'
+          ].join('\n')
+        ),
+        note('Alpha.md', '# Alpha\n\nALPHA_BODY_SENTINEL')
+      ]
 
-    const bundle = buildContextBundle('Home.md', linkedMoc)
+      const bundle = buildContextBundle('Home.md', linkedMoc, {
+        generatedAt: '2026-09-09T00:00:00Z'
+      })
 
-    expect(bundle.included.map((source) => source.path)).toEqual([
-      'Home.md',
-      '知識地図.md'
-    ])
-    expect(bundle.markdown).toContain('- [[Alpha]]')
-    expect(bundle.markdown).not.toContain('MOC_DESCRIPTION_SENTINEL')
-    expect(bundle.markdown).not.toContain('ALPHA_DESCRIPTION_SENTINEL')
-    expect(bundle.markdown).not.toContain('ALPHA_BODY_SENTINEL')
-  })
+      expect(bundle.included.map((source) => source.path)).toEqual([
+        'Home.md',
+        '知識地図.md'
+      ])
+      expect(bundle.included[1]).toMatchObject({
+        relation: relation === 'outgoing' ? 'outgoing' : 'backlink',
+        contentMode: 'moc_index',
+        truncated: false
+      })
+      expect(bundle.markdown).toContain('- [[Alpha]]')
+      expect(bundle.markdown).not.toContain('MOC_DESCRIPTION_SENTINEL')
+      expect(bundle.markdown).not.toContain('ALPHA_DESCRIPTION_SENTINEL')
+      expect(bundle.markdown).not.toContain('ALPHA_BODY_SENTINEL')
+    }
+  )
 
   it('keeps malformed frontmatter on the normal context path', () => {
     const malformed = [
@@ -215,6 +248,7 @@ describe('context bundle', () => {
     const bundle = buildContextBundle('知識地図.md', malformed)
 
     expect(bundle.included.map((source) => source.path)).toContain('Alpha.md')
+    expect(bundle.included[0].contentMode).toBe('full_note')
     expect(bundle.markdown).toContain('ALPHA_BODY_SENTINEL')
   })
 
@@ -233,7 +267,11 @@ describe('context bundle', () => {
     })
 
     expect(bundle.included).toContainEqual(
-      expect.objectContaining({ path: '知識地図.md', contentOmitted: true })
+      expect.objectContaining({
+        path: '知識地図.md',
+        contentMode: 'body_omitted',
+        contentOmitted: true
+      })
     )
     expect(bundle.markdown).not.toContain('MOC_DESCRIPTION_SENTINEL')
     expect(bundle.markdown).not.toContain('[[Future]]')
@@ -445,6 +483,7 @@ describe('context bundle', () => {
         path: 'Future.md',
         name: 'Future',
         relation: 'seed',
+        contentMode: 'body_omitted',
         truncated: false,
         contentOmitted: true,
         temporalStatus: 'future',
@@ -690,7 +729,7 @@ describe('context bundle', () => {
     expect(bundle.markdown).toContain('Temporal status: historical')
   })
 
-  it('prioritizes query matches only inside the baseline link quota', () => {
+  it('ranks query matches before applying the baseline link quota', () => {
     const queryNotes = [
       note(
         'Home.md',
@@ -710,13 +749,17 @@ describe('context bundle', () => {
     expect(bundle.included.map((source) => source.path)).toEqual([
       'Home.md',
       'Relevant.md',
-      'First.md'
+      'Outside.md'
     ])
     expect(bundle.included[1].selectionReasons).toEqual([
       '起点ノートからの明示リンク',
       '質問語に一致'
     ])
-    expect(bundle.omittedPaths).toContain('Outside.md')
+    expect(bundle.included[2].selectionReasons).toEqual([
+      '起点ノートからの明示リンク',
+      '質問語に一致'
+    ])
+    expect(bundle.omittedPaths).toContain('First.md')
   })
 
   it('projects matching heading sections from a long queried seed note', () => {
@@ -759,6 +802,7 @@ describe('context bundle', () => {
     expect(bundle.markdown).not.toContain('INTRO_SENTINEL')
     expect(bundle.markdown).not.toContain('CHRONOLOGY_SENTINEL')
     expect(bundle.characterCount).toBeLessThanOrEqual(1_200)
+    expect(bundle.included[0].contentMode).toBe('section_projection')
     expect(bundle.included[0].truncated).toBe(false)
     expect(bundle.included[0].selectionReasons).toContain(
       '質問に関連する見出し節'
@@ -964,6 +1008,7 @@ describe('context bundle', () => {
     expect(bundle.markdown).toContain('SECOND_SENTINEL')
     expect(bundle.markdown).toContain('THIRD_SENTINEL')
     expect(bundle.markdown).toContain('FOURTH_SENTINEL')
+    expect(bundle.included[0].contentMode).toBe('section_projection')
     expect(bundle.included[0].selectionReasons).toContain(
       '質問に関連する見出し節'
     )
@@ -1553,6 +1598,7 @@ describe('context bundle', () => {
     expect(bundle.characterCount).toBeLessThanOrEqual(600)
     expect(bundle.included[0]).toMatchObject({
       path: 'Long.md',
+      contentMode: 'full_note',
       truncated: true
     })
     expect(bundle.markdown).toMatch(
@@ -1647,6 +1693,7 @@ describe('context bundle', () => {
         path: 'Project.md',
         name: 'Project',
         relation: 'seed',
+        contentMode: 'full_note',
         truncated: false,
         selectionReasons: ['起点ノート']
       }

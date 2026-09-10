@@ -58,6 +58,17 @@ describe('CommandPaletteDialog', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
+  it('does not execute while a Japanese IME composition is being confirmed', () => {
+    const onExecute = vi.fn()
+    render(<CommandPaletteDialog commands={commands} onExecute={onExecute} onClose={vi.fn()} />)
+    const input = screen.getByRole('combobox')
+
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true })
+    fireEvent.keyDown(input, { key: 'Process' })
+
+    expect(onExecute).not.toHaveBeenCalled()
+  })
+
   it('executes by click, scrolls active option, traps Tab, and closes on Escape', () => {
     const onExecute = vi.fn()
     const onClose = vi.fn()
