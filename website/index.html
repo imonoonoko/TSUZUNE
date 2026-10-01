@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ja" class="no-js">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="TSUZUNEは、書いたことをあとからたどり直せる、個人の知識工房です。" />
+    <meta name="theme-color" content="#101613" />
+    <title>TSUZUNE — 書いたことを、あとからたどる</title>
+    <link rel="icon" href="./assets/tsuzune-mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script>document.documentElement.classList.replace('no-js', 'js');</script>
+    <script defer src="./app.js"></script>
+  </head>
+  <body>
+    
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="TSUZUNE ホーム">
+        <img src="./assets/tsuzune-mark.svg" alt="" class="brand-mark" />
+        <span>TSUZUNE</span>
+      </a>
+      <nav aria-label="メインナビゲーション">
+        <a href="#sample">サンプルを見る</a>
+        <a href="#about">考え方</a>
+        <a href="./privacy.html">プライバシー</a>
+        <a class="header-download" href="https://github.com/imonoonoko/TSUZUNE/releases/latest" target="_blank" rel="noreferrer">Windows版を入手 <span aria-hidden="true">↗</span></a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero shell" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="brand-line"><span class="live-dot"></span> PERSONAL KNOWLEDGE WORKSHOP</p>
+          <h1 id="hero-title">書いたことを、<br /><em>あとからたどる。</em></h1>
+          <p class="hero-lede">TSUZUNEは、日々の気づきや調査をMarkdownに残し、過去の自分の問いへ戻ってこられる、手元の知識工房です。</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://github.com/imonoonoko/TSUZUNE/releases/latest" target="_blank" rel="noreferrer">Windows版を入手 <span aria-hidden="true">↗</span></a>
+            <a class="under-link" href="#sample">ノートをたどる <span aria-hidden="true">↓</span></a>
+          </div>
+          <div class="hero-note">基本機能はアカウント不要<br />手元のWindowsで動作<br />Markdownが正本</div>
+        </div>
+
+        <div id="sample" class="sample-shell" aria-labelledby="sample-title">
+          <div class="sample-intro">
+            <div>
+              <p class="sample-label">PUBLIC SAMPLE <span>05 FRAGMENTS</span></p>
+              <h2 id="sample-title">一枚のノートから、<br /><em>考えの続きをひらく。</em></h2>
+            </div>
+            <p class="sample-hint">本文の印を選ぶと<br />つながりが現れます。</p>
+          </div>
+
+          <div class="note-workspace">
+            <div class="note-paper">
+              <div class="note-topline"><span>FIELD NOTE  /  2026.09.14</span><span>公開サンプル</span></div>
+              <svg class="note-thread" viewBox="0 0 120 720" aria-hidden="true" preserveAspectRatio="none">
+                <path data-link="question-observation" d="M84 45 C30 105 92 180 48 250" />
+                <path data-link="observation-discovery" d="M48 250 C18 320 90 360 55 438" />
+                <path data-link="discovery-return" d="M55 438 C25 505 89 555 58 625" />
+                <path data-link="question-source" d="M84 45 C110 160 17 310 55 438" />
+                <path data-link="source-return" d="M55 438 C110 490 26 590 58 625" />
+              </svg>
+              <div class="note-body">
+                <p class="note-kicker">歩くことについて</p>
+                <h3>散歩の途中で、<br />考えがほどける</h3>
+                <p class="note-lead">歩いていると、問題を解くより先に、問題の輪郭が変わる。</p>
+                <p>机の前では同じところを回っていた考えが、道を一本曲がるだけで、別の景色を見せる。答えを探していたはずなのに、いつの間にか<span class="note-mark-wrap"><button class="note-mark" type="button" data-node-id="question" aria-label="問いを選択">問い</button></span>の形を見直している。</p>
+                <p>だから、結論よりも先に、今日見えたことを<span class="note-mark-wrap"><button class="note-mark" type="button" data-node-id="observation" aria-label="記録を選択">記録</button></span>しておく。時間を置けば、別の日の読書や会話が<span class="note-mark-wrap"><button class="note-mark" type="button" data-node-id="discovery" aria-label="発見を選択">発見</button></span>の糸口になるかもしれない。</p>
+                <div class="note-source"><span class="source-rule"></span><span class="note-mark-wrap"><button class="note-mark note-mark-small" type="button" data-node-id="source" aria-label="出典を選択">出典</button></span><span>『歩くことと考えること』 p.42</span></div>
+                <p class="note-return"><span class="note-mark-wrap"><button class="note-mark" type="button" data-node-id="return" aria-label="再訪を選択">再訪</button></span>　来週、この問いに戻る。</p>
+              </div>
+            </div>
+
+            <aside class="thread-panel" aria-live="polite" aria-labelledby="inspector-title">
+              <div class="thread-heading"><span>THREAD / 01</span><span class="thread-pulse"></span></div>
+              <p id="inspector-kind" class="thread-kind">起点</p>
+              <h3 id="inspector-title">問い</h3>
+              <p id="inspector-summary">ふと残した疑問が、あとから考え直すための起点になる。</p>
+              <div class="thread-next">
+                <span>次にたどれる場所</span>
+                <div id="terrain-links"></div>
+              </div>
+            </aside>
+          </div>
+
+          <div class="sample-fallback">
+            <p>この公開サンプルにある5つの断片</p>
+            <ul>
+              <li><strong>問い</strong><span>考え直すための起点</span></li>
+              <li><strong>記録</strong><span>その日の観察</span></li>
+              <li><strong>発見</strong><span>別のノートとの接続</span></li>
+              <li><strong>出典</strong><span>考えの根拠</span></li>
+              <li><strong>再訪</strong><span>次の問いへ戻る</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="about" class="about shell" aria-labelledby="about-title">
+        <div class="about-heading">
+          <p class="section-label">THE METHOD</p>
+          <h2 id="about-title">ノートは、<br />答えをしまう場所ではなく<br /><em>続きを見つける場所。</em></h2>
+        </div>
+        <div class="about-copy">
+          <p class="about-lede">整理してから書くのではなく、書いたものがあとから整理を連れてくる。</p>
+          <p>TSUZUNEは、ノートを一つの結論に閉じ込めません。記録した文脈、考えの根拠、時間を置いて生まれる違和感。その小さな関係を見つけて、次に考える場所まで案内します。</p>
+          <div class="method-rail" aria-label="TSUZUNEの使い方">
+            <div><span>01</span><strong>残す</strong><p>気づきの温度を保つ</p></div>
+            <div><span>02</span><strong>つなぐ</strong><p>別の文脈と出会う</p></div>
+            <div><span>03</span><strong>戻る</strong><p>問いをもう一度ひらく</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="data" class="about shell" aria-labelledby="data-title">
+        <div class="about-heading"><p class="section-label">YOUR NOTES, YOUR CHOICE</p><h2 id="data-title">手元に保存して、<br /><em>必要なつながりを選ぶ。</em></h2></div>
+        <div class="about-copy">
+          <p class="about-lede">Markdownを正本に、日々の記録をつなげて使う。</p>
+          <div class="feature-lines">
+            <h3>Windowsで書いて、あとからたどる</h3><p>ノートと添付ファイルは、選んだVaultフォルダに保存します。Wikiリンクで関連するノートをつなぎ、Markdownファイルとして読み続けられます。基本の閲覧・編集にTSUZUNEアカウントは不要です。</p>
+            <h3>Google Drive同期は、必要なときに</h3><p>Googleアカウントを接続すると、対象VaultのMarkdownと対応する添付をDriveへ送信し、Drive側の変更も受信できます。Vaultごとに自動同期を選べます。自動同期は競合を検出すると適用を止め、確認を求めます。</p>
+            <h3>外部の道具とつなぐ</h3><p>任意のブラウザ拡張でWebページをノートに残せます。MCPを設定すると、外部クライアントからノートを読み取り、知識を扱えます。TSUZUNE自身にAI推論機能はなく、クラウドAIへの送信は接続先クライアントの利用方法によります。</p>
+          </div>
+          <p>Googleの本人情報・認証情報、同期、更新確認などの取扱いは、<a class="text-link" href="./privacy.html">プライバシーポリシー</a>で説明しています。</p>
+        </div>
+      </section>
+
+      <section class="download shell" aria-labelledby="download-title">
+        <div class="download-symbol"><img src="./assets/tsuzune-mark-inverse.svg" alt="" /></div>
+        <div class="download-copy"><p class="section-label">KEEP YOUR THREAD</p><h2 id="download-title">考えの続きを、<br /><em>手元に残す。</em></h2><p>Windowsで動く、個人のためのMarkdownノートアプリ。基本の保存先は手元のフォルダです。Google連携や外部MCPは必要に応じて選べます。Markdownが正本だから、TSUZUNEがなくても読み続けられます。</p><a class="button button-light" href="https://github.com/imonoonoko/TSUZUNE/releases/latest" target="_blank" rel="noreferrer">Windows x64版をダウンロード <span aria-hidden="true">↗</span></a><a class="source-link" href="https://github.com/imonoonoko/TSUZUNE" target="_blank" rel="noreferrer">設計とソースコードを見る <span aria-hidden="true">↗</span></a></div>
+      </section>
+    </main>
+
+    <p class="contact-note shell">GitHub Issuesへの投稿は公開されます。個人情報・ノート本文・認証情報は記載しないでください。</p>
+    <footer class="site-footer shell"><a class="brand" href="#top" aria-label="TSUZUNE ホーム"><img src="./assets/tsuzune-mark.svg" alt="" class="brand-mark" /><span>TSUZUNE</span></a><span>書いて、つないで、あとで尋ねる。</span><a href="./privacy.html">プライバシーポリシー</a><span>公開運営者：ONOKO · 問い合わせ先：<a href="https://github.com/imonoonoko/TSUZUNE/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a></span></footer>
+  </body>
+</html>
