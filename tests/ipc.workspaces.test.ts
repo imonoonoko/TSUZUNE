@@ -70,7 +70,7 @@ describe('workspace IPC', () => {
         { sender: window.webContents, senderFrame: window.webContents.mainFrame },
         vault.getRootPath()
       )
-    ).resolves.toMatchObject({ ok: true, value: { state: { version: 1, named: [] } } })
+    ).resolves.toMatchObject({ ok: true, value: { state: { version: 2, named: [] } } })
   })
 
   it('lists Bases through a trusted channel using settings-owned exclusions', async () => {

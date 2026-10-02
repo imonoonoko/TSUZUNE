@@ -3,8 +3,8 @@ import type { NoteDocument, VaultAttachment } from '../shared/types'
 import { matchesGraphQuery } from './graph-query'
 import {
   buildWikiLinkIndex,
-  extractWikiLinks,
-  resolveIndexedWikiLink
+  extractNoteLinks,
+  resolveIndexedNoteLink,
 } from './links'
 import type { CompiledPathAliases } from './path-aliases'
 import {
@@ -20,6 +20,7 @@ export interface WikiGraphNode {
   kind?: 'note' | 'unresolved' | 'tag' | 'attachment'
   exists?: boolean
   createdAt?: number | null
+  canCreate?: boolean
 }
 
 export interface WikiGraphEdge {
@@ -44,6 +45,7 @@ export interface LocalWikiGraphOptions {
   outgoingLinks: boolean
   incomingLinks: boolean
   neighborLinks: boolean
+  depth?: 1 | 2 | 3
 }
 
 const DEFAULT_LOCAL_GRAPH_OPTIONS: LocalWikiGraphOptions = {
@@ -151,7 +153,7 @@ export function buildWikiGraph(
     : []
 
   for (const source of notes) {
-    for (const link of extractWikiLinks(source.content)) {
+    for (const link of extractNoteLinks(source.content, source.path, true)) {
       const linkTarget = link.target.trim().split('#', 1)[0]
       if (isSupportedAttachmentPath(linkTarget)) {
         if (!options.includeAttachments) {
@@ -194,7 +196,7 @@ export function buildWikiGraph(
         continue
       }
 
-      const resolution = resolveIndexedWikiLink(link.target, linkIndex)
+      const resolution = resolveIndexedNoteLink(link, linkIndex)
       if (
         resolution.status === 'invalid' ||
         resolution.status === 'ambiguous'
@@ -212,12 +214,14 @@ export function buildWikiGraph(
         const existing = unresolvedNodes.get(unresolvedKey)
         if (existing) {
           targetPath = existing.path
+          if (link.kind === 'wiki') existing.canCreate = true
         } else {
           unresolvedNodes.set(unresolvedKey, {
             path: targetPath,
             name: withoutMarkdownExtension(basenameRelative(targetPath)),
             kind: 'unresolved',
-            exists: false
+            exists: false,
+            canCreate: link.kind === 'wiki'
           })
         }
       }
@@ -326,13 +330,20 @@ export function getLocalWikiGraph(
   }
 
   const localPaths = new Set<string>([currentPath])
-  for (const edge of graph.edges) {
-    if (options.outgoingLinks && edge.sourcePath === currentPath) {
-      localPaths.add(edge.targetPath)
+  const traversalEdges = new Set<WikiGraphEdge>()
+  let frontier = new Set([currentPath])
+  const depth = Math.max(1, Math.min(3, options.depth ?? 1))
+  for (let hop = 0; hop < depth; hop++) {
+    const next = new Set<string>()
+    for (const edge of graph.edges) {
+      const target = options.outgoingLinks && frontier.has(edge.sourcePath) ? edge.targetPath
+        : options.incomingLinks && frontier.has(edge.targetPath) ? edge.sourcePath : null
+      if (target === null) continue
+      traversalEdges.add(edge)
+      if (!localPaths.has(target)) next.add(target)
     }
-    if (options.incomingLinks && edge.targetPath === currentPath) {
-      localPaths.add(edge.sourcePath)
-    }
+    for (const path of next) localPaths.add(path)
+    frontier = next
   }
 
   return {
@@ -350,7 +361,7 @@ export function getLocalWikiGraph(
         if (edge.targetPath === currentPath) {
           return options.incomingLinks
         }
-        return options.neighborLinks
+        return traversalEdges.has(edge) || options.neighborLinks
       })
       .sort(
         (left, right) =>

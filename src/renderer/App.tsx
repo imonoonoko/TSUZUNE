@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import DriveAutoSyncSettings from './components/DriveAutoSyncSettings'
 import {
   buildNoteCreationPath,
   findLinkImpact,
@@ -10,6 +11,10 @@ import {
   extractMarkdownHeadings,
   type MarkdownHeading
 } from '../core/markdown-headings'
+import { resolveHeadingFragment, type NoteNavigationTarget } from '../core/note-navigation'
+import { resolveBookmarkTarget, headingBookmarkChoices } from '../core/bookmark-navigation'
+import { findUnlinkedMentions, type UnlinkedMention } from '../core/unlinked-mentions'
+import type { VaultBookmark, SaveBookmarkInput } from '../shared/bookmarks'
 import {
   buildWikiGraph,
   buildWikiGraphForView,
@@ -32,8 +37,12 @@ import type { CopyPathFormat } from '../core/paths'
 import { compilePathAliases, resolvePathAlias } from '../core/path-aliases'
 import { searchRendererRanked } from '../core/search'
 import { getNoteFreshness } from '../core/freshness'
-import { evaluateBase } from '../core/base-evaluator'
-import { parseBaseProfile } from '../core/base-profile'
+import { parseBaseProfile, basePropertyReferences } from '../core/base-profile'
+import { evaluateBaseInWorker } from './base-worker-client'
+import { createUserProfileMarkdown, parseUserProfile } from '../core/user-profile'
+import { setFrontmatterProperty, inspectFrontmatterProperty } from '../core/frontmatter'
+import { readPropertyAsDeclared } from '../core/property-changes'
+import { isAiImmutablePath } from '../shared/ai-write-policy'
 import {
   TEMPLATE_DIRECTORY,
   dailyTemplatePath,
@@ -78,6 +87,10 @@ import { DEFAULT_GRAPH_GROUPS } from '../shared/graph-groups'
 import { DEFAULT_GRAPH_VIEW_STATES } from '../shared/graph-view-state'
 import { createExcludedFileMatcher } from '../shared/excluded-files'
 import { buildPropertyInventory } from '../core/property-inventory'
+import { DEFAULT_HOTKEYS, matchHotkey, hotkeyLabel, ariaKeyshortcuts, type HotkeyCommandId, type HotkeySettings } from '../shared/hotkeys'
+import HotkeySettingsPanel from './components/HotkeySettings'
+import type { PropertyDeclaredType, PropertyChangeOperation, PropertyPreviewResult, PropertyApplyResult, PropertyChangeScope, PropertyValue } from '../shared/property-changes'
+import PropertyChangePanel from './components/PropertyChangePanel'
 import FileTree, { type TreeSelection } from './components/FileTree'
 import AttachmentPreview from './components/AttachmentPreview'
 import HumanNoteCaptureDialog, {
@@ -86,6 +99,7 @@ import HumanNoteCaptureDialog, {
 import Icon from './components/Icon'
 import MarkdownEditor, { type MarkdownEditorHandle } from './components/MarkdownEditor'
 import MarkdownPreview from './components/MarkdownPreview'
+import PaneActionsMenu from './components/PaneActionsMenu'
 import BookmarkDialog from './components/BookmarkDialog'
 import MoveDialog from './components/MoveDialog'
 import QuickNoteCreateDialog from './components/QuickNoteCreateDialog'
@@ -117,9 +131,15 @@ import BasePathDialog from './components/BasePathDialog'
 import BaseTableView, { type BaseTableState } from './components/BaseTableView'
 import tsuzuneMark from './assets/tsuzune-app-icon.png'
 import type { WorkspaceCollection, WorkspaceSnapshotV1 } from '../shared/workspace-state'
+import { migrateWorkspaceSnapshotV1, projectWorkspaceSnapshotV2, type WorkspaceSnapshotV2 } from '../shared/workspace-state'
+import { splitWorkspacePane, closeWorkspacePane, moveWorkspaceTab } from '../shared/pane-layout'
+import PaneLayout from './components/PaneLayout'
+import PaneAuxiliaryContent from './components/PaneAuxiliaryContent'
+import SidebarResizer from './components/SidebarResizer'
 
 type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict'
-type SettingsCategory = 'files' | 'templates' | 'plugins' | 'calendar'
+type HeldDraft = { content: string; expectedContent: string; modifiedAt: number; status: SaveStatus; conflict: ConflictState | null }
+type SettingsCategory = 'files' | 'templates' | 'plugins' | 'calendar' | 'hotkeys'
 
 const isNormalDiscoveryExcluded = createExcludedFileMatcher(['50_履歴'])
 
@@ -230,6 +250,12 @@ export default function App(): React.JSX.Element {
   const selectedPathRef = useRef<string | null>(null)
   const markdownEditorRef = useRef<MarkdownEditorHandle | null>(null)
   const [workspaceTabs, setWorkspaceTabs] = useState<WorkspaceTab[]>([])
+  const [paneWorkspace, setPaneWorkspace] = useState<WorkspaceSnapshotV2 | null>(null)
+  const heldDraftsRef = useRef(new Map<string, HeldDraft>())
+  const [, refreshDraftViews] = useState(0)
+  const [localGraphDepth, setLocalGraphDepth] = useState<1 | 2 | 3>(1)
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState(260)
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(240)
   const [activeTabId, setActiveTabId] = useState<number | null>(null)
   const [workspaceTabFocusId, setWorkspaceTabFocusId] = useState<number | null>(null)
   const workspaceTabRefs = useRef(new Map<number, HTMLButtonElement>())
@@ -250,6 +276,10 @@ export default function App(): React.JSX.Element {
   const baseDialogSessionRef = useRef(0)
   const baseDialogPreviousFocusRef = useRef<HTMLElement | null>(null)
   const [baseState, setBaseState] = useState<BaseTableState | null>(null)
+  const [baseViewIndex, setBaseViewIndex] = useState(0)
+  const [baseEvaluating, setBaseEvaluating] = useState(false)
+  const baseEvaluationRef = useRef<AbortController | null>(null)
+  const baseDocumentRef = useRef<import('../shared/types').BaseDocument | null>(null)
   const [baseReloadKey, setBaseReloadKey] = useState(0)
   const workspaceSnapshotRef = useRef<WorkspaceSnapshotV1 | null>(null)
   const workspaceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -273,7 +303,7 @@ export default function App(): React.JSX.Element {
   const versionRef = useRef(0)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveQueueRef = useRef<Promise<boolean>>(Promise.resolve(true))
-  const [viewMode, setViewMode] = useState<'edit' | 'preview' | 'graph'>('preview')
+  const [viewMode, setViewMode] = useState<'edit' | 'live-preview' | 'preview' | 'graph'>('preview')
   const [graphScope, setGraphScope] = useState<WikiGraphScope>('local')
   const [graphFilters, setGraphFilters] = useState<GraphFilterSettings>(
     DEFAULT_GRAPH_FILTER_SETTINGS
@@ -310,6 +340,15 @@ export default function App(): React.JSX.Element {
   const [settingsBusy, setSettingsBusy] = useState(false)
   const [settingsError, setSettingsError] = useState<string | null>(null)
   const [settingsCategory, setSettingsCategory] = useState<SettingsCategory>('files')
+  const [hotkeys, setHotkeys] = useState<HotkeySettings>(DEFAULT_HOTKEYS)
+  const [propertyTypes, setPropertyTypes] = useState<Record<string, PropertyDeclaredType>>({})
+  const [propertyTypesReady, setPropertyTypesReady] = useState(false)
+  const [propertyRequest, setPropertyRequest] = useState<{ scope: PropertyChangeScope; property: string; paths: string[]; initialValue?: PropertyValue; single: boolean } | null>(null)
+  const propertyDialogRef = useRef<HTMLElement | null>(null)
+  const propertyPreviousFocusRef = useRef<HTMLElement | null>(null)
+  const [pendingHeading, setPendingHeading] = useState<{ path: string; fragment: string; headingId?: string; generation: number } | null>(null)
+  const shortcutText = (id: HotkeyCommandId): string => hotkeys.filter(item => item.command === id).map(hotkeyLabel).join(' / ')
+  const shortcutAria = (id: HotkeyCommandId): string | undefined => hotkeys.filter(item => item.command === id).sort((a, b) => Number(b.shift) - Number(a.shift)).map(ariaKeyshortcuts).join(' ') || undefined
   const [excludedFilesDraft, setExcludedFilesDraft] = useState('')
   const [templateDirectory, setTemplateDirectory] = useState(TEMPLATE_DIRECTORY)
   const [templateDirectoryDraft, setTemplateDirectoryDraft] = useState(TEMPLATE_DIRECTORY)
@@ -342,6 +381,7 @@ export default function App(): React.JSX.Element {
   } | null>(null)
   const [renameError, setRenameError] = useState<string | null>(null)
   const [bookmarkPath, setBookmarkPath] = useState<string | null>(null)
+  const [editingBookmark, setEditingBookmark] = useState<VaultBookmark | null>(null)
   const [leftSidebarView, setLeftSidebarView] = useState<'files' | 'search' | 'bookmarks'>('files')
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(true)
@@ -365,6 +405,7 @@ export default function App(): React.JSX.Element {
   const [driveVaults, setDriveVaults] = useState<DriveRemoteVault[]>([])
   const [selectedDriveVaultId, setSelectedDriveVaultId] = useState('')
   const modalOpen =
+    Boolean(propertyRequest) ||
     quickSwitcherOpen ||
     commandPaletteOpen ||
     Boolean(quickCreateRequest) ||
@@ -600,7 +641,8 @@ export default function App(): React.JSX.Element {
 
   const loadNoteState = (
     note: NoteDocument | null,
-    persistLastNote = true
+    persistLastNote = true,
+    resumeDraft = false
   ): void => {
     clearSaveTimer()
     const path = note?.path ?? null
@@ -617,6 +659,17 @@ export default function App(): React.JSX.Element {
     setSaveStatus('saved')
     setCurrentConflict(null)
     setMessage(null)
+    const held = resumeDraft && path ? heldDraftsRef.current.get(path) : undefined
+    if (held) {
+      contentRef.current = held.content
+      setContent(held.content)
+      expectedContentRef.current = held.expectedContent
+      modifiedAtRef.current = held.modifiedAt
+      setModifiedAt(held.modifiedAt)
+      dirtyRef.current = held.status !== 'saved'
+      setSaveStatus(held.status)
+      setCurrentConflict(held.conflict)
+    }
     setActiveAttachmentPath(null)
     setActiveLinkedViewPath(null)
     if (path) {
@@ -630,9 +683,32 @@ export default function App(): React.JSX.Element {
   // Resolve against a fresh scan, then commit all tabs and the one active buffer together.
   const applyWorkspaceSnapshot = (saved: WorkspaceSnapshotV1, vault: VaultSnapshot): string[] => {
     const missing: string[] = []
+    const original = 'panes' in saved ? saved as WorkspaceSnapshotV2 : migrateWorkspaceSnapshotV1(saved)
+    const restored = projectWorkspaceSnapshotV2({ ...original, panes: original.panes.map(pane => {
+      const tabs: typeof pane.tabs = []
+      let activeIndex: number | null = null
+      pane.tabs.forEach((tab, index) => {
+        let next = tab
+        if ('path' in tab && tab.kind !== 'base') {
+          const path = (tab.kind !== 'attachment' ? restoredLastNote(vault.notes, tab.path, vault.pathAliases)?.path : undefined)
+            ?? (tab.kind !== 'note' ? vault.attachments?.find(item => item.path.toLocaleLowerCase() === tab.path.toLocaleLowerCase())?.path : undefined)
+          if (!path) { missing.push(tab.path); return }
+          next = { ...tab, path }
+        }
+        if (index === pane.activeIndex) activeIndex = tabs.length
+        tabs.push(next)
+      })
+      return { ...pane, tabs, activeIndex: activeIndex ?? (tabs.length ? 0 : null) }
+    }) })
+    setPaneWorkspace(restored)
+    setLeftSidebarWidth(restored.left.width)
+    setRightSidebarWidth(restored.right.width)
+    const restoredPane = restored.panes.find(pane => pane.id === restored.activePaneId)!
+    setLocalGraphDepth(restoredPane.localGraph.depth as 1 | 2 | 3)
+    if (restoredPane.localGraph.filters) setGraphFilters(restoredPane.localGraph.filters)
     let savedActiveId: number | null = null
     const tabs: WorkspaceTab[] = []
-    saved.tabs.forEach((tab, index) => {
+    restored.tabs.forEach((tab, index) => {
       let path: string | null = null
       if (tab.kind === 'base') {
         // .base files are intentionally outside the Vault Markdown snapshot.
@@ -654,14 +730,14 @@ export default function App(): React.JSX.Element {
           ? { kind: tab.kind, id }
           : { kind: tab.kind, id, path: path! }
       )
-      if (index === saved.activeIndex) savedActiveId = id
+      if (index === restored.activeIndex) savedActiveId = id
     })
     const active = tabs.find((tab) => tab.id === savedActiveId) ?? tabs[0] ?? null
     const note = active?.kind === 'note'
       ? vault.notes.find((candidate) => candidate.path === active.path) ?? null
       : null
     setCurrentSnapshot(vault)
-    loadNoteState(note, false)
+    loadNoteState(note, false, true)
     setWorkspaceTabs(tabs)
     setActiveTabId(active?.id ?? null)
     setTreeSelection(active?.kind === 'note'
@@ -670,8 +746,8 @@ export default function App(): React.JSX.Element {
     setActiveAttachmentPath(active?.kind === 'attachment' ? active.path : null)
     setActiveLinkedViewPath(active?.kind === 'linked-view' ? active.path : null)
     setGraphScope(active?.kind === 'global-graph' ? 'vault' : 'local')
-    setViewMode(active?.kind === 'global-graph' || (note && saved.noteView === 'local-graph')
-      ? 'graph' : note && saved.noteView === 'edit' ? 'edit' : 'preview')
+    setViewMode(active?.kind === 'global-graph' || (note && restoredPane.noteView === 'local-graph')
+      ? 'graph' : note && (restoredPane.noteView === 'source' || restoredPane.noteView === 'live-preview') ? restoredPane.noteView === 'live-preview' ? 'live-preview' : 'edit' : 'preview')
     setLeftSidebarOpen(saved.left.open)
     setLeftSidebarView(saved.left.view)
     setQuery(saved.left.query)
@@ -685,7 +761,7 @@ export default function App(): React.JSX.Element {
     return missing
   }
 
-  const currentWorkspace = useMemo<WorkspaceSnapshotV1>(() => {
+  const currentWorkspace = useMemo<WorkspaceSnapshotV2>(() => {
     const tabs: WorkspaceSnapshotV1['tabs'] = workspaceTabs.length
       ? workspaceTabs.map((tab) =>
         tab.kind === 'global-graph' || tab.kind === 'global-properties'
@@ -694,14 +770,21 @@ export default function App(): React.JSX.Element {
       )
       : selectedPath ? [{ kind: 'note', path: selectedPath }] : []
     const activeIndex = tabs.length ? Math.max(0, workspaceTabs.findIndex((tab) => tab.id === activeTabId)) : null
-    return {
+    const flat: WorkspaceSnapshotV1 = {
       tabs, activeIndex,
       noteView: tabs[activeIndex ?? -1]?.kind !== 'note' ? 'preview'
-        : viewMode === 'graph' ? 'local-graph' : viewMode,
+        : viewMode === 'graph' ? 'local-graph' : viewMode === 'live-preview' ? 'edit' : viewMode,
       left: { open: leftSidebarOpen, view: leftSidebarView, query },
       right: { open: rightSidebarOpen, view: rightSidebarView }
     }
-  }, [workspaceTabs, activeTabId, selectedPath, viewMode, leftSidebarOpen, leftSidebarView, query, rightSidebarOpen, rightSidebarView])
+    const base = paneWorkspace ?? migrateWorkspaceSnapshotV1(flat)
+    return projectWorkspaceSnapshotV2({ ...base, left: { ...flat.left, width: leftSidebarWidth }, right: { ...flat.right, width: rightSidebarWidth },
+      panes: base.panes.map(pane => pane.id === base.activePaneId ? { ...pane, tabs, activeIndex,
+        noteView: viewMode === 'edit' ? 'source' : viewMode === 'graph' ? 'local-graph' : viewMode,
+        localGraph: { ...pane.localGraph, depth: localGraphDepth, filters: graphFilters,
+          direction: graphFilters.outgoingLinks && !graphFilters.incomingLinks ? 'outgoing' : graphFilters.incomingLinks && !graphFilters.outgoingLinks ? 'incoming' : 'both' } } : pane) })
+  }, [workspaceTabs, activeTabId, selectedPath, viewMode, leftSidebarOpen, leftSidebarView, query, rightSidebarOpen, rightSidebarView,
+    paneWorkspace, leftSidebarWidth, rightSidebarWidth, localGraphDepth, graphFilters])
   workspaceSnapshotRef.current = currentWorkspace
 
   const clearWorkspaceTimer = (): void => {
@@ -877,6 +960,8 @@ export default function App(): React.JSX.Element {
   }
 
   const resetWorkspaceView = (): void => {
+    setPaneWorkspace(null)
+    heldDraftsRef.current.clear()
     setWorkspaceTabs([])
     setActiveTabId(null)
     setWorkspaceTabFocusId(null)
@@ -896,6 +981,8 @@ export default function App(): React.JSX.Element {
     vault: VaultSnapshot,
     resetViewOnEmpty: boolean
   ): Promise<WorkspaceCollection | null> => {
+    setPropertyTypesReady(false)
+    setPropertyTypes({})
     const result = await window.tsuzune.getWorkspaces(vault.rootPath)
     if (!result.ok) {
       workspaceCollectionRef.current = null
@@ -906,6 +993,14 @@ export default function App(): React.JSX.Element {
       return null
     }
     commitWorkspaceCollection(result.value)
+    if (window.tsuzune.getPropertyTypes) {
+      const typesResult = await window.tsuzune.getPropertyTypes(result.value.scope)
+      if (snapshotRef.current?.rootPath !== vault.rootPath) return null
+      if (typesResult.ok) {
+        setPropertyTypes(typesResult.value)
+        setPropertyTypesReady(true)
+      } else setMessage(errorMessage(typesResult.error))
+    }
     if (result.value.state.lastSession) {
       applyWorkspaceSnapshot(result.value.state.lastSession, vault)
     } else if (resetViewOnEmpty) {
@@ -999,10 +1094,46 @@ export default function App(): React.JSX.Element {
   const flushSave = (force = false): Promise<boolean> => {
     clearSaveTimer()
 
+    const saveHeldDrafts = async (): Promise<boolean> => {
+      const generation = vaultGenerationRef.current
+      for (let [path, held] of heldDraftsRef.current) {
+        if (path === selectedPathRef.current || held.status === 'saved') continue
+        if (held.conflict || editorComposingRef.current) { setMessage(`「${path}」の入力・競合を解消してください。`); return false }
+        held.status = 'saving'
+        refreshDraftViews(value => value + 1)
+        const captured = held.content
+        const result = await window.tsuzune.saveNote({ path, content: captured, expectedContent: held.expectedContent, expectedModifiedAt: held.modifiedAt })
+        if (generation !== vaultGenerationRef.current) return false
+        held = heldDraftsRef.current.get(path) ?? held
+        if (!result.ok) {
+          held.status = result.error.code === 'FILE_CHANGED' || result.error.code === 'NOT_FOUND' ? 'conflict' : 'error'
+          held.conflict = result.error.code === 'FILE_CHANGED' ? { kind: 'changed', externalContent: result.error.currentContent ?? '',
+            externalModifiedAt: result.error.currentModifiedAt ?? held.modifiedAt, externalSize: new TextEncoder().encode(result.error.currentContent ?? '').byteLength, localHeld: false }
+            : result.error.code === 'NOT_FOUND' ? { kind: 'missing' } : null
+          if (selectedPathRef.current === path) { setCurrentConflict(held.conflict); setSaveStatus(held.status); dirtyRef.current = true }
+          setMessage(`${path}: ${errorMessage(result.error)}`); refreshDraftViews(value => value + 1); return false
+        }
+        held.expectedContent = captured
+        held.modifiedAt = result.value.modifiedAt
+        held.status = held.content === captured ? 'saved' : 'dirty'
+        if (selectedPathRef.current === path) {
+          expectedContentRef.current = captured; modifiedAtRef.current = result.value.modifiedAt
+          setModifiedAt(result.value.modifiedAt)
+          dirtyRef.current = contentRef.current !== captured
+          setSaveStatus(dirtyRef.current ? 'dirty' : 'saved')
+        }
+        updateSnapshotNote(path, captured, result.value.modifiedAt, result.value.size)
+        refreshDraftViews(value => value + 1)
+        if (generation !== vaultGenerationRef.current || held.status !== 'saved') return false
+        heldDraftsRef.current.delete(path)
+      }
+      return true
+    }
+
     const operation = async (): Promise<boolean> => {
       const path = selectedPathRef.current
       if (!path || !dirtyRef.current) {
-        return true
+        return saveHeldDrafts()
       }
 
       if (conflictRef.current && !force) {
@@ -1012,7 +1143,8 @@ export default function App(): React.JSX.Element {
       }
 
       const capturedContent = contentRef.current
-      const capturedVersion = versionRef.current
+      const generation = vaultGenerationRef.current
+      const capturedModifiedAt = modifiedAtRef.current
       savingRef.current = true
       setSaveStatus('saving')
 
@@ -1025,6 +1157,27 @@ export default function App(): React.JSX.Element {
       })
 
       savingRef.current = false
+      if (generation !== vaultGenerationRef.current) return false
+      if (selectedPathRef.current !== path) {
+        const held = heldDraftsRef.current.get(path)
+        if (held) {
+          if (result.ok) {
+            held.expectedContent = capturedContent
+            held.modifiedAt = result.value.modifiedAt
+            held.status = held.content === capturedContent ? 'saved' : 'dirty'
+            updateSnapshotNote(path, capturedContent, result.value.modifiedAt, result.value.size)
+            if (held.status === 'saved') heldDraftsRef.current.delete(path)
+          } else {
+            held.status = result.error.code === 'FILE_CHANGED' || result.error.code === 'NOT_FOUND' ? 'conflict' : 'error'
+            held.conflict = result.error.code === 'FILE_CHANGED' ? { kind: 'changed', externalContent: result.error.currentContent ?? '',
+              externalModifiedAt: result.error.currentModifiedAt ?? capturedModifiedAt, externalSize: new TextEncoder().encode(result.error.currentContent ?? '').byteLength, localHeld: false }
+              : result.error.code === 'NOT_FOUND' ? { kind: 'missing' } : null
+            setMessage(`${path}: ${errorMessage(result.error)}`)
+          }
+          refreshDraftViews(value => value + 1)
+        }
+        return result.ok && await saveHeldDrafts()
+      }
       if (!result.ok) {
         dirtyRef.current = true
         if (result.error.code === 'FILE_CHANGED') {
@@ -1065,17 +1218,17 @@ export default function App(): React.JSX.Element {
 
       const fullySaved =
         selectedPathRef.current === path &&
-        versionRef.current === capturedVersion &&
         contentRef.current === capturedContent
       if (fullySaved) {
         dirtyRef.current = false
         setSaveStatus('saved')
+        heldDraftsRef.current.delete(path)
       } else {
         dirtyRef.current = true
         setSaveStatus('dirty')
       }
       setMessage(null)
-      return fullySaved
+      return fullySaved && await saveHeldDrafts()
     }
 
     const next = saveQueueRef.current.then(operation, operation)
@@ -1103,6 +1256,8 @@ export default function App(): React.JSX.Element {
     versionRef.current += 1
     dirtyRef.current = true
     setSaveStatus(conflictRef.current ? 'conflict' : 'dirty')
+    if (selectedPathRef.current) heldDraftsRef.current.set(selectedPathRef.current, { content: nextContent, expectedContent: expectedContentRef.current,
+      modifiedAt: modifiedAtRef.current, status: conflictRef.current ? 'conflict' : 'dirty', conflict: conflictRef.current })
     scheduleSave()
   }
 
@@ -1118,6 +1273,27 @@ export default function App(): React.JSX.Element {
     await refreshSnapshot()
     setMessage(null)
     return result.value.map((entry) => entry.path)
+  }
+
+  const handlePasteImage = async (image: File): Promise<string | null> => {
+    const notePath = selectedPathRef.current
+    const scope = workspaceCollectionRef.current?.scope
+    const generation = vaultGenerationRef.current
+    const current = (): boolean => generation === vaultGenerationRef.current &&
+      notePath === selectedPathRef.current && !vaultSwitchingRef.current && !busyRef.current
+    if (!notePath || !scope || !current()) return null
+    const bytes = new Uint8Array(await image.arrayBuffer())
+    if (!current()) return null
+    const result = await window.tsuzune.pasteImage({ scope, notePath, bytes })
+    if (!current()) return null
+    if (!result.ok) {
+      setMessage(errorMessage(result.error))
+      return null
+    }
+    await refreshSnapshot(generation)
+    if (!current()) return null
+    setMessage(null)
+    return result.value.path
   }
 
   const refreshSnapshot = async (
@@ -1171,16 +1347,16 @@ export default function App(): React.JSX.Element {
     )
   }
 
-  const openNote = async (path: string): Promise<void> => {
+  const openNote = async (path: string): Promise<boolean> => {
     setDailyViewOpen(false)
     setPendingCalendarCommand(null)
     if (path === selectedPathRef.current || !beginOperation()) {
-      return
+      return false
     }
 
     try {
       if (!(await flushSave())) {
-        return
+        return false
       }
 
       const note = snapshotRef.current?.notes.find((candidate) => candidate.path === path)
@@ -1189,18 +1365,19 @@ export default function App(): React.JSX.Element {
         activateNoteWorkspace(path)
         rememberRecentNote(path)
         setViewMode('preview')
-        return
+        return true
       }
 
       const result = await window.tsuzune.readNote(path)
       if (!result.ok) {
         setMessage(errorMessage(result.error))
-        return
+        return false
       }
       loadNoteState(result.value)
       activateNoteWorkspace(path)
       rememberRecentNote(path)
       setViewMode('preview')
+      return true
     } finally {
       finishOperation()
     }
@@ -1280,6 +1457,11 @@ export default function App(): React.JSX.Element {
         return
       }
 
+      // Delayed create/save notifications can still describe our known saved revision.
+      if (result.value.content === expectedContentRef.current && result.value.modifiedAt === modifiedAtRef.current) {
+        return
+      }
+
       if (wasDirty || dirtyRef.current || savingRef.current) {
         clearSaveTimer()
         const nextConflict: ConflictState = {
@@ -1340,6 +1522,7 @@ export default function App(): React.JSX.Element {
       }
 
       if (settingsResult.ok) {
+        setHotkeys(settingsResult.value.hotkeys ?? DEFAULT_HOTKEYS)
         setUserIgnoreFilters(settingsResult.value.userIgnoreFilters)
         setExcludedFilesDraft(settingsResult.value.userIgnoreFilters.join('\n'))
         const nextTemplateDirectory =
@@ -1394,12 +1577,18 @@ export default function App(): React.JSX.Element {
     const unsubscribeUpdate = window.tsuzune.onUpdateStatus((status) => {
       setUpdateStatus(status)
     })
+    const unsubscribeAutoSync = window.tsuzune.onDriveAutoSyncStatus?.((status) => {
+      if (status.rootPath !== snapshotRef.current?.rootPath) return
+      if (status.state === 'error' || status.state === 'conflict') setMessage(status.message)
+      if (status.state === 'synced') setGoogleStatus((current) => current ? { ...current, lastSyncAt: status.lastSyncAt } : current)
+    })
 
     return () => {
       disposed = true
       unsubscribeVault()
       unsubscribeClose()
       unsubscribeUpdate()
+      unsubscribeAutoSync?.()
       clearSaveTimer()
       clearWorkspaceTimer()
       if (externalChangeTimerRef.current) {
@@ -1473,41 +1662,18 @@ export default function App(): React.JSX.Element {
     }
   }, [googleDialogOpen])
 
-  useEffect(() => {
-    const handleShortcut = (event: KeyboardEvent): void => {
-      if (!(event.ctrlKey || event.metaKey) || event.repeat) {
-        return
-      }
-      const key = event.key.toLowerCase()
-      if (key === 'o') {
-        if (openQuickSwitcher()) {
-          event.preventDefault()
-        }
-        return
-      }
-      if (key === 'p') {
-        event.preventDefault()
-        openCommandPalette()
-        return
-      }
-      if (
-        (key === 'k' || (key === 'f' && event.shiftKey)) &&
-        !modalOpen &&
-        !busyRef.current
-      ) {
-        event.preventDefault()
-        focusVaultSearch()
-      }
-    }
-    window.addEventListener('keydown', handleShortcut)
-    return () => window.removeEventListener('keydown', handleShortcut)
-  }, [focusVaultSearch, modalOpen, openCommandPalette, openQuickSwitcher])
-
   const savedNotes = snapshot?.notes ?? []
   const dailyNoteCount = savedNotes.filter((note) => note.path.startsWith('02_デイリー/')).length
   const todayNoteAvailable = savedNotes.some(
     (note) => note.path === dailyNoteLocation(new Date()).path
   )
+  const userNote = useMemo(
+    () => savedNotes.find((note) => note.path === 'user.md') ?? null,
+    [savedNotes]
+  )
+  const userProfile = useMemo(() => parseUserProfile(userNote), [userNote])
+  const userNoteAvailable = Boolean(userNote)
+
   const normalDiscoveryNotes = useMemo(
     () => savedNotes.filter((note) => !isNormalDiscoveryExcluded(note.path)),
     [savedNotes]
@@ -1565,7 +1731,7 @@ export default function App(): React.JSX.Element {
     [snapshot?.pathAliases]
   )
   const bookmarkedPaths = useMemo(
-    () => new Set((snapshot?.bookmarks ?? []).map((bookmark) => bookmark.path)),
+    () => new Set((snapshot?.bookmarks ?? []).filter(bookmark => bookmark.type === 'file').map((bookmark) => bookmark.path)),
     [snapshot?.bookmarks]
   )
   const bookmarkGroups = useMemo(() => {
@@ -1596,7 +1762,7 @@ export default function App(): React.JSX.Element {
 
   const outgoing = useMemo(
     () =>
-      selectedPath ? getOutgoingLinks(content, savedNotes, pathAliases) : [],
+      selectedPath ? getOutgoingLinks(content, savedNotes, pathAliases, selectedPath) : [],
     [selectedPath, content, savedNotes, pathAliases]
   )
   const backlinks = useMemo(
@@ -1606,15 +1772,35 @@ export default function App(): React.JSX.Element {
         : [],
     [selectedPath, normalDiscoveryNotes, pathAliases]
   )
+  const unlinkedMentions = useMemo(() => selectedPath ? findUnlinkedMentions(selectedPath,
+    normalDiscoveryNotes.filter(note => !userExcludedMatcher(note.path))) : [], [selectedPath, normalDiscoveryNotes, userExcludedMatcher])
+  const linkMention = async (mention: UnlinkedMention, targetPath: string): Promise<void> => {
+    if (dirtyRef.current || conflictRef.current || captureDirtyRef.current || [...heldDraftsRef.current.values()].some(draft => draft.status !== 'saved')) { setMessage('未保存の編集・競合を解消してからリンク化してください。'); return }
+    const scope = workspaceCollectionRef.current?.scope
+    const source = snapshotRef.current?.notes.find(note => note.path === mention.sourcePath)
+    if (!scope || !source || !beginOperation()) return
+    const generation = vaultGenerationRef.current
+    try {
+      const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(source.content))
+      const expectedRevision = [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join('')
+      if (generation !== vaultGenerationRef.current) return
+      if (!window.confirm(`「${mention.text}」を「${targetPath}」へのリンクにしますか？\n${mention.sourcePath}\n${mention.snippet}`)) return
+      const result = await window.tsuzune.linkUnlinkedMention({ scope, sourcePath: mention.sourcePath, targetPath, expectedRevision, range: mention.range, text: mention.text })
+      if (!result.ok) { setMessage(errorMessage(result.error)); return }
+      await refreshSnapshot(generation)
+      setMessage('選んだ1か所をリンク化しました。')
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'リンク化できませんでした。') }
+    finally { finishOperation() }
+  }
   const headings = useMemo(
     () => selectedPath && viewMode !== 'graph' ? extractMarkdownHeadings(content) : [],
     [selectedPath, content, viewMode]
   )
   const handleHeadingSelect = useCallback((heading: MarkdownHeading): void => {
-    if (viewMode === 'edit') {
+    if (viewMode === 'edit' || viewMode === 'live-preview') {
       markdownEditorRef.current?.scrollToOffset(heading.sourceOffset)
     } else if (viewMode === 'preview') {
-      const target = document.getElementById(heading.id)
+      const target = Array.from(document.querySelectorAll<HTMLElement>('.workspace-pane.is-active [id]')).find(element => element.id === heading.id)
       target?.scrollIntoView({ block: 'start' })
       target?.focus()
     }
@@ -1654,7 +1840,7 @@ export default function App(): React.JSX.Element {
   const wikiGraph = useMemo(
     () =>
       excludeWikiGraphPaths(
-        buildWikiGraphForView(graphNotes, viewMode, {
+        buildWikiGraphForView(graphNotes, viewMode === 'live-preview' ? 'edit' : viewMode, {
           includeUnresolved: !graphFilters.existingFilesOnly,
           includeTags: graphFilters.showTags,
           includeAttachments: graphFilters.showAttachments,
@@ -1677,7 +1863,7 @@ export default function App(): React.JSX.Element {
   const visibleGraph = useMemo(() => {
     if (graphScope === 'local') {
       return selectedPath
-      ? getLocalWikiGraph(wikiGraph, selectedPath, graphFilters)
+      ? getLocalWikiGraph(wikiGraph, selectedPath, { ...graphFilters, depth: localGraphDepth })
         : { nodes: [], edges: [] }
     }
     return getVaultWikiGraph(
@@ -1685,7 +1871,7 @@ export default function App(): React.JSX.Element {
       selectedPath,
       graphFilters.showOrphans
     )
-  }, [wikiGraph, selectedPath, graphScope, graphFilters])
+  }, [wikiGraph, selectedPath, graphScope, graphFilters, localGraphDepth])
   const linkedViewBacklinks = useMemo(() => {
     if (!activeLinkedViewPath) {
       return []
@@ -1752,6 +1938,7 @@ export default function App(): React.JSX.Element {
         return
       }
       if (result.value) {
+        heldDraftsRef.current.clear()
         setCurrentSnapshot(result.value)
         setRecentNotePaths([])
         const recoveryResult = await window.tsuzune.getMoveRecovery()
@@ -1907,6 +2094,97 @@ export default function App(): React.JSX.Element {
         { title: name, now }
       )
     )
+  }
+
+  const openOrCreateUserNote = async (): Promise<void> => {
+    const userNotePath = 'user.md'
+    const existing = snapshotRef.current?.notes.find(
+      (note) => note.path === userNotePath
+    )
+    if (existing) {
+      await openNote(existing.path)
+      return
+    }
+    await createAndOpenNote('', 'user', () =>
+      createUserProfileMarkdown()
+    )
+  }
+
+  const changeUserAvatar = async (): Promise<void> => {
+    if (!snapshotRef.current || !beginOperation()) return
+    try {
+      if (!(await flushSave())) return
+      const imported = await window.tsuzune.importAttachments('')
+      if (!imported.ok) {
+        setMessage(errorMessage(imported.error))
+        return
+      }
+      if (!imported.value || imported.value.length === 0) {
+        return
+      }
+      const newIconPath = imported.value[0].path
+      const image = await window.tsuzune.readVaultImage(newIconPath)
+      if (!image.ok) {
+        setMessage('選択したファイルはプロフィール画像として読み込めません。')
+        return
+      }
+      const userNotePath = 'user.md'
+      const existing = snapshotRef.current?.notes.find(
+        (note) => note.path === userNotePath
+      )
+
+      if (existing) {
+        const readResult = await window.tsuzune.readNote(userNotePath)
+        if (!readResult.ok) {
+          setMessage('user.md の読み込みに失敗しました。')
+          return
+        }
+        const editResult = setFrontmatterProperty(readResult.value.content, 'icon', {
+          type: 'text',
+          value: newIconPath
+        })
+        if (!editResult.ok) {
+          setMessage(`frontmatter の更新に失敗しました: ${editResult.message}`)
+          return
+        }
+        const saveResult = await window.tsuzune.saveNote({
+          path: userNotePath,
+          content: editResult.markdown,
+          expectedModifiedAt: readResult.value.modifiedAt,
+          expectedContent: readResult.value.content
+        })
+        if (!saveResult.ok) {
+          setMessage('user.md の保存に失敗しました。')
+          return
+        }
+        if (selectedPathRef.current === userNotePath) {
+          loadNoteState({ ...readResult.value, ...saveResult.value, content: editResult.markdown })
+        }
+        updateSnapshotNote(
+          userNotePath,
+          editResult.markdown,
+          saveResult.value.modifiedAt,
+          saveResult.value.size
+        )
+        setMessage(`アイコンを ${newIconPath} に更新しました。`)
+      } else {
+        const initialContent = createUserProfileMarkdown(newIconPath)
+
+        const createResult = await window.tsuzune.createNote({
+          directory: '',
+          name: 'user',
+          content: initialContent
+        })
+        if (createResult.ok) {
+          await refreshSnapshot()
+          setMessage('user.md を作成し、アイコンを設定しました。')
+        } else {
+          setMessage('user.md の作成に失敗しました。')
+        }
+      }
+    } finally {
+      finishOperation()
+    }
   }
 
   const startIdeaCapture = (): void => {
@@ -2080,11 +2358,11 @@ export default function App(): React.JSX.Element {
     const examples = impact.sourcePaths.slice(0, 3).join('\n')
     if (followsLinks) {
       return window.confirm(
-        `Wikiリンクのある${impact.affectedCount}件の参照元を確認しました。参照元のリンクを新しい場所へ更新します。表示名・見出し・周辺の本文は保持します。\n\n${examples}\n\n受信箱・情報源・履歴や、解決先が曖昧なリンクは更新しません。続けますか？`
+        `ノートリンクのある${impact.affectedCount}件の参照元を確認しました。参照元のリンクを新しい場所へ更新します。表示名・見出し・周辺の本文は保持します。\n\n${examples}\n\n受信箱・情報源・履歴や、解決先が曖昧なリンクは更新しません。続けますか？`
       )
     }
     return window.confirm(
-      `この操作により、${impact.affectedCount}件の参照元でWikiリンクが未作成または曖昧になります。\n\n${examples}\n\nそのまま続けますか？`
+      `この操作により、${impact.affectedCount}件の参照元でノートリンクが未作成または曖昧になります。\n\n${examples}\n\nそのまま続けますか？`
     )
   }
 
@@ -2288,12 +2566,12 @@ export default function App(): React.JSX.Element {
     }
   }
 
-  const saveGraphBookmark = async (title: string, group: string): Promise<void> => {
+  const saveGraphBookmark = async (title: string, group: string, target?: SaveBookmarkInput): Promise<void> => {
     if (!bookmarkPath) {
       return
     }
     const result = await window.tsuzune.saveBookmark({
-      path: bookmarkPath,
+      ...(target?.type === 'file' ? { path: target.path } : target ?? { path: bookmarkPath }),
       title,
       group
     })
@@ -2303,19 +2581,21 @@ export default function App(): React.JSX.Element {
     }
     await refreshSnapshot()
     setBookmarkPath(null)
+    setEditingBookmark(null)
   }
 
   const removeGraphBookmark = async (): Promise<void> => {
     if (!bookmarkPath) {
       return
     }
-    const result = await window.tsuzune.removeBookmark(bookmarkPath)
+    const result = await window.tsuzune.removeBookmark(editingBookmark?.id ?? bookmarkPath)
     if (!result.ok) {
       setMessage(errorMessage(result.error))
       return
     }
     await refreshSnapshot()
     setBookmarkPath(null)
+    setEditingBookmark(null)
   }
 
   const trashPath = async (path: string): Promise<void> => {
@@ -2427,12 +2707,136 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  const ensurePropertyOperation = (): PropertyChangeScope => {
+    const scope = workspaceCollectionRef.current?.scope
+    if (!scope || !propertyTypesReady) throw new Error('VaultのProperty設定を読み込めていません。')
+    if (dirtyRef.current || captureDirtyRef.current || conflictRef.current || editorComposingRef.current || [...heldDraftsRef.current.values()].some(draft => draft.status !== 'saved'))
+      throw new Error('未保存の編集または競合を解消してから実行してください。')
+    if (propertyRequest && (propertyRequest.scope.rootPath !== scope.rootPath || propertyRequest.scope.rootRevision !== scope.rootRevision))
+      throw new Error('Vaultが切り替わりました。再度プレビューしてください。')
+    return scope
+  }
+
+  const previewProperties = async (operation: PropertyChangeOperation, paths: string[]): Promise<PropertyPreviewResult & { baseReferences?: string[] }> => {
+    const scope = ensurePropertyOperation()
+    if (!beginOperation()) throw new Error('処理中です。完了後に再試行してください。')
+    const generation = vaultGenerationRef.current
+    try {
+      const result = await window.tsuzune.previewPropertyChanges({ scope, operation, paths })
+      if (!result.ok) throw new Error(result.error.message)
+      const baseReferences: string[] = []
+      if (operation.kind === 'rename' && snapshotRef.current) {
+        const bases = await window.tsuzune.listBases(snapshotRef.current.rootPath)
+        if (!bases.ok) throw new Error(`Basesの影響を確認できません: ${bases.error.message}`)
+        for (const path of bases.value) {
+          const base = await window.tsuzune.readBase(path)
+          if (!base.ok) throw new Error(`Basesの影響を確認できません: ${path}`)
+          const parsed = parseBaseProfile(base.value.content)
+          if (!parsed.ok) { baseReferences.push(`${path}（解析不可・手動確認）`); continue }
+          if (basePropertyReferences(parsed.profile, operation.property).length) baseReferences.push(path)
+        }
+      }
+      if (generation !== vaultGenerationRef.current) throw new Error('Vaultが切り替わりました。')
+      return { ...result.value, baseReferences }
+    } finally { finishOperation() }
+  }
+
+  const applyProperties = async (operation: PropertyChangeOperation, targets: { path: string; expectedRevision: string }[]): Promise<PropertyApplyResult> => {
+    const scope = ensurePropertyOperation()
+    if (!beginOperation()) throw new Error('処理中です。完了後に再試行してください。')
+    const generation = vaultGenerationRef.current
+    try {
+      const result = await window.tsuzune.applyPropertyChanges({ scope, operation, targets })
+      if (!result.ok) throw new Error(result.error.message)
+      const refreshed = await refreshSnapshot(generation)
+      if (generation === vaultGenerationRef.current) {
+        const note = refreshed?.notes.find(item => item.path === selectedPathRef.current)
+        if (note && !dirtyRef.current) loadNoteState(note)
+        const types = await window.tsuzune.getPropertyTypes(scope)
+        if (types.ok) setPropertyTypes(types.value)
+        else setMessage(`型設定を再読込できません: ${types.error.message}`)
+      }
+      return result.value
+    } finally { finishOperation() }
+  }
+
+  const declareProperty = async (name: string, type: PropertyDeclaredType | null): Promise<void> => {
+    const scope = ensurePropertyOperation()
+    if (!beginOperation()) throw new Error('処理中です。')
+    try {
+      const next = { ...propertyTypes }
+      if (type) next[name] = type
+      else delete next[name]
+      const result = await window.tsuzune.setPropertyTypes(scope, next)
+      if (!result.ok) throw new Error(result.error.message)
+      setPropertyTypes(next)
+    } finally { finishOperation() }
+  }
+
+  const openPropertyChange = (property: string, path?: string): void => {
+    try {
+      const scope = ensurePropertyOperation()
+      if (busyRef.current) return
+      const eligible = searchNotes.filter(note => !isAiImmutablePath(note.path) && !note.path.split('/').some(part => part.startsWith('.')))
+      let initialValue: PropertyValue | undefined
+      if (path) {
+        const note = eligible.find(item => item.path === path)
+        if (!note) throw new Error('このノートはProperty変更の対象外です。')
+        const inspected = inspectFrontmatterProperty(note.content, property)
+        if (!inspected.ok) throw new Error(`${inspected.message} ソース編集を使用してください。`)
+        const actual = inspected.property
+        initialValue = actual ? (propertyTypes[property] ? readPropertyAsDeclared(actual, propertyTypes[property]) ?? actual : actual) : undefined
+      }
+      propertyPreviousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      setPropertyRequest({ scope, property, paths: path ? [path] : eligible.filter(note => {
+        const inspected = inspectFrontmatterProperty(note.content, property)
+        return !inspected.ok || inspected.property !== null
+      }).map(note => note.path), initialValue, single: Boolean(path) })
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Property編集を開けませんでした。') }
+  }
+
+  useEffect(() => {
+    if (propertyRequest) propertyDialogRef.current?.querySelector<HTMLElement>('input,select,button')?.focus()
+    else propertyPreviousFocusRef.current?.focus()
+  }, [propertyRequest])
+
+  const handleNoteNavigation = async (target: NoteNavigationTarget): Promise<void> => {
+    if (target.status !== 'resolved') { setMessage(target.reason); return }
+    const generation = vaultGenerationRef.current
+    if (target.path === selectedPathRef.current) {
+      if (!beginOperation()) return
+      try {
+        if (!(await flushSave())) return
+      } finally { finishOperation() }
+    } else if (!(await openNote(target.path))) return
+    if (generation !== vaultGenerationRef.current || selectedPathRef.current !== target.path) return
+    setViewMode('preview')
+    if (target.fragment) setPendingHeading({ path: target.path, fragment: target.fragment, headingId: target.headingId, generation })
+  }
+
+  useEffect(() => {
+    if (!pendingHeading) return
+    if (pendingHeading.generation !== vaultGenerationRef.current) { setPendingHeading(null); return }
+    if (pendingHeading.path !== selectedPath || viewMode !== 'preview' || busy) return
+    setPendingHeading(null)
+    // Clearing the pending request renders the preview again; focus its final DOM.
+    requestAnimationFrame(() => {
+      if (pendingHeading.generation !== vaultGenerationRef.current || pendingHeading.path !== selectedPathRef.current) return
+      const heading = resolveHeadingFragment(contentRef.current, pendingHeading.fragment)
+      const id = pendingHeading.headingId ?? heading?.id
+      const element = id ? Array.from(document.querySelectorAll<HTMLElement>('.workspace-pane.is-active [id]')).find(element => element.id === id) : null
+      if (element) { element.scrollIntoView?.({ block: 'start' }); element.focus() }
+      else setMessage('リンク先の見出しが見つかりません。')
+    })
+  }, [pendingHeading, selectedPath, viewMode, content, busy])
+
   const openGraphNode = (path: string): void => {
     const node = visibleGraph.nodes.find((candidate) => candidate.path === path)
     if (!node || node.kind === 'tag') {
       return
     }
     if (node.exists === false) {
+      if (node.canCreate === false) { setMessage('Markdownリンク先が見つかりません。リンクの場所を確認してください。'); return }
       void createMissingLink(withoutMarkdownExtension(path))
       return
     }
@@ -2447,7 +2851,19 @@ export default function App(): React.JSX.Element {
     void openNote(path)
   }
 
-  const openBookmark = (path: string): void => {
+  const openBookmark = (bookmark: VaultBookmark): void => {
+    const target = resolveBookmarkTarget(bookmark, normalDiscoveryNotes, snapshot?.attachments, pathAliases)
+    if (target.status === 'stale') {
+      setMessage(target.reason)
+      if (target.rootPath && window.confirm(`${target.reason}\nノート先頭を開きますか？`)) void openNote(target.rootPath)
+      return
+    }
+    if (target.type === 'search') { setQuery(target.query); setLeftSidebarView('search'); setLeftSidebarOpen(true); return }
+    if (target.type === 'heading' && bookmark.type === 'heading') {
+      void handleNoteNavigation({ kind: 'markdown', status: 'resolved', path: target.path, headingId: target.headingId, fragment: bookmark.slug })
+      return
+    }
+    const path = target.path
     if (snapshot?.notes.some((note) => note.path === path)) {
       void openNote(path)
       return
@@ -2895,34 +3311,49 @@ export default function App(): React.JSX.Element {
 
   useEffect(() => {
     const handleWorkspaceShortcut = (event: KeyboardEvent): void => {
-      if (!(event.ctrlKey || event.metaKey) || event.repeat || event.isComposing) {
-        return
-      }
-
-      const key = event.key.toLowerCase()
-      if (key === 'w' && (modalOpen || isTextEditingTarget(event.target))) {
+      if (event.defaultPrevented || editorComposingRef.current) return
+      const command = matchHotkey(event, hotkeys)
+      if (!command) return
+      if (command === 'close-tab' && (modalOpen || isTextEditingTarget(event.target))) {
         event.preventDefault()
         return
       }
-      if (modalOpen || busyRef.current || workspaceTabs.length === 0) {
+      if (modalOpen || busyRef.current) { event.preventDefault(); return }
+      if (command === 'open-note') {
+        if (openQuickSwitcher()) event.preventDefault()
         return
       }
-
+      if (command === 'command-palette') {
+        if (openCommandPalette()) event.preventDefault()
+        return
+      }
+      if (command === 'search') {
+        event.preventDefault()
+        focusVaultSearch()
+        return
+      }
+      if (command === 'save') {
+        event.preventDefault()
+        void flushSave()
+        return
+      }
+      if (workspaceTabs.length === 0) return
       let target: WorkspaceTab | undefined
-      if (key === 'tab') {
+      if (command === 'next-tab' || command === 'previous-tab') {
         const currentIndex = Math.max(
           0,
           workspaceTabs.findIndex((tab) => tab.id === activeTabId)
         )
-        const offset = event.shiftKey ? -1 : 1
+        const offset = command === 'previous-tab' ? -1 : 1
         target = workspaceTabs[
           (currentIndex + offset + workspaceTabs.length) % workspaceTabs.length
         ]
-      } else if (/^[1-9]$/.test(key)) {
+      } else if (command.startsWith('tab-')) {
+        const key = command.slice(4)
         const index = key === '9' ? workspaceTabs.length - 1 : Number(key) - 1
         target = workspaceTabs[index]
       } else if (
-        key === 'w' &&
+        command === 'close-tab' &&
         activeTabId !== null &&
         !isTextEditingTarget(event.target)
       ) {
@@ -2939,7 +3370,7 @@ export default function App(): React.JSX.Element {
 
     window.addEventListener('keydown', handleWorkspaceShortcut)
     return () => window.removeEventListener('keydown', handleWorkspaceShortcut)
-  }, [activeTabId, modalOpen, workspaceTabs])
+  }, [activeTabId, modalOpen, workspaceTabs, hotkeys, openQuickSwitcher, openCommandPalette, focusVaultSearch])
 
   const activeAttachment: VaultAttachment | null = activeAttachmentPath
     ? snapshot?.attachments?.find((item) => item.path === activeAttachmentPath) ?? null
@@ -3598,6 +4029,11 @@ export default function App(): React.JSX.Element {
       keywords: ['今日', '今日のノート', 'daily', 'today']
     },
     {
+      id: 'user-note',
+      label: 'ユーザー定義 (user.md) を開く',
+      keywords: ['ユーザー', 'プロフィール', 'user', 'profile', 'user.md']
+    },
+    {
       id: 'daily-overview',
       label: 'ノート活動を開く',
       keywords: ['ノート活動', 'カレンダー', '活動', 'daily', 'calendar'],
@@ -3607,7 +4043,7 @@ export default function App(): React.JSX.Element {
       id: 'open-note',
       label: 'ノートを開く',
       keywords: ['クイックスイッチャー', 'quick switcher', 'open', 'note'],
-      shortcut: 'Ctrl+O / Meta+O'
+      shortcut: shortcutText('open-note')
     },
     {
       id: 'workspace-save',
@@ -3636,7 +4072,7 @@ export default function App(): React.JSX.Element {
       id: 'vault-search',
       label: '内容を検索',
       keywords: ['全文検索', '検索', 'vault', 'search', 'find in files'],
-      shortcut: 'Ctrl+Shift+F / Meta+Shift+F'
+      shortcut: shortcutText('search')
     },
     {
       id: 'toggle-left-sidebar',
@@ -3729,6 +4165,9 @@ export default function App(): React.JSX.Element {
       case 'today-note':
         run(() => void openOrCreateDailyNote())
         return
+      case 'user-note':
+        run(() => void openOrCreateUserNote())
+        return
       case 'daily-overview':
         run(() => openDailyOverview())
         return
@@ -3815,11 +4254,12 @@ export default function App(): React.JSX.Element {
 
   const workspaceTabBar = (
     <WorkspaceTabBar
+      peerTabs={currentWorkspace.panes.flatMap(pane => pane.tabs.map((tab, index) => ({ ...tab, id: index }) as WorkspaceTab))}
       tabs={workspaceTabs}
       activeTabId={activeTabId}
       focusTabId={workspaceTabFocusId}
       tabRefs={workspaceTabRefs}
-      onActivate={(tab) => void loadWorkspaceTab(tab)}
+      onActivate={(tab) => void loadWorkspaceTab(tab).then(loaded => { if (loaded) focusWorkspaceTab(tab.id) })}
       onClose={(tabId) => void closeWorkspaceTab(tabId)}
       onFocus={setWorkspaceTabFocusId}
       onKeyDown={handleWorkspaceTabKeyDown}
@@ -3836,6 +4276,9 @@ export default function App(): React.JSX.Element {
     const path = activeBasePath
     const generation = vaultGenerationRef.current
     let cancelled = false
+    const controller = new AbortController()
+    baseEvaluationRef.current?.abort()
+    baseEvaluationRef.current = controller
     const isCurrent = (): boolean => !cancelled &&
       generation === vaultGenerationRef.current && snapshotRef.current === snapshot
     setBaseState({ status: 'loading', path })
@@ -3853,19 +4296,149 @@ export default function App(): React.JSX.Element {
           return
         }
         const parsed = parseBaseProfile(result.value.content)
-        setBaseState(parsed.ok
-          ? { status: 'ready', path, profile: parsed.profile, evaluation: evaluateBase(parsed.profile, searchNotes) }
-          : { status: 'diagnostic', path, diagnostics: parsed.diagnostics })
+        baseDocumentRef.current = result.value
+        if (!parsed.ok) { setBaseState({ status: 'diagnostic', path, diagnostics: parsed.diagnostics }); return }
+        setBaseEvaluating(true)
+        const evaluation = await evaluateBaseInWorker(parsed.profile, searchNotes, baseViewIndex,
+          { propertyTypes, signal: controller.signal, thisFile: { ...result.value, name: basenameRelative(path), size: new TextEncoder().encode(result.value.content).length } })
+        if (!isCurrent()) return
+        setBaseState({ status: 'ready', path, profile: parsed.profile, evaluation, content: result.value.content,
+          modifiedAt: result.value.modifiedAt, notes: searchNotes, declaredTypes: propertyTypes, viewIndex: baseViewIndex })
       } catch (error) {
         if (isCurrent()) setBaseState({
           status: 'error', path,
           message: error instanceof Error ? error.message : 'Baseを読み込めませんでした。'
         })
+      } finally {
+        if (baseEvaluationRef.current === controller) setBaseEvaluating(false)
       }
     }
     void load()
-    return () => { cancelled = true }
-  }, [activeBasePath, loading, snapshot, searchNotes, baseReloadKey])
+    return () => { cancelled = true; controller.abort() }
+  }, [activeBasePath, loading, snapshot, searchNotes, baseReloadKey, baseViewIndex, propertyTypes])
+
+  const previewBaseSettings = async (source: string, index: number): Promise<boolean> => {
+    const document = baseDocumentRef.current
+    const scope = workspaceCollectionRef.current?.scope
+    if (!document?.revision || !scope || busyRef.current || dirtyRef.current || [...heldDraftsRef.current.values()].some(draft => draft.status !== 'saved')) {
+      setMessage('未保存の編集を保存し、Basesを再読み込みしてください。'); return false
+    }
+    const generation = vaultGenerationRef.current
+    const parsed = parseBaseProfile(source)
+    if (!parsed.ok) { setMessage(parsed.diagnostics.map(item => item.message).join(' ')); return false }
+    const preview = await window.tsuzune.previewBaseChanges({ scope, path: document.path, expectedRevision: document.revision, content: source })
+    if (!preview.ok) { setMessage(errorMessage(preview.error)); return false }
+    const controller = new AbortController()
+    baseEvaluationRef.current?.abort()
+    baseEvaluationRef.current = controller
+    setBaseEvaluating(true)
+    try {
+      const evaluation = await evaluateBaseInWorker(parsed.profile, searchNotes, index, { propertyTypes, signal: controller.signal,
+        thisFile: { ...document, name: basenameRelative(document.path), size: new TextEncoder().encode(source).length } })
+      if (generation !== vaultGenerationRef.current || baseDocumentRef.current !== document) return false
+      setBaseState({ status: 'ready', path: document.path, profile: parsed.profile, evaluation, content: document.content,
+        modifiedAt: document.modifiedAt, notes: searchNotes, declaredTypes: propertyTypes, viewIndex: index })
+      return true
+    } catch (error) { setMessage(error instanceof Error ? error.message : '評価できませんでした。'); return false }
+    finally { if (baseEvaluationRef.current === controller) setBaseEvaluating(false) }
+  }
+  const saveBaseSettings = async (source: string): Promise<void> => {
+    const document = baseDocumentRef.current
+    const scope = workspaceCollectionRef.current?.scope
+    if (!document?.revision || !scope || !beginOperation()) return
+    try {
+      if (!(await flushSave())) return
+      const result = await window.tsuzune.applyBaseChanges({ scope, path: document.path, expectedRevision: document.revision, content: source })
+      if (!result.ok) { setMessage(errorMessage(result.error)); return }
+      baseDocumentRef.current = result.value
+      setBaseReloadKey(key => key + 1)
+      setMessage('Bases設定を保存しました。')
+    } finally { finishOperation() }
+  }
+
+  const draftFor = (path: string): string => path === selectedPath ? content : heldDraftsRef.current.get(path)?.content ?? savedNotes.find(note => note.path === path)?.content ?? ''
+  const editorOwner = (path: string): string | undefined => currentWorkspace.panes.find(pane =>
+    (pane.noteView === 'source' || pane.noteView === 'live-preview') && pane.tabs[pane.activeIndex ?? -1]?.kind === 'note' &&
+    'path' in pane.tabs[pane.activeIndex ?? -1] && (pane.tabs[pane.activeIndex ?? -1] as { path: string }).path === path)?.id
+  const holdCurrentDraft = (): void => {
+    const path = selectedPathRef.current
+    if (path && dirtyRef.current) heldDraftsRef.current.set(path, { content: contentRef.current, expectedContent: expectedContentRef.current,
+      modifiedAt: modifiedAtRef.current, status: conflictRef.current ? 'conflict' : 'dirty', conflict: conflictRef.current })
+  }
+  const activatePane = (id: string, index?: number): void => {
+    if (busyRef.current || editorComposingRef.current || !snapshotRef.current) return
+    if (id === currentWorkspace.activePaneId && index === undefined) return
+    holdCurrentDraft()
+    const next = projectWorkspaceSnapshotV2({ ...currentWorkspace, activePaneId: id,
+      panes: currentWorkspace.panes.map(pane => pane.id === id && index !== undefined ? { ...pane, activeIndex: index } : pane) })
+    applyWorkspaceSnapshot(next, snapshotRef.current)
+    if (heldDraftsRef.current.size) scheduleSave()
+  }
+  const changePaneLayout = async (action: 'horizontal' | 'vertical' | 'close' | 'move', target?: string, sourceId = currentWorkspace.activePaneId): Promise<void> => {
+    if (!snapshotRef.current || !beginOperation()) return
+    try {
+      if (!(await flushSave())) return
+      const source = currentWorkspace.panes.find(pane => pane.id === sourceId)
+      if (!source) return
+      const next = action === 'close' ? closeWorkspacePane(currentWorkspace, sourceId)
+        : action === 'move' ? moveWorkspaceTab(currentWorkspace, sourceId, source.activeIndex ?? 0, target!)
+          : splitWorkspacePane(currentWorkspace, sourceId, action)
+      applyWorkspaceSnapshot(next, snapshotRef.current)
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'ペイン操作に失敗しました。') }
+    finally { finishOperation() }
+  }
+  const closeInactivePaneTab = async (paneId: string, index: number): Promise<void> => {
+    if (!snapshotRef.current || !beginOperation()) return
+    try {
+      if (!(await flushSave())) return
+      const next = projectWorkspaceSnapshotV2({ ...currentWorkspace, panes: currentWorkspace.panes.map(pane => {
+        if (pane.id !== paneId) return pane
+        const tabs = pane.tabs.filter((_, tabIndex) => tabIndex !== index)
+        const activeIndex = !tabs.length ? null : Math.max(0, (pane.activeIndex ?? 0) - (index < (pane.activeIndex ?? 0) ? 1 : 0))
+        return { ...pane, tabs, activeIndex: activeIndex === null ? null : Math.min(activeIndex, tabs.length - 1) }
+      }) })
+      applyWorkspaceSnapshot(next, snapshotRef.current)
+      setTimeout(() => document.querySelector<HTMLElement>(`[data-pane-id="${paneId}"] [role="tab"][aria-selected="true"]`)?.focus(), 0)
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'タブを閉じられませんでした。') }
+    finally { finishOperation() }
+  }
+  const changeHeldDraft = (path: string, value: string): void => {
+    if (busyRef.current) return
+    if (path === selectedPathRef.current) { handleContentChange(value); return }
+    const note = snapshotRef.current?.notes.find(item => item.path === path)
+    if (!note) return
+    const previous = heldDraftsRef.current.get(path)
+    heldDraftsRef.current.set(path, { content: value, expectedContent: previous?.expectedContent ?? note.content,
+      modifiedAt: previous?.modifiedAt ?? note.modifiedAt, status: previous?.conflict ? 'conflict' : 'dirty', conflict: previous?.conflict ?? null })
+    refreshDraftViews(version => version + 1)
+    scheduleSave()
+  }
+  const renderInactivePane = (id: string): React.ReactNode => {
+    const pane = currentWorkspace.panes.find(item => item.id === id)!
+    const tab = pane.tabs[pane.activeIndex ?? -1]
+    const path = tab && 'path' in tab ? tab.path : null
+    const note = path && tab?.kind === 'note' ? savedNotes.find(item => item.path === path) : undefined
+    const editable = !!note && (pane.noteView === 'source' || pane.noteView === 'live-preview') && editorOwner(note.path) === id
+    return <>
+      {note ? <>{!editable && (pane.noteView === 'source' || pane.noteView === 'live-preview') && <p role="status">このノートの編集は別ペインで行えます。</p>}
+        {editable ? <MarkdownEditor value={draftFor(note.path)} onChange={value => changeHeldDraft(note.path, value)}
+          declaredTypes={propertyTypes} readOnly={busy} notes={savedNotes} notePath={note.path} livePreview={pane.noteView === 'live-preview'}
+          attachments={snapshot?.attachments ?? []} pathAliases={pathAliases} onNavigate={target => { activatePane(id); void handleNoteNavigation(target) }}
+          onWikiLink={target => { activatePane(id); handleWikiLink(target) }} onCompositionChange={composing => { editorComposingRef.current = composing }} />
+          : pane.noteView === 'local-graph' ? <WikiGraphView graph={getLocalWikiGraph(buildWikiGraph(normalDiscoveryNotes, { pathAliases }), note.path,
+            { ...(pane.localGraph.filters ?? graphFilters), depth: pane.localGraph.depth })} notes={normalDiscoveryNotes} currentPath={note.path} scope="local"
+            includeOrphans={graphFilters.showOrphans} onOpen={path => { activatePane(id); void openNote(path) }} onScopeChange={() => {}} onIncludeOrphansChange={() => {}} />
+          : <MarkdownPreview content={draftFor(note.path)} notePath={note.path} attachments={snapshot?.attachments ?? []} notes={savedNotes}
+            pathAliases={pathAliases} onWikiLink={target => { activatePane(id); handleWikiLink(target) }}
+            onNavigate={target => { activatePane(id); void handleNoteNavigation(target) }} />}</>
+        : tab ? <PaneAuxiliaryContent tab={tab} notes={normalDiscoveryNotes} attachments={snapshot?.attachments ?? []} pathAliases={pathAliases}
+          scope={workspaceCollection?.scope ?? null} declaredTypes={propertyTypes} userExcluded={userExcludedMatcher}
+          editingDisabled={busy || dirtyRef.current || [...heldDraftsRef.current.values()].some(draft => draft.status !== 'saved')}
+          onOpenNote={path => { activatePane(id); void openNote(path) }} onEditCell={(path, property) => { activatePane(id); openPropertyChange(property, path) }}
+          onDeclare={declareProperty} />
+        : <p>タブを開いてください。</p>}
+    </>
+  }
 
   if (loading) {
     return (
@@ -3949,9 +4522,11 @@ export default function App(): React.JSX.Element {
           className={`workspace${leftSidebarOpen ? '' : ' is-left-sidebar-collapsed'}${
             rightSidebarOpen ? '' : ' is-right-sidebar-collapsed'
           }`}
+          style={{ gridTemplateColumns: `${leftSidebarOpen ? leftSidebarWidth : 42}px minmax(280px, 1fr) ${rightSidebarOpen ? rightSidebarWidth : 34}px` }}
           inert={busy || modalOpen}
         >
           <aside className={`left-panel${leftSidebarOpen ? '' : ' is-collapsed'}`}>
+          {leftSidebarOpen && <SidebarResizer side="left" width={leftSidebarWidth} onChange={setLeftSidebarWidth} />}
           <nav className="activity-rail" aria-label="主なナビゲーション">
             <div className="activity-rail-main">
             <button
@@ -3973,8 +4548,8 @@ export default function App(): React.JSX.Element {
               type="button"
               className="activity-rail-button"
               aria-label="内容を検索"
-              aria-keyshortcuts="Control+Shift+F Meta+Shift+F Control+K Meta+K"
-              title="内容を検索（Ctrl+Shift+F、Ctrl+K）"
+              aria-keyshortcuts={shortcutAria('search')}
+              title={`内容を検索（${shortcutText('search')}）`}
               aria-pressed={leftSidebarOpen && leftSidebarView === 'search'}
               onClick={focusVaultSearch}
             >
@@ -3985,9 +4560,9 @@ export default function App(): React.JSX.Element {
             <button
               type="button"
               className="activity-rail-button"
-              aria-keyshortcuts="Control+O Meta+O"
+              aria-keyshortcuts={shortcutAria('open-note')}
               aria-label="ノートを開く"
-              title="ノートを開く（Ctrl+O）"
+              title={`ノートを開く（${shortcutText('open-note')}）`}
               onClick={() => void openQuickSwitcher()}
             >
               <Icon name="folder-open" />
@@ -4101,9 +4676,9 @@ export default function App(): React.JSX.Element {
             <button
               type="button"
               className="activity-rail-button"
-              aria-keyshortcuts="Control+P Meta+P"
+              aria-keyshortcuts={shortcutAria('command-palette')}
               aria-label="操作"
-              title="操作を実行（Ctrl+P）"
+              title={`操作を実行（${shortcutText('command-palette')}）`}
               onClick={() => void openCommandPalette()}
             >
               <Icon name="command" />
@@ -4191,21 +4766,21 @@ export default function App(): React.JSX.Element {
                     <h2 id="vault-search-heading">内容を検索</h2>
                     <p id="vault-search-description">タイトル・パス・本文</p>
                   </div>
-                  <kbd>Ctrl+Shift+F</kbd>
+                  <kbd>{shortcutText('search') || '未割り当て'}</kbd>
                 </header>
                 <label className="search-field">
                   <span className="sr-only">内容を検索</span>
                   <Icon name="search" />
                   <input
                     ref={searchInputRef}
-                    aria-keyshortcuts="Control+Shift+F Meta+Shift+F Control+K Meta+K"
+                    aria-keyshortcuts={shortcutAria('search')}
                     aria-describedby="vault-search-description vault-search-help"
                     value={query}
                     onCompositionStart={() => setSearchComposing(true)}
                     onCompositionEnd={() => setSearchComposing(false)}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="内容を検索"
-                    title="内容を検索（Ctrl+Shift+F、Ctrl+K）"
+                    title={`内容を検索（${shortcutText('search')}）`}
                   />
                 </label>
                 <div className="search-help" id="vault-search-help" aria-label="検索条件">
@@ -4225,6 +4800,7 @@ export default function App(): React.JSX.Element {
 
             {leftSidebarView === 'bookmarks' ? (
               <section className="bookmark-panel" aria-label="ブックマーク一覧">
+                <button type="button" disabled={!selectedPath && !query.trim()} onClick={() => { setEditingBookmark(null); setBookmarkPath(selectedPath ?? '@search') }}>現在の見出し・検索を保存</button>
                 {bookmarkGroups.length === 0 ? (
                   <p className="sidebar-empty">ブックマークはありません。</p>
                 ) : (
@@ -4232,7 +4808,7 @@ export default function App(): React.JSX.Element {
                     <section className="bookmark-group" key={group}>
                       <h2>{group}</h2>
                       {bookmarks.map((bookmark) => {
-                        const exists =
+                        const exists = bookmark.type === 'search' ||
                           snapshot.notes.some((note) => note.path === bookmark.path) ||
                           snapshot.attachments?.some(
                             (attachment) => attachment.path === bookmark.path
@@ -4241,16 +4817,17 @@ export default function App(): React.JSX.Element {
                           <button
                             type="button"
                             className="bookmark-row"
-                            key={bookmark.path}
-                            onClick={() => openBookmark(bookmark.path)}
+                            key={bookmark.id}
+                            onClick={() => openBookmark(bookmark)}
                             onContextMenu={(event) => {
                               event.preventDefault()
-                              setBookmarkPath(bookmark.path)
+                              setEditingBookmark(bookmark)
+                              setBookmarkPath(bookmark.type === 'search' ? '@search' : bookmark.path)
                             }}
                             title="右クリックで編集"
                           >
-                            <strong>{bookmark.title || basenameRelative(bookmark.path)}</strong>
-                            <span>{bookmark.path}</span>
+                            <strong>{bookmark.title || (bookmark.type === 'search' ? bookmark.query : bookmark.type === 'heading' ? bookmark.headingTitle : basenameRelative(bookmark.path))}</strong>
+                            <span>{bookmark.type === 'search' ? `検索: ${bookmark.query}` : bookmark.type === 'heading' ? `${bookmark.path}#${bookmark.slug}` : bookmark.path}</span>
                             {!exists && <small>見つかりません</small>}
                           </button>
                         )
@@ -4295,7 +4872,7 @@ export default function App(): React.JSX.Element {
               />
             )}
 
-            {leftSidebarView === 'files' && (
+            {leftSidebarView === 'files' && treeSelection?.path && (
               <div className="entry-toolbar" aria-label="選択項目の操作">
                 <button
                   type="button"
@@ -4336,14 +4913,43 @@ export default function App(): React.JSX.Element {
               dailyViewOpen || activeTabId === null ? undefined : workspaceTabDomId(activeTabId)
             }
           >
+            <PaneLayout layout={currentWorkspace.layout} activePaneId={currentWorkspace.activePaneId}
+              renderPaneTabs={id => {
+                if (id === currentWorkspace.activePaneId) return workspaceTabBar
+                const pane = currentWorkspace.panes.find(item => item.id === id)!
+                return <WorkspaceTabBar tabs={pane.tabs.map((tab, index) => ({ ...tab, id: index }) as WorkspaceTab)}
+                  peerTabs={currentWorkspace.panes.flatMap(pane => pane.tabs.map((tab, index) => ({ ...tab, id: index }) as WorkspaceTab))}
+                  activeTabId={pane.activeIndex} idPrefix={`${id}-`} panelId={`workspace-pane-${id}`}
+                  onActivate={tab => {
+                    if (busyRef.current || editorComposingRef.current) return
+                    activatePane(id, tab.id)
+                    setTimeout(() => document.querySelector<HTMLElement>(`[data-pane-id="${id}"] [role="tab"][aria-selected="true"]`)?.focus(), 0)
+                  }} onClose={index => void closeInactivePaneTab(id, index)} />
+              }}
+              renderPaneActions={id => <PaneActionsMenu actions={[
+                { label: '左右に分割', disabled: busy || currentWorkspace.panes.length >= 8, onSelect: () => void changePaneLayout('horizontal', undefined, id) },
+                { label: '上下に分割', disabled: busy || currentWorkspace.panes.length >= 8, onSelect: () => void changePaneLayout('vertical', undefined, id) },
+                { label: 'ペインを閉じる', disabled: busy || currentWorkspace.panes.length === 1, onSelect: () => void changePaneLayout('close', undefined, id) },
+                { label: '次のペイン', disabled: busy || currentWorkspace.panes.length === 1, onSelect: () => activatePane(currentWorkspace.panes[(currentWorkspace.panes.findIndex(pane => pane.id === id) + 1) % currentWorkspace.panes.length].id) },
+                ...currentWorkspace.panes.flatMap((pane, index) => pane.id === id ? [] : [{ label: `タブをペイン ${index + 1}へ移す`, disabled: busy || currentWorkspace.panes.find(pane => pane.id === id)?.activeIndex === null, onSelect: () => void changePaneLayout('move', pane.id, id) }])
+              ]} />}
+              getScroll={id => currentWorkspace.panes.find(pane => pane.id === id)?.scroll}
+              onPaneScroll={(id, scroll) => setPaneWorkspace(projectWorkspaceSnapshotV2({ ...currentWorkspace, panes: currentWorkspace.panes.map(pane => pane.id === id ? { ...pane, scroll } : pane) }))}
+              onActivePaneChange={activatePane} onLayoutChange={layout => setPaneWorkspace({ ...currentWorkspace, layout })}
+              renderPane={id => id !== currentWorkspace.activePaneId ? renderInactivePane(id) : <>
             {dailyViewOpen ? (
               <DailyProfile
+                key={snapshot?.rootPath}
                 noteCount={savedNotes.length}
                 dailyNoteCount={dailyNoteCount}
                 selectedNoteName={selectedNote?.name ?? null}
                 todayNoteAvailable={todayNoteAvailable}
+                userProfile={userProfile}
+                userNoteAvailable={userNoteAvailable}
                 onOpenToday={() => void openOrCreateDailyNote()}
                 onReturnToNote={closeDailyOverview}
+                onOpenUserNote={() => void openOrCreateUserNote()}
+                onChangeAvatar={() => void changeUserAvatar()}
               >
                 {calendarPluginStatus?.state === 'ready' && snapshot && !calendarPluginFailed ? (
                   <section className="calendar-plugin-panel" aria-label="Calendarプラグイン">
@@ -4398,25 +5004,37 @@ export default function App(): React.JSX.Element {
               </DailyProfile>
             ) : activeWorkspaceTab?.kind === 'base' && activeBaseState ? (
               <>
-                <div className="note-top">{workspaceTabBar}</div>
+
                 <BaseTableView
                   state={activeBaseState}
                   onReload={() => setBaseReloadKey((key) => key + 1)}
                   onOpenNote={(path) => void openNote(path)}
+                  onEditCell={(path, property) => openPropertyChange(property, path)}
+                  editingDisabled={busy || !propertyTypesReady || saveStatus !== 'saved' || conflict !== null}
+                  onSelectView={setBaseViewIndex}
+                  onPreviewProfile={(source, index) => previewBaseSettings(source, index)}
+                  onSaveProfile={source => void saveBaseSettings(source)}
+                  onResolveImage={async path => { const result = await window.tsuzune.readVaultImage(path); return result.ok ? result.value : null }}
+                  evaluating={baseEvaluating}
+                  onStopEvaluation={() => baseEvaluationRef.current?.abort()}
                 />
               </>
             ) : activeWorkspaceTab?.kind === 'global-properties' ? (
               <>
-                <div className="note-top">{workspaceTabBar}</div>
+
                 <PropertyInventoryView
                   inventory={propertyInventory}
+                  notes={searchNotes}
+                  declaredTypes={propertyTypes}
+                  onDeclare={declareProperty}
+                  onManage={(name) => openPropertyChange(name)}
+                  disabled={busy || !propertyTypesReady || saveStatus !== 'saved' || conflict !== null}
                   onOpenNote={(path) => void openNote(path)}
                 />
               </>
             ) : activeLinkedViewPath ? (
               <>
                 <div className="note-top">
-                  {workspaceTabBar}
                   <header className="note-header">
                     <div>
                       <strong>{workspaceTabLabel({
@@ -4460,7 +5078,7 @@ export default function App(): React.JSX.Element {
               </>
             ) : !selectedPath && viewMode === 'graph' && graphScope === 'vault' ? (
               <>
-                <div className="note-top">{workspaceTabBar}</div>
+
                 <WikiGraphView
                   graph={visibleGraph}
                   notes={graphNotes}
@@ -4510,7 +5128,6 @@ export default function App(): React.JSX.Element {
             ) : activeAttachment ? (
               <>
                 <div className="note-top">
-                  {workspaceTabBar}
                   <header className="note-header">
                     <div>
                       <strong>{activeAttachment.name}</strong>
@@ -4532,11 +5149,9 @@ export default function App(): React.JSX.Element {
             ) : selectedPath ? (
               <>
                 <div className="note-top">
-                  {workspaceTabBar}
                   <header className="note-header">
                     <div>
-                      <strong>{withoutMarkdownExtension(basenameRelative(selectedPath))}</strong>
-                      <span>{selectedPath}</span>
+                      <strong title={withoutMarkdownExtension(basenameRelative(selectedPath))}>{withoutMarkdownExtension(basenameRelative(selectedPath))}</strong>
                     </div>
                     <div className="note-actions">
                     <span
@@ -4574,6 +5189,8 @@ export default function App(): React.JSX.Element {
                         <Icon name="edit" />
                         {structuredCapture ? 'Markdownソース' : '編集'}
                       </button>
+                      <button type="button" className={viewMode === 'live-preview' ? 'is-active' : ''}
+                        aria-pressed={viewMode === 'live-preview'} onClick={() => setViewMode('live-preview')}>Live Preview</button>
                       <button
                         type="button"
                         className={viewMode === 'preview' ? 'is-active' : ''}
@@ -4584,27 +5201,27 @@ export default function App(): React.JSX.Element {
                         プレビュー
                       </button>
                     </div>
-                    <button
-                      type="button"
-                      className={`note-context-action ${
-                        viewMode === 'graph' && graphScope === 'local'
-                          ? 'is-active'
-                          : ''
-                      }`}
-                      aria-pressed={viewMode === 'graph' && graphScope === 'local'}
-                      onClick={() => {
-                        setGraphScope('local')
-                        setViewMode('graph')
-                      }}
-                    >
+                    <button type="button" className="note-context-action compact-graph-action" title="ローカルグラフ"
+                      aria-label="ローカルグラフ" aria-pressed={viewMode === 'graph' && graphScope === 'local'}
+                      onClick={() => { setGraphScope('local'); setViewMode('graph') }}>
                       <Icon name="graph" />
-                      ローカルグラフ
                     </button>
                     </div>
                   </header>
+                  <details key={selectedPath} className="note-path-details">
+                    <summary>ファイルパス</summary>
+                    <span>{selectedPath}</span>
+                  </details>
                 </div>
-                {viewMode === 'edit' ? (
+                {(viewMode === 'edit' || viewMode === 'live-preview') && editorOwner(selectedPath) === currentWorkspace.activePaneId ? (
                   <MarkdownEditor
+                    livePreview={viewMode === 'live-preview'}
+                    notePath={selectedPath}
+                    attachments={snapshot.attachments ?? []}
+                    pathAliases={pathAliases}
+                    onNavigate={(target) => void handleNoteNavigation(target)}
+                    onWikiLink={handleWikiLink}
+                    declaredTypes={propertyTypes}
                     onCompositionChange={(composing) => { editorComposingRef.current = composing }}
                     key={selectedPath}
                     ref={markdownEditorRef}
@@ -4624,15 +5241,23 @@ export default function App(): React.JSX.Element {
                         : undefined
                     }
                     onImportAttachments={handleImportAttachments}
+                    onPasteImage={handlePasteImage}
                   />
-                ) : viewMode === 'preview' ? (
+                ) : viewMode === 'preview' || viewMode === 'edit' || viewMode === 'live-preview' ? (
                   <MarkdownPreview
                     content={content}
                     notePath={selectedPath}
                     attachments={snapshot.attachments ?? []}
                     onWikiLink={handleWikiLink}
+                    notes={savedNotes}
+                    pathAliases={pathAliases}
+                    onNavigate={(target) => void handleNoteNavigation(target)}
                   />
                 ) : (
+                  <>
+                  <label className="graph-depth-control">探索の深さ <select aria-label="Local Graphの深さ" value={localGraphDepth} onChange={event => setLocalGraphDepth(Number(event.target.value) as 1 | 2 | 3)}>
+                    <option value={1}>1</option><option value={2}>2</option><option value={3}>3</option>
+                  </select></label>
                   <WikiGraphView
                     graph={visibleGraph}
                     notes={graphNotes}
@@ -4678,6 +5303,7 @@ export default function App(): React.JSX.Element {
                     onOpenLinkedView={(path) => void openGraphNodeLinkedView(path)}
                     onRevealInFolder={revealGraphNodeInFolder}
                   />
+                  </>
                 )}
                 <footer className="note-footer">
                   <span>{content.length.toLocaleString()}文字</span>
@@ -4700,16 +5326,22 @@ export default function App(): React.JSX.Element {
                 }
               >
                 <img src={tsuzuneMark} alt="" aria-hidden="true" />
-                <p>左の一覧からノートを選ぶか、新しいノートを作成してください。</p>
+                <h1>ノートを開いて、続きを始める</h1>
+                <p>ノートを検索するか、左の一覧から選んでください。</p>
+                <button type="button" className="primary-button" onClick={() => void openQuickSwitcher()}>
+                  <Icon name="search" />ノートを検索
+                </button>
                 <button type="button" className="primary-button" onClick={() => void createNote()}>
                   <Icon name="note" />
-                  最初のノートを作る
+                  新規ノートを作る
                 </button>
               </div>
             )}
+              </>} />
           </section>
 
           <aside className={`related-panel-shell${rightSidebarOpen ? '' : ' is-collapsed'}`}>
+            {rightSidebarOpen && <SidebarResizer side="right" width={rightSidebarWidth} onChange={setRightSidebarWidth} />}
             <button
               type="button"
               className="sidebar-toggle"
@@ -4747,6 +5379,17 @@ export default function App(): React.JSX.Element {
               ) : (
                 <div className="related-panel related-empty-panel">関連ノート</div>
               )}
+              {selectedPath && <section className="unlinked-mentions" aria-label="未リンク言及">
+                <h2>未リンク言及</h2>
+                {!unlinkedMentions.length && <p>候補はありません。</p>}
+                {unlinkedMentions.map(mention => <article key={`${mention.sourcePath}:${mention.range.from}`}>
+                  <button type="button" onClick={() => void openNote(mention.sourcePath)}>{mention.sourcePath}</button>
+                  <p>{mention.snippet}</p>
+                  {mention.ambiguous && <small>同じ名前の候補が複数あります。リンク先を選んでください。</small>}
+                  {mention.candidates.map(path => <button type="button" key={path} disabled={busy || saveStatus !== 'saved' || isAiImmutablePath(mention.sourcePath)}
+                    onClick={() => void linkMention(mention, path)}>{path}へ1か所リンク化</button>)}
+                </article>)}
+              </section>}
             </div>
           </aside>
         </main>
@@ -4865,11 +5508,11 @@ export default function App(): React.JSX.Element {
 
       {bookmarkPath && snapshot && (
         <BookmarkDialog
-          path={bookmarkPath}
-          bookmark={snapshot.bookmarks?.find(
-            (bookmark) => bookmark.path === bookmarkPath
-          )}
-          onCancel={() => setBookmarkPath(null)}
+          path={bookmarkPath === '@search' ? undefined : bookmarkPath}
+          query={query}
+          headings={headingBookmarkChoices(bookmarkPath === selectedPath ? content : snapshot.notes.find(note => note.path === bookmarkPath)?.content ?? '')}
+          bookmark={editingBookmark ?? snapshot.bookmarks?.find(bookmark => bookmark.type === 'file' && bookmark.path === bookmarkPath)}
+          onCancel={() => { setBookmarkPath(null); setEditingBookmark(null) }}
           onSave={saveGraphBookmark}
           onDelete={removeGraphBookmark}
         />
@@ -4936,6 +5579,9 @@ export default function App(): React.JSX.Element {
 
             <div className="app-settings-layout">
               <nav className="app-settings-navigation" aria-label="設定カテゴリ">
+                <button type="button" aria-label="ショートカット" aria-current={settingsCategory === 'hotkeys' ? 'page' : undefined} onClick={() => setSettingsCategory('hotkeys')}>
+                  <span>ショートカット</span><small>キー割り当て</small>
+                </button>
                 <button
                   type="button"
                   aria-label="ファイルとリンク"
@@ -4988,6 +5634,14 @@ export default function App(): React.JSX.Element {
               </nav>
 
               <div className="app-settings-content">
+                {settingsCategory === 'hotkeys' && <HotkeySettingsPanel value={hotkeys} busy={settingsBusy} onChange={async (next) => {
+                  setSettingsBusy(true)
+                  try {
+                    const result = await window.tsuzune.setHotkeys(next)
+                    if (!result.ok) throw new Error(errorMessage(result.error))
+                    setHotkeys(next)
+                  } finally { setSettingsBusy(false) }
+                }} />}
                 {settingsCategory === 'files' && (
                   <section className="app-settings-section" aria-labelledby="files-links-title">
                     <div className="app-settings-section-heading">
@@ -5383,6 +6037,20 @@ export default function App(): React.JSX.Element {
         </div>
       )}
 
+      {propertyRequest && (
+        <div className="modal-backdrop">
+          <section ref={propertyDialogRef} className="modal property-change-dialog" role="dialog" aria-modal="true" aria-label="Property変更"
+            onKeyDown={event => {
+              trapDialogTab(event, propertyDialogRef.current)
+              if (event.key === 'Escape' && !busyRef.current) { event.preventDefault(); setPropertyRequest(null) }
+            }}>
+            <PropertyChangePanel key={`${propertyRequest.scope.rootPath}:${propertyRequest.scope.rootRevision}:${propertyRequest.property}:${propertyRequest.paths.join('|')}`}
+              scope={propertyRequest.scope} property={propertyRequest.property} paths={propertyRequest.paths}
+              declaredType={propertyTypes[propertyRequest.property]} initialValue={propertyRequest.initialValue} single={propertyRequest.single}
+              onPreview={previewProperties} onApply={applyProperties} onClose={() => { if (!busyRef.current) setPropertyRequest(null) }} />
+          </section>
+        </div>
+      )}
       {googleDialogOpen && (
         <div
           className="modal-backdrop"
@@ -5407,7 +6075,7 @@ export default function App(): React.JSX.Element {
             <div className="google-sync-heading">
               <div>
                 <h2 id="google-sync-title">Google Drive同期</h2>
-                <p>ローカルMarkdownを原本として、確認してから手動同期します。</p>
+                <p>ローカルファイルをDriveと同期します。自動同期はVaultごとに設定できます。</p>
               </div>
               <button
                 type="button"
@@ -5651,6 +6319,9 @@ export default function App(): React.JSX.Element {
                 )}
               </>
             )}
+
+            <DriveAutoSyncSettings key={snapshot?.rootPath ?? 'no-vault'} rootPath={snapshot?.rootPath ?? null}
+              disabled={googleBusy || busy} beforeEnable={flushSave} />
 
             <p className="google-sync-boundary">
               広告プロファイル、Google検索履歴、他アプリのDriveファイルは取得しません。

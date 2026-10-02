@@ -1,12 +1,12 @@
 # TSUZUNE Product Plan — 日常の知識再利用
 
-更新日: 2026-09-10（JST）
+更新日: 2026-10-02（JST）
 
 この文書は、TSUZUNEの採用済み方針を日常の改善へつなぐ実行正本です。製品価値の中心は「自分の知識を手元に置き、日常の中でAIと安心して使い続けられること」。本人が2026-09-06に現状評価を方針として採用したことに基づき、日常利用の価値を現在のPrimaryとします。
 
 後段のCurrent-State Compiler R0〜R10は過去の設計・Held候補です。現在の実行順はCurrent Decisionだけで決め、構想の章立てを実装queueへ読み替えません。
 
-現在の本番状態は[PROJECT_STATUS.md](PROJECT_STATUS.md)、変わりにくい製品原則は[PRODUCT.md](PRODUCT.md)、画面規約は[DESIGN.md](DESIGN.md)、実装証拠は[docs/INDEX.md](docs/INDEX.md)、最新の本番同一性は[production-update-latest.json](docs/reports/production-update-latest.json)を正本とします。
+現在の本番状態は[PROJECT_STATUS.md](PROJECT_STATUS.md)、変わりにくい製品原則は[PRODUCT.md](PRODUCT.md)、画面規約は[DESIGN.md](DESIGN.md)、実装証拠は[docs/INDEX.md](docs/INDEX.md)、本番更新時点の受入証拠は[production-update-latest.json](docs/reports/production-update-latest.json)、現在の証拠の有効範囲は[2026-09-30の整合確認](docs/reports/current-state-reconciliation-2026-09-30.md)を参照します。
 
 ## 1. 結論と現在の実行境界
 
@@ -22,18 +22,63 @@
 
 ### Current Decision
 
+2026-10-02、利用者の「検証＆最適化＆Githubに更新」に基づき、直前のverified本番sourceをorigin/mainへ統合する。リンク抽出の二重解析を一回へ減らし、リンク記号のない本文は解析しない。独立reviewで見つかった非activeペインの履歴混入、Live Previewの文書参照定義、Markdown文字参照と移動時のfragment保全も修正した。[実装・計測境界](docs/reports/performance-2026-10-02.md)。今回の最終本番受入は最新excluded receipt、GitHub統合と最終検証は同campaignのVault実施記録を正本とする。未採用のroot変更は保持し、GitHub releaseは作らない。実Vaultの体感は隔離fixture測定と区別する。
+
+以下は前段の受入履歴。現在の配布結果は最新receiptを参照する。
+
+2026-10-02、全体の反応とメモリ使用量の改善を目的に、未リンク言及検索の無関係な本文解析と補助ペインの不要なGraph構築を省いた。2,000件の合成データで検索中央値2,696 ms→37 ms、結果hash一致、関連21件PASS、元checkout全体1,806 PASS／1 SKIP。常駐メモリ削減と本人の実Vaultの体感は未確認。配布候補はverified exact archive＋今回所有差分の`work/performance-20261002/source-isolated`。[変更・計測・受入境界](docs/reports/performance-2026-10-02.md)。本番アプリ保存・終了後にproduction gateを行い、導入結果は最新receiptを正本とする。
+
+
+
+2026-10-02（JST）、利用者は検証済み候補を普段使うTSUZUNEへ反映する提案に「いいよ」と回答した。これにより、この確定候補のproduction:updateと隔離installed受入・EXE／app.asar hash・通常profile保全・既存MCP登録確認まで承認済み。以下の承認待ち・今回install対象外の記述は前段検証時の履歴として読む。導入結果は今回source fingerprintに対応するexcluded receiptで判定し、この記載だけで本番反映済みとはしない。実Vault内容変更、Drive同期の有効化・実転送、認証や永続アクセスの拡張、公開push、個人クリップボード変更は引き続き対象外。
+
+2026-10-02（JST）、ユーザーの「その2つを社長として進めて」に基づき、Drive自動同期と画像スクロール／UIの並行成果を隔離候補へ統合し、以前のpane／tab改善も保持した。比較対象の本番は2026-10-01T16:47:22.347Zのowner receipt。Drive自動同期と画像スクロール／一覧・空画面改善はその本番へ反映済み。exact archive（1,737 files、digest `d6936c5545a32e88a62bb17e5063177687b166caa32ed9ff4cf73cbb199dc529`）とinstalled EXE／app.asar hashを独立照合した。隔離候補は`work/release-candidate-manager/source-final`で、追加タブ／表示改善を含み、本番未反映。候補に残る`production-update-latest.json`は以前のbaseline受領書であり、現在の本番や候補導入の証明には使わない。
+
+候補だけの追加は、各ペイン一つのタブ列、非activeペインをactiveへ切り替えないタブfocus／close（保存失敗時は保持）、同名ノートのfolder区別、overflow一覧・active tab reveal・keyboard操作、選択／close表示、Propertiesとfilepathの折りたたみ、local graph／headerの整理。以前の11pathは3path（PaneActionsMenu、PaneLayout、pane-actions-menu test）が本番と同一、残る8pathに追加差分がある。8path全体が未配布という意味ではない。Quick Memoや無関係なroot変更は取り込まない。
+
+統合候補はtypecheck、全体1,778 PASS／1 SKIP、check:mcp、check:current-decisionに合格。既存Google application build設定を保持してpackageし、実候補EXEを隔離userData／sessionDataとfixture Vaultで起動した。90回のwheel入力で3画像DOM維持・loading再出現0・末尾到達・本文不変を確認し、同名タブのfolder区別・overflow focus復帰・分割／非activeタブfocusとclose・日本語入力保存を確認。package内MCP server／workerの契約・節取得・knowledge-flowもfresh fixtureで合格。main／MCP／preload／shared／coreとpackage metadataは16:47本番sourceから変更していない。
+
+検証証拠は元workspace基準の`work/release-candidate-manager/`にある`final-gate.json`、`package-acceptance.json`、`packaged-ui-smoke.json`、`packaged-mcp-smoke.json`、`production-comparison.json`。これらは候補snapshot外のローカル証拠であり、文書確定後の最終source fingerprint・ゲート結果は`final-gate.json`で判定する。
+
+現在の停止線は導入判断。文書7pathを最新状態へ整えた候補で最終ゲートを行い、source不変と結果を確認する。承認後の実行はその確定sourceに対するproduction:updateと隔離packaged／installed受入・hash照合・profile保全・MCP登録であり、今回の管理作業ではinstall／push／公開、認証・永続設定変更、実Vault変更、実Drive送信を行わない。実Drive転送・実接続でのオフライン復帰、物理Windows IME、実クリップボードからのCtrl+V、利用者の元ノート／入力症状の受入は未確認。fixture／mock／CDPと利用者確認を分ける。今回の追加検証では個人クリップボードを操作しない。
+
+以下は各ownerの前段実装・gate前記録。配布候補・件数・再開手順は当時の履歴であり、現在の候補や実行順は上記を正本とする。
+
+2026-10-02、画像を含むPreviewのスクロール中に「読み込み中」へ戻る不具合と画面整理を実装した。スクロール保存による再描画でもMarkdown rendererのcomponent型を維持し、画像・リンクのDOMとfocusを保つ。分割操作をペインの「…」メニューへ集約し、ノート一覧は日付より名前を優先して最大2行表示、空画面は検索／新規作成へ案内する。配布元は直前のverified exact archive＋今回の所有差分だけのwork/preview-ui/source-isolated。元checkoutの並行変更は保持する。[原因・実装・受入境界](docs/reports/preview-scroll-ui-2026-10-02.md)。文書確定後の本番導入・hash・profile・登録は最新receiptを参照し、本人の元ノートでの操作確認は別層とする。
+
+以下の画像貼り付けは前段の受入履歴。
+
+2026-10-02、利用者がGoogle Drive連携強化の優先点として自動同期を採用した。Vaultごとの明示設定（初期オフ・初回手動同期）、保存後約5秒と約1分間隔の確認、競合時の停止、通信失敗時の再試行、状態表示を実装・隔離検証した。既存Preview→Applyの安全境界を再利用し、削除を自動伝播しない。配布候補はverified archive＋今回所有差分の`work/drive-auto-sync/source-isolated`。[実装・受入境界](docs/reports/drive-auto-sync-2026-10-02.md)、[作業定義](.agent/requirements/20261002-drive-auto-sync/plan.md)。本番導入結果は最新receiptを正本とし、実Driveでの自動同期と利用者操作は別層とする。
+
+以下の画像貼り付けとMCP強化は前段の受入履歴として維持する。
+
+2026-10-02、利用者の画像コピー＆ペースト要望を実装した。編集／Live Previewのpasteイベントから画像を受け取り、trusted IPCでPNGへ変換し、ノートと同じフォルダへ上書きせず保存してWiki画像リンクを挿入する。通常のテキスト貼り付け、Undo、保存中の追加入力、ノート／Vault切替の保全を検証。配布元は直前のverified archive＋画像貼り付け差分だけのwork/image-paste/source-isolatedとし、元checkoutの並行変更は保持する。[実装・受入境界](docs/reports/image-paste-2026-10-02.md)。文書確定後の本番導入・hash・profile・登録は最新receiptを参照する。隔離アプリの貼り付け試験は合成ClipboardEventであり、OSのクリップボードからのCtrl+Vは利用者確認を別層とする。
+
+以下のMCP強化は前段の受入履歴として維持する。
+
+2026-10-01、自然文から原文と根拠へ到達するMCP強化を採用。[実行契約](.agent/requirements/20261001-mcp-evidence/plan.md)、[実装・検証境界](docs/reports/mcp-evidence-2026-10-01.md)。節一覧／節取得、検索の原文抜粋・参照、Contextの節locatorと引用案内を実装する。共通25／direct27、書込・承認設定を維持。配布元は直前のverified exact archive＋今回分のwork/mcp-evidence/source-isolatedとし、元checkoutの並行変更は昇格しない。最終自動検証1,744 PASS／1 SKIPと指定gpt-6.1-sol／highの固定12依頼の原文照合を完了し、本番gateへ進む。入力・名前変更報告について、既知revisionの遅延通知による誤競合を修正し、window focus時の入力focus復帰を追加した。隔離入力／名前変更はPASS、元の実Windows症状は未再現で更新後の利用者確認を別層とする。導入結果は最新receipt、再接続と最終同期は同campaignのVault実施記録を正本とし、利用者確認を別層とする。検索の修正は共通処理の失敗が再現した場合だけ。ChatGPT・Git公開は対象外。
+
+以下は前段の受入履歴。現在の実行境界は上記の原文・根拠到達契約で判断する。
+
+2026-10-01、利用者のCodex知識連携計画を採用。実行契約は[Codex knowledge integration](.agent/requirements/20261001-codex-knowledge-integration/plan.md)、検証証拠は[今回の報告](docs/reports/codex-knowledge-integration-2026-10-01.md)。4読取ツールと保存・再開を実装し、利用者が選択したgpt-6.1-sol／highで実Codexの最終6シナリオを受入した。配布元はverified archive＋今回分のwork/codex-integration/source-isolatedで、並行画面変更11pathは元treeへ保持し昇格しない。本番結果は最新receiptと最終実施記録を正本とし、Desktop再接続・本人の日常操作確認を別層として扱う。ChatGPT・Git公開は対象外。
+
+前段の8項目全体採用は2026-09-30T18:20:41.771Zのreceipt／exact source archiveで受入済み。以下の8項目・5項目の記述は当時のsource段階を含む履歴であり、現在の停止線・受入は上記のCodex連携契約と最新receiptで判定する。
+
+2026-10-01、利用者が再調査の8項目を実装対象として採用し、source実装・隔離検証を完了した。続いて「現在の作業ツリー全体を新しい本番として採用する」を明示選択した。前回5項目・今回8項目・既存dirty変更を含む全体のproduction:updateを承認済みとし、9月24日のsource再構成待ちを解除する。[実装と検証境界](docs/reports/eight-improvements-implementation-2026-10-01.md)。過去sourceの欠落は復元済みとはしない。Git公開は対象外。本番反映の成否・source snapshot・隔離packaged／installed・hash一致・通常profile不変・MCP登録は[最新receipt](docs/reports/production-update-latest.json)で確認する。
+
 | 区分 | 現在地 |
 |---|---|
-| 選択済み実装 | **Contextの読取境界はsource実装・隔離検証済み（2026-09-10）。** [実装・受入証拠](docs/reports/context-reading-boundary-2026-09-10.md)のとおり、tool説明2文字列と既存利用案内を修正し、固定6件の最終実AI受入を満たした。baselineも6件を満たすため、一般的な行動改善は未確認。本番反映は対応する最新receipt、fresh MCPと最終同期は既存Vault記録で判定する。新metadata・原資料2件の別案・他候補の実装は未選択。既存のPrimary／Nextは変更しない |
-| Complete | Context Compiler、Temporal Memory、MCP revision／patch／read-only、保護領域、通常更新の履歴生成停止、Inbox capture、Browser Clipper、category-aware派生知識と検索facets、production gate。S1検索一致抜粋（receipt 2026-09-08T18:38:35.980Z）、利用者選択によるAI承認廃止・直接保存（同19:09:31.514Z）、[欠落タブ通知・前回配置の整理](docs/reports/missing-tab-notice-2026-09-09.md)（同19:39:46.42Z）、[S2 Context本文変換種別](docs/reports/context-content-mode-2026-09-09.md)（同20:34:23.366Z）は本番反映・最終Vault同期済み。S2は再接続後のfresh MCP確認と追加reviewも完了した。Obsidian互換性P0-1〜P0-7の選択済み範囲は本番反映・隔離installed受入・GitHub main統合済み。正確な受入時点と範囲はreceipt・既存Vault campaign・[互換性台帳](.agent/requirements/20260905-obsidian-compatibility-program/compatibility-ledger.md)で確認する |
+| 8項目実装 | **2026-10-01、8項目のsource実装・隔離検証済み。** 全1,705 tests PASS／1 SKIP、typecheck・build・check:mcp、隔離実Electron 15 checks PASS。[実装・未確認層](docs/reports/eight-improvements-implementation-2026-10-01.md)。固定公式68 APIの正常・異常／境界・組合せを確認。実Obsidian比較と実OS IME／Narrator／High Contrastは未確認。本番全体採用は承認済み、反映結果は最新receiptで判定 |
+| 選択済み実装 | **利用者選択の5項目をsource実装・隔離検証した（2026-09-30）。** Markdown表示、リンクプレビュー、ショートカット設定、Bases単一セル編集、Properties全体管理。[実装証拠](docs/reports/five-improvements-implementation-2026-09-30.md)。本番相当sourceの再構成は12候補中10件まで一致し、PLAN／PROJECT_STATUSの当時版が欠けるため本番反映は停止。Context読取境界の以前のsource証拠は[既存報告](docs/reports/context-reading-boundary-2026-09-10.md)を参照 |
+| Complete | A6 Bases候補一覧は2026-09-09に本番受入・最終同期済み（Vault `30_知識/TSUZUNE-A6-Bases候補一覧-実装本番受入-2026-09-09.md`）。これは当時の受入証拠であり現在のbinary同一性とは分ける。Context Compiler、Temporal Memory、MCP revision／patch／read-only、保護領域、通常更新の履歴生成停止、Inbox capture、Browser Clipper、category-aware派生知識と検索facets、production gate。S1検索一致抜粋（receipt 2026-09-08T18:38:35.980Z）、利用者選択によるAI承認廃止・直接保存（同19:09:31.514Z）、[欠落タブ通知・前回配置の整理](docs/reports/missing-tab-notice-2026-09-09.md)（同19:39:46.42Z）、[S2 Context本文変換種別](docs/reports/context-content-mode-2026-09-09.md)（同20:34:23.366Z）は本番反映・最終Vault同期済み。S2は再接続後のfresh MCP確認と追加reviewも完了した。Obsidian互換性P0-1〜P0-7の選択済み範囲は本番反映・隔離installed受入・GitHub main統合済み。正確な受入時点と範囲はreceipt・既存Vault campaign・[互換性台帳](.agent/requirements/20260905-obsidian-compatibility-program/compatibility-ledger.md)で確認する |
 | Primary | **日常の知識再利用**。評価軸は、分類せず書き始められる、以前の考えと根拠へ戻れる、外部AIへ背景を説明し直す手間が減る、の3点。Obsidian互換はその土台とし全面互換を完了条件にしない |
-| Next | **A6の一部「Basesを一覧から選んで開く」はsource実装・検証済み。** [実装・受入](.agent/requirements/20260908-bases-design/implementation.md)の境界に従い、このsourceのproduction gate、隔離installed受入、fresh MCP確認、最終Vault同期で今回を完了とする。結果は最新receiptと対応するVault実施記録が所有し、全条件を満たした後の新しい製品変更は未選択。次の推奨検討候補はB3の短いリンクpreviewだが自動着手しない。formula・他view・セル編集・Git公開は今回の範囲に含めない |
+| Next | **承認済み候補のproduction:updateと隔離installed受入。** 起動中本番やsource変更があれば停止し、installed hash・通常profile不変・既存MCP登録を確認する。実Drive／物理IME／実Ctrl+V／本人操作確認は別層で、今回の自動検証から完了へ変更しない |
 | 日常利用の確認 | 本人はAIとの再利用まで行えていると報告済み。[S0の初回実AI評価](docs/reports/ai-reuse-s0-evaluation-2026-09-06.md)で、隔離8ノート・5問の本文到達と回答根拠が対応し、適用項目は全PASS。R2は4ケースPASS・E3条件未成立のN/A。既存tool＋[読取契約](.agent/requirements/20260906-0410-ai-reuse-contract/design.md)で成立し、この試行から製品修正は必要にならなかった。日常で生じた実際の質問について必要本文・時点・制約と回答を照合し、失敗があれば検索・呼出し方・原資料・回答生成へ原因を分ける。今回を日常全般の成功や契約配布完了とはしない。R6の版変更時の実callerは未検証。S1・S2と欠落タブ通知の本番受入はCompleteを参照し、本人の日常操作の受入や誤答減少の効果とは区別する。自動監視・ログ収集は追加しない |
 | Held | R1〜R10、Compact Decision Envelope、独立Harness runtime、新DB、Vector DB、全Vault ingestion、永続派生ビュー、BM25/cache、multi-note transaction、広域Graph拡張、無改造Obsidian community pluginの実行runtime／API shim／任意`main.js`読込、独立review queue、全Vault batch整理、既存ノートへのbulk分類write、例外案件のAI自動承認、日次整理契約外の原典移動／削除、fact-only Hook実装、新規schedule、semantic Codex Lifecycle Hook、LLM／embeddingによる再編、Idea Proposal、未承認の広範な自律書込み。採用済みの受信箱日次整理・通常ノートのrevision付き更新はこのHeldへ含めない |
 | Ended | 観測宙域／Life Weather派生試作。2026-09-06に利用者が終了と製品撤去を選択。成果資料は参考証拠として保持する |
 | Research | exact rollout usageの明示添付、exclusionと完全修飾IDを機械検査できる最小transient形式、意味的no-op、owner候補支援、projection、event sourcing、background maintenance。Phase 1で同型摩擦が独立2件以上観測されるまで実装へ昇格しない |
 
-未実装案の範囲・再開条件・完了／終了済みとの区別と、利用者の依頼に基づく推奨検討順は[2026-09-09の整理](docs/reports/tsuzune-unimplemented-ideas-2026-09-09.md)を参照する。S1・S2を外し、Supermemory公開SDKを参考にしたContext整理のC10をHeld／Researchへ追加して29候補群。A6候補一覧の実装後に残る上位5件の検討順は維持する。現在の実行範囲と次の作業は上表だけを正本とする。
+未実装案の範囲・再開条件・完了／終了済みとの区別は[2026-09-09の整理](docs/reports/tsuzune-unimplemented-ideas-2026-09-09.md)を参照する。同資料の29候補群・順位は当時の記録で、現在の未実装件数ではない。[2026-10-01の再調査](docs/reports/unimplemented-and-improvements-2026-10-01.md)の後、利用者が同日の8項目計画を採用した。現在の実行範囲と次の作業は上表だけを正本とする。
 
 ### ワークフロー改善第3段階 — 2026-09-08（3種連続試行完了）
 
@@ -86,6 +131,10 @@ Basesの追加修正（Properties一覧の除外・重複キー診断）は先�
 次の改善は、再現条件・期待する利用者の変化・最小の変更・確認方法を一件にまとめる。非破壊性とaccessibilityを前提に、データ安全 → 毎日の操作 → 構造表現 → 選択済み拡張の順を維持する。広域refactor、汎用plugin runtime、全Vault自動整理、Hook／schedule、終了した芸術機能の再開はこの方針だけでは承認しない。
 
 ### 過去の区切りと証拠（各記載日の状態）
+
+2026-09-21、Clawboardで長文が省略される実障害に対し、MCP起動引数 `--fetch-page-characters` で既存fetchのページ長を接続ごとに指定できるようにする。Clawboardは4,000、未指定の接続は100,000を維持。文字の欠落・絵文字の分断を防ぎ、既存cursor・revision・書込境界を保持する。ソース・MCP隔離検証後、公式production gateとClawboard実会話で受入する。結果は最新receiptと既存の「TSUZUNE-OpenClaw実用環境整備-実施記録-2026-09-21」が所有する。他の候補・定期整理は再開しない。
+
+2026-09-12の本番更新・レビューは、現在の作業ツリー全体を対象とする。user.mdプロフィールの保存競合・二重操作・編集状態保持を修正し、公式production gateで本番へ反映する。成功条件は回帰テスト、本番EXE／app.asar一致とprofile不変、最終Vault記録。結果の正本は最新receiptと同日の実施記録とし、新しい候補には着手しない。
 
 以下の未実施・Next・test件数は当時の記録であり、現在の実行指示ではない。現在は上のCurrent Decisionと最新receiptを参照する。
 

@@ -3,16 +3,18 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   rm,
   symlink,
   utimes,
   writeFile
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { VaultService } from '../src/main/vault'
 import { isSupportedAttachmentPath } from '../src/shared/attachments'
+import { bookmarkId } from '../src/shared/bookmarks'
 
 let rootPath: string
 let vault: VaultService
@@ -103,7 +105,10 @@ describe('VaultService path and scan boundaries', () => {
 
     expect(snapshot.pathAliases).toEqual({ '旧/ノート.md': '知識/正本.md' })
     expect(snapshot.bookmarks).toEqual([
-      { type: 'file', path: '知識/正本.md', title: '以前の入口', ctime: 123 }
+      { id: bookmarkId({ path: '知識/正本.md' }), type: 'file', path: '知識/正本.md', title: '以前の入口', ctime: 123 }
+    ])
+    expect(JSON.parse(await readFile(absolute('.tsuzune/bookmarks.json'), 'utf8'))).toEqual([
+      { type: 'file', path: '旧/ノート.md', title: '以前の入口', ctime: 123 }
     ])
   })
 
@@ -132,6 +137,7 @@ describe('VaultService path and scan boundaries', () => {
 
     expect((await vault.scan()).bookmarks).toEqual([
       {
+        id: bookmarkId({ path: '知識/正本.md' }),
         type: 'file',
         path: '知識/正本.md',
         title: '以前の入口',
@@ -177,6 +183,7 @@ describe('VaultService path and scan boundaries', () => {
     })
 
     expect(updated).toEqual({
+      id: bookmarkId({ path: '知識/正本.md' }),
       type: 'file',
       path: '知識/正本.md',
       title: '現在の入口',
@@ -206,7 +213,7 @@ describe('VaultService path and scan boundaries', () => {
     )
 
     expect((await vault.scan()).bookmarks).toEqual([
-      { type: 'file', path: '旧/ノート.md', ctime: 123 }
+      { id: bookmarkId({ path: '旧/ノート.md' }), type: 'file', path: '旧/ノート.md', ctime: 123 }
     ])
   })
 
@@ -224,8 +231,23 @@ describe('VaultService path and scan boundaries', () => {
     )
 
     expect((await vault.scan()).bookmarks).toEqual([
-      { type: 'file', path: '旧/ノート.md', ctime: 123 }
+      { id: bookmarkId({ path: '旧/ノート.md' }), type: 'file', path: '旧/ノート.md', ctime: 123 }
     ])
+  })
+
+  it('resolves an old heading bookmark alias in memory without rewriting its source row', async () => {
+    await mkdir(absolute('.tsuzune'), { recursive: true })
+    await mkdir(absolute('知識'), { recursive: true })
+    await writeFile(absolute('知識/正本.md'), '# 節', 'utf8')
+    await writeFile(absolute('.tsuzune/path-aliases.json'),
+      JSON.stringify({ '旧/ノート.md': '知識/正本.md' }), 'utf8')
+    const oldRow = { type: 'heading' as const, path: '旧/ノート.md', slug: '節', headingTitle: '節', ctime: 123 }
+    await writeFile(absolute('.tsuzune/bookmarks.json'), JSON.stringify([oldRow]), 'utf8')
+
+    expect((await vault.scan()).bookmarks).toEqual([{
+      ...oldRow, path: '知識/正本.md', id: bookmarkId({ ...oldRow, path: '知識/正本.md' })
+    }])
+    expect(JSON.parse(await readFile(absolute('.tsuzune/bookmarks.json'), 'utf8'))).toEqual([oldRow])
   })
 
   it('fails closed when path aliases are malformed or cyclic', async () => {
@@ -332,6 +354,7 @@ describe('VaultService path and scan boundaries', () => {
       group: ''
     })
     expect(updated).toEqual({
+      id: bookmarkId({ path: 'attachments/diagram.svg' }),
       type: 'file',
       path: 'attachments/diagram.svg',
       title: '新しい構成図',
@@ -344,6 +367,22 @@ describe('VaultService path and scan boundaries', () => {
     expect(
       JSON.parse(await readFile(absolute('.tsuzune/bookmarks.json'), 'utf8'))
     ).toEqual([])
+  })
+
+  it('keeps file, heading, and exact-search bookmarks together and removes them by stable ID', async () => {
+    await mkdir(absolute('知識'), { recursive: true })
+    await writeFile(absolute('知識/正本.md'), '# 節\n本文', 'utf8')
+    const file = await vault.saveBookmark({ path: '知識/正本.md' })
+    const heading = await vault.saveBookmark({ type: 'heading', path: '知識/正本.md', slug: '節', headingTitle: '節' })
+    const search = await vault.saveBookmark({ type: 'search', query: '  tag:#仕事 OR name:正本  ' })
+
+    expect(new Set([file.id, heading.id, search.id]).size).toBe(3)
+    expect((await vault.scan()).bookmarks).toEqual([file, heading, search])
+    await vault.removeBookmark(heading.id)
+    expect((await vault.scan()).bookmarks).toEqual([file, search])
+    await vault.removeBookmark(search.id)
+    expect((await vault.scan()).bookmarks).toEqual([file])
+    expect(JSON.parse(await readFile(absolute('.tsuzune/bookmarks.json'), 'utf8'))).toEqual([file])
   })
 
   it('does not create a bookmark for a missing or outside-Vault file', async () => {
@@ -820,6 +859,109 @@ describe('VaultService file operations', () => {
     expect(await readFile(absolute(firstTrash.path), 'utf8')).toBe('最初の版')
     expect(await readFile(absolute(secondTrash.path), 'utf8')).toBe('二番目の版')
     expect(await readFile(absolute(thirdTrash.path), 'utf8')).toBe('三番目の版')
+  })
+
+  it('keeps the moved source if a step after trash rename fails', async () => {
+    await mkdir(absolute('01_受信箱'))
+    await writeFile(absolute('01_受信箱/原典.md'), '原典の本文', 'utf8')
+    Object.assign(vault, {
+      removeCreationTimes: async () => { throw new Error('injected post-rename failure') }
+    })
+
+    await expect(vault.trashEntry('01_受信箱/原典.md')).rejects.toMatchObject({
+      appError: { code: 'UNKNOWN' }
+    })
+    await expect(access(absolute('01_受信箱/原典.md'))).rejects.toBeDefined()
+    const batches = await readdir(absolute('.trash'))
+    expect(batches).toHaveLength(1)
+    expect(
+      await readFile(absolute(`.trash/${batches[0]}/01_受信箱/原典.md`), 'utf8')
+    ).toBe('原典の本文')
+  })
+
+  it('cleans an empty trash batch when the pre-rename check fails', async () => {
+    await mkdir(absolute('01_受信箱'))
+    await writeFile(absolute('01_受信箱/原典.md'), '原典の本文', 'utf8')
+
+    await expect(vault.trashEntry('01_受信箱/原典.md', async () => {
+      throw new Error('injected pre-rename failure')
+    })).rejects.toThrow('injected pre-rename failure')
+    expect(await readFile(absolute('01_受信箱/原典.md'), 'utf8')).toBe('原典の本文')
+    expect(await readdir(absolute('.trash'))).toEqual([])
+  })
+
+  it('recovers a keyed intent left before rename and refuses changed source', async () => {
+    const path = '01_受信箱/原典.md'
+    const key = '129f557b-5fc1-4b99-9cc8-ea22c3f984ac'
+    await mkdir(absolute('01_受信箱'))
+    await writeFile(absolute(path), '# 原典', 'utf8')
+    const proof = async () => true
+    await expect(vault.trashEntry(path, async () => { throw Error('before rename') }, { id: key, expectedRevision: 'revision', verifyRevision: proof })).rejects.toThrow('before rename')
+    expect(await readFile(absolute(path), 'utf8')).toBe('# 原典')
+    await writeFile(absolute(path), '# 変更', 'utf8')
+    await expect(vault.trashEntry(path, undefined, { id: key, expectedRevision: 'revision', verifyRevision: proof })).rejects.toThrow()
+    expect(await readFile(absolute(path), 'utf8')).toBe('# 変更')
+  })
+
+  it('completes an unchanged keyed intent from a fresh VaultService', async () => {
+    const path = '01_受信箱/原典.md'
+    const operation = { id: '3b5b933d-2585-4c0c-a444-7c511074b56a', expectedRevision: 'revision', verifyRevision: async () => true }
+    await mkdir(absolute('01_受信箱'))
+    await writeFile(absolute(path), '# 原典', 'utf8')
+    await expect(vault.trashEntry(path, async () => { throw Error('before rename') }, operation)).rejects.toThrow('before rename')
+    const fresh = new VaultService()
+    await fresh.setRootPath(rootPath)
+    const moved = await fresh.trashEntry(path, undefined, operation)
+    expect(await readFile(absolute(moved.path), 'utf8')).toBe('# 原典')
+    expect(await fresh.trashEntry(path, undefined, operation)).toEqual(moved)
+  })
+
+  it('replays a keyed move after post-rename metadata failure', async () => {
+    const path = '01_受信箱/原典.md'
+    const operation = { id: '38fb5ed3-b126-4e2f-871e-39d76d5ce2b0', expectedRevision: 'revision', verifyRevision: async () => true }
+    await mkdir(absolute('01_受信箱'))
+    await writeFile(absolute(path), '# 原典', 'utf8')
+    Object.assign(vault, { removeCreationTimes: async () => { throw Error('after rename') } })
+    await expect(vault.trashEntry(path, undefined, operation)).rejects.toThrow('after rename')
+    await expect(access(absolute(path))).rejects.toBeDefined()
+    const fresh = new VaultService()
+    await fresh.setRootPath(rootPath)
+    const moved = await fresh.trashEntry(path, undefined, operation)
+    expect(await readFile(absolute(moved.path), 'utf8')).toBe('# 原典')
+  })
+
+  it('fails closed while another process owns the same keyed operation', async () => {
+    const path = '01_受信箱/原典.md'
+    const operation = { id: '60e79715-fd6a-437d-8f94-811880ee09fa', expectedRevision: 'revision', verifyRevision: async () => true }
+    await mkdir(absolute('01_受信箱'))
+    await writeFile(absolute(path), '# 原典', 'utf8')
+    let release!: () => void
+    let entered!: () => void
+    const waiting = new Promise<void>((resolve) => { release = resolve })
+    const enteredCheck = new Promise<void>((resolve) => { entered = resolve })
+    const first = vault.trashEntry(path, async () => { entered(); await waiting }, operation)
+    await enteredCheck
+    const second = new VaultService()
+    await second.setRootPath(rootPath)
+    try { await expect(second.trashEntry(path, undefined, operation)).rejects.toThrow() }
+    finally { release() }
+    const moved = await first
+    expect(await readFile(absolute(moved.path), 'utf8')).toBe('# 原典')
+  })
+
+  it('refuses a changed or symlinked keyed trash destination', async () => {
+    const path = '01_受信箱/原典.md'
+    const key = 'ab00b987-6534-4964-b947-fdc9d17a59de'
+    await mkdir(absolute('01_受信箱'))
+    await writeFile(absolute(path), '# 原典', 'utf8')
+    const operation = { id: key, expectedRevision: 'revision', verifyRevision: async () => true }
+    const moved = await vault.trashEntry(path, undefined, operation)
+    await writeFile(absolute(moved.path), '# 改変', 'utf8')
+    await expect(vault.trashEntry(path, undefined, operation)).rejects.toThrow()
+    await rm(absolute(moved.path))
+    await rm(dirname(absolute(moved.path)), { recursive: true })
+    await symlink(absolute('01_受信箱'), dirname(absolute(moved.path)), 'junction')
+    await expect(vault.trashEntry(path, undefined, operation)).rejects.toThrow()
   })
 })
 

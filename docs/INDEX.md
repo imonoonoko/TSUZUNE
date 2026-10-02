@@ -1,6 +1,6 @@
 # TSUZUNE Documentation Index
 
-更新日: 2026-09-09
+更新日: 2026-10-02
 
 ## まず読む
 
@@ -14,12 +14,23 @@
 ## 現在の開発
 
 - [改善・未達成項目 実行台帳](reports/tsuzune-improvement-ledger-2026-08-23.md) — する／しない／条件成立時だけを確定した判断索引。現在のPrimary／Nextは[PLAN.mdのCurrent Decision](../PLAN.md#current-decision)を正本とし、ここでは可変状態を複製しない。
+- [ノート操作の軽量化 2026-10-02](reports/performance-2026-10-02.md) — 未リンク言及・リンク解析の処理削減、独立review修正、隔離Electronの反応・メモリ観測とGitHub統合境界。
+- [Google Drive自動同期の実装・受入境界 2026-10-02](reports/drive-auto-sync-2026-10-02.md) — Vaultごとの設定、保存後・定期同期、競合停止、再試行、配布対象と実Drive受入の分離。
+- [画像スクロールと画面整理 2026-10-02](reports/preview-scroll-ui-2026-10-02.md) — 再描画で画像が読み直される原因、安定した表示、ペインメニュー、一覧／空画面、実Electron受入境界。
+- [画像コピー＆ペーストの実装・受入境界 2026-10-02](reports/image-paste-2026-10-02.md) — 編集／Live Preview、添付保存、通常pasteとUndo、隔離アプリ検査と実OS操作の分離。
+- [MCP原文・根拠到達の実装・検証境界 2026-10-01](reports/mcp-evidence-2026-10-01.md) — 節一覧・節取得、検索の原文抜粋とContext locator、固定12依頼の比較、本番／再接続の分離。[作業契約](../.agent/requirements/20261001-mcp-evidence/plan.md)。
+- [Codex知識連携の実装・検証境界 2026-10-01](reports/codex-knowledge-integration-2026-10-01.md) — 複数本文、Bases、Graph、保存・再開のsource証拠と実Codex／本番受入の分離。[作業契約](../.agent/requirements/20261001-codex-knowledge-integration/plan.md)。
+- [5項目改善の実装・隔離検証 2026-09-30](reports/five-improvements-implementation-2026-09-30.md) — Markdown、プレビュー、ショートカット、Basesセル編集、Properties管理のsource証拠と本番反映の停止条件。
+- [本番証拠と現在地の整合 2026-09-30](reports/current-state-reconciliation-2026-09-30.md) — 9月24日gate完了ログ、欠けた受領書とsource、現在のinstalled／MCP観測、A6完了履歴と次の本番更新の停止線。
+- [8項目の実装・隔離検証 2026-10-01](reports/eight-improvements-implementation-2026-10-01.md) — リンク保全・探索、Bases、Bookmark、Live Preview、8ペイン、未リンク言及、Graph深さ。sourceと本番・実OS受入の境界。
+- [未実装項目・改善点の再調査 2026-10-01](reports/unimplemented-and-improvements-2026-10-01.md) — 8項目採用前の調査証拠。実装状態は上記報告を参照。
+- [未実装部分と改善余地の調査 2026-09-30](reports/unimplemented-and-improvements-2026-09-30.md) — 5項目採用前の調査証拠。現在の状態は上記再調査と実装結果を参照。
 - [Context読取境界の実装・検証 2026-09-10](reports/context-reading-boundary-2026-09-10.md) — tool説明の保証範囲、固定6ケースの実AI受入、不要再取得への修正と本番完了条件。
 - [欠落タブ通知と前回配置の整理 2026-09-09](reports/missing-tab-notice-2026-09-09.md) — 整理済みノートの古いタブ参照、通知表示、明示的な配置更新と本文・名前付き配置の保持。
 - [AI承認廃止・直接反映 2026-09-09](reports/ai-direct-write-2026-09-09.md) — 承認画面・待機処理の撤去、直接保存、安全性回帰、旧提案の不活性保持と本番完了条件。
 - [S2 Context本文の変換種別 2026-09-09](reports/context-content-mode-2026-09-09.md) — 4種の出力契約、24ケースの既存出力不変比較、MCP経路と本番完了条件。
 - [S1 検索一致抜粋の実装 2026-09-09](reports/search-matching-excerpts-2026-09-09.md) — 既存一致を優先したfallback、20ケースの実装前比較、MCP／検索一覧、全testと本番完了条件。
-- [未実装案の整理・現在の優先順位 2026-09-09](reports/tsuzune-unimplemented-ideas-2026-09-09.md) — 本番反映済みS1／S2を外し、Supermemory公開SDK参考のC10をHeld／Researchへ追加した29候補群。A6候補一覧完了後の上位5件の検討順は維持する。実装の選択と現在の実行状態はPLAN.mdを参照する。
+- [未実装案の整理 2026-09-09](reports/tsuzune-unimplemented-ideas-2026-09-09.md) — 当時の29候補群と検討順。完成した5項目を含む歴史資料で、現在の未実装件数・優先順位ではない。現在の実行状態はPLAN.mdを参照する。
 - [A6 Bases候補一覧の実装・受入](../.agent/requirements/20260908-bases-design/implementation.md) — 両入口、検索・更新・手入力、保存・Vault世代・junction差替え、隔離実操作の検証。設計契約は[候補一覧設計](../.agent/requirements/20260908-bases-design/chooser-design.md)。
 - [ワークスペース保存・復元 設計 2026-09-06](../.agent/requirements/20260906-0559-named-workspaces/requirements.md) — 名前付き配置、Vault別の前回状態、本文保存・競合・欠落・IME・設定保存の境界と11受入ケース。技術設計・受入条件は同directory、実行状態はPLAN.mdを参照。
 - [AI再利用 S0実AI評価 2026-09-06](reports/ai-reuse-s0-evaluation-2026-09-06.md) — 隔離8ノート・5問の取得本文と回答の照合、条件付きの追加取得判定、未検証境界。
@@ -71,7 +82,7 @@
 - [Obsidian Graph Parity Reference](obsidian-graph-parity-reference.md) — 固定比較対象と受入契約。
 - [GP0-3b-n Attachment Default App Requirements](../.agent/requirements/20260810-1941-attachment-default-app/4_requirements.md) — 実外部アプリを起動せず、添付の既定アプリ要求を一項目だけ比較した設計、安全境界、停止条件。
 - [GP0-3b-p Attachment File Explorer Reveal Requirements](../.agent/requirements/20260811-0257-attachment-file-explorer-reveal/4_requirements.md) — `ファイルエクスプローラでファイルを表示`の意味を推測せず、内部File ExplorerかOS境界かを一項目・一添付で確定する設計、安全境界、停止条件。
-- [MCP Integration](mcp-integration.md) — Codex Desktopの19ツール登録、direct server 21ツール、派生知識の自動作成・明示時の受信箱trash、Drive同期bridgeと書込境界。
+- [MCP Integration](mcp-integration.md) — Codex Desktopの25ツール登録、direct server 27ツール、複数起点・Bases・Graphの読取、派生知識の自動作成・明示時の受信箱trash、Drive同期bridgeと書込境界。
 - [Drive Sync MCP Bridge](reports/drive-sync-mcp-bridge-2026-08-14.md) — 起動中のTSUZUNE本体が持つ既存同期serviceをpreview／applyへ接続し、Google tokenをMCPへ渡さない実装・検証記録。
 - [Compact Context Requirements](../.agent/requirements/20260810-0440-query-aware-compact-context/4_requirements.md) — X1-M1 MOC Title Routerの実装契約と、未実装のquery選定・MCP二重搬送削減を分離して記録。
 - [X1-T1 Structured-only Transport Measurement Protocol](../.agent/requirements/20260810-0440-query-aware-compact-context/7_x1-t1-model-visible-token-benchmark.md) — `build_context`の二重搬送を、wire bytesとmodel-visible tokenを混同せずに実測するgate。

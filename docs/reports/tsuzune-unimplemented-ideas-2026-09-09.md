@@ -1,5 +1,7 @@
 # TSUZUNE 未実装案の整理 — 2026-09-09
 
+> 以下の29候補群と順位は9月9日時点の整理。5項目は9月30日にsource実装済み・本番未反映となった。[実装結果](five-improvements-implementation-2026-09-30.md)と[2026-10-01の未実装・改善点再調査](unimplemented-and-improvements-2026-10-01.md)を現在の状態として参照する。実行状態・本番停止条件はPLAN Current Decisionが所有する。
+
 ## 結論と読み方
 
 現在の実行方針は[PLAN.mdのCurrent Decision](../../PLAN.md#current-decision)が所有する。S1・S2の本番反映と最終同期、S2の追加review後の「優先順位整理」に基づく順位を示す。続く「設計開始」「開始」で選択された**Basesを一覧から選んで開く操作（A6の一部）**はsource実装・検証済み。[実装・受入](../../.agent/requirements/20260908-bases-design/implementation.md)と対応receipt・Vault記録を参照する。日常価値の評価軸は「分類せず書き始める」「以前の考えと根拠へ戻る」「外部AIへの背景説明を減らす」。全面Obsidian互換や機能数を完成条件にしない。

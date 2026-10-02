@@ -77,6 +77,7 @@ async function buildFixture(root) {
   await build({
     stdin: { contents: (await readFile(sourcePath, 'utf8')).replace(/\r\n/g, '\n'), resolveDir: dirname(sourcePath), sourcefile: sourcePath, loader: 'ts' },
     outfile: join(root, 'out', 'mcp', 'server.js'), bundle: true, platform: 'node', format: 'esm', target: 'node22',
+    banner: { js: 'import { createRequire as __tsuzuneCreateRequire } from "node:module"; const require = __tsuzuneCreateRequire(import.meta.url);' },
     define: { __TSUZUNE_VERSION__: JSON.stringify(packageJson.version) }, logLevel: 'silent'
   })
 }

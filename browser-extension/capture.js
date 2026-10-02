@@ -31,15 +31,18 @@
   const selected = typeof getSelection === 'function' ? String(getSelection()).trim() : ''
   const sourceLocation = document.createElement('a')
   sourceLocation.href = url
-  const host = sourceLocation.hostname.toLowerCase()
-  const pathParts = sourceLocation.pathname.split('/').filter(Boolean)
-  const queryVideoId = /(?:^|[?&])v=([\w-]{6,64})(?:&|$)/.exec(sourceLocation.search)?.[1]
-  const youtubeId =
-    host === 'youtu.be'
+  const videoIdFromUrl = (value) => {
+    const parsed = new URL(value)
+    const host = parsed.hostname.toLowerCase()
+    const pathParts = parsed.pathname.split('/').filter(Boolean)
+    const queryVideoId = /(?:^|[?&])v=([\w-]{6,64})(?:&|$)/.exec(parsed.search)?.[1]
+    return host === 'youtu.be'
       ? pathParts[0]
       : host === 'youtube.com' || host.endsWith('.youtube.com')
-        ? queryVideoId || (['shorts', 'embed', 'live'].includes(pathParts[0]) ? pathParts[1] : undefined)
+        ? ['shorts', 'embed', 'live'].includes(pathParts[0]) ? pathParts[1] : queryVideoId
         : undefined
+  }
+  const youtubeId = videoIdFromUrl(url)
 
   const fallbackArticle = () => {
     const clean = document.cloneNode(true)
@@ -153,9 +156,9 @@
       .sort((left, right) => right.score - left.score)[0]?.track
   }
 
-  const captionTrackState = () => {
+  const playerResponseState = () => {
     let stale = false
-    let currentSeen = false
+    const current = []
     for (const script of document.scripts) {
       const source = script.textContent || ''
       if (!source.includes('ytInitialPlayerResponse')) continue
@@ -167,13 +170,19 @@
         stale = true
         continue
       }
-      currentSeen = true
+      current.push(response)
+    }
+    return { current, stale }
+  }
+
+  const captionTrackState = (playerState) => {
+    for (const response of playerState.current) {
       const tracks = response?.captions?.playerCaptionsTracklistRenderer?.captionTracks
       if (Array.isArray(tracks) && tracks.length) {
         return { kind: 'available', track: selectCaptionTrack(tracks) }
       }
     }
-    return { kind: !currentSeen && stale ? 'stale' : 'none', track: null }
+    return { kind: !playerState.current.length && playerState.stale ? 'stale' : 'none', track: null }
   }
 
   const timestamp = (seconds) => {
@@ -211,8 +220,7 @@
     )
   }
 
-  const readBoundedResponse = async (response) => {
-    const maxBytes = 512 * 1024
+  const readBoundedResponse = async (response, maxBytes = 512 * 1024) => {
     const declaredLength = Number(response.headers?.get?.('content-length'))
     if (Number.isFinite(declaredLength) && declaredLength > maxBytes) return ''
     if (response.body?.getReader && typeof TextDecoder === 'function') {
@@ -233,7 +241,50 @@
       return value + decoder.decode()
     }
     const value = await response.text()
-    return value.length <= maxBytes ? value : ''
+    return (typeof TextEncoder === 'function' ? new TextEncoder().encode(value).length : value.length) <= maxBytes
+      ? value
+      : ''
+  }
+
+  const playerMetadata = (playerState) => {
+    const metadata = { title: '', channel: '', description: '' }
+    for (const response of playerState.current) {
+      const details = response?.videoDetails
+      if (!metadata.title && typeof details?.title === 'string') metadata.title = details.title.trim()
+      if (!metadata.channel && typeof details?.author === 'string') metadata.channel = details.author.trim()
+      if (!metadata.description && typeof details?.shortDescription === 'string') {
+        metadata.description = details.shortDescription.trim()
+      }
+    }
+    return metadata
+  }
+
+  const fetchOEmbedMetadata = async () => {
+    if (typeof fetch !== 'function' || !/^[\w-]{6,64}$/.test(youtubeId)) return null
+    const oembedUrl = new URL('https://www.youtube.com/oembed')
+    oembedUrl.searchParams.set('url', `https://www.youtube.com/watch?v=${youtubeId}`)
+    oembedUrl.searchParams.set('format', 'json')
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 2500)
+    try {
+      const response = await fetch(oembedUrl.toString(), {
+        method: 'GET',
+        credentials: 'omit',
+        redirect: 'error',
+        signal: controller.signal
+      })
+      if (!response.ok) return null
+      const source = await readBoundedResponse(response, 32 * 1024)
+      if (!source) return null
+      const metadata = JSON.parse(source)
+      if (metadata?.provider_name !== 'YouTube' || metadata?.type !== 'video') return null
+      if (typeof metadata.title !== 'string' || typeof metadata.author_name !== 'string') return null
+      return { title: metadata.title.trim(), channel: metadata.author_name.trim() }
+    } catch {
+      return null
+    } finally {
+      clearTimeout(timeoutId)
+    }
   }
 
   const fetchCaptionTrack = async (track) => {
@@ -274,10 +325,8 @@
   const result = {
     requestId: randomId(),
     url,
-    title: bounded(youtubeId
-      ? (meta('meta[name="title"]', 'meta[property="og:title"]') || article.title)
-      : article.title, 1000),
-    description: bounded(article.description, 1000),
+    title: bounded(youtubeId ? youtubeId : article.title, 1000),
+    description: bounded(youtubeId ? '' : article.description, 1000),
     selection: selected,
     content: article.content,
     siteName: bounded(article.siteName, 1000),
@@ -287,6 +336,11 @@
   }
 
   if (youtubeId) {
+    const playerState = playerResponseState()
+    const metadata = playerMetadata(playerState)
+    const oembedPromise = metadata.title && metadata.channel
+      ? Promise.resolve(null)
+      : fetchOEmbedMetadata()
     const timeParts = text(document.querySelector('.ytp-time-current')).split(':').map(Number)
     const currentTime = timeParts.every(Number.isFinite)
       ? timeParts.reduce((total, part) => total * 60 + part, 0)
@@ -300,7 +354,7 @@
     let transcriptLanguage
 
     if (!transcript) {
-      const trackState = captionTrackState()
+      const trackState = captionTrackState(playerState)
       const [panelResult, trackResult] = await Promise.all([
         openTranscriptPanel(),
         trackState.kind === 'available'
@@ -321,9 +375,11 @@
       }
     }
 
-    const channel = text(document.querySelector('ytd-channel-name a')) ||
-      text(document.querySelector('ytd-channel-name #text')) ||
-      text(document.querySelector('ytd-channel-name'))
+    const oembed = await oembedPromise
+    const channel = metadata.channel || oembed?.channel || ''
+    result.title = bounded(metadata.title || oembed?.title || youtubeId, 1000)
+    result.description = bounded(metadata.description, 1000)
+    result.author = ''
     result.content = ''
     result.youtube = {
       videoId: youtubeId,
@@ -334,7 +390,9 @@
       transcriptLanguage,
       transcriptSource
     }
-    result.description = bounded(text(document.querySelector('#description')) || result.description, 1000)
+    if (videoIdFromUrl(location.href) !== youtubeId) {
+      throw new Error('YouTube video changed during capture')
+    }
   }
 
   globalThis.result = result

@@ -259,6 +259,7 @@ async function run() {
       bundle: true,
       platform: 'node',
       format: 'esm',
+      banner: { js: 'import { createRequire as __tsuzuneCreateRequire } from "node:module"; const require = __tsuzuneCreateRequire(import.meta.url);' },
       target: 'node22',
       define: {
         __TSUZUNE_VERSION__: JSON.stringify(packageJson.version)

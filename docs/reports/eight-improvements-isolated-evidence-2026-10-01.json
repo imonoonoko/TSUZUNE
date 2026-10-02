@@ -1,0 +1,251 @@
+{
+  "date": "2026-09-30T17:56:58.016Z",
+  "outcome": "pass",
+  "runtime": "built working tree Electron",
+  "entry": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\out\\main\\index.js",
+  "entrySha256": "fea1ae2040c2aacc575a4054eb0759c78d79b04fca8dbdc31c6097425cbf1baa",
+  "isolatedVault": "C:\\Users\\Humin\\AppData\\Local\\Temp\\tsuzune-eight-improvements-JxgYYp\\vault",
+  "isolatedProfile": "C:\\Users\\Humin\\AppData\\Local\\Temp\\tsuzune-eight-improvements-JxgYYp\\profile",
+  "productionProfileOpened": false,
+  "installedBinaryUsed": false,
+  "mcpSettingsModified": false,
+  "checks": [
+    {
+      "name": "markdown-preview-table-image-readonly-task",
+      "result": "pass",
+      "detail": {
+        "images": [
+          {
+            "complete": true,
+            "width": 1
+          }
+        ],
+        "table": "NameValueTable fixture42",
+        "tasks": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "live-preview-real-codemirror",
+      "result": "pass",
+      "detail": {
+        "editors": 1
+      }
+    },
+    {
+      "name": "eight-panes-single-editor-and-limit",
+      "result": "pass",
+      "detail": {
+        "editors": 1,
+        "limited": true,
+        "panes": 8
+      }
+    },
+    {
+      "name": "split-separator-native-keyboard",
+      "result": "pass",
+      "detail": {
+        "home": 10,
+        "end": 90,
+        "left": 85
+      }
+    },
+    {
+      "name": "eight-pane-version2-persistence",
+      "result": "pass",
+      "detail": {
+        "panes": 8,
+        "rootRatio": 0.85,
+        "persisted": true
+      }
+    },
+    {
+      "name": "renderer-reload-eight-pane-workspace-restoration",
+      "result": "pass",
+      "detail": {
+        "realMainServiceRead": true,
+        "processRestart": false,
+        "panes": [
+          "pane-1",
+          "pane-8a099b7d-5c12-454d-a43e-8b2419d40201",
+          "pane-d29ab60c-88ca-4826-9cc7-147ae8f96797",
+          "pane-30298912-af13-428f-b2ce-e2c67430f612",
+          "pane-5d2d8126-45d6-4f5b-bfae-322885a8e314",
+          "pane-44b33310-bdf4-4d30-acaa-87cb622a7df3",
+          "pane-674a32b3-aa7d-4d4e-9894-bb1a263d2636",
+          "pane-b1f6ede2-e537-46a0-9706-b56f1e1769b7"
+        ],
+        "snapshotSha256": "654b62ea49d3eb12a5da160af4a5c814de567d747d3b3fe8b595702ea5270cd8"
+      }
+    },
+    {
+      "name": "720px-200percent-minimum-pane-scroll",
+      "result": "pass",
+      "detail": {
+        "clientWidth": 629,
+        "innerWidth": 360,
+        "paneRects": [
+          {
+            "height": 738,
+            "width": 180
+          },
+          {
+            "height": 180,
+            "width": 738
+          },
+          {
+            "height": 552,
+            "width": 180
+          },
+          {
+            "height": 180,
+            "width": 552
+          },
+          {
+            "height": 366,
+            "width": 180
+          },
+          {
+            "height": 180,
+            "width": 366
+          },
+          {
+            "height": 180,
+            "width": 180
+          },
+          {
+            "height": 180,
+            "width": 180
+          }
+        ],
+        "scrollWidth": 924,
+        "zoom": 2,
+        "zoomFactor": 2,
+        "windowSize": [
+          720,
+          900
+        ]
+      }
+    },
+    {
+      "name": "forced-colors-css-emulation",
+      "result": "pass",
+      "detail": {
+        "emulated": true,
+        "physicalWindowsSettingVerified": false
+      }
+    },
+    {
+      "name": "base-real-worker-group-sort-summary-rendering",
+      "result": "pass",
+      "detail": {
+        "groups": [
+          "active",
+          "second"
+        ],
+        "readOnlyCells": true,
+        "sanitized": true,
+        "summary": "13",
+        "worker": [
+          {
+            "messages": 1,
+            "url": "file:///C:/Users/Humin/Documents/Codex/TSUZUNE/out/renderer/assets/base-evaluation-worker-BFKgRgqH.js"
+          }
+        ]
+      }
+    },
+    {
+      "name": "bases-view-selection-and-filter",
+      "result": "pass",
+      "detail": {
+        "view": "Expensive",
+        "rows": 1
+      }
+    },
+    {
+      "name": "bases-gui-draft-preview-save-preserves-yaml",
+      "result": "pass",
+      "detail": {
+        "sha256": "100b49f15dbb0fd273bd25b2fac135e4abd6e5b54cfc08e7f6fd94a2efbac4ed",
+        "previewDidNotWrite": true
+      }
+    },
+    {
+      "name": "all-existing-formula-behaviors-real-bundled-worker",
+      "result": "pass",
+      "detail": {
+        "cases": 72,
+        "fixtureSha256": "d6a53578f21fc51e0ccf10eda04f2cf3ccb5c83e69c7c657fd5dc10f557fc535",
+        "random": "range assertion (actual Worker randomness)",
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "windows-readonly-base-main-ipc-preserves-file",
+      "result": "pass",
+      "detail": {
+        "error": {
+          "code": "ACCESS_DENIED",
+          "message": ".baseを保存できませんでした。"
+        },
+        "ok": false
+      }
+    },
+    {
+      "name": "main-service-version2-session",
+      "result": "pass",
+      "detail": {
+        "version": 2,
+        "panes": 1
+      }
+    },
+    {
+      "name": "fixture-note-unchanged",
+      "result": "pass",
+      "detail": {
+        "sha256": "1958e0067e22e57f91e169ec350bcfd6f9adde16789a0e3a1c6fb6b01d085a25"
+      }
+    }
+  ],
+  "screenshots": [
+    {
+      "name": "live-preview",
+      "path": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\eight-improvements-isolated\\live-preview.png",
+      "sha256": "1ca6c16a5a771cbc501415a55e3d03c08aa6a59f824165e430423f31748ee282"
+    },
+    {
+      "name": "eight-panes-720px-200percent",
+      "path": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\eight-improvements-isolated\\eight-panes-720px-200percent.png",
+      "sha256": "79ed5f62bfd5c93463382a649c5fc8908849205fef17ffcac8761a1ebf5ed406"
+    },
+    {
+      "name": "eight-panes-forced-colors-css",
+      "path": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\eight-improvements-isolated\\eight-panes-forced-colors-css.png",
+      "sha256": "da2966d264ee96e4a119dfb804466bf64e49f1774d14f4617f8ef627f06d37af"
+    },
+    {
+      "name": "bases-grouped",
+      "path": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\work\\eight-improvements-isolated\\bases-grouped.png",
+      "sha256": "03c34d84992ffff1c13ba20a2c38b4d8e15e475c51b6a27e65d965cba4c564e5"
+    }
+  ],
+  "consoleErrors": [],
+  "unverified": [
+    "Physical Windows IME input/composition",
+    "Windows Narrator spoken output",
+    "Physical Windows high contrast setting (CSS forced-colors emulation is separate)",
+    "Installed production binary and production acceptance"
+  ],
+  "workerBundle": {
+    "path": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\out\\renderer\\assets\\base-evaluation-worker-BFKgRgqH.js",
+    "sha256": "17c79de3b9d176c1a0c7608024d22a3ab14e02190bcc76a224c49a77b31dd81c"
+  },
+  "rendererBundles": [
+    {
+      "path": "C:\\Users\\Humin\\Documents\\Codex\\TSUZUNE\\out\\renderer\\assets\\index-C-iD-u5w.js",
+      "sha256": "14e0b5f91d2d9dfd43ef91aa263e104d7a5b913f847b8508590598ba52109926"
+    }
+  ],
+  "completedAt": "2026-09-30T17:57:03.166Z"
+}

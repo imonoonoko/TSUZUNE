@@ -16,7 +16,7 @@ import {
   validateRelativePath
 } from '../core/paths'
 import { parseFrontmatter } from '../core/frontmatter'
-import { searchRendererRanked } from '../core/search'
+import { searchRendererRanked, searchSourceExcerpt } from '../core/search'
 import {
   assertOnlyLinkInserted,
   buildLinkInsertPlan,
@@ -38,19 +38,29 @@ import {
   type VaultSourceOptions
 } from './vault-source'
 import { withDerivedNoteWriteLock } from './derived-note-write'
+import { localGraph, type LocalGraphInput } from './local-graph'
+import { buildContextSetFromSnapshot } from './context-set'
+import { listBases, queryBase, type BasePageInput, type QueryBaseInput } from './bases'
+
+import { listSections, fetchSection, noteSections, sourceRange, boundedReference, contextReferences, characterBudget, responseLength, type SourceReference, type SectionPageInput } from './note-sections'
 
 export interface SearchItem {
   id: string
   title: string
   text: string
+  raw_excerpt: string
+  excerpt_kind: 'body_match' | 'fallback_preview'
+  source_reference: SourceReference
   metadata: {
     path: string
     modified_at: string
+    revision: string
   }
 }
 
 export interface SearchOutput {
   results: SearchItem[]
+  omitted_results: number
 }
 
 export interface FetchOutput {
@@ -157,6 +167,7 @@ export interface ContextStateLineageReceipt {
 }
 
 export interface ContextOutput {
+  source_references: ReturnType<typeof contextReferences>
   seed_id: string
   markdown: string
   character_count: number
@@ -253,6 +264,7 @@ export interface TrashInboxSourceOutput {
   old_path: string
   new_path: string
   source_revision: string
+  operation_id?: string
 }
 
 export interface DerivedNoteInput {
@@ -440,16 +452,20 @@ function assertAiWritable(path: string): void {
 }
 
 function revisionFor(rootPath: string, note: NoteDocument): string {
+  return revisionForParts(rootPath, note.path, note.modifiedAt, note.size, note.content)
+}
+
+function revisionForParts(rootPath: string, path: string, modifiedAt: number, size: number, content: string): string {
   const digest = createHash('sha256')
     .update(rootPath)
     .update('\0')
-    .update(note.path)
+    .update(path)
     .update('\0')
-    .update(String(note.modifiedAt))
+    .update(String(modifiedAt))
     .update('\0')
-    .update(String(note.size))
+    .update(String(size))
     .update('\0')
-    .update(note.content)
+    .update(content)
     .digest('hex')
   return `sha256:${digest}`
 }
@@ -596,34 +612,53 @@ export class VaultMcpService {
   ): Promise<{
     vault: VaultService
     snapshot: VaultSnapshot
+    source: Awaited<ReturnType<typeof resolveVaultSource>>
   }> {
     const vault = new VaultService()
     const source = await resolveVaultSource(this.source)
     await vault.setRootPath(source.vaultPath)
     return {
       vault,
+      source,
       snapshot: await vault.scan(source.userIgnoreFilters, { persistCreationTimes })
     }
   }
 
-  async search(query: string, limit = 10): Promise<SearchOutput> {
+  async search(query: string, limit = 10, maxCharacters = 15000): Promise<SearchOutput> {
+    const budget = characterBudget(maxCharacters)
+    if (!Number.isInteger(limit) || limit<1 || limit>50) throw new Error('limit must be 1–50.')
     const { snapshot } = await this.snapshot({ persistCreationTimes: false })
-    const notes = snapshot.notes.filter(
-      (note) => !isExcludedFilePath(note.path, DEFAULT_SEARCH_EXCLUDED_PATHS)
-    )
-    return {
-      results: searchRendererRanked(notes, query)
-        .slice(0, limit)
-        .map((result) => ({
-          id: result.path,
-          title: result.name,
-          text: result.excerpt,
-          metadata: {
-            path: result.path,
-            modified_at: new Date(result.modifiedAt).toISOString()
-          }
-        }))
+    const notes = snapshot.notes.filter(note=>!isExcludedFilePath(note.path,DEFAULT_SEARCH_EXCLUDED_PATHS))
+    const byPath=new Map(notes.map(note=>[note.path,note]))
+    const ranked=searchRendererRanked(notes,query)
+    const output: SearchOutput = {results:[],omitted_results:ranked.length}
+    for (const result of ranked.slice(0,limit)) {
+      const note=byPath.get(result.path)!, revision=revisionFor(snapshot.rootPath,note)
+      const raw=searchSourceExcerpt(note.content,query)
+      const section=noteSections(note,revision).filter(item=>item.start_character<=raw.match_start && item.end_character>raw.match_start).at(-1)
+      const start = Math.max(raw.start,section?.start_character ?? 0), end = Math.min(raw.end,section?.end_character ?? note.content.length)
+      output.results.push({id:result.path,title:result.name,text:result.excerpt,
+        raw_excerpt:note.content.slice(start,end),excerpt_kind:raw.kind,
+        source_reference:boundedReference(sourceRange(note,revision,start,end,section)),
+        metadata:{path:result.path,modified_at:new Date(result.modifiedAt).toISOString(),revision}})
+      if(responseLength(output)>budget) {output.results.pop();break}
     }
+    output.omitted_results=ranked.length-output.results.length
+    return output
+  }
+
+  async listNoteSections(id: string, input: SectionPageInput = {}) {
+    const {snapshot}=await this.snapshot({persistCreationTimes:false})
+    const visible={...snapshot,notes:snapshot.notes.filter(note=>!isExcludedFilePath(note.path,DEFAULT_SEARCH_EXCLUDED_PATHS))}
+    const note=canonicalNote(visible,id)
+    return listSections(snapshot.rootPath,note,revisionFor(snapshot.rootPath,note),input)
+  }
+
+  async fetchNoteSection(id: string, sectionId: string, expectedRevision: string, input: SectionPageInput = {}) {
+    const {snapshot}=await this.snapshot({persistCreationTimes:false})
+    const visible={...snapshot,notes:snapshot.notes.filter(note=>!isExcludedFilePath(note.path,DEFAULT_SEARCH_EXCLUDED_PATHS))}
+    const note=canonicalNote(visible,id)
+    return fetchSection(snapshot.rootPath,note,revisionFor(snapshot.rootPath,note),sectionId,expectedRevision,input)
   }
 
   async createNote(path: string, content = ''): Promise<WriteOutput> {
@@ -923,12 +958,15 @@ export class VaultMcpService {
     }
   }
 
-  async fetch(id: string, after = 0): Promise<FetchOutput> {
+  async fetch(id: string, after = 0, pageCharacters = MAX_EDITABLE_CHARACTERS): Promise<FetchOutput> {
+    if (!Number.isInteger(pageCharacters) || pageCharacters < 2 || pageCharacters > MAX_EDITABLE_CHARACTERS) {
+      throw new Error('fetch pageCharacters must be an integer from 2 to 100000')
+    }
     const { vault, snapshot } = await this.snapshot({ persistCreationTimes: false })
     const canonical = canonicalNote(snapshot, id)
     const note = await vault.readNote(canonical.path)
     const start = Math.min(Math.max(0, after), note.content.length)
-    let end = Math.min(start + MAX_EDITABLE_CHARACTERS, note.content.length)
+    let end = Math.min(start + pageCharacters, note.content.length)
     if (end < note.content.length && /[\uD800-\uDBFF]/.test(note.content[end - 1] ?? '')) end -= 1
     const truncated = end < note.content.length
 
@@ -1170,7 +1208,8 @@ export class VaultMcpService {
 
   async trashInboxSource(
     id: string,
-    expectedRevision: string
+    expectedRevision: string,
+    operationId?: string
   ): Promise<TrashInboxSourceOutput> {
     const inspect = (snapshot: VaultSnapshot) => {
       const aliases = compilePathAliases(snapshot.pathAliases ?? {})
@@ -1192,18 +1231,31 @@ export class VaultMcpService {
     }
 
     const initial = await this.snapshot()
-    const ready = inspect(initial.snapshot)
-    const moved = await initial.vault.trashEntry(ready.note.path, async () => {
+    const keyed = operationId !== undefined
+    const path = keyed ? id : inspect(initial.snapshot).note.path
+    if (keyed) {
+      const validation = validateRelativePath(id)
+      if (!validation.valid || validation.normalized !== id || !id.startsWith('01_受信箱/') || !id.endsWith('.md')) {
+        throw new Error('キー付き退避には01_受信箱の正確なMarkdownパスが必要です。')
+      }
+    }
+    const moved = await initial.vault.trashEntry(path, async () => {
       const current = await this.snapshot({ persistCreationTimes: false })
-      inspect(current.snapshot)
-    })
+      if (inspect(current.snapshot).note.path !== path) throw new Error('削除元の正確なパスが変わりました。')
+    }, keyed ? {
+      id: operationId,
+      expectedRevision,
+      verifyRevision: (content, modifiedAt, size) =>
+        revisionForParts(initial.snapshot.rootPath, path, modifiedAt, size, content) === expectedRevision
+    } : undefined)
     if (!moved.path) {
       throw new Error('ごみ箱の移動先を確認できませんでした。')
     }
     return {
-      old_path: ready.note.path,
+      old_path: path,
       new_path: moved.path,
-      source_revision: ready.revision
+      source_revision: expectedRevision,
+      ...(keyed ? { operation_id: operationId } : {})
     }
   }
 
@@ -1249,7 +1301,7 @@ export class VaultMcpService {
       throw new Error('自分自身へのリンクは追加できません。')
     }
     const current = await vault.readNote(canonical.path)
-    const outgoing = getOutgoingLinks(current.content, snapshot.notes, aliases)
+    const outgoing = getOutgoingLinks(current.content, snapshot.notes, aliases, current.path)
     const alreadyLinked = outgoing.some(
       (link) =>
         link.status === 'resolved' &&
@@ -1310,8 +1362,9 @@ export class VaultMcpService {
     const { snapshot } = await this.snapshot({ persistCreationTimes: false })
     const aliases = compilePathAliases(snapshot.pathAliases ?? {})
     const note = canonicalNote(snapshot, id, aliases)
+    const referenceBudget = Math.floor(characterBudget(maxCharacters) / 3)
     const bundle = buildContextBundle(note.path, snapshot.notes, {
-      maxCharacters,
+      maxCharacters: maxCharacters-referenceBudget,
       asOf: options.asOf,
       query: options.query,
       temporalPerspective: options.temporalPerspective,
@@ -1353,6 +1406,7 @@ export class VaultMcpService {
     const includedNoteIds = included.map(({ path }) => path)
 
     return {
+      source_references: contextReferences([note, ...included.filter(item=>item.path!==note.path).map(item=>notesByPath.get(item.path)!)], source=>revisionFor(snapshot.rootPath,source), referenceBudget),
       seed_id: note.path,
       markdown: bundle.markdown,
       character_count: bundle.characterCount,
@@ -1385,12 +1439,76 @@ export class VaultMcpService {
       }
     }
   }
+
+  async getLocalGraph(id: string, input: LocalGraphInput = {}) {
+    const { snapshot } = await this.snapshot({ persistCreationTimes: false })
+    const visible = { ...snapshot, notes: snapshot.notes.filter(note =>
+      !isExcludedFilePath(note.path, DEFAULT_SEARCH_EXCLUDED_PATHS)) }
+    const seed = canonicalNote(visible, id)
+    return localGraph(visible, seed, note => revisionFor(visible.rootPath, note), input)
+  }
+
+  async buildContextSet(ids: string[], maxCharacters = 15_000, options: BuildContextOptions = {}) {
+    if (ids.length < 1 || ids.length > 8) throw new Error('起点は1〜8件で指定してください。')
+    const { snapshot } = await this.snapshot({ persistCreationTimes: false })
+    const visible = { ...snapshot, notes: snapshot.notes.filter(note =>
+      !isExcludedFilePath(note.path, DEFAULT_SEARCH_EXCLUDED_PATHS)) }
+    const seeds: NoteDocument[] = [], unavailable: string[] = []
+    const aliases = compilePathAliases(visible.pathAliases ?? {})
+    for (const id of ids) {
+      try { seeds.push(canonicalNote(visible, id, aliases)) }
+      catch { unavailable.push(id) }
+    }
+    if (unavailable.length) throw new Error(`起点を取得できないため比較を停止しました: ${unavailable.join(', ')}`)
+    const referenceBudget = Math.floor(characterBudget(maxCharacters)/3)
+    const bundle = buildContextSetFromSnapshot(visible, seeds, {
+      maxCharacters, reservedCharacters:referenceBudget, ...options, pathAliases: aliases,
+      revisionFor: note => revisionFor(visible.rootPath, note)
+    })
+    const notes = new Map(visible.notes.map(note => [note.path, note]))
+    return {
+      source_references: contextReferences([...new Map([...seeds,...bundle.included.map(source=>notes.get(source.path)!)].map(note=>[note.path,note])).values()], note=>revisionFor(visible.rootPath,note), Math.max(0,referenceBudget-300)),
+      seed_ids: bundle.seedIds, markdown: bundle.markdown, character_count: bundle.characterCount,
+      truncated: bundle.truncated, as_of: bundle.asOf, temporal_perspective: bundle.temporalPerspective,
+      included: bundle.included.map(source => ({
+        path: source.path, name: source.name, relation: source.relation, seed_ids: source.seedIds,
+        content_mode: source.contentMode, truncated: source.truncated,
+        content_omitted: source.contentOmitted ?? false, revision: source.revision!,
+        modified_at: new Date(notes.get(source.path)!.modifiedAt).toISOString(),
+        selection_reasons: source.selectionReasons, included_sections: source.includedSections,
+        omitted_sections: source.omittedSections,
+        ...(source.temporalStatus ? { temporal_status: source.temporalStatus } : {})
+      })),
+      omitted_ids: bundle.omittedPaths,
+      seeds: bundle.seeds.map(seed => ({ id: seed.seedId, omitted_ids: seed.omittedPaths,
+        content_mode: seed.contentMode, content_omitted: seed.contentOmitted, truncated: seed.truncated,
+        included_sections: seed.includedSections, omitted_sections: seed.omittedSections,
+        warnings: seed.warnings,
+        state_lineage: stateLineageReceipt(visible.rootPath, notes.get(seed.seedId)!,
+          { stateLineage: seed.stateLineage, asOf: bundle.asOf }, notes) }))
+    }
+  }
+
+  async listBases(input: BasePageInput = {}) {
+    const { vault, snapshot, source } = await this.snapshot({persistCreationTimes:false})
+    return listBases(vault, snapshot, source.userIgnoreFilters, input)
+  }
+
+  async queryBase(input: QueryBaseInput, signal?: AbortSignal) {
+    const { vault, snapshot, source } = await this.snapshot({persistCreationTimes:false})
+    const visible = { ...snapshot, notes: snapshot.notes.filter(note =>
+      !isExcludedFilePath(note.path, DEFAULT_SEARCH_EXCLUDED_PATHS)) }
+    const context = input.context_note_id ? canonicalNote(visible, input.context_note_id) : undefined
+    return queryBase(vault, visible, source.userIgnoreFilters, source.propertyTypes, {
+      ...input, ...(context ? {context_note_id:context.path} : {})
+    }, undefined, {signal})
+  }
 }
 
 function stateLineageReceipt(
   rootPath: string,
   subject: NoteDocument,
-  bundle: ContextBundle,
+  bundle: Pick<ContextBundle, 'stateLineage' | 'asOf'>,
   notesByPath: ReadonlyMap<string, NoteDocument>
 ): ContextStateLineageReceipt {
   const currentStates = bundle.stateLineage.currentStates.map((state) => {

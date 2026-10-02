@@ -1,4 +1,5 @@
-import type { KeyboardEvent, RefObject } from 'react'
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
+import PaneActionsMenu from './PaneActionsMenu'
 import {
   basenameRelative,
   withoutMarkdownExtension
@@ -60,20 +61,26 @@ export function workspaceTabLabel(tab: WorkspaceTab): string {
 }
 
 type WorkspaceTabBarProps = {
+  peerTabs?: WorkspaceTab[]
+  idPrefix?: string
+  panelId?: string
   tabs: WorkspaceTab[]
   activeTabId: number | null
-  focusTabId: number | null
-  tabRefs: RefObject<Map<number, HTMLButtonElement>>
+  focusTabId?: number | null
+  tabRefs?: RefObject<Map<number, HTMLButtonElement>>
   onActivate: (tab: WorkspaceTab) => void
   onClose: (tabId: number) => void
-  onFocus: (tabId: number) => void
-  onKeyDown: (
+  onFocus?: (tabId: number) => void
+  onKeyDown?: (
     event: KeyboardEvent<HTMLButtonElement>,
     tab: WorkspaceTab
   ) => void
 }
 
 export default function WorkspaceTabBar({
+  peerTabs,
+  idPrefix = '',
+  panelId = WORKSPACE_TAB_PANEL_ID,
   tabs,
   activeTabId,
   focusTabId,
@@ -83,33 +90,71 @@ export default function WorkspaceTabBar({
   onFocus,
   onKeyDown
 }: WorkspaceTabBarProps): React.JSX.Element | null {
+  const localRefs = useRef(new Map<number, HTMLButtonElement>())
+  const strip = useRef<HTMLDivElement>(null)
+  const refs = tabRefs ?? localRefs
+  const [localFocusId, setLocalFocusId] = useState<number | null>(activeTabId)
+  const requestedFocus = focusTabId ?? localFocusId
+  const focusedId = tabs.some(tab => tab.id === requestedFocus) ? requestedFocus : activeTabId
+  const focus = (id: number): void => {
+    setLocalFocusId(id)
+    onFocus?.(id)
+    refs.current.get(id)?.focus()
+  }
+  useLayoutEffect(() => {
+    const reveal = (): void => refs.current.get(activeTabId ?? -1)?.parentElement?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+    reveal()
+    if (typeof ResizeObserver === 'undefined' || !strip.current) return
+    const observer = new ResizeObserver(reveal)
+    observer.observe(strip.current)
+    return () => observer.disconnect()
+  }, [activeTabId, refs, tabs.length])
+  const labelFor = (tab: WorkspaceTab): string => {
+    const label = workspaceTabLabel(tab)
+    if (!('path' in tab)) return label
+    const paths = new Set((peerTabs ?? tabs).filter(item => 'path' in item && workspaceTabLabel(item).toLocaleLowerCase() === label.toLocaleLowerCase())
+      .map(item => 'path' in item ? item.path.toLocaleLowerCase() : ''))
+    const parent = tab.path.slice(0, tab.path.lastIndexOf('/'))
+    return paths.size > 1 ? `${label} · ${tab.path.includes('/') ? parent : 'Vault直下'}` : label
+  }
   if (tabs.length === 0) {
     return null
   }
 
   return (
-    <div className="workspace-tabs" role="tablist" aria-label="開いているタブ">
+    <div className="workspace-tabs-shell">
+    <div ref={strip} className="workspace-tabs" role="tablist" aria-label="開いているタブ">
       {tabs.map((tab) => {
-        const label = workspaceTabLabel(tab)
+        const label = labelFor(tab)
         return (
-          <div className="workspace-tab" key={tab.id} role="presentation">
+          <div className={`workspace-tab${tab.id === activeTabId ? ' is-selected' : ''}`} key={tab.id} role="presentation">
             <button
               type="button"
               role="tab"
-              id={workspaceTabDomId(tab.id)}
+              id={`${idPrefix}${workspaceTabDomId(tab.id)}`}
               ref={(element) => {
-                if (element) tabRefs.current.set(tab.id, element)
-                else tabRefs.current.delete(tab.id)
+                if (element) refs.current.set(tab.id, element)
+                else refs.current.delete(tab.id)
               }}
-              aria-controls={WORKSPACE_TAB_PANEL_ID}
+              aria-controls={panelId}
               aria-selected={tab.id === activeTabId}
               aria-label={label}
-              title={label}
-              tabIndex={tab.id === focusTabId ? 0 : -1}
+              title={'path' in tab ? `${workspaceTabLabel(tab)}\n${tab.path}` : label}
+              tabIndex={tab.id === focusedId ? 0 : -1}
               className={tab.id === activeTabId ? 'is-active' : ''}
               onClick={() => onActivate(tab)}
-              onFocus={() => onFocus(tab.id)}
-              onKeyDown={(event) => onKeyDown(event, tab)}
+              onFocus={() => { setLocalFocusId(tab.id); onFocus?.(tab.id) }}
+              onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing) return
+                const index = tabs.findIndex(item => item.id === tab.id)
+                if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+                  event.preventDefault()
+                  focus(tabs[event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
+                    : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length].id)
+                } else if (event.key === 'Delete') { event.preventDefault(); onClose(tab.id) }
+                else if (onKeyDown) onKeyDown(event, tab)
+                else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onActivate(tab) }
+              }}
             >
               {label}
             </button>
@@ -117,7 +162,7 @@ export default function WorkspaceTabBar({
               type="button"
               className="workspace-tab-close"
               aria-label={`${label}を閉じる`}
-              tabIndex={-1}
+              tabIndex={tab.id === focusedId ? 0 : -1}
               onClick={() => onClose(tab.id)}
             >
               ×
@@ -125,6 +170,10 @@ export default function WorkspaceTabBar({
           </div>
         )
       })}
+    </div>
+    <PaneActionsMenu label="開いているタブの一覧" triggerClassName="tabs-list-trigger" menuClassName="workspace-tabs-menu" symbol="▾"
+      actions={tabs.map((tab, index) => ({ label: `${index + 1}. ${labelFor(tab)}`, detail: 'path' in tab ? tab.path : undefined,
+        selected: tab.id === activeTabId, onSelect: () => onActivate(tab) }))} />
     </div>
   )
 }

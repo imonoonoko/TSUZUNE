@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { NoteDocument, ResolvedWikiLink } from '../../shared/types'
 import type { MarkdownHeading } from '../../core/markdown-headings'
+import type { ResolvedNoteLink } from '../../core/links'
 
 interface RelatedNotesProps {
-  outgoing: ResolvedWikiLink[]
+  outgoing: (ResolvedWikiLink & Partial<ResolvedNoteLink>)[]
   backlinks: NoteDocument[]
   temporal: React.ReactNode
   selectedNoteName?: string
@@ -193,10 +194,14 @@ export default function RelatedNotes({
 
           <Section title="未作成" empty={missing.length === 0}>
             {missing.map((link) => (
+              link.kind === 'markdown' ? <div className="invalid-link" key={`missing:markdown:${link.target}`}>
+                <strong>{link.alias ?? link.target}</strong>
+                <span>{link.reason ?? 'リンク先のノートが見つかりません。相対パスを確認してください。'}</span>
+              </div> :
               <button
                 type="button"
                 className="related-link is-warning"
-                key={`missing:${link.target}`}
+                key={`missing:wiki:${link.target}`}
                 onClick={() => onMissing(link.target)}
               >
                 ＋ {link.alias ?? link.target}

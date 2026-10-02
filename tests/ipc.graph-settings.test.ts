@@ -51,6 +51,26 @@ describe('graph settings IPC', () => {
     await rm(electron.appData, { recursive: true, force: true })
   })
 
+  it('validates automatic sync input, preserves other Vault settings, and rejects untrusted callers', async () => {
+    const mainFrame = {}
+    const webContents = { mainFrame }
+    const event = { sender: webContents, senderFrame: mainFrame }
+    const settingsChanged = vi.fn()
+    registerIpc({ getRootPath: () => 'C:/A' } as never, {} as never,
+      { connection: {} as never, driveSync: {} as never,
+        autoSync: { settingsChanged, getStatus: async () => ({ rootPath: 'C:/A' }) } as never },
+      {} as never, () => ({ webContents }) as never, () => undefined)
+    await writeFile(join(electron.appData, 'settings.json'), JSON.stringify({ driveAutoSyncByVault: { 'C:/B': true }, custom: 'keep' }))
+    const handler = electron.handlers.get('drive:autoEnabled')!
+    await expect(handler({ sender: {}, senderFrame: {} }, true)).resolves.toMatchObject({ ok: false, error: { code: 'ACCESS_DENIED' } })
+    await expect(handler(event, 'true')).resolves.toMatchObject({ ok: false })
+    expect(settingsChanged).not.toHaveBeenCalled()
+    await expect(handler(event, true)).resolves.toMatchObject({ ok: true })
+    expect((await readSettings()).driveAutoSyncByVault).toEqual({ 'C:/A': true, 'C:/B': true })
+    await expect(handler(event, false)).resolves.toMatchObject({ ok: true })
+    expect((await readSettings()).driveAutoSyncByVault).toEqual({ 'C:/B': true })
+  })
+
   it('rejects an untrusted sender and accepts the active renderer', async () => {
     const mainFrame = {}
     const webContents = { mainFrame }

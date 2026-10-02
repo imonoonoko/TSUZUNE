@@ -37,7 +37,7 @@ describe('Renderer search query parser', () => {
       parseRendererSearchQuery('計画 -"古い 案" TAG:#Project path:"10 Projects" file:Plan')
     ).toEqual([
       { kind: 'term', value: '計画', negated: false },
-      { kind: 'term', value: '古い 案', negated: true },
+      { kind: 'term', value: '古い 案', negated: true, quoted: true },
       { kind: 'tag', value: '#Project', negated: false },
       { kind: 'path', value: '10 Projects', negated: false },
       { kind: 'file', value: 'Plan', negated: false }

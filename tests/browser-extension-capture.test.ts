@@ -112,7 +112,7 @@ describe('browser extension page capture', () => {
 
     expect(result.youtube).toMatchObject({
       videoId: 'video1234',
-      channel: 'テストチャンネル',
+      channel: '',
       transcript: '0:03 最初の発言\n0:08 次の発言',
       transcriptStatus: 'captured',
       transcriptSource: 'page'
@@ -200,24 +200,169 @@ describe('browser extension page capture', () => {
   })
 
   it('uses YouTube metadata without notification or subscriber-count chrome', async () => {
+    const playerResponse = {
+      videoDetails: {
+        videoId: 'video1234',
+        title: '正しい動画名',
+        author: '正しいチャンネル名',
+        shortDescription: '現動画の説明'
+      }
+    }
     const result = await capturePage(
       `<!doctype html><html lang="ja"><head>
-        <title>(2) 正しい動画名 - YouTube</title>
-        <meta name="title" content="正しい動画名">
+        <title>(2) 古い動画名 - YouTube</title>
+        <meta name="title" content="古い動画名">
       </head><body>
         <div id="owner">
-          <ytd-channel-name><a href="/@channel">正しいチャンネル名</a></ytd-channel-name>
+          <ytd-channel-name><a href="/@channel">古いチャンネル名</a></ytd-channel-name>
           <span>チャンネル登録者数 140万人</span>
         </div>
+        <div id="description">古い動画の説明</div>
+        <script>var ytInitialPlayerResponse = ${JSON.stringify(playerResponse)};</script>
       </body></html>`,
       'https://www.youtube.com/watch?v=video1234',
       null
     )
 
     expect(result.title).toBe('正しい動画名')
+    expect(result.description).toBe('現動画の説明')
     expect(result.youtube).toMatchObject({
       channel: '正しいチャンネル名'
     })
+  })
+
+  it('uses exact-video YouTube oEmbed when current player metadata is absent', async () => {
+    const fetchCalls: Array<{ url: string, options: RequestInit }> = []
+    const result = await capturePage(
+      `<!doctype html><html><head><title>前の動画</title>
+        <meta name="title" content="前の動画">
+        <meta name="description" content="前の動画の説明">
+      </head><body><ytd-channel-name>前のチャンネル</ytd-channel-name></body></html>`,
+      'https://www.youtube.com/watch?v=current1234',
+      null,
+      (window) => {
+        Object.defineProperty(window, 'fetch', {
+          configurable: true,
+          value: async (input: string, options: RequestInit) => {
+            fetchCalls.push({ url: String(input), options })
+            return {
+              ok: true,
+              headers: { get: () => null },
+              text: async () => JSON.stringify({
+                provider_name: 'YouTube',
+                type: 'video',
+                title: '現動画',
+                author_name: '現チャンネル'
+              })
+            }
+          }
+        })
+      }
+    )
+
+    expect(fetchCalls).toHaveLength(1)
+    const requestUrl = new URL(fetchCalls[0].url)
+    expect(`${requestUrl.origin}${requestUrl.pathname}`).toBe('https://www.youtube.com/oembed')
+    expect(requestUrl.searchParams.get('url')).toBe('https://www.youtube.com/watch?v=current1234')
+    expect(requestUrl.searchParams.get('format')).toBe('json')
+    expect(fetchCalls[0].options).toMatchObject({ method: 'GET', credentials: 'omit' })
+    expect(result).toMatchObject({ title: '現動画', description: '' })
+    expect(result.youtube).toMatchObject({ channel: '現チャンネル' })
+  })
+
+  it('fills only missing player metadata from oEmbed and rejects oversized responses', async () => {
+    const playerResponse = {
+      videoDetails: { videoId: 'current1234', title: 'player の題名', shortDescription: 'player の説明' }
+    }
+    const html = `<!doctype html><html><head><meta name="title" content="古い題名"></head><body>
+      <ytd-channel-name>古いチャンネル</ytd-channel-name>
+      <script>var ytInitialPlayerResponse = ${JSON.stringify(playerResponse)};</script>
+    </body></html>`
+    const oembedBody = JSON.stringify({
+      provider_name: 'YouTube', type: 'video', title: 'oEmbed の題名', author_name: 'oEmbed のチャンネル'
+    })
+    const withOEmbed = await capturePage(html, 'https://www.youtube.com/watch?v=current1234', null, (window) => {
+      Object.defineProperty(window, 'fetch', {
+        configurable: true,
+        value: async () => ({ ok: true, headers: { get: () => null }, text: async () => oembedBody })
+      })
+    })
+    expect(withOEmbed).toMatchObject({ title: 'player の題名', description: 'player の説明' })
+    expect(withOEmbed.youtube).toMatchObject({ channel: 'oEmbed のチャンネル' })
+
+    let bodyRead = false
+    const oversized = await capturePage(html, 'https://www.youtube.com/watch?v=current1234', null, (window) => {
+      Object.defineProperty(window, 'fetch', {
+        configurable: true,
+        value: async () => ({
+          ok: true,
+          headers: { get: () => '40000' },
+          text: async () => { bodyRead = true; return oembedBody }
+        })
+      })
+    })
+    expect(bodyRead).toBe(false)
+    expect(oversized).toMatchObject({ title: 'player の題名', description: 'player の説明' })
+    expect(oversized.youtube).toMatchObject({ channel: '' })
+  })
+
+  it('leaves unverified YouTube metadata empty except for the video ID', async () => {
+    const result = await capturePage(
+      `<!doctype html><html><head><title>前の動画</title>
+        <meta name="title" content="前の動画">
+        <meta name="description" content="前の動画の説明">
+      </head><body><ytd-channel-name>前のチャンネル</ytd-channel-name></body></html>`,
+      'https://www.youtube.com/watch?v=current1234',
+      null
+    )
+
+    expect(result).toMatchObject({ title: 'current1234', description: '' })
+    expect(result.youtube).toMatchObject({ videoId: 'current1234', channel: '' })
+  })
+
+  it('rejects capture if SPA navigation changes the YouTube video while fetching metadata', async () => {
+    await expect(capturePage(
+      '<!doctype html><html><head><title>前の動画</title></head><body></body></html>',
+      'https://www.youtube.com/watch?v=first1234',
+      null,
+      (window) => {
+        Object.defineProperty(window, 'fetch', {
+          configurable: true,
+          value: async () => {
+            window.history.pushState({}, '', '/watch?v=second1234')
+            return { ok: false }
+          }
+        })
+      }
+    )).rejects.toThrow(/video changed/i)
+  })
+
+  it.each(['shorts', 'embed', 'live'])('binds /%s metadata to the path video even with a conflicting v query', async (route) => {
+    const response = { videoDetails: { videoId: 'actual12345', title: '現在の動画', author: '現在の著者' } }
+    const result = await capturePage(
+      `<script>var ytInitialPlayerResponse = ${JSON.stringify(response)};</script>`,
+      `https://www.youtube.com/${route}/actual12345?v=second12345`,
+      null
+    )
+    expect(result.title).toBe('現在の動画')
+    expect(result.youtube).toMatchObject({ videoId: 'actual12345', channel: '現在の著者' })
+  })
+
+  it('detects path-video navigation when an unrelated v query stays unchanged', async () => {
+    await expect(capturePage(
+      '<html><body></body></html>',
+      'https://www.youtube.com/shorts/actual12345?v=second12345',
+      null,
+      (window) => {
+        Object.defineProperty(window, 'fetch', {
+          configurable: true,
+          value: async () => {
+            window.history.pushState({}, '', '/shorts/third12345?v=second12345')
+            return { ok: false }
+          }
+        })
+      }
+    )).rejects.toThrow(/video changed/i)
   })
 
   it('opens the YouTube transcript panel and waits briefly for its segments', async () => {
@@ -272,6 +417,7 @@ describe('browser extension page capture', () => {
           configurable: true,
           value: async (input: string | URL) => {
             fetchCalls.push(String(input))
+            if (String(input).includes('/oembed?')) return { ok: false }
             return {
               ok: true,
               text: async () => '<transcript><text start="1.2">最初 &amp; 次</text><text start="4">字幕です</text></transcript>'
@@ -281,8 +427,9 @@ describe('browser extension page capture', () => {
       }
     )
 
-    expect(fetchCalls).toHaveLength(1)
-    expect(fetchCalls[0]).toMatch(/^https:\/\/www\.youtube\.com\/api\/timedtext/)
+    const captionCalls = fetchCalls.filter((url) => url.includes('/api/timedtext'))
+    expect(captionCalls).toHaveLength(1)
+    expect(captionCalls[0]).toMatch(/^https:\/\/www\.youtube\.com\/api\/timedtext/)
     expect(result.youtube).toMatchObject({
       videoId: 'video9012',
       transcript: '0:01 最初 & 次\n0:04 字幕です',
@@ -319,7 +466,7 @@ describe('browser extension page capture', () => {
       (window) => {
         Object.defineProperty(window, 'fetch', {
           configurable: true,
-          value: async () => ({
+          value: async (input: string) => String(input).includes('/oembed?') ? { ok: false } : ({
             ok: true,
             headers: { get: () => null },
             text: async () => `<transcript>${cues.join('')}</transcript>`
@@ -358,7 +505,7 @@ describe('browser extension page capture', () => {
       (window) => {
         Object.defineProperty(window, 'fetch', {
           configurable: true,
-          value: async () => ({
+          value: async (input: string) => String(input).includes('/oembed?') ? { ok: false } : ({
             ok: true,
             headers: { get: () => null },
             text: async () => '<timedtext><body><p t="1200"><s>First </s><s>&amp; second</s></p></body></timedtext>'
@@ -421,7 +568,7 @@ describe('browser extension page capture', () => {
       (window) => {
         Object.defineProperty(window, 'fetch', {
           configurable: true,
-          value: async () => ({
+          value: async (input: string) => String(input).includes('/oembed?') ? { ok: false } : ({
             ok: true,
             headers: { get: () => null },
             text: async () => '<transcript><text start="not-a-time">偽の字幕</text></transcript>'
@@ -468,7 +615,7 @@ describe('browser extension page capture', () => {
         (window) => {
           Object.defineProperty(window, 'fetch', {
             configurable: true,
-            value: async () => ({
+            value: async (input: string) => String(input).includes('/oembed?') ? { ok: false } : ({
               ok: true,
               headers: { get: () => testCase.contentLength },
               text: async () => {
@@ -511,7 +658,7 @@ describe('browser extension page capture', () => {
         }
       }
     }
-    let fetchCalled = false
+    let captionFetchCalled = false
     const result = await capturePage(
       `<!doctype html><html><head><title>動画</title></head><body>
         <script>var ytInitialPlayerResponse = ${JSON.stringify(stalePlayerResponse)};</script>
@@ -521,15 +668,16 @@ describe('browser extension page capture', () => {
       (window) => {
         Object.defineProperty(window, 'fetch', {
           configurable: true,
-          value: async () => {
-            fetchCalled = true
+          value: async (input: string) => {
+            if (String(input).includes('/oembed?')) return { ok: false }
+            captionFetchCalled = true
             throw new Error('must not fetch stale captions')
           }
         })
       }
     )
 
-    expect(fetchCalled).toBe(false)
+    expect(captionFetchCalled).toBe(false)
     expect(result.youtube).toMatchObject({
       videoId: 'current-video',
       transcriptStatus: 'failed'

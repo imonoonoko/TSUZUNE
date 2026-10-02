@@ -419,6 +419,53 @@ function serviceAt(
 }
 
 describe('DriveSyncService', () => {
+  it('automatically synchronizes saved local and remote changes using the existing ledger', async () => {
+    const vault = new MemoryVault({ 'A.md': 'initial', 'B.md': 'initial B' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    await sync.apply((await sync.preview()).planId)
+    vault.set('A.md', 'local update')
+    remote.set('B.md', 'remote update')
+    const automatic = await sync.syncAutomatically()
+    expect(automatic.result).toMatchObject({ uploaded: 1, downloaded: 1, conflicts: 0, trashedLocal: 0, trashedRemote: 0 })
+    expect(remote.files.get('A.md')?.content).toBe('local update')
+    expect(vault.notes.get('B.md')?.content).toBe('remote update')
+    expect((await sync.syncAutomatically()).result).toBeNull()
+  })
+
+  it('blocks the entire automatic apply on conflict and preserves both contents', async () => {
+    const vault = new MemoryVault({ 'A.md': 'initial' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    await sync.apply((await sync.preview()).planId)
+    vault.set('A.md', 'local update')
+    remote.set('A.md', 'remote update')
+    vault.set('B.md', 'independent new local')
+    const manual = await sync.preview()
+    const automatic = await sync.syncAutomatically()
+    expect(automatic.preview.counts.conflict).toBe(1)
+    expect(automatic.result).toBeNull()
+    expect(remote.files.has('B.md')).toBe(false)
+    expect(remote.files.get('A.md')?.content).toBe('remote update')
+    expect(vault.notes.get('A.md')?.content).toBe('local update')
+    expect(await sync.apply(manual.planId)).toMatchObject({ conflicts: 1, uploaded: 3 })
+  })
+
+  it('restores the pending manual plan after automatic failure without deleting missing files', async () => {
+    const vault = new MemoryVault({ 'A.md': 'initial', 'B.md': 'retain' })
+    const remote = new MemoryRemote()
+    const sync = await service(vault, remote)
+    await sync.apply((await sync.preview()).planId)
+    vault.notes.delete('B.md')
+    vault.set('A.md', 'local update')
+    const manual = await sync.preview()
+    remote.failUpdatePath = 'A.md'
+    await expect(sync.syncAutomatically()).rejects.toThrow()
+    expect(remote.files.get('B.md')?.content).toBe('retain')
+    remote.failUpdatePath = null
+    expect(await sync.apply(manual.planId)).toMatchObject({ uploaded: 1, preserved: 1 })
+  })
+
   it('syncs supported attachment bytes in both directions', async () => {
     const rootPath = await mkdtemp(join(tmpdir(), 'tsuzune-drive-attachment-vault-'))
     const ledgerDirectory = await mkdtemp(join(tmpdir(), 'tsuzune-drive-attachment-ledger-'))

@@ -525,6 +525,22 @@ export class DriveSyncService {
     return preview
   }
 
+  // Reuse preview/apply guards without replacing a user's pending manual plan.
+  async syncAutomatically(): Promise<{ preview: DriveSyncPreview; result: DriveSyncApplyResult | null }> {
+    const manualPlan = this.pendingPlan
+    try {
+      const preview = await this.preview()
+      const blocked = preview.items.some((item) =>
+        item.action === 'conflict' || item.action === 'trash_local' || item.action === 'trash_remote')
+      const hasChanges = preview.items.some((item) =>
+        item.action === 'upload' || item.action === 'download' || item.action === 'move')
+      const result = !blocked && hasChanges ? await this.apply(preview.planId) : null
+      return { preview, result }
+    } finally {
+      this.pendingPlan = manualPlan
+    }
+  }
+
   async apply(planId: string): Promise<DriveSyncApplyResult> {
     const pending = this.pendingPlan
     if (!pending || pending.preview.planId !== planId) {

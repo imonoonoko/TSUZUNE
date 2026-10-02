@@ -1,0 +1,115 @@
+{
+  "title": "Codex knowledge integration",
+  "slug": "20261001-codex-knowledge-integration",
+  "created_at": "2026-09-30T19:29:22+00:00",
+  "status": "source_and_actual_acceptance_verified_delivery_receipt_authoritative",
+  "approval": {
+    "required": false,
+    "granted": true,
+    "notes": "User approved implementation and production delivery, then explicitly accepted gpt-6.1-sol/high with やって. Final six scenarios accepted. No fallback/auth changes; isolated approved source only. Never force-close production app."
+  },
+  "packets": [
+    {
+      "id": "context",
+      "owner": "context_set",
+      "status": "source_verified",
+      "result": "results/context.md"
+    },
+    {
+      "id": "bases",
+      "owner": "bases_read",
+      "status": "source_verified",
+      "result": "results/bases.md"
+    },
+    {
+      "id": "review",
+      "owner": "review_integration",
+      "status": "source_verified",
+      "result": "results/review.md"
+    }
+  ],
+  "verification": {
+    "status": "source_and_actual_codex_verified_delivery_in_latest_receipt",
+    "checks": [
+      {
+        "id": "isolated_typecheck",
+        "status": "passed"
+      },
+      {
+        "id": "isolated_tests",
+        "status": "passed",
+        "passed": 1734,
+        "skipped": 1,
+        "evidence": "work/codex-integration/isolated-tests-resumed.log"
+      },
+      {
+        "id": "current_tree_tests",
+        "status": "passed",
+        "failed": 0,
+        "passed": 1740,
+        "skipped": 1,
+        "notes": "Previous 17 failures retained. Concurrent UI changes preserved but excluded from delivery.",
+        "evidence": "work/codex-integration/current-tests-resumed-2.log"
+      },
+      {
+        "id": "check_mcp",
+        "status": "passed",
+        "common_tools": 23,
+        "direct_tools": 25,
+        "registered_artifacts_unchanged": true
+      },
+      {
+        "id": "actual_codex",
+        "status": "passed",
+        "notes": "Final6 accepted; baseline5 accepted/Base-view capability fail. Catalog unchanged, auto-review no bypass; all answers reviewed.",
+        "requested_model": "gpt-6.1-sol",
+        "requested_reasoning": "high",
+        "actual_model": "not_observable",
+        "evidence": "work/codex-integration/actual-codex-acceptance.json"
+      },
+      {
+        "id": "production_update_and_runtime",
+        "status": "receipt_authoritative",
+        "notes": "Finalized before promotion; use source-isolated/docs/reports/production-update-latest.json and final Vault record for actual result. No installed assertion without receipt."
+      },
+      {
+        "id": "user_acceptance",
+        "status": "not_confirmed"
+      },
+      {
+        "id": "vault_sync",
+        "status": "source_checkpoint_synced",
+        "notes": "Initial checkpoint synced after restart. Reuse same campaign record at final verified delivery; record final evidence externally to keep source snapshot stable.",
+        "draft": "work/codex-integration/pending-vault-record.md",
+        "evidence": "work/codex-integration/restart-verification.json"
+      },
+      {
+        "id": "owned_whitespace",
+        "status": "passed"
+      },
+      {
+        "id": "current_tree_whitespace",
+        "status": "passed",
+        "notes": "Latest git diff --check HEAD passed; earlier outside whitespace failure retained."
+      },
+      {
+        "id": "restart_mcp",
+        "status": "final_runtime_record_authoritative",
+        "notes": "New configured process must be checked after delivery. Current Desktop reconnect/user confirmation is separate."
+      },
+      {
+        "id": "packaged_correction",
+        "status": "passed",
+        "evidence": "work/codex-integration/packaged-corrected-2.log",
+        "notes": "Initial gate stopped before install due Windows asar extraction separator. Standard path.join fix; full gate rerun required."
+      }
+    ]
+  },
+  "resume": [
+    "Run production:update from verified source-isolated root after final docs checks and no-running-app preflight.",
+    "Confirm latest receipt, packaged/installed, hashes/profile, registration and new-process runtime/delivery.",
+    "Sync same campaign record and affected hubs; current Desktop restart and user confirmation remain separate."
+  ],
+  "delivery_source": "work/codex-integration/source-isolated",
+  "excluded_concurrent_paths": 11
+}

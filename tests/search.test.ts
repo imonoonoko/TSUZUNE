@@ -102,6 +102,20 @@ describe('ranked note search', () => {
     expect(results.length).toBeGreaterThanOrEqual(1)
   })
 
+  it('keeps quoted Japanese phrases exact while unquoted natural language stays ranked', () => {
+    const candidates = [
+      note('30_知識/退避.md', '退避成功の厳密な判定基準を記録する。'),
+      note('30_知識/哲学.md', '成功と失敗を分類するための判定基準。')
+    ]
+    expect(searchRendererRanked(candidates, '"退避成功の厳密な判定基準"').map(r => r.path)).toEqual([
+      '30_知識/退避.md'
+    ])
+    expect(searchRendererRanked(candidates, '退避成功の厳密な判定基準')).toHaveLength(2)
+    expect(searchRendererRanked(candidates, '-"退避成功の厳密な判定基準"').map(r => r.path)).toEqual([
+      '30_知識/哲学.md'
+    ])
+  })
+
   it('still honors a path filter as a mandatory clause', () => {
     const results = searchRendererRanked(notes, 'path:30_知識 OpenEvolve')
 
@@ -188,8 +202,8 @@ describe('ranked note search', () => {
       padding + 'bEtA', leadingContext + 'bEtA'],
     ['D05: preserves a quoted space phrase', '"alpha beta" gamma', 'cases/alpha beta.md',
       'alphaZZbeta' + padding + 'gamma', leadingContext + 'gamma'],
-    ['D06: existing Japanese quote segmentation', '"再利用の導線"', 'cases/entry.md',
-      padding + '再利用', leadingContext + '再利用'],
+    ['D06: quoted Japanese phrase does not match only a segment', '"再利用の導線"', 'cases/entry.md',
+      padding + '再利用', null],
     ['D07: longest match at the same position', 'anchor abc abcdef', 'cases/anchor.md',
       padding + 'abcdef' + 'Y'.repeat(75) + 'END', leadingContext + 'abcdef' + 'Y'.repeat(75) + '…'],
     ['D08: title-only match', '再利用の導線', 'cases/再利用.md', padding, firstPage],

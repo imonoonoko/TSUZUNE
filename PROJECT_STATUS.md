@@ -1,10 +1,69 @@
 # TSUZUNE Project Status
 
-更新日: 2026-09-10（JST）
+2026-10-02、利用者の「検証＆最適化＆Githubに更新」に基づき、直前のverified本番sourceをorigin/mainへ統合する。リンク抽出の二重解析を一回へ減らし、リンク記号のない本文は解析しない。独立reviewで見つかった非activeペインの履歴混入、Live Previewの文書参照定義、Markdown文字参照と移動時のfragment保全も修正した。[実装・計測境界](docs/reports/performance-2026-10-02.md)。今回の最終本番受入は最新excluded receipt、GitHub統合と最終検証は同campaignのVault実施記録を正本とする。未採用のroot変更は保持し、GitHub releaseは作らない。実Vaultの体感は隔離fixture測定と区別する。
+
+以下は前段の受入履歴。現在の配布結果は最新receiptを参照する。
+
+2026-10-02、全体の反応とメモリ使用量の改善を目的に、未リンク言及検索の無関係な本文解析と補助ペインの不要なGraph構築を省いた。2,000件の合成データで検索中央値2,696 ms→37 ms、結果hash一致、関連21件PASS、元checkout全体1,806 PASS／1 SKIP。常駐メモリ削減と本人の実Vaultの体感は未確認。配布候補はverified exact archive＋今回所有差分の`work/performance-20261002/source-isolated`。[変更・計測・受入境界](docs/reports/performance-2026-10-02.md)。本番アプリ保存・終了後にproduction gateを行い、導入結果は最新receiptを正本とする。
+
+
+
+更新日: 2026-10-02（JST）
 
 この文書は、TSUZUNEの「今」を一枚で確認するための入口です。実行順と将来計画は[PLAN.md](PLAN.md)、製品の不変条件は[PRODUCT.md](PRODUCT.md)、画面・ブランド規約は[DESIGN.md](DESIGN.md)を正本とします。完了証拠は[docs/INDEX.md](docs/INDEX.md)から辿ります。
 
-## 現在地
+## 統合候補と本番の境界 — 2026-10-02
+
+2026-10-02（JST）、利用者は検証済み候補を普段使うTSUZUNEへ反映する提案に「いいよ」と回答した。これにより、この確定候補のproduction:updateと隔離installed受入・EXE／app.asar hash・通常profile保全・既存MCP登録確認まで承認済み。以下の承認待ち・今回install対象外の記述は前段検証時の履歴として読む。導入結果は今回source fingerprintに対応するexcluded receiptで判定し、この記載だけで本番反映済みとはしない。実Vault内容変更、Drive同期の有効化・実転送、認証や永続アクセスの拡張、公開push、個人クリップボード変更は引き続き対象外。
+
+比較対象の本番は2026-10-01T16:47:22.347Zのowner receipt。Drive自動同期と画像スクロール／一覧・空画面改善はその本番へ反映済み。exact archive（1,737 files、digest `d6936c5545a32e88a62bb17e5063177687b166caa32ed9ff4cf73cbb199dc529`）とinstalled EXE／app.asar hashを独立照合した。隔離候補は`work/release-candidate-manager/source-final`で、追加タブ／表示改善を含み、本番未反映。候補に残る`production-update-latest.json`は以前のbaseline受領書であり、現在の本番や候補導入の証明には使わない。
+
+候補だけの追加は、各ペイン一つのタブ列、非activeペインをactiveへ切り替えないタブfocus／close（保存失敗時は保持）、同名ノートのfolder区別、overflow一覧・active tab reveal・keyboard操作、選択／close表示、Propertiesとfilepathの折りたたみ、local graph／headerの整理。以前の11pathは3path（PaneActionsMenu、PaneLayout、pane-actions-menu test）が本番と同一、残る8pathに追加差分がある。8path全体が未配布という意味ではない。Quick Memoや無関係なroot変更は取り込まない。
+
+統合候補はtypecheck、全体1,778 PASS／1 SKIP、check:mcp、check:current-decisionに合格。既存Google application build設定を保持してpackageし、実候補EXEを隔離userData／sessionDataとfixture Vaultで起動した。90回のwheel入力で3画像DOM維持・loading再出現0・末尾到達・本文不変を確認し、同名タブのfolder区別・overflow focus復帰・分割／非activeタブfocusとclose・日本語入力保存を確認。package内MCP server／workerの契約・節取得・knowledge-flowもfresh fixtureで合格。main／MCP／preload／shared／coreとpackage metadataは16:47本番sourceから変更していない。
+
+検証証拠は元workspace基準の`work/release-candidate-manager/`にある`final-gate.json`、`package-acceptance.json`、`packaged-ui-smoke.json`、`packaged-mcp-smoke.json`、`production-comparison.json`。これらは候補snapshot外のローカル証拠であり、文書確定後の最終source fingerprint・ゲート結果は`final-gate.json`で判定する。
+
+候補は実装済み・隔離動作確認済み、本番未反映・利用者未確認。実Drive転送・実接続でのオフライン復帰、物理Windows IME、実クリップボードからのCtrl+V、利用者の元ノート／入力症状の受入は未確認。fixture／mock／CDPと利用者確認を分ける。今回の追加検証では個人クリップボードを操作しない。
+
+以下は各ownerの当時の実装記録。件数・候補path・gate前の表現は履歴であり、現在の本番／候補の判定は上記を参照する。
+
+2026-10-02、画像を含むPreviewのスクロール中に「読み込み中」へ戻る不具合と画面整理を実装した。スクロール保存による再描画でもMarkdown rendererのcomponent型を維持し、画像・リンクのDOMとfocusを保つ。分割操作をペインの「…」メニューへ集約し、ノート一覧は日付より名前を優先して最大2行表示、空画面は検索／新規作成へ案内する。配布元は直前のverified exact archive＋今回の所有差分だけのwork/preview-ui/source-isolated。元checkoutの並行変更は保持する。[原因・実装・受入境界](docs/reports/preview-scroll-ui-2026-10-02.md)。文書確定後の本番導入・hash・profile・登録は最新receiptを参照し、本人の元ノートでの操作確認は別層とする。
+
+2026-10-02、利用者が選択したGoogle Drive自動同期を実装・隔離検証した。Google同期画面でVaultごとに有効化し、初回手動同期後は保存から約5秒後と約1分間隔で同期する。通知領域へ閉じても継続し、競合時は適用せず、通信失敗時は再試行する。初期設定はオフ、削除を自動伝播しない。全体テスト1,769 PASS／1 SKIP、typecheck、check:mcp、build、隔離Electronの設定保持・接続待機・オン／オフを確認。候補は直前のverified archive＋今回差分の`work/drive-auto-sync/source-isolated`。本番導入・packaged／installed受入・hash・profile・登録は最新receiptの同候補に対する結果で判定する。実Driveの自動同期と利用者操作は未確認。[今回の実装・受入境界](docs/reports/drive-auto-sync-2026-10-02.md)。
+
+2026-10-02、利用者の画像コピー＆ペースト要望を実装した。編集／Live Previewのpasteイベントから画像を受け取り、trusted IPCでPNGへ変換し、ノートと同じフォルダへ上書きせず保存してWiki画像リンクを挿入する。通常のテキスト貼り付け、Undo、保存中の追加入力、ノート／Vault切替の保全を検証。配布元は直前のverified archive＋画像貼り付け差分だけのwork/image-paste/source-isolatedとし、元checkoutの並行変更は保持する。[実装・受入境界](docs/reports/image-paste-2026-10-02.md)。文書確定後の本番導入・hash・profile・登録は最新receiptを参照する。隔離アプリの貼り付け試験は合成ClipboardEventであり、OSのクリップボードからのCtrl+Vは利用者確認を別層とする。
+
+2026-10-01、MCP原文・根拠到達をsource実装した。節一覧／revision付き節取得、検索のraw excerpt／原文参照、Contextの節locatorを追加し、共通25／direct27、既存書込・承認設定を維持。配布対象1,744 PASS／1 SKIP、typecheck、check:mcpに合格。指定gpt-6.1-sol／highの変更前後固定12シナリオを原文と照合し受入した。利用者報告の遅延通知による誤競合を修正し、window focus時の入力focus復帰を追加。隔離した新規入力・左一覧の名前変更はPASSだが、元の実Windows入力不能は未再現で利用者確認が必要。本番候補は直前のverified archive＋今回差分のwork/mcp-evidence/source-isolatedのみで、元checkoutの並行変更を保持する。[実装・受入境界](docs/reports/mcp-evidence-2026-10-01.md)。本番導入・hash・profile・登録は最新receipt、runtimeとDesktop再接続は同campaignの最終実施記録を正本とする。画面の見た目は変えていない。
+
+以下のCodex4読取・8項目などは前段の受入履歴であり、上記の今回の本番受入を証明するものではない。
+
+2026-10-01、Codex知識連携の4読取ツール・案内・保存／再開を実装し、指定gpt-6.1-sol／highで隔離した実Codex6シナリオを受入した。型検査、配布対象1,734 tests／元tree1,740 tests、check:mcp、差分検査は合格。本番対象はverified archive＋今回分のwork/codex-integration/source-isolated。元treeの並行画面変更11pathは保持し配布しない。[今回の検証境界](docs/reports/codex-knowledge-integration-2026-10-01.md)。本資料はgate前に確定し、本番導入・hash・profile・登録の結果は[最新receipt](docs/reports/production-update-latest.json)、新processのruntimeと最終同期はVaultの同じ実施記録を正本とする。Desktop再起動と利用者の日常操作確認を別層として扱う。初回モデル拒否と途中試行は証拠として残し、旧9月24日のsource欠落を現在の停止理由にしない。
+
+## 過去の現在地（記載日時点）
+
+前回の5項目を基盤に、利用者が採用した8項目のsource実装・隔離検証を完了した。2026-10-01、利用者が既存dirty変更を含む現在の作業ツリー全体を新しい本番として採用し、再構成待ちを解除した。[8項目の変更内容・検証・本番採用境界](docs/reports/eight-improvements-implementation-2026-10-01.md)。本番反映の完了は、この採用に基づく最新receiptのinstalled-and-verifiedとsource fingerprint一致で判定し、実OS／利用者受入とは分ける。
+
+
+2026-09-30、本番証拠と現在地資料を整合した。TSUZUNE 0.6.0のインストールを確認し、9月24日の本番更新完了ログも確認した。一方、対応sourceと受領書が現存せず、現在の本体・MCP・checkoutの同一性は確認できない。古いreceiptを現在の一致保証に使わない。[証拠と再開境界](docs/reports/current-state-reconciliation-2026-09-30.md)。
+
+以下の表は9月30日の観測。本番更新後の現在の一致判定は最新receiptを参照する。
+
+| 対象 | 9月30日に確認できた状態 |
+|---|---|
+| インストール済み本体 | 0.6.0。現在のEXE／app.asar hashは9月21日receiptと不一致。9月24日の受入はログ上完了だが、対応受領書との再照合はunknown |
+| Codex MCP | live `stale_runtime:false`、`delivery_info:unknown`。freshnessはsource／installed一致を証明しない |
+| 開発資料 | A6は以前の本番受入済み。前回5項目と今回8項目はsource実装・隔離検証済み。10月1日の全体採用と実行範囲はPLAN Current Decisionを参照 |
+| 受信箱整理 | Codex automationはACTIVE。OpenClaw側だけ停止済み（9月30日実施記録のGateway read-back）。今回設定は変更していない |
+| 9月30日の手動整理 | 実施記録では対象7件処理・保留0件。今回整理を再実行していない |
+
+### 過去の実装・受入記録（各記載日時点）
+
+以下の完了・最新receipt・件数は各区切りの記録。現在の一致判定は上記の整合確認を参照する。
+
+2026-09-21、Clawboardの出力上限で長文が省略される問題に対応し、既存MCP fetchへ接続単位のページ長指定を追加。日本語・絵文字・続きのcursor・revisionの保持を隔離検証した。未指定の接続と書込上限・権限は不変。本番同一性は最新receipt、実Clawboard受入は「TSUZUNE-OpenClaw実用環境整備-実施記録-2026-09-21」を参照する。
+
+2026-09-12、user.mdのname／description／iconをノート活動へ表示する既存変更をレビューした。画像変更を既存の操作ロック・保存待機に合わせ、強制上書きを廃止して本文一致確認を追加。保存後の編集状態、新規作成後の一覧、Vault切替時の画像表示も整合した。回帰テストで二重操作と競合時の本文保持を確認。本番反映結果は最新receiptと「TSUZUNE-本番更新レビュー-2026-09-12」のVault実施記録で判定する。AIがuser.mdを自動読込する機能は追加していない。
 
 2026-09-10、Contextの読取境界をtool説明と既存利用案内へ反映した。質問の意味を全て収録するという保証を外し、抜粋不足・現在性不明・既読本文の再取得の扱いを明確にした。検索・本文・schema構造は変更していない。固定6ケースの最終実AI受入はPASSで、baselineもPASSのため一般的な行動改善は未確認。本番反映・fresh MCP・最終同期は対応receiptとVault実施記録で判定する。[実装・受入境界](docs/reports/context-reading-boundary-2026-09-10.md)。
 
@@ -173,13 +232,13 @@ M5固定dogfoodでは時間整合性が1/4から4/4、State NoteからSourceへ�
 
 ## 正本の優先順位
 
-1. 実行中の事実: インストール済み本体と最新のproduction receipt。
+1. 現在の観測: インストール済み本体・live MCPと日付付き照合結果。production receiptは対応する更新時点の受入証拠。
 2. 実装の事実: source、tests、fixture、machine-readable artifacts。
 3. 製品境界: `PRODUCT.md`、`DESIGN.md`、`AGENTS.md`。
-4. 実行順: `PLAN.md`のCurrent StateとCurrent Transition Queue。
+4. 実行順: `PLAN.md`のCurrent Decision。
 5. 本番TSUZUNE Vault: 現在地への検索導線、判断履歴、日付付きEvidence。repo仕様の複製ではない。
 
-SemVerやHEADだけで同一性を判断しません。現在の本番commit、source fingerprint、clean/dirty状態、EXE／`app.asar` hashは[production-update-latest.json](docs/reports/production-update-latest.json)を唯一の正本とし、この段落へ可変値を複製しません。
+SemVerやHEADだけで同一性を判断しません。更新時点のsource fingerprintとbuilt／installed hashは対応するreceiptを参照します。対応receiptが欠ける、または現在の観測と異なる場合はunknown／mismatchを保持し、[日付付きの照合結果](docs/reports/current-state-reconciliation-2026-09-30.md)へ戻ります。過去のreceiptを現在値として再生成しません。
 
 ## 優先キュー
 

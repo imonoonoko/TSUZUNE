@@ -117,7 +117,8 @@ describe('Wiki graph', () => {
           path: '未作成',
           name: '未作成',
           kind: 'unresolved',
-          exists: false
+          exists: false,
+          canCreate: true
         }
       ],
       edges: [{ sourcePath: 'A.md', targetPath: '未作成' }]
@@ -187,8 +188,8 @@ describe('Wiki graph', () => {
         { path: '仕事/議事録.md', name: '議事録', kind: 'note', exists: true },
         { path: '知識/既存.md', name: '既存', kind: 'note', exists: true },
         { path: '入口.md', name: '入口', kind: 'note', exists: true },
-        { path: '未作成', name: '未作成', kind: 'unresolved', exists: false },
-        { path: '予定/あとで作る', name: 'あとで作る', kind: 'unresolved', exists: false }
+        { path: '未作成', name: '未作成', kind: 'unresolved', exists: false, canCreate: true },
+        { path: '予定/あとで作る', name: 'あとで作る', kind: 'unresolved', exists: false, canCreate: true }
       ],
       edges: [
         { sourcePath: '入口.md', targetPath: '知識/既存.md' },
@@ -562,7 +563,8 @@ describe('Wiki graph', () => {
           path: 'Missing Note',
           name: 'Missing Note',
           kind: 'unresolved',
-          exists: false
+          exists: false,
+          canCreate: true
         },
         tagNode('#visible-tag')
       ],

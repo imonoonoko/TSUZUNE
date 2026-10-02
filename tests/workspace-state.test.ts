@@ -2,8 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   parseVaultWorkspacesV1,
   parseWorkspaceName,
-  parseWorkspaceSnapshotV1
+  parseWorkspaceSnapshotV1,
+  parseWorkspaceSnapshotV2,
+  migrateWorkspaceSnapshotV1,
+  parseVaultWorkspaces
 } from '../src/shared/workspace-state'
+import { DEFAULT_GRAPH_FILTER_SETTINGS } from '../src/shared/graph-filters'
 
 const snapshot = {
   tabs: [
@@ -87,5 +91,63 @@ describe('workspace state V1 parser', () => {
         }))
       })
     ).toThrow()
+  })
+})
+
+describe('workspace state V2 parser', () => {
+  const migrated = migrateWorkspaceSnapshotV1(parseWorkspaceSnapshotV1(snapshot))
+
+  it('migrates every named snapshot and last session without losing V1 tabs', () => {
+    const state = parseVaultWorkspaces({ version: 1, lastSession: snapshot,
+      named: [{ name: '調査', savedAt: '2026-09-06T00:00:00.000Z', snapshot }] })
+    expect(state.version).toBe(2)
+    expect(state.lastSession?.panes[0].tabs).toEqual(snapshot.tabs)
+    expect(state.named[0].snapshot).toEqual(migrated)
+    expect(state.lastSession?.panes[0].noteView).toBe('source')
+  })
+
+  it('round-trips nested layouts and pane-specific state, rebuilding stale legacy fields', () => {
+    const second = { ...migrated.panes[0], id: 'pane-2', noteView: 'live-preview' as const,
+      scroll: { top: 123, left: 4 }, localGraph: { depth: 3, direction: 'incoming' as const } }
+    const parsed = parseWorkspaceSnapshotV2({ ...migrated, panes: [...migrated.panes, second], activePaneId: 'pane-2',
+      tabs: [], activeIndex: null, noteView: 'preview', layout: { kind: 'split', direction: 'vertical', ratio: 0.25,
+        first: migrated.layout, second: { kind: 'pane', paneId: 'pane-2' } } })
+    expect(parsed.tabs).toEqual(second.tabs)
+    expect(parsed.activeIndex).toBe(0)
+    expect(parsed.noteView).toBe('edit')
+    expect(parsed.panes[1]).toEqual(second)
+    expect(parseVaultWorkspaces({ version: 2, lastSession: parsed, named: [] }).lastSession).toEqual(parsed)
+    expect(parseWorkspaceSnapshotV2({ ...parsed, left: { ...parsed.left, width: 120 } }).left.width).toBe(120)
+  })
+
+  it('keeps legacy filters unset for global inheritance and persists explicit per-pane graph filters', () => {
+    expect(migrated.panes[0].localGraph.filters).toBeUndefined()
+    expect(parseWorkspaceSnapshotV2(migrated).panes[0].localGraph.filters).toBeUndefined()
+    const filters = { ...DEFAULT_GRAPH_FILTER_SETTINGS, showTags: true, showAttachments: true, neighborLinks: true, showOrphans: false }
+    const saved = { ...migrated, panes: [{ ...migrated.panes[0], localGraph: { ...migrated.panes[0].localGraph, filters } }] }
+    const parsed = parseWorkspaceSnapshotV2(saved)
+    expect(parsed.panes[0].localGraph.filters).toEqual(filters)
+    expect(parseVaultWorkspaces({ version: 2, lastSession: parsed,
+      named: [{ name: 'グラフ', savedAt: '2026-09-06T00:00:00.000Z', snapshot: parsed }] }).named[0].snapshot.panes[0].localGraph.filters).toEqual(filters)
+    expect(() => parseWorkspaceSnapshotV2({ ...saved, panes: [{ ...saved.panes[0], localGraph: { ...saved.panes[0].localGraph,
+      filters: { ...filters, showTags: 'yes' } } }] })).toThrow()
+    expect(() => parseWorkspaceSnapshotV2({ ...saved, panes: [{ ...saved.panes[0], localGraph: { ...saved.panes[0].localGraph,
+      filters: { ...filters, unknown: true } } }] })).toThrow()
+  })
+
+  it.each([
+    { ...migrated, panes: [] },
+    { ...migrated, panes: Array.from({ length: 9 }, (_, index) => ({ ...migrated.panes[0], id: `pane-${index}` })) },
+    { ...migrated, activePaneId: 'absent' },
+    { ...migrated, layout: { kind: 'pane', paneId: 'absent' } },
+    { ...migrated, panes: [...migrated.panes, migrated.panes[0]] },
+    { ...migrated, layout: { kind: 'split', direction: 'horizontal', ratio: 0.5, first: migrated.layout, second: migrated.layout } },
+    { ...migrated, layout: { kind: 'split', direction: 'horizontal', ratio: 0.01, first: migrated.layout, second: migrated.layout } },
+    { ...migrated, left: { ...migrated.left, width: 0 } },
+    { ...migrated, panes: [{ ...migrated.panes[0], scroll: { top: -1, left: 0 } }] },
+    { ...migrated, panes: [{ ...migrated.panes[0], localGraph: { depth: 4, direction: 'both' } }] },
+    { ...migrated, panes: [{ ...migrated.panes[0], localGraph: { depth: 1.5, direction: 'both' } }] }
+  ])('rejects invalid V2 layouts and bounds', (value) => {
+    expect(() => parseWorkspaceSnapshotV2(value)).toThrow()
   })
 })

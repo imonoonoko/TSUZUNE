@@ -95,6 +95,21 @@ describe('MCP vault service', () => {
     )
   })
 
+  it('replays a keyed trash result only for the exact moved source', async () => {
+    await mkdir(join(root, '01_受信箱'))
+    const source = join(root, '01_受信箱', '再試行.md')
+    await writeFile(source, '# 再試行', 'utf8')
+    const fetched = await service.fetch('01_受信箱/再試行.md')
+    const key = '834248ae-c478-40f8-acfb-888d4b5f54bb'
+    const first = await service.trashInboxSource(fetched.id, fetched.metadata.revision, key)
+    expect(first.operation_id).toBe(key)
+    expect(first.new_path).toBe(`.trash/onoko-op-${key}/${fetched.id}`)
+    expect(await service.trashInboxSource(fetched.id, fetched.metadata.revision, key)).toEqual(first)
+    await expect(service.trashInboxSource('01_受信箱/別原典.md', fetched.metadata.revision, key)).rejects.toThrow()
+    await writeFile(source, '# 再作成', 'utf8')
+    await expect(service.trashInboxSource(fetched.id, fetched.metadata.revision, key)).rejects.toThrow()
+  })
+
   it('refuses direct Inbox trash when the revision is stale or a backlink remains', async () => {
     await mkdir(join(root, '01_受信箱'))
     const sourcePath = join(root, '01_受信箱', '保護対象.md')
@@ -367,6 +382,32 @@ describe('MCP vault service', () => {
         sourceRevision: `sha256:${'0'.repeat(64)}`
       })
     ).rejects.toThrow('原典が変更')
+  })
+
+  it('reads bounded pages without losing Japanese text or splitting a surrogate pair', async () => {
+    const source = `${'あ'.repeat(3999)}🦞\n${'本文\\"\t'.repeat(1500)}`
+    await writeFile(join(root, 'Projects', 'pages.md'), source, 'utf8')
+    const pages = []
+    let after = 0
+    do {
+      const page = await service.fetch('Projects/pages.md', after, 4000)
+      expect(page.metadata.start_character).toBe(after)
+      expect(page.text.length).toBeLessThanOrEqual(4000)
+      expect(Buffer.from(page.text, 'utf8').toString('utf8')).toBe(page.text)
+      expect(page.metadata.editable).toBe(true)
+      expect(page.metadata.total_characters).toBe(source.length)
+      pages.push(page)
+      if (page.next_after === undefined) break
+      expect(page.next_after).toBeGreaterThan(after)
+      after = page.next_after
+    } while (true)
+    expect(pages[0].next_after).toBe(3999)
+    expect(pages.map((page) => page.text).join('')).toBe(source)
+    expect(new Set(pages.map((page) => page.metadata.revision)).size).toBe(1)
+    expect((await service.fetch('Projects/pages.md')).text).toBe(source)
+    for (const limit of [0, 1, 2.5, 100001, NaN]) {
+      await expect(service.fetch('Projects/pages.md', 0, limit)).rejects.toThrow('pageCharacters')
+    }
   })
 
   it('directly creates a derived note from a large source read in chunks', async () => {

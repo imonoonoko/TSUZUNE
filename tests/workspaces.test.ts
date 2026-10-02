@@ -3,6 +3,8 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { WorkspaceSnapshotV1 } from '../src/shared/workspace-state'
+import { migrateWorkspaceSnapshotV1 } from '../src/shared/workspace-state'
+import { splitWorkspacePane } from '../src/shared/pane-layout'
 
 const appData = vi.hoisted(() => ({ path: '' }))
 vi.mock('electron', () => ({ app: { getPath: () => appData.path } }))
@@ -52,11 +54,11 @@ describe('per-Vault workspace persistence', () => {
       'utf8'
     )
     const initial = await service.getWorkspaces(vaultA.toUpperCase())
-    expect(initial.state).toEqual({ version: 1, lastSession: null, named: [] })
+    expect(initial.state).toEqual({ version: 2, lastSession: null, named: [] })
 
     const saved = await service.saveWorkspace(initial.scope, '  調査  ', snapshot, false)
     expect(saved.state.named).toEqual([
-      { name: '調査', savedAt: '2026-09-06T00:00:00.000Z', snapshot }
+      { name: '調査', savedAt: '2026-09-06T00:00:00.000Z', snapshot: migrateWorkspaceSnapshotV1(snapshot) }
     ])
     const savedBytes = await readFile(join(appData.path, 'settings.json'), 'utf8')
 
@@ -73,6 +75,26 @@ describe('per-Vault workspace persistence', () => {
       unknown: { keep: true },
       workspaceStateByVault: { opaque: { version: 9 } }
     })
+  })
+
+  it('reads V1 without mutating settings then persists complete V2 nested panes', async () => {
+    const initial = await service.getWorkspaces(vaultA)
+    const path = join(appData.path, 'settings.json')
+    const legacy = JSON.stringify({ unknown: true, workspaceStateByVault: { [initial.scope.rootPath]: {
+      version: 1, lastSession: snapshot,
+      named: [{ name: '旧配置', savedAt: '2026-09-06T00:00:00.000Z', snapshot }]
+    } } })
+    await writeFile(path, legacy, 'utf8')
+    const migrated = await service.getWorkspaces(vaultA)
+    expect(migrated.state.version).toBe(2)
+    expect(migrated.state.named[0].snapshot.panes[0].tabs).toEqual(snapshot.tabs)
+    expect(await readFile(path, 'utf8')).toBe(legacy)
+    const split = splitWorkspacePane(migrated.state.lastSession!, 'pane-1', 'horizontal', 'pane-2')
+    await service.saveLastWorkspaceSession(migrated.scope, split)
+    const raw = JSON.parse(await readFile(path, 'utf8'))
+    expect(raw.workspaceStateByVault[initial.scope.rootPath].version).toBe(2)
+    expect((await service.getWorkspaces(vaultA)).state.lastSession).toEqual(split)
+    expect(raw.unknown).toBe(true)
   })
 
   it('rejects an A to B to A stale mutation by root revision without writing', async () => {

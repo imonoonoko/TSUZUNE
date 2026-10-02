@@ -3,6 +3,7 @@ import {
   clipboard,
   dialog,
   ipcMain,
+  nativeImage,
   shell,
   type IpcMainInvokeEvent
 } from 'electron'
@@ -42,6 +43,11 @@ import { parseGraphGroups } from '../shared/graph-groups'
 import { parseGraphViewState } from '../shared/graph-view-state'
 import { parseUserIgnoreFilters } from '../shared/excluded-files'
 import { updateSettings, readSettings } from './settings'
+import { parseHotkeySettings } from '../shared/hotkeys'
+import { PropertyTypeSettingsService } from './property-type-settings'
+import { PropertyChangesService } from './property-changes'
+import { HumanChangesService } from './human-changes'
+import type { PropertyChangeScope, PropertyDeclaredType, PropertyPreviewInput, PropertyApplyInput } from '../shared/property-changes'
 import { VaultError, VaultService } from './vault'
 import { WorkspaceService } from './workspaces'
 import type { WorkspaceScope, WorkspaceSnapshotV1 } from '../shared/workspace-state'
@@ -54,6 +60,7 @@ import {
   verifyCalendarPluginArtifact
 } from './calendar-plugin-artifact'
 import { parseCalendarPluginSettings } from '../shared/calendar-plugin-settings'
+import { MAX_PASTED_IMAGE_BYTES, type PasteImageInput } from '../shared/image-paste'
 
 let ipcTail: Promise<void> = Promise.resolve()
 let googleIpcTail: Promise<void> = Promise.resolve()
@@ -202,6 +209,7 @@ export interface DriveSyncIpcService {
 export interface GoogleIpcServices {
   connection: GoogleConnectionService
   driveSync: DriveSyncIpcService
+  autoSync?: import('./drive-auto-sync').DriveAutoSync
 }
 
 export interface AppUpdateIpcService {
@@ -242,6 +250,34 @@ export function registerIpc(
   const entryMove =
     entryMoveOverride ?? new EntryMoveCoordinator({ vault, drive: google.driveSync })
   const workspaces = new WorkspaceService(vault)
+  const propertyTypes = new PropertyTypeSettingsService(vault)
+  const propertyChanges = new PropertyChangesService(vault, async () => (await readSettings()).userIgnoreFilters)
+  const humanChanges = new HumanChangesService(vault, async () => (await readSettings()).userIgnoreFilters)
+  registerTrusted('bases:preview', (input: import('../shared/base-changes').BaseChangeInput) => humanChanges.previewBase(input))
+  registerTrusted('bases:apply', (input: import('../shared/base-changes').BaseChangeInput) => humanChanges.applyBase(input))
+  registerTrusted('mentions:link', (input: import('../shared/mention-changes').MentionChangeInput) => humanChanges.linkMention(input))
+  registerTrusted('settings:setHotkeys', async (value: unknown) => {
+    await updateSettings({ hotkeys: parseHotkeySettings(value) })
+    return null
+  })
+  registerTrusted('properties:getTypes', (scope: PropertyChangeScope) => propertyTypes.get(scope))
+  registerTrusted('properties:setTypes', async (scope: PropertyChangeScope, value: Record<string, PropertyDeclaredType>) => {
+    await propertyTypes.set(scope, value)
+    return null
+  })
+  registerTrusted('properties:preview', (input: PropertyPreviewInput) => propertyChanges.preview(input))
+  registerTrusted('properties:apply', async (input: PropertyApplyInput) => {
+    const types = await propertyTypes.get(input.scope)
+    if (input.operation.kind === 'rename' && types[input.operation.newName] && types[input.operation.newName] !== types[input.operation.property])
+      throw new Error('変更先に別の型設定があります。型設定を確認してください。')
+    const result = await propertyChanges.apply(input)
+    if (result.saved.length && input.operation.kind === 'rename' && types[input.operation.property]) {
+      const next = { ...types, [input.operation.newName]: types[input.operation.property] }
+      try { await propertyTypes.set(input.scope, next) }
+      catch (error) { return { ...result, registryError: error instanceof Error ? error.message : '型設定をコピーできませんでした。' } }
+    }
+    return result
+  })
 
   registerTrusted('vault:choose', async () => {
     const options: Electron.OpenDialogOptions = {
@@ -414,6 +450,7 @@ export function registerIpc(
       saved.modifiedAt,
       saved.size
     )
+    google.autoSync?.notifyLocalChange()
     return saved
   })
 
@@ -438,6 +475,22 @@ export function registerIpc(
       : await dialog.showOpenDialog(options)
     if (result.canceled || result.filePaths.length === 0) return null
     return vault.importAttachments(result.filePaths, destinationDirectory)
+  })
+
+  registerTrusted('attachment:pasteImage', async (input: PasteImageInput) => {
+    if (!(input?.bytes instanceof Uint8Array) || input.bytes.byteLength === 0 ||
+        input.bytes.byteLength > MAX_PASTED_IMAGE_BYTES) {
+      throw new VaultError({ code: 'INVALID_PATH', message: '画像は20MB以下で貼り付けてください。' })
+    }
+    const image = nativeImage.createFromBuffer(Buffer.from(input.bytes))
+    if (image.isEmpty()) {
+      throw new VaultError({ code: 'INVALID_PATH', message: '画像を読み取れませんでした。PNGまたはJPEG画像をコピーしてください。' })
+    }
+    const content = image.toPNG()
+    if (content.length > MAX_PASTED_IMAGE_BYTES) {
+      throw new VaultError({ code: 'INVALID_PATH', message: '保存する画像が20MBを超えています。' })
+    }
+    return vault.importPastedImage({ scope: input.scope, notePath: input.notePath, content })
   })
 
   registerTrusted('entry:createDirectory', async (input: CreateDirectoryInput) => {
@@ -641,6 +694,23 @@ export function registerIpc(
     })
   })
   registerGoogleTrusted('drive:preview', () => google.driveSync.preview())
+  registerTrusted('drive:autoStatus', async () => {
+    if (!google.autoSync) throw new Error('自動同期を利用できません。')
+    return google.autoSync.getStatus()
+  })
+  registerTrusted('drive:autoEnabled', async (enabled: unknown) => {
+    if (typeof enabled !== 'boolean') throw new Error('自動同期の設定が不正です。')
+    if (!google.autoSync) throw new Error('自動同期を利用できません。')
+    const rootPath = vault.getRootPath()
+    if (!rootPath) throw new Error('先にVaultを開いてください。')
+    const current = await readSettings()
+    const driveAutoSyncByVault = { ...current.driveAutoSyncByVault }
+    if (enabled) driveAutoSyncByVault[rootPath] = true
+    else delete driveAutoSyncByVault[rootPath]
+    await updateSettings({ driveAutoSyncByVault })
+    google.autoSync.settingsChanged()
+    return google.autoSync.getStatus()
+  })
   registerGoogleTrusted('drive:apply', (planId: string) =>
     google.driveSync.apply(planId)
   )

@@ -40,6 +40,27 @@ describe('BookmarkDialog', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalledWith('構成図', '資料'))
   })
 
+  it('passes a heading target when saving a heading bookmark', async () => {
+    const onSave = vi.fn(async () => undefined)
+    render(<BookmarkDialog path="A.md" headings={[{ slug: 'section', title: '節' }]}
+      onCancel={() => undefined} onSave={onSave} onDelete={async () => undefined} />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'ブックマークの種類' }), { target: { value: 'heading' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('', '', {
+      type: 'heading', path: 'A.md', slug: 'section', headingTitle: '節'
+    }))
+  })
+
+  it('passes a search target when saving a search bookmark', async () => {
+    const onSave = vi.fn(async () => undefined)
+    render(<BookmarkDialog query="tag:project" onCancel={() => undefined}
+      onSave={onSave} onDelete={async () => undefined} />)
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('', '', {
+      type: 'search', query: 'tag:project'
+    }))
+  })
+
   it('edits or removes one existing bookmark and restores focus', async () => {
     const onDelete = vi.fn()
 

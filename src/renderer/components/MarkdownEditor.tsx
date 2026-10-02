@@ -19,12 +19,17 @@ import {
   inspectFrontmatterProperty,
   parseFrontmatter,
   setFrontmatterProperty,
-  type FrontmatterEditResult,
-  type FrontmatterAtom,
   type FrontmatterProperty
 } from '../../core/frontmatter'
+import { readPropertyAsDeclared, transformProperty, type PropertyTransformResult } from '../../core/property-changes'
 import { renderTemplate } from '../../core/templates'
-import type { NoteDocument } from '../../shared/types'
+import type { CompiledPathAliases } from '../../core/path-aliases'
+import type { NoteNavigationTarget } from '../../core/note-navigation'
+import type { PropertyDeclaredType, PropertyValue } from '../../shared/property-changes'
+import type { NoteDocument, VaultAttachment } from '../../shared/types'
+import { MAX_PASTED_IMAGE_BYTES } from '../../shared/image-paste'
+import { livePreviewExtension, type LivePreviewContext } from './LivePreview'
+import PropertyValueFields from './PropertyValueFields'
 
 export interface MarkdownEditorHandle {
   scrollToOffset: (offset: number) => void
@@ -35,58 +40,21 @@ interface MarkdownEditorProps {
   onChange: (value: string) => void
   readOnly?: boolean
   propertiesReadOnly?: boolean
+  declaredTypes?: Record<string, PropertyDeclaredType>
   notes?: NoteDocument[]
   templates?: NoteDocument[]
   noteTitle?: string
   templateDirectory?: string
   onImportAttachments?: () => Promise<string[]>
+  onPasteImage?: (image: File) => Promise<string | null>
   deprioritizedPaths?: ReadonlySet<string>
   onCompositionChange?: (composing: boolean) => void
-}
-
-function PropertyValueFields({ property, onChange, label, disabled, autoFocus = false }: {
-  property: FrontmatterProperty
-  onChange: (property: FrontmatterProperty) => void
-  label: string
-  disabled: boolean
-  autoFocus?: boolean
-}): React.JSX.Element {
-  const addItemRef = useRef<HTMLButtonElement>(null)
-  if (property.type === 'checkbox') {
-    return <input type="checkbox" aria-label={label} checked={property.value} disabled={disabled}
-      autoFocus={autoFocus} onChange={(event) => onChange({ type: 'checkbox', value: event.target.checked })} />
-  }
-  if (property.type !== 'list') {
-    return <textarea aria-label={label} rows={2} value={property.value} disabled={disabled}
-      autoFocus={autoFocus} aria-describedby={property.type === 'number' ? 'property-number-help' : undefined}
-      onChange={(event) => onChange({ ...property, value: event.target.value })} />
-  }
-  const changeItem = (index: number, item: FrontmatterAtom): void => {
-    onChange({ type: 'list', value: property.value.map((current, position) => position === index ? item : current) })
-  }
-  return (
-    <div className="markdown-property-items">
-      {property.value.map((item, index) => (
-        <div className="markdown-property-item" key={index}>
-          <select aria-label={`${label}の項目${index + 1}の型`} value={item.type} disabled={disabled}
-            onChange={(event) => changeItem(index, { ...item, type: event.target.value as FrontmatterAtom['type'] })}>
-            <option value="text">文字列</option>
-            <option value="number">数値</option>
-          </select>
-          <textarea aria-label={`${label}の項目${index + 1}`} rows={2} value={item.value} disabled={disabled}
-            autoFocus={autoFocus && index === 0}
-            onChange={(event) => changeItem(index, { ...item, value: event.target.value })} />
-          <button type="button" aria-label={`${label}の項目${index + 1}を削除`} disabled={disabled} onClick={() => {
-            onChange({ type: 'list', value: property.value.filter((_, position) => position !== index) })
-            addItemRef.current?.focus()
-          }}>項目を削除</button>
-        </div>
-      ))}
-      {property.value.length === 0 ? <span className="markdown-property-hint">空のリスト</span> : null}
-      <button ref={addItemRef} type="button" aria-label={`${label}に項目を追加`} disabled={disabled}
-        onClick={() => onChange({ type: 'list', value: [...property.value, { type: 'text', value: '' }] })}>項目を追加</button>
-    </div>
-  )
+  livePreview?: boolean
+  notePath?: string
+  attachments?: readonly VaultAttachment[]
+  pathAliases?: CompiledPathAliases
+  onNavigate?: (target: NoteNavigationTarget) => void
+  onWikiLink?: (target: string) => void
 }
 
 const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(function MarkdownEditor({
@@ -94,22 +62,43 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   onChange,
   readOnly = false,
   propertiesReadOnly = false,
+  declaredTypes = {},
   notes = [],
   templates = [],
   noteTitle,
   templateDirectory = '90_テンプレート',
   onImportAttachments,
+  onPasteImage,
   deprioritizedPaths,
-  onCompositionChange
+  onCompositionChange,
+  livePreview = false,
+  notePath = '',
+  attachments = [],
+  pathAliases,
+  onNavigate,
+  onWikiLink
 }: MarkdownEditorProps, ref): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
   const onCompositionChangeRef = useRef(onCompositionChange)
+  const onPasteImageRef = useRef(onPasteImage)
+  onPasteImageRef.current = onPasteImage
+  const pendingPastesRef = useRef(new Set<{ from: number; to: number; invalid: boolean }>())
+  const [pasteError, setPasteError] = useState<string | null>(null)
   const applyingValueRef = useRef(false)
   const compositionEndPendingRef = useRef(false)
   const composingRef = useRef(false)
   const readOnlyCompartmentRef = useRef(new Compartment())
+  const livePreviewCompartmentRef = useRef(new Compartment())
+  const livePreviewContextRef = useRef<LivePreviewContext>({
+    notePath, attachments, notes, pathAliases, onNavigate, onWikiLink,
+    isComposing: () => composingRef.current
+  })
+  livePreviewContextRef.current = {
+    notePath, attachments, notes, pathAliases, onNavigate, onWikiLink,
+    isComposing: () => composingRef.current
+  }
   const orderedNotes = useMemo(
     () =>
       deprioritizedPaths?.size
@@ -125,10 +114,10 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
     frontmatter.found && frontmatter.warnings.length > 0
   const [addingProperty, setAddingProperty] = useState(false)
   const [newPropertyName, setNewPropertyName] = useState('')
-  const [newProperty, setNewProperty] = useState<FrontmatterProperty>({ type: 'text', value: '' })
+  const [newProperty, setNewProperty] = useState<PropertyValue>({ type: 'text', value: '' })
   const [propertyError, setPropertyError] = useState<string | null>(null)
   const [editingProperty, setEditingProperty] = useState<string | null>(null)
-  const [propertyDraft, setPropertyDraft] = useState<FrontmatterProperty>({ type: 'text', value: '' })
+  const [propertyDraft, setPropertyDraft] = useState<PropertyValue>({ type: 'text', value: '' })
   const addPropertyRef = useRef<HTMLButtonElement>(null)
   const propertiesDisabled = readOnly || propertiesReadOnly
   const properties = useMemo(
@@ -181,13 +170,65 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
           EditorState.readOnly.of(readOnly),
           EditorView.editable.of(!readOnly)
         ]),
+        livePreviewCompartmentRef.current.of([]),
+        EditorView.domEventHandlers({
+          paste: (event, view) => {
+            if (view.state.readOnly || composingRef.current || !onPasteImageRef.current) return false
+            const images = Array.from(event.clipboardData?.files ?? []).filter(file => file.type.startsWith('image/'))
+            if (images.length === 0) return false
+            event.preventDefault()
+            setPasteError(null)
+            if (images.some(file => file.size === 0 || file.size > MAX_PASTED_IMAGE_BYTES)) {
+              setPasteError('画像は20MB以下で貼り付けてください。')
+              return true
+            }
+            const selection = view.state.selection.main
+            const pending = { from: selection.from, to: selection.to, invalid: false }
+            pendingPastesRef.current.add(pending)
+            const saveImage = onPasteImageRef.current
+            void (async () => {
+              const paths: string[] = []
+              try {
+                for (const file of images) {
+                  if (viewRef.current !== view || view.state.readOnly) return
+                  const path = await saveImage(file)
+                  if (path) paths.push(path)
+                }
+                if (viewRef.current !== view || paths.length === 0) return
+                if (view.state.readOnly || pending.invalid) {
+                  setPasteError('貼り付け位置が変更されたため挿入を停止しました。保存した画像はファイル一覧から確認できます。')
+                  return
+                }
+                const insert = paths.map(path => `![[${path}]]`).join('\n')
+                // Use one normal editor transaction so Undo only removes the inserted links.
+                pendingPastesRef.current.delete(pending)
+                view.dispatch({ changes: { from: pending.from, to: pending.to, insert },
+                  selection: { anchor: pending.from + insert.length }, userEvent: 'input.paste' })
+              } catch (error) {
+                if (viewRef.current === view) setPasteError(error instanceof Error ? error.message : '画像を貼り付けられませんでした。')
+              } finally {
+                pendingPastesRef.current.delete(pending)
+              }
+            })()
+            return true
+          }
+        }),
         EditorView.updateListener.of((update) => {
+          if (update.docChanged) for (const pending of pendingPastesRef.current) {
+            update.changes.iterChangedRanges((from, to) => {
+              if (from < pending.to && to > pending.from) pending.invalid = true
+            })
+            const empty = pending.from === pending.to
+            pending.from = update.changes.mapPos(pending.from, 1)
+            pending.to = update.changes.mapPos(pending.to, empty ? 1 : -1)
+          }
           if (update.docChanged && !applyingValueRef.current) {
             onChangeRef.current(update.state.doc.toString())
             if (compositionEndPendingRef.current) {
               compositionEndPendingRef.current = false
               composingRef.current = false
               onCompositionChangeRef.current?.(false)
+              queueMicrotask(() => viewRef.current?.dispatch({}))
             }
           }
         })
@@ -207,6 +248,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
         compositionEndPendingRef.current = false
         composingRef.current = false
         onCompositionChangeRef.current?.(false)
+        viewRef.current?.dispatch({})
       })
     }
     view.dom.addEventListener('compositionstart', handleCompositionStart)
@@ -220,9 +262,22 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
       compositionEndPendingRef.current = false
       composingRef.current = false
       view.destroy()
+      pendingPastesRef.current.clear()
       viewRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({ effects: livePreviewCompartmentRef.current.reconfigure(
+      livePreview ? livePreviewExtension(() => livePreviewContextRef.current) : []
+    ) })
+  }, [livePreview])
+
+  useEffect(() => {
+    if (livePreview) viewRef.current?.dispatch({})
+  }, [livePreview, notePath, attachments, notes, pathAliases])
 
   useEffect(() => {
     const view = viewRef.current
@@ -371,10 +426,10 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
     view.focus()
   }
 
-  const applyPropertyResult = (result: FrontmatterEditResult, focusAddButton = true): void => {
+  const applyPropertyResult = (result: PropertyTransformResult | ReturnType<typeof setFrontmatterProperty>, focusAddButton = true): void => {
     if (propertiesDisabled) return
     if (!result.ok) {
-      setPropertyError(result.message)
+      setPropertyError('issue' in result ? result.issue.message : result.message)
       return
     }
 
@@ -394,15 +449,17 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
       setPropertyError('同じ名前のプロパティがあります。既存の行から編集してください。')
       return
     }
-    applyPropertyResult(setFrontmatterProperty(value, name, newProperty))
+    applyPropertyResult(transformProperty(value, { kind: 'set', property: name, value: newProperty }))
   }
 
   return (
     <div className="markdown-editor-shell">
-      <section
+      <details
         className="markdown-properties markdown-properties-editor"
         aria-label="プロパティ編集"
+        open={frontmatterMalformed || undefined}
       >
+        <summary>プロパティ <span>{properties.length}件</span>{frontmatterMalformed ? ' · YAMLの確認が必要' : ''}</summary>
         <div className="markdown-properties-editor-header">
           <span className="markdown-properties-title">プロパティ</span>
           <button
@@ -429,9 +486,9 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
             {editingProperty === name && inspected.ok ? (
               <form className="markdown-property-value-form" onSubmit={(event) => {
                 event.preventDefault()
-                if (!propertiesDisabled) applyPropertyResult(setFrontmatterProperty(value, name, propertyDraft))
+                if (!propertiesDisabled) applyPropertyResult(transformProperty(value, { kind: 'set', property: name, value: propertyDraft }))
               }}>
-                <PropertyValueFields property={propertyDraft} onChange={setPropertyDraft} label={`${name}の値`} disabled={propertiesDisabled} autoFocus />
+                <PropertyValueFields value={propertyDraft} onChange={setPropertyDraft} label={`${name}の値`} disabled={propertiesDisabled} autoFocus />
                 <button type="submit" disabled={propertiesDisabled} aria-label={`${name}の変更を確定`}>変更を確定</button>
                 <button type="button" onClick={() => {
                   setEditingProperty(null)
@@ -451,11 +508,11 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
                     ? inspected.property.value.map((item) => `${item.type === 'number' ? '数値' : '文字列'}: ${item.value || '（空文字）'}`).join('\n') || '（空のリスト）'
                     : inspected.property.value || '（空文字）'
                   : rawValue ?? '（複合値）'}</span>}
-                {inspected.ok && inspected.property ? <span className="markdown-property-hint">{inspected.property.type === 'checkbox' ? 'チェックボックス' : inspected.property.type === 'number' ? '数値' : inspected.property.type === 'list' ? 'リスト' : '文字列'}</span> : null}
+                {inspected.ok && inspected.property ? <span className="markdown-property-hint">{declaredTypes[name] === 'date' && inspected.property.type === 'text' ? '日付' : declaredTypes[name] === 'datetime' && inspected.property.type === 'text' ? '日時' : inspected.property.type === 'checkbox' ? 'チェックボックス' : inspected.property.type === 'number' ? '数値' : inspected.property.type === 'list' ? 'リスト' : '文字列'}</span> : null}
                 {(!inspected.ok || inspected.property?.type !== 'checkbox') ? <button type="button" aria-label={`${name}を編集`} disabled={propertiesDisabled || !inspected.ok} onClick={() => {
                   if (!inspected.ok || !inspected.property) return
                   setEditingProperty(name)
-                  setPropertyDraft(inspected.property)
+                  setPropertyDraft(readPropertyAsDeclared(inspected.property, declaredTypes[name] ?? inspected.property.type) ?? inspected.property)
                   setAddingProperty(false)
                   setPropertyError(null)
                 }}>編集</button> : null}
@@ -491,7 +548,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
               <option value="list">リスト</option>
               <option value="checkbox">チェックボックス</option>
             </select>
-            <PropertyValueFields property={newProperty} onChange={setNewProperty} label="新しいプロパティ値" disabled={propertiesDisabled} />
+            <PropertyValueFields value={newProperty} onChange={setNewProperty} label="新しいプロパティ値" disabled={propertiesDisabled} />
             <button type="submit" disabled={propertiesDisabled}>
               追加を確定
             </button>
@@ -514,7 +571,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
           <p id="property-number-help" className="markdown-property-hint">数値は 12、-0.5 のように入力してください。指数表記などはソースで編集できます。</p>
         ) : null}
         {propertyError ? <p role="alert">{propertyError}</p> : null}
-      </section>
+      </details>
       <div className="markdown-format-toolbar" role="toolbar" aria-label="書式ツール">
         <button type="button" disabled={readOnly} onClick={() => applyFormat('heading')}>
           見出し
@@ -571,6 +628,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
         aria-label="Markdown編集欄"
         aria-busy={readOnly}
       />
+      {pasteError ? <p role="alert">{pasteError}</p> : null}
     </div>
   )
 })

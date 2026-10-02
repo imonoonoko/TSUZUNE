@@ -1,15 +1,19 @@
 import {
   copyFile,
+  link,
   lstat,
   mkdir,
+  open,
   readFile,
   readdir,
+  realpath,
   rename,
   rm,
   stat,
+  unlink,
   writeFile
 } from 'node:fs/promises'
-import { constants as fsConstants } from 'node:fs'
+import { constants as fsConstants, type Stats } from 'node:fs'
 import {
   basename,
   dirname,
@@ -20,11 +24,14 @@ import {
   resolve,
   sep
 } from 'node:path'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import { createServer } from 'node:net'
 import { isSupportedAttachmentPath } from '../shared/attachments'
+import { MAX_PASTED_IMAGE_BYTES, type PasteImageInput } from '../shared/image-paste'
 import { isAuditHistoryPath } from '../shared/ai-write-policy'
 import { createExcludedFileMatcher } from '../shared/excluded-files'
 import { compilePathAliases, resolvePathAlias } from '../core/path-aliases'
+import { normalizeBookmarks } from '../shared/bookmarks'
 import {
   basenameRelative,
   dirnameRelative,
@@ -145,44 +152,6 @@ function normalizeCreationTimes(value: unknown): CreationTimeRegistry {
   return normalized
 }
 
-function normalizeBookmarks(value: unknown): VaultBookmark[] {
-  if (!Array.isArray(value)) {
-    return []
-  }
-
-  const bookmarks = new Map<string, VaultBookmark>()
-  for (const item of value) {
-    if (!item || typeof item !== 'object') {
-      continue
-    }
-    const candidate = item as Partial<VaultBookmark>
-    const validation =
-      typeof candidate.path === 'string'
-        ? validateRelativePath(candidate.path)
-        : { valid: false }
-    if (
-      candidate.type !== 'file' ||
-      !validation.valid ||
-      !validation.normalized ||
-      !validCreationTime(candidate.ctime)
-    ) {
-      continue
-    }
-    bookmarks.set(validation.normalized, {
-      type: 'file',
-      path: validation.normalized,
-      ...(typeof candidate.title === 'string' && candidate.title.trim()
-        ? { title: candidate.title.trim() }
-        : {}),
-      ...(typeof candidate.group === 'string' && candidate.group.trim()
-        ? { group: candidate.group.trim() }
-        : {}),
-      ctime: candidate.ctime
-    })
-  }
-  return [...bookmarks.values()].sort((left, right) => left.ctime - right.ctime)
-}
-
 function timestampSuffix(date = new Date()): string {
   const pad = (value: number, width = 2): string => String(value).padStart(width, '0')
   return [
@@ -196,6 +165,56 @@ function timestampSuffix(date = new Date()): string {
     '-',
     pad(date.getMilliseconds(), 3)
   ].join('')
+}
+
+export interface TrashOperation {
+  id: string
+  expectedRevision: string
+  verifyRevision: (content: string, modifiedAt: number, size: number) => boolean | Promise<boolean>
+}
+
+interface TrashProof {
+  bytesSha256: string
+  size: number
+  mtimeMs: number
+  birthtimeMs: number
+  dev: number
+  ino: number
+}
+
+interface TrashIntent {
+  version: 1
+  id: string
+  source: string
+  sourceRevision: string
+  destination: string
+  proof: TrashProof
+}
+
+async function withTrashOperationLock<T>(root: string, id: string, action: () => Promise<T>): Promise<T> {
+  // A named endpoint is owned by the OS for this process lifetime, including hard-kill recovery.
+  if (process.platform !== 'win32' && process.platform !== 'linux') {
+    throw new Error('Keyed trash requires a process-lifetime lock on this platform.')
+  }
+  const canonicalRoot = await realpath(root)
+  const lockRoot = process.platform === 'win32' ? canonicalRoot.toLocaleLowerCase() : canonicalRoot
+  const digest = createHash('sha256').update(lockRoot).update('\0').update(id).digest('hex')
+  const endpoint = process.platform === 'win32'
+    ? `\\\\.\\pipe\\tsuzune-trash-${digest}`
+    : `\0tsuzune-trash-${digest}`
+  const server = createServer()
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(endpoint, () => {
+      server.off('error', reject)
+      resolve()
+    })
+  })
+  try {
+    return await action()
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()))
+  }
 }
 
 export class VaultService {
@@ -753,7 +772,7 @@ export class VaultService {
     )
     const resolvedBookmarks = normalizeBookmarks(
       bookmarks.map((bookmark) => {
-        if (!isMarkdownFile(bookmark.path)) {
+        if (bookmark.type === 'search' || !isMarkdownFile(bookmark.path)) {
           return bookmark
         }
         const liveExactPath = liveNotePaths.get(bookmark.path.toLocaleLowerCase())
@@ -933,35 +952,31 @@ export class VaultService {
   async saveBookmark(input: SaveBookmarkInput): Promise<VaultBookmark> {
     const root = this.requireRoot()
     const revision = this.rootRevision
-    const absolute = this.absolutePath(input.path)
     try {
-      await this.assertNoSymlinkTraversal(absolute)
-      const info = await stat(absolute)
-      if (!info.isFile()) {
-        throw new VaultError({
-          code: 'INVALID_PATH',
-          message: 'ファイルだけをブックマークできます。'
-        })
+      if (!input || typeof input !== 'object') throw new VaultError({ code: 'INVALID_PATH', message: 'ブックマークが不正です。' })
+      let target: SaveBookmarkInput
+      if (input.type === 'search') {
+        target = input
+      } else {
+        const absolute = this.absolutePath(input.path)
+        await this.assertNoSymlinkTraversal(absolute)
+        const info = await stat(absolute)
+        if (!info.isFile()) throw new VaultError({ code: 'INVALID_PATH', message: 'ファイルだけをブックマークできます。' })
+        const path = this.relativePathFrom(root, absolute)
+        target = input.type === 'heading' ? { ...input, path } : { ...input, type: 'file', path }
       }
-
-      const path = this.relativePathFrom(root, absolute)
       const current = await this.readBookmarks(root)
       const aliases = compilePathAliases(await this.readPathAliases(root))
       const matches = await Promise.all(
-        current.map((bookmark) =>
-          this.bookmarkMatchesPath(bookmark.path, path, aliases)
-        )
+        current.map(async (bookmark) => target.type === 'search'
+          ? bookmark.type === 'search' && bookmark.query === target.query
+          : bookmark.type !== 'search' && bookmark.type === (target.type ?? 'file') &&
+            (target.type !== 'heading' || (bookmark.type === 'heading' && bookmark.slug === target.slug)) &&
+            await this.bookmarkMatchesPath(bookmark.path, target.path, aliases))
       )
       const previous = current.find((_, index) => matches[index])
-      const title = input.title?.trim()
-      const group = input.group?.trim()
-      const bookmark: VaultBookmark = {
-        type: 'file',
-        path,
-        ...(title ? { title } : {}),
-        ...(group ? { group } : {}),
-        ctime: previous?.ctime ?? Date.now()
-      }
+      const bookmark = normalizeBookmarks([{ ...target, ctime: previous?.ctime ?? Date.now() }])[0]
+      if (!bookmark) throw new VaultError({ code: 'INVALID_PATH', message: 'ブックマークの対象が不正です。' })
       await this.writeBookmarks(root, revision, [
         ...current.filter((_, index) => !matches[index]),
         bookmark
@@ -978,15 +993,18 @@ export class VaultService {
   async removeBookmark(path: string): Promise<void> {
     const root = this.requireRoot()
     const revision = this.rootRevision
-    const absolute = this.absolutePath(path)
-    const normalizedPath = this.relativePathFrom(root, absolute)
     try {
       const current = await this.readBookmarks(root)
+      if (current.some((bookmark) => bookmark.id === path)) {
+        await this.writeBookmarks(root, revision, current.filter((bookmark) => bookmark.id !== path))
+        return
+      }
+      const absolute = this.absolutePath(path)
+      const normalizedPath = this.relativePathFrom(root, absolute)
       const aliases = compilePathAliases(await this.readPathAliases(root))
       const matches = await Promise.all(
-        current.map((bookmark) =>
-          this.bookmarkMatchesPath(bookmark.path, normalizedPath, aliases)
-        )
+        current.map((bookmark) => bookmark.type === 'file' &&
+          this.bookmarkMatchesPath(bookmark.path, normalizedPath, aliases))
       )
       await this.writeBookmarks(
         root,
@@ -1068,10 +1086,51 @@ export class VaultService {
       return {
         path: this.relativePathFrom(root, absolute),
         content,
-        modifiedAt: info.mtimeMs
+        modifiedAt: info.mtimeMs,
+        revision: createHash('sha256').update(content, 'utf8').digest('hex')
       }
     } catch (error) {
       throw fromNodeError(error, 'UNKNOWN', '.baseを読み込めませんでした。')
+    }
+  }
+
+  async saveBase(path: string, expectedRevision: string, content: string): Promise<BaseDocument> {
+    const requestedRoot = this.requireRoot()
+    const requestedGeneration = this.rootRevision
+    const operation = (): Promise<BaseDocument> => {
+      if (this.rootPath !== requestedRoot || this.rootRevision !== requestedGeneration) return Promise.reject(new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' }))
+      return this.writeBase(path, expectedRevision, content)
+    }
+    const next = this.baseSaveQueue.then(operation, operation)
+    this.baseSaveQueue = next.then(() => undefined, () => undefined)
+    return next
+  }
+
+  private baseSaveQueue: Promise<void> = Promise.resolve()
+
+  private async writeBase(path: string, expectedRevision: string, content: string): Promise<BaseDocument> {
+    const root = this.requireRoot()
+    const generation = this.rootRevision
+    const current = await this.readBase(path)
+    if (current.revision !== expectedRevision) throw new VaultError({ code: 'FILE_CHANGED', message: '.baseがプレビュー後に変更されました。' })
+    const absolute = this.absolutePath(path)
+    const temporary = join(dirname(absolute), `.tsuzune-${basename(absolute)}-${randomUUID()}.tmp`)
+    const assertCurrent = (): void => {
+      if (this.rootPath !== root || this.rootRevision !== generation) throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+    }
+    try {
+      assertCurrent()
+      await writeFile(temporary, content, { encoding: 'utf8', flag: 'wx' })
+      await this.assertNoSymlinkTraversal(absolute)
+      const latest = await this.readBase(path)
+      assertCurrent()
+      if (latest.revision !== expectedRevision || latest.modifiedAt !== current.modifiedAt) throw new VaultError({ code: 'FILE_CHANGED', message: '.baseが保存中に変更されました。' })
+      await rename(temporary, absolute)
+      assertCurrent()
+      return await this.readBase(path)
+    } catch (error) {
+      await rm(temporary, { force: true }).catch(() => undefined)
+      throw fromNodeError(error, 'SAVE_FAILED', '.baseを保存できませんでした。')
     }
   }
 
@@ -1325,6 +1384,7 @@ export class VaultService {
             }
           }
         }
+        if (this.rootPath !== root || this.rootRevision !== revision) throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。保存を停止しました。' })
         await rename(temporaryPath, absolute)
       } catch (error) {
         await rm(temporaryPath, { force: true }).catch(() => undefined)
@@ -1373,6 +1433,49 @@ export class VaultService {
       return { path: this.relativePath(destination) }
     } catch (error) {
       throw fromNodeError(error, 'UNKNOWN', 'ノートを作成できませんでした。')
+    }
+  }
+
+  async importPastedImage(input: Omit<PasteImageInput, 'bytes'> & { content: Buffer }): Promise<EntryOperationOutput> {
+    const root = this.requireRoot(), revision = this.rootRevision
+    const canonicalRoot = resolve(await realpath(root)).replaceAll('\\', '/').replace(/\/+$/, '').toLocaleLowerCase('en-US')
+    const assertScope = (): void => {
+      if (input.scope?.rootPath !== canonicalRoot || input.scope.rootRevision !== revision ||
+          this.rootPath !== root || this.rootRevision !== revision) {
+        throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。画像の貼り付けを停止しました。' })
+      }
+    }
+    assertScope()
+    if (!Buffer.isBuffer(input.content) || input.content.length < 8 ||
+        input.content.length > MAX_PASTED_IMAGE_BYTES ||
+        !input.content.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+      throw new VaultError({ code: 'INVALID_PATH', message: '保存できるPNG画像ではありません。' })
+    }
+    if (isAuditHistoryPath(input.notePath)) {
+      throw new VaultError({ code: 'ACCESS_DENIED', message: '履歴ノートへ画像を貼り付けることはできません。' })
+    }
+    await this.readNote(input.notePath)
+    assertScope()
+    const note = this.absolutePath(input.notePath)
+    const name = `Pasted image ${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID()}.png`
+    const destination = join(dirname(note), name)
+    const temporary = join(dirname(note), `.tsuzune-${randomUUID()}.tmp`)
+    try {
+      await this.assertNoSymlinkTraversal(note)
+      assertScope()
+      await writeFile(temporary, input.content, { flag: 'wx' })
+      assertScope()
+      await this.assertNoSymlinkTraversal(note)
+      if (!(await stat(note)).isFile()) {
+        throw new VaultError({ code: 'INVALID_PATH', message: '貼り付け先のノートが見つかりません。' })
+      }
+      assertScope()
+      await copyFile(temporary, destination, fsConstants.COPYFILE_EXCL)
+      return { path: relative(root, destination).replaceAll('\\', '/') }
+    } catch (error) {
+      throw fromNodeError(error, 'UNKNOWN', '画像を保存できませんでした。')
+    } finally {
+      await rm(temporary, { force: true }).catch(() => undefined)
     }
   }
 
@@ -1644,7 +1747,8 @@ export class VaultService {
 
   async trashEntry(
     relativePath: string,
-    beforeRename?: () => Promise<void>
+    beforeRename?: () => Promise<void>,
+    operation?: TrashOperation
   ): Promise<EntryOperationOutput> {
     if (relativePath === '.trash' || relativePath.startsWith('.trash/')) {
       throw new VaultError({
@@ -1659,6 +1763,8 @@ export class VaultService {
       })
     }
 
+    if (operation) return this.trashEntryWithOperation(relativePath, beforeRename, operation)
+
     const root = this.requireRoot()
     const revision = this.rootRevision
     const source = this.absolutePath(relativePath)
@@ -1667,6 +1773,7 @@ export class VaultService {
     const batchRoot = join(trashRoot, `${timestampSuffix()}-${randomUUID()}`)
     const destination = join(batchRoot, ...relativePath.split('/'))
     let batchCreated = false
+    let renamed = false
     let preconditionError: unknown
 
     try {
@@ -1686,13 +1793,14 @@ export class VaultService {
         throw error
       }
       await rename(source, destination)
+      renamed = true
       await this.removeCreationTimes(root, revision, normalizedPath)
       return {
         oldPath: normalizedPath,
         path: this.relativePathFrom(root, destination)
       }
     } catch (error) {
-      if (batchCreated) {
+      if (batchCreated && !renamed) {
         await rm(batchRoot, { recursive: true, force: true }).catch(() => undefined)
       }
       if (preconditionError) {
@@ -1700,6 +1808,117 @@ export class VaultService {
       }
       throw fromNodeError(error, 'UNKNOWN', '.trashへ移動できませんでした。')
     }
+  }
+
+  private async trashEntryWithOperation(
+    relativePath: string,
+    beforeRename: (() => Promise<void>) | undefined,
+    operation: TrashOperation
+  ): Promise<EntryOperationOutput> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(operation.id)) {
+      throw new Error('Invalid trash operation id.')
+    }
+    const root = this.requireRoot()
+    const rootRevision = this.rootRevision
+    const source = this.absolutePath(relativePath)
+    const normalizedPath = this.relativePathFrom(root, source)
+    const destinationPath = `.trash/onoko-op-${operation.id}/${normalizedPath}`
+    const destination = join(root, ...destinationPath.split('/'))
+    const trashRoot = join(root, '.trash')
+    const intentsRoot = join(trashRoot, '.onoko-ops')
+    const intentPath = join(intentsRoot, `${operation.id}.json`)
+
+    const maybeStat = async (path: string): Promise<Stats | null> => {
+      try { return await lstat(path) }
+      catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+        throw error
+      }
+    }
+    const readProof = async (path: string): Promise<TrashProof> => {
+      await this.assertNoSymlinkTraversal(path)
+      const first = await lstat(path)
+      if (!first.isFile()) throw new Error('Trash operation target is not a regular file.')
+      const bytes = await readFile(path)
+      const second = await lstat(path)
+      if (!second.isFile() || first.dev !== second.dev || first.ino !== second.ino ||
+          first.size !== second.size || first.mtimeMs !== second.mtimeMs || bytes.length !== second.size) {
+        throw new Error('Trash operation target changed during verification.')
+      }
+      if (!await operation.verifyRevision(bytes.toString('utf8'), second.mtimeMs, second.size)) {
+        throw new Error('Trash source revision does not match the operation.')
+      }
+      return {
+        bytesSha256: createHash('sha256').update(bytes).digest('hex'),
+        size: second.size,
+        mtimeMs: second.mtimeMs,
+        birthtimeMs: second.birthtimeMs,
+        dev: second.dev,
+        ino: second.ino
+      }
+    }
+    const sameProof = (left: TrashProof, right: TrashProof): boolean =>
+      left.bytesSha256 === right.bytesSha256 && left.size === right.size &&
+      left.mtimeMs === right.mtimeMs && left.birthtimeMs === right.birthtimeMs &&
+      left.dev === right.dev && left.ino === right.ino
+
+    return withTrashOperationLock(root, operation.id, async () => {
+      await this.assertNoSymlinkTraversal(trashRoot, true)
+      await mkdir(trashRoot, { recursive: true })
+      await this.assertNoSymlinkTraversal(trashRoot)
+      await this.assertNoSymlinkTraversal(intentsRoot, true)
+      await mkdir(intentsRoot, { recursive: true })
+      await this.assertNoSymlinkTraversal(intentsRoot)
+      await this.assertNoSymlinkTraversal(intentPath, true)
+
+      let intent: TrashIntent
+      if (await maybeStat(intentPath)) {
+        const info = await lstat(intentPath)
+        if (!info.isFile()) throw new Error('Trash operation intent is not a regular file.')
+        intent = JSON.parse(await readFile(intentPath, 'utf8')) as TrashIntent
+        if (intent.version !== 1 || intent.id !== operation.id || intent.source !== normalizedPath ||
+            intent.sourceRevision !== operation.expectedRevision || intent.destination !== destinationPath ||
+            !intent.proof || typeof intent.proof.bytesSha256 !== 'string') {
+          throw new Error('Trash operation id is bound to a different source or revision.')
+        }
+      } else {
+        if (!await maybeStat(source)) throw new Error('Trash source is absent and no operation intent exists.')
+        const proof = await readProof(source)
+        intent = { version: 1, id: operation.id, source: normalizedPath,
+          sourceRevision: operation.expectedRevision, destination: destinationPath, proof }
+        const temp = join(intentsRoot, `${operation.id}.${randomUUID()}.tmp`)
+        const handle = await open(temp, 'wx')
+        try {
+          await handle.writeFile(JSON.stringify(intent), 'utf8')
+          await handle.sync()
+        } finally { await handle.close() }
+        try { await link(temp, intentPath) }
+        finally { await unlink(temp).catch(() => undefined) }
+      }
+
+      await this.assertNoSymlinkTraversal(dirname(destination), true)
+      const destinationInfo = await maybeStat(destination)
+      const sourceInfo = await maybeStat(source)
+      if (destinationInfo) {
+        if (sourceInfo) throw new Error('Trash source was recreated or move outcome is ambiguous.')
+        const proof = await readProof(destination)
+        if (!sameProof(proof, intent.proof)) throw new Error('Trash destination differs from the recorded source.')
+        await this.removeCreationTimes(root, rootRevision, normalizedPath)
+        return { oldPath: normalizedPath, path: destinationPath }
+      }
+      if (!sourceInfo) throw new Error('Neither exact trash source nor destination exists.')
+      if (!sameProof(await readProof(source), intent.proof)) throw new Error('Trash source differs from the recorded intent.')
+      await mkdir(dirname(destination), { recursive: true })
+      await this.assertNoSymlinkTraversal(dirname(destination))
+      await beforeRename?.()
+      if (!sameProof(await readProof(source), intent.proof)) throw new Error('Trash source changed before rename.')
+      // The OS-lifetime endpoint excludes another TSUZUNE process using this key. Other keys have distinct paths.
+      await this.ensureDestinationAvailable(source, destination)
+      await rename(source, destination)
+      if (!sameProof(await readProof(destination), intent.proof)) throw new Error('Trash destination changed after rename.')
+      await this.removeCreationTimes(root, rootRevision, normalizedPath)
+      return { oldPath: normalizedPath, path: destinationPath }
+    })
   }
 
   buildPathAfterRename(relativePath: string, newName: string): string {

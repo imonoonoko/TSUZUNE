@@ -146,6 +146,7 @@ try {
     'utf8'
   )
 
+  await writeFile(join(vaultPath, 'Knowledge.base'), 'views:\n  - type: table\n    name: All notes\n    order: [file.name]\n')
   await client.connect(transport)
 
   const serverInstructions = client.getInstructions()
@@ -153,6 +154,12 @@ try {
     'search',
     'fetch',
     'build_context',
+    'build_context_set',
+    'list_bases',
+    'query_base',
+    'get_local_graph',
+    'list_note_sections',
+    'fetch_note_section',
     '40_情報源',
     '50_履歴',
     '削除',
@@ -163,7 +170,8 @@ try {
   ]
   if (
     typeof serverInstructions !== 'string' ||
-    serverInstructions.length > 160 ||
+    // Keep routing, source coordinates and safety guidance within one short paragraph.
+    serverInstructions.length > 450 ||
     requiredInstructionTerms.some((term) => !serverInstructions.includes(term))
   ) {
     throw new Error(
@@ -212,7 +220,7 @@ try {
       'truncated is false',
       'full_note',
       'Empty warnings do not establish current validity',
-      'Fetch missing source text when needed',
+      'fetch_note_section',
       'do not call build_context or fetch again',
       'report what remains unresolved'
     ],
@@ -340,7 +348,7 @@ try {
       'list_directory must expose an optional expected fingerprint and a required current fingerprint.'
     )
   }
-  for (const name of ['runtime_info', 'delivery_info', 'search', 'fetch', 'get_backlinks', 'build_context', 'list_directory', 'preflight_move_entry', 'suggest_links']) {
+  for (const name of ['runtime_info', 'delivery_info', 'search', 'fetch', 'get_backlinks', 'build_context', 'build_context_set', 'list_bases', 'query_base', 'get_local_graph', 'list_directory', 'preflight_move_entry', 'suggest_links']) {
     const annotations = toolsByName.get(name)?.annotations
     if (
       annotations?.readOnlyHint !== true ||
@@ -426,6 +434,31 @@ try {
     )
     exercisedReadOnlyToolNames.add(request.name)
     return result
+  }
+
+  const sectionList = await callReadOnlyTool({name:'list_note_sections',arguments:{id:'Home.md'}})
+  if(sectionList.isError) throw new Error('Section listing failed.')
+  const sectionId=sectionList.structuredContent.sections[0].section_id
+  for (const request of [
+    {name:'fetch_note_section',arguments:{id:'Home.md',section_id:sectionId,expected_revision:sectionList.structuredContent.revision}},
+    {name:'build_context_set',arguments:{ids:['Home.md','Projects/TSUZUNE.md']}},
+    {name:'list_bases',arguments:{}},
+    {name:'query_base',arguments:{id:'Knowledge.base'}},
+    {name:'get_local_graph',arguments:{id:'Home.md',depth:2}}
+  ]) {
+    const result = await callReadOnlyTool(request)
+    if (result.isError || !result.structuredContent || result.content?.[0]?.text !== JSON.stringify(result.structuredContent,null,2)) {
+      throw new Error(`${request.name} must succeed with equal text and structured content: ${JSON.stringify(result)}`)
+    }
+  }
+  for (const request of [
+    {name:'build_context_set',arguments:{ids:['Home.md','Missing.md']}},
+    {name:'list_bases',arguments:{after:'invalid'}},
+    {name:'query_base',arguments:{id:'../Escape.base'}},
+    {name:'get_local_graph',arguments:{id:'50_履歴/AI更新/Backlink.md'}}
+  ]) {
+    const result = await callReadOnlyTool(request)
+    if (!result.isError) throw new Error(`${request.name} must reject invalid/inaccessible input.`)
   }
 
   const runtimeInfo = await callReadOnlyTool({
@@ -1201,7 +1234,7 @@ try {
     declaredReadOnlyToolNames,
     exercisedReadOnlyToolNames
   )
-  console.log('TSUZUNE MCP smoke check passed: 10 read tools and 11 write tools.')
+  console.log('TSUZUNE MCP smoke check passed: 16 read tools and 11 write tools.')
 } catch (error) {
   if (stderr.trim()) {
     console.error(stderr.trim())

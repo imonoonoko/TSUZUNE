@@ -852,12 +852,18 @@ function parseTypedProperty(
 function validateTypedDocument(
   location: TypedPropertyLocation
 ): FrontmatterEditFailure | null {
+  const names = new Set<string>()
   for (let index = 0; index < location.lines.length; index += 1) {
     const line = location.lines[index]
     if (!line.topLevelField) {
       if (line.text.trim() === '' || line.text.trimStart().startsWith('#')) continue
       return editFailure('MALFORMED_FRONTMATTER', 'Malformed frontmatter cannot be edited safely.')
     }
+    const name = line.topLevelField[1]
+    if (names.has(name)) {
+      return editFailure('DUPLICATE_PROPERTY', `Property "${name}" appears more than once.`)
+    }
+    names.add(name)
     const end = propertyEndIndex(location, index)
     const separated = splitComment(line.topLevelField[2])
     if (separated.value === '') {
@@ -968,10 +974,11 @@ export function inspectFrontmatterProperty(
   return { ok: true, property: parsed.property }
 }
 
-export function setFrontmatterProperty(
+function writeFrontmatterProperty(
   markdown: string,
   name: string,
-  property: FrontmatterProperty
+  property: FrontmatterProperty,
+  allowKindChange: boolean
 ): FrontmatterEditResult {
   const invalidName = validatePropertyName(name) ?? validInputProperty(property)
   if (invalidName) return invalidName
@@ -996,7 +1003,7 @@ export function setFrontmatterProperty(
   }
   const source = parseTypedProperty(location, location.target)
   if (isEditFailure(source)) return source
-  if (source.property.type !== property.type) return scalarFailure(name, `Property "${name}" cannot change kind.`)
+  if (!allowKindChange && source.property.type !== property.type) return scalarFailure(name, `Property "${name}" cannot change kind.`)
   if (sameProperty(source.property, property)) return { ok: true, markdown }
   const start = location.contentStart + location.target.start
   const endIndex = source.endIndex
@@ -1006,6 +1013,59 @@ export function setFrontmatterProperty(
   return {
     ok: true,
     markdown: `${markdown.slice(0, start)}${formatProperty(name, property, location.eol, source)}${markdown.slice(end)}`
+  }
+}
+
+export function setFrontmatterProperty(
+  markdown: string,
+  name: string,
+  property: FrontmatterProperty
+): FrontmatterEditResult {
+  return writeFrontmatterProperty(markdown, name, property, false)
+}
+
+/** Explicit conversion path: the caller must have inspected the existing value. */
+export function convertFrontmatterProperty(
+  markdown: string,
+  name: string,
+  property: FrontmatterProperty
+): FrontmatterEditResult {
+  const inspected = inspectFrontmatterProperty(markdown, name)
+  if (!inspected.ok) return inspected
+  if (inspected.property === null) {
+    return editFailure('PROPERTY_NOT_FOUND', `Property "${name}" was not found.`)
+  }
+  return writeFrontmatterProperty(markdown, name, property, true)
+}
+
+/** Only the key span changes; its value, comments, body, BOM and EOL stay byte-identical. */
+export function renameFrontmatterProperty(
+  markdown: string,
+  name: string,
+  newName: string
+): FrontmatterEditResult {
+  const invalidName = validatePropertyName(name) ?? validatePropertyName(newName)
+  if (invalidName) return invalidName
+  if (!parseFrontmatter(markdown).found) {
+    return editFailure('PROPERTY_NOT_FOUND', `Property "${name}" was not found.`)
+  }
+  const source = locateTypedProperty(markdown, name)
+  if (isEditFailure(source)) return source
+  const documentFailure = validateTypedDocument(source)
+  if (documentFailure) return documentFailure
+  if (!source.target) return editFailure('PROPERTY_NOT_FOUND', `Property "${name}" was not found.`)
+  const parsed = parseTypedProperty(source, source.target)
+  if (isEditFailure(parsed)) return parsed
+  if (name === newName) return { ok: true, markdown }
+  const destination = locateTypedProperty(markdown, newName)
+  if (isEditFailure(destination)) return destination
+  if (destination.target) {
+    return editFailure('DUPLICATE_PROPERTY', `Property "${newName}" already exists.`)
+  }
+  const start = source.contentStart + source.target.start
+  return {
+    ok: true,
+    markdown: `${markdown.slice(0, start)}${newName}${markdown.slice(start + name.length)}`
   }
 }
 

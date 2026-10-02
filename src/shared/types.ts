@@ -1,5 +1,6 @@
 import type { ObsidianPluginCandidate } from './obsidian-plugins'
 import type { CalendarPluginSettings } from './calendar-plugin-settings'
+import type { VaultBookmark, SaveBookmarkInput } from './bookmarks'
 import type {
   WorkspaceCollection,
   WorkspaceScope,
@@ -43,10 +44,18 @@ export interface NoteDocument {
   size: number
 }
 
+export interface UserProfile {
+  name: string | null
+  description: string | null
+  iconPath: string | null
+}
+
+
 export interface BaseDocument {
   path: string
   content: string
   modifiedAt: number
+  revision?: string
 }
 
 export interface VaultAttachment {
@@ -57,19 +66,7 @@ export interface VaultAttachment {
   size: number
 }
 
-export interface VaultBookmark {
-  type: 'file'
-  path: string
-  title?: string
-  group?: string
-  ctime: number
-}
-
-export interface SaveBookmarkInput {
-  path: string
-  title?: string
-  group?: string
-}
+export type { VaultBookmark, SaveBookmarkInput } from './bookmarks'
 
 export interface VaultSnapshot {
   rootPath: string
@@ -131,6 +128,9 @@ export interface VaultChangeEvent {
 }
 
 export interface AppSettings {
+  driveAutoSyncByVault?: Record<string, boolean>
+  hotkeys?: import('./hotkeys').HotkeySettings
+  propertyTypesByVault?: Record<string, Record<string, import('./property-changes').PropertyDeclaredType>>
   lastVaultPath: string | null
   lastNotePath: string | null
   userIgnoreFilters: string[]
@@ -346,6 +346,14 @@ export type EntryMoveRecoveryStatus =
   | { status: 'recovery-required'; source: string; destination: string }
 
 export interface TsuzuneApi {
+  previewBaseChanges(input: import('./base-changes').BaseChangeInput): Promise<Result<import('./base-changes').BaseChangePreview>>
+  applyBaseChanges(input: import('./base-changes').BaseChangeInput): Promise<Result<BaseDocument>>
+  linkUnlinkedMention(input: import('./mention-changes').MentionChangeInput): Promise<Result<SaveNoteOutput>>
+  setHotkeys(value: import('./hotkeys').HotkeySettings): Promise<Result<null>>
+  getPropertyTypes(scope: import('./property-changes').PropertyChangeScope): Promise<Result<Record<string, import('./property-changes').PropertyDeclaredType>>>
+  setPropertyTypes(scope: import('./property-changes').PropertyChangeScope, value: Record<string, import('./property-changes').PropertyDeclaredType>): Promise<Result<null>>
+  previewPropertyChanges(input: import('./property-changes').PropertyPreviewInput): Promise<Result<import('./property-changes').PropertyPreviewResult>>
+  applyPropertyChanges(input: import('./property-changes').PropertyApplyInput): Promise<Result<import('./property-changes').PropertyApplyResult>>
   chooseVault(): Promise<Result<VaultSnapshot | null>>
   openLastVault(): Promise<Result<VaultSnapshot | null>>
   getSettings(): Promise<Result<AppSettings>>
@@ -380,6 +388,7 @@ export interface TsuzuneApi {
   importAttachments(
     destinationDirectory: string
   ): Promise<Result<EntryOperationOutput[] | null>>
+  pasteImage(input: import('./image-paste').PasteImageInput): Promise<Result<EntryOperationOutput>>
   createDirectory(input: CreateDirectoryInput): Promise<Result<EntryOperationOutput>>
   renameEntry(input: RenameEntryInput): Promise<Result<EntryOperationOutput>>
   moveNote(input: MoveNoteInput): Promise<Result<EntryOperationOutput>>
@@ -408,6 +417,9 @@ export interface TsuzuneApi {
   listDriveVaults(): Promise<Result<DriveRemoteVault[]>>
   pairDriveVault(input: PairDriveVaultInput): Promise<Result<GoogleDriveStatus>>
   previewDriveSync(): Promise<Result<DriveSyncPreview>>
+  getDriveAutoSyncStatus(): Promise<Result<import('./drive-auto-sync').DriveAutoSyncStatus>>
+  setDriveAutoSyncEnabled(enabled: boolean): Promise<Result<import('./drive-auto-sync').DriveAutoSyncStatus>>
+  onDriveAutoSyncStatus(callback: (status: import('./drive-auto-sync').DriveAutoSyncStatus) => void): () => void
   applyDriveSync(planId: string): Promise<Result<DriveSyncApplyResult>>
   getUpdateStatus(): Promise<Result<AppUpdateStatus>>
   checkForUpdates(): Promise<Result<AppUpdateStatus>>

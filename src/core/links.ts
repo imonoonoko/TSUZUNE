@@ -13,6 +13,112 @@ import {
 } from './paths'
 import type { CompiledPathAliases } from './path-aliases'
 import { isSupportedAttachmentPath } from '../shared/attachments'
+import { commonmarkLanguage } from '@codemirror/lang-markdown'
+import { decodeString } from 'micromark-util-decode-string'
+
+export interface SourceRange { from: number; to: number }
+export interface NoteLinkOccurrence extends WikiLinkOccurrence {
+  kind: 'wiki' | 'markdown'
+  sourcePath: string
+  fragment?: string
+  range: SourceRange
+  destinationRange: SourceRange
+}
+export interface ResolvedNoteLink extends NoteLinkOccurrence, ResolvedWikiLink {}
+
+/** CommonMark syntax ranges; shared by navigation, mention scanning and link analysis. */
+export function markdownExcludedRanges(content: string, tree = commonmarkLanguage.parser.parse(content)): SourceRange[] {
+  const ranges: SourceRange[] = []
+  const frontmatter = content.match(/^\uFEFF?---\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)(?:\r?\n|$)/)
+  if (frontmatter) ranges.push({ from: 0, to: frontmatter[0].length })
+  tree.iterate({ enter(node) {
+    if (['FencedCode', 'CodeBlock', 'InlineCode', 'Comment', 'CommentBlock', 'HTMLBlock', 'HTMLTag'].includes(node.name)) {
+      ranges.push({ from: node.from, to: node.to })
+      return false
+    }
+  } })
+  return ranges
+}
+
+export function extractNoteLinks(content: string, sourcePath: string, includeEmbeddedAttachments = false): NoteLinkOccurrence[] {
+  if (!content.includes('[')) return []
+  const tree = commonmarkLanguage.parser.parse(content)
+  const ignored = markdownExcludedRanges(content, tree)
+  const frontmatter = content.match(/^\uFEFF?---\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)(?:\r?\n|$)/)?.[0] ?? ''
+  // Preserve the legacy Wiki structural index in YAML, including indented values.
+  // A same-length mask reuses its code exclusion rules while retaining source offsets.
+  const frontmatterWikiMask = walkMarkdown(frontmatter, occurrence => ' '.repeat(occurrence.raw.length))
+  const excluded = (from: number, to: number) => ignored.some(range => from < range.to && to > range.from)
+  const references = new Map<string, SourceRange>()
+  const normalizeLabel = (label: string) => label.replace(/^\[|\]$/g, '').replace(/\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g, '$1').trim().replace(/\s+/g, ' ').toLocaleLowerCase()
+  tree.iterate({ enter(node) {
+    if (node.name !== 'LinkReference' || excluded(node.from, node.to)) return
+    const label = node.node.getChild('LinkLabel')
+    const url = node.node.getChild('URL')
+    if (label && url) {
+      const key = normalizeLabel(content.slice(label.from, label.to))
+      if (!references.has(key)) references.set(key, { from: url.from, to: url.to })
+    }
+  } })
+  const links: NoteLinkOccurrence[] = []
+  const markdownRanges: SourceRange[] = []
+  tree.iterate({ enter(node) {
+    if (!['Link', 'Image', 'LinkReference'].includes(node.name) || excluded(node.from, node.to)) return
+    if (node.name !== 'Link') {
+      if (!content.slice(node.from, node.to).startsWith('![[')) markdownRanges.push({ from: node.from, to: node.to })
+      return
+    }
+    const url = node.node.getChild('URL')
+    const label = node.node.getChild('LinkLabel')
+    const raw = content.slice(node.from, node.to)
+    const reference = label ? content.slice(label.from, label.to) : raw
+    const span = url ? { from: url.from, to: url.to } : references.get(normalizeLabel(reference === '[]' ? raw.split(']')[0] + ']' : reference))
+    if (!span) return
+    markdownRanges.push({ from: node.from, to: node.to })
+    const destinationRange = { ...span }
+    if (content[destinationRange.from] === '<' && content[destinationRange.to - 1] === '>') { destinationRange.from++; destinationRange.to-- }
+    const target = decodeString(content.slice(destinationRange.from, destinationRange.to))
+    if (!/\.md(?:#|$)/i.test(target) && !target.startsWith('#')) return
+    links.push({ kind: 'markdown', sourcePath, raw, target, alias: null, fragment: target.includes('#') ? target.slice(target.indexOf('#') + 1) : undefined, range: { from: node.from, to: node.to }, destinationRange })
+  } })
+  for (const match of content.matchAll(/\[\[([^\]\r\n]+)\]\]/g)) {
+    const from = match.index
+    const to = from + match[0].length
+    let escapes = 0
+    for (let i = from - 1; i >= 0 && content[i] === '\\'; i--) escapes++
+    const frontmatterWiki = to <= frontmatter.length && frontmatterWikiMask.slice(from, to) !== match[0]
+    if (escapes % 2 || (!frontmatterWiki && excluded(from, to)) || markdownRanges.some(range => from < range.to && to > range.from)) continue
+    const occurrence = readWikiLink(match[0])
+    if (!occurrence || (!includeEmbeddedAttachments && content[from - 1] === '!' && isSupportedAttachmentPath(occurrence.target.split('#')[0]))) continue
+    links.push({ ...occurrence, kind: 'wiki', sourcePath, fragment: occurrence.target.includes('#') ? occurrence.target.slice(occurrence.target.indexOf('#') + 1) : undefined, range: { from, to }, destinationRange: { from: from + 2, to: from + 2 + match[1].split('|')[0].length } })
+  }
+  return links.sort((a, b) => a.range.from - b.range.from)
+}
+
+export function relativeMarkdownPath(href: string, currentPath: string): string | null {
+  if (!href || href.startsWith('/') || href.startsWith('\\') || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(href) || href.includes('?')) return null
+  let decoded: string
+  try { decoded = decodeURIComponent(href) } catch { return null }
+  if (!/\.md$/i.test(decoded)) return null
+  const parts = dirnameRelative(currentPath).split('/').filter(Boolean)
+  for (const part of decoded.replaceAll('\\', '/').split('/')) {
+    if (part === '.') continue
+    if (part === '..') { if (!parts.length) return null; parts.pop() }
+    else if (part) parts.push(part)
+    else return null
+  }
+  const path = parts.join('/')
+  return validateRelativePath(path).valid ? path : null
+}
+
+export function resolveIndexedNoteLink(link: Pick<NoteLinkOccurrence, 'kind' | 'target' | 'sourcePath'>, index: WikiLinkIndex): IndexedWikiLinkResolution {
+  if (link.kind === 'wiki') return resolveIndexedWikiLink(link.target, index)
+  const pathPart = link.target.split('#')[0]
+  const path = pathPart ? relativeMarkdownPath(pathPart, link.sourcePath) : link.sourcePath
+  if (!path) return { status: 'invalid', candidates: [], reason: 'Vault 内の相対 .md リンクを指定してください。' }
+  const resolved = index.exactPaths.get(path.toLocaleLowerCase()) ?? index.aliasExactPaths.get(path.toLocaleLowerCase())
+  return resolved ? { status: 'resolved', path: resolved, candidates: [resolved] } : { status: 'missing', path, candidates: [] }
+}
 
 interface FenceState {
   character: '`' | '~'
@@ -320,28 +426,17 @@ export function resolveWikiLink(
 export function getOutgoingLinks(
   content: string,
   notes: NoteDocument[],
-  pathAliases?: CompiledPathAliases
-): ResolvedWikiLink[] {
-  const unique = new Map<string, ResolvedWikiLink>()
+  pathAliases?: CompiledPathAliases,
+  sourcePath = ''
+): ResolvedNoteLink[] {
+  const unique = new Map<string, ResolvedNoteLink>()
   const index = buildWikiLinkIndex(notes, pathAliases)
 
-  walkMarkdown(content, (occurrence, embedded) => {
-    if (embedded && isSupportedAttachmentPath(occurrence.target)) {
-      return occurrence.raw
-    }
-    const resolved = resolvedWikiLink(
-      occurrence.target,
-      resolveIndexedWikiLink(occurrence.target, index)
-    )
-    const key = occurrence.target.toLocaleLowerCase()
-    if (!unique.has(key)) {
-      unique.set(key, {
-        ...resolved,
-        alias: occurrence.alias
-      })
-    }
-    return occurrence.raw
-  })
+  for (const occurrence of extractNoteLinks(content, sourcePath)) {
+    const resolved = resolvedWikiLink(occurrence.target, resolveIndexedNoteLink(occurrence, index))
+    const key = `${occurrence.kind}:${occurrence.target.toLocaleLowerCase()}`
+    if (!unique.has(key)) unique.set(key, { ...occurrence, ...resolved, alias: occurrence.alias })
+  }
 
   return [...unique.values()]
 }
@@ -357,11 +452,11 @@ export function getBacklinks(
       return false
     }
 
-    return extractWikiLinks(note.content).some(
+    return extractNoteLinks(note.content, note.path).some(
       (link) =>
         resolvedWikiLink(
           link.target,
-          resolveIndexedWikiLink(link.target, index)
+          resolveIndexedNoteLink(link, index)
         ).resolvedPath === currentPath
     )
   })
@@ -393,25 +488,25 @@ export function findLinkImpact(
   const afterIndex = buildWikiLinkIndex(changedNotes, pathAliases)
 
   for (const source of notes) {
-    for (const occurrence of extractWikiLinks(source.content)) {
+    for (const occurrence of extractNoteLinks(source.content, source.path)) {
       const before = resolvedWikiLink(
         occurrence.target,
-        resolveIndexedWikiLink(occurrence.target, beforeIndex)
+        resolveIndexedNoteLink(occurrence, beforeIndex)
       )
       if (before.status !== 'resolved' || !before.resolvedPath) {
         continue
       }
 
       const expectedNewPath = pathChanges.get(before.resolvedPath)
-      if (!expectedNewPath) {
+      if (!expectedNewPath && !pathChanges.has(source.path)) {
         continue
       }
 
       const after = resolvedWikiLink(
         occurrence.target,
-        resolveIndexedWikiLink(occurrence.target, afterIndex)
+        resolveIndexedNoteLink({ ...occurrence, sourcePath: pathChanges.get(source.path) ?? source.path }, afterIndex)
       )
-      if (after.status !== 'resolved' || after.resolvedPath !== expectedNewPath) {
+      if (after.status !== 'resolved' || after.resolvedPath !== (expectedNewPath ?? before.resolvedPath)) {
         affectedSources.add(source.path)
       }
     }

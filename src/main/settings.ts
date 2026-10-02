@@ -3,6 +3,8 @@ import { open, readFile, rename, rm } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import type { AppSettings } from '../shared/types'
+import { parseHotkeySettings } from '../shared/hotkeys'
+import { parseDriveAutoSyncByVault } from '../shared/drive-auto-sync'
 import {
   DEFAULT_GRAPH_FORCE_SETTINGS,
   parseGraphForceSettings
@@ -44,6 +46,11 @@ export function settingsPath(): string {
 
 function parseSettings(parsed: Partial<AppSettings>): AppSettings {
   return {
+      ...(parsed.driveAutoSyncByVault !== undefined
+        ? { driveAutoSyncByVault: parseDriveAutoSyncByVault(parsed.driveAutoSyncByVault) } : {}),
+      hotkeys: parseHotkeySettings(parsed.hotkeys),
+      ...(parsed.propertyTypesByVault && typeof parsed.propertyTypesByVault === 'object' && !Array.isArray(parsed.propertyTypesByVault)
+        ? { propertyTypesByVault: parsed.propertyTypesByVault } : {}),
       lastVaultPath:
         typeof parsed.lastVaultPath === 'string' ? parsed.lastVaultPath : null,
       lastNotePath: typeof parsed.lastNotePath === 'string' ? parsed.lastNotePath : null,
@@ -123,6 +130,8 @@ export async function updateSettings(patch: Partial<AppSettings>): Promise<AppSe
   const next = {
     ...current,
     ...patch,
+    ...(patch.driveAutoSyncByVault !== undefined || current.driveAutoSyncByVault !== undefined
+      ? { driveAutoSyncByVault: parseDriveAutoSyncByVault(patch.driveAutoSyncByVault ?? current.driveAutoSyncByVault) } : {}),
     userIgnoreFilters: parseUserIgnoreFilters(
       patch.userIgnoreFilters ?? current.userIgnoreFilters
     ),

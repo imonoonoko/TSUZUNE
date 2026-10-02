@@ -11,6 +11,8 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 ## TSUZUNEでできること
 
 - **自然に書く** — 通常ノートをすぐ編集画面で開き、Daily／Ideaを含む自由に増やせるテンプレートと簡易書式ツールバーを使えます。
+- **画面を整理する** — 分割・ペイン移動は右上の「…」から操作。左の一覧はノート名を最大2行で表示し、空画面から検索・新規作成できます。画像のあるノートもPreviewで末尾までスクロールできます。
+- **画像を貼り付ける** — 画像をコピーし、ノートの編集／Live Preview本文で`Ctrl+V`。画像を同じフォルダへPNGで保存し、画像リンクを挿入します。PNG／JPEGの画像データ、1画像20MBまで。通常のテキスト貼り付けも使えます。
 - **分類せず受け取る** — `Ctrl+P`の「受信箱へメモを作成」で、選択中の場所に関係なく`01_受信箱`へ空のメモを作り、そのまま書き始められます。
 - **Webを分類せず受け取る** — Chrome／EdgeのBrowser Clipperから、表示中のWebページやYouTubeを出典情報付きMarkdownで`01_受信箱`へ保存できます。通常Webは記事本文を抽出し、YouTubeは画面上の文字起こしから検証済み字幕トラック、取得不能または途中の場合のローカル`yt-dlp`まで順に探して取得状態も残します。初回だけTSUZUNEの通知領域で6桁コードを使ってペアリングします。[Browser Clipper](docs/browser-clipper.md)
 - **Markdownのまま残す** — ノートは`.md`、添付は通常ファイル。TSUZUNEがなくても一般的なeditorで読めます。
@@ -22,10 +24,14 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 - **古さに気づく** — 最終更新日時と任意の`review_after`から、再確認の目安を非破壊で表示。
 - **時間を区別する** — 現在・過去・未来、情報が有効だった時点とAIが知った時点を分離。
 - **AIと共有する** — MCP経由で検索、取得、Context構築、revision競合を防ぐ履歴なし更新。
-- **任意で同期する** — Google接続と専用Drive folderへの手動preview/apply。ローカル利用だけでも動作します。
+- **任意で同期する** — Google接続と専用Drive folderへの手動preview/apply。Vaultごとに自動同期を有効化すると、初回手動同期後は保存後・定期確認で同期し、競合時は停止します。初期オフ、削除の自動伝播なし。ローカル利用だけでも動作します。
 - **Windowsで使い続ける** — user単位installer、アプリ内更新、packaged/installed smokeを含む本番更新gate。
 
 ## 現在地
+
+2026-10-02（JST）、利用者は検証済み候補を普段使うTSUZUNEへ反映する提案に「いいよ」と回答した。これにより、この確定候補のproduction:updateと隔離installed受入・EXE／app.asar hash・通常profile保全・既存MCP登録確認まで承認済み。以下の承認待ち・今回install対象外の記述は前段検証時の履歴として読む。導入結果は今回source fingerprintに対応するexcluded receiptで判定し、この記載だけで本番反映済みとはしない。実Vault内容変更、Drive同期の有効化・実転送、認証や永続アクセスの拡張、公開push、個人クリップボード変更は引き続き対象外。
+
+この隔離候補にはDrive自動同期・画像スクロール改善と追加タブ／表示改善が実装・隔離検証済みです。16:47本番には前二者が導入済みですが、追加タブ／表示改善を含むこの候補は未導入です。候補内の古いproduction receiptは現在の本番／候補導入を証明しません。実Drive転送・実接続でのオフライン復帰、物理Windows IME、実クリップボードからのCtrl+V、利用者の元ノート／入力症状の受入は未確認。fixture／mock／CDPと利用者確認を分ける。今回の追加検証では個人クリップボードを操作しない。
 
 | 対象 | 状態 |
 |---|---|
@@ -98,7 +104,7 @@ TSUZUNEで使うVaultを一度開いた後、開発repositoryで次を実行し�
 npm run mcp:register
 ```
 
-Codex Desktopへ登録するMCP toolは19個です。
+Codex Desktopへ登録するMCP toolは25個です。
 
 | Tool | 用途 |
 |---|---|
@@ -106,8 +112,14 @@ Codex Desktopへ登録するMCP toolは19個です。
 | `delivery_info` | runtime freshnessとは分離して、sourceとlatest receiptのstatus（match／mismatch／unknown）のみを確認。更新推奨・path・hashは返さない |
 | `search` | title、path、本文、category、topicを検索 |
 | `fetch` | Markdown noteとrevisionを取得 |
+| `list_note_sections` | 保存済み見出し・一意の節ID・revision・原文位置を一覧取得 |
+| `fetch_note_section` | revision一致で指定節の原文を追加取得 |
 | `get_backlinks` | backlinkを取得（legacy `50_履歴`は除外、path cursorで継続可能） |
 | `build_context` | 起点と関連noteを文字数上限付きで構築し、query付きの長い通常起点は関連見出し節を投影して、各sourceのrevision／更新時刻を返す |
+| `build_context_set` | 1〜8起点を重複なしで比較し、起点別の状態由来・revision・節省略を返す |
+| `list_bases` | 可視な保存済みBaseを名前／パスで探し、ビューと解析診断を返す |
+| `query_base` | 保存済み表ビューを画面と同じ評価処理で絞り、型付きセル・グループ・集計を返す |
+| `get_local_graph` | 明示リンクを深さ1〜3で探索し、距離・revision・上限による省略を返す |
 | `list_directory` | 本文を含めずfolder・note・添付metadataを最大200件取得し、複数ページの同時変更をfingerprintで検出 |
 | `preview_drive_sync` | 起動中のTSUZUNE本体でDrive同期内容を確認 |
 | `create_directory` | 既存folderへ新規folderを作成 |
