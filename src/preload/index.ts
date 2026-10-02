@@ -45,6 +45,14 @@ const invoke = <T>(channel: string, ...args: unknown[]): Promise<Result<T>> =>
   ipcRenderer.invoke(channel, ...args)
 
 const api: TsuzuneApi = {
+  previewBaseChanges: (input) => invoke('bases:preview', input),
+  applyBaseChanges: (input) => invoke('bases:apply', input),
+  linkUnlinkedMention: (input) => invoke('mentions:link', input),
+  setHotkeys: (value) => invoke<null>('settings:setHotkeys', value),
+  getPropertyTypes: (scope) => invoke('properties:getTypes', scope),
+  setPropertyTypes: (scope, value) => invoke<null>('properties:setTypes', scope, value),
+  previewPropertyChanges: (input) => invoke('properties:preview', input),
+  applyPropertyChanges: (input) => invoke('properties:apply', input),
   chooseVault: () => invoke<VaultSnapshot | null>('vault:choose'),
   openLastVault: () => invoke<VaultSnapshot | null>('vault:openLast'),
   getSettings: () => invoke<AppSettings>('settings:get'),
@@ -90,6 +98,7 @@ const api: TsuzuneApi = {
     invoke<EntryOperationOutput>('entry:createNote', input),
   importAttachments: (destinationDirectory: string) =>
     invoke<EntryOperationOutput[] | null>('attachment:import', destinationDirectory),
+  pasteImage: (input) => invoke<EntryOperationOutput>('attachment:pasteImage', input),
   createDirectory: (input: CreateDirectoryInput) =>
     invoke<EntryOperationOutput>('entry:createDirectory', input),
   renameEntry: (input: RenameEntryInput) =>
@@ -138,6 +147,13 @@ const api: TsuzuneApi = {
     invoke<GoogleDriveStatus>('drive:pairVault', input),
   previewDriveSync: () =>
     invoke<DriveSyncPreview>('drive:preview'),
+  getDriveAutoSyncStatus: () => invoke<import('../shared/drive-auto-sync').DriveAutoSyncStatus>('drive:autoStatus'),
+  setDriveAutoSyncEnabled: (enabled: boolean) => invoke<import('../shared/drive-auto-sync').DriveAutoSyncStatus>('drive:autoEnabled', enabled),
+  onDriveAutoSyncStatus: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, status: import('../shared/drive-auto-sync').DriveAutoSyncStatus): void => callback(status)
+    ipcRenderer.on('drive:autoStatusChanged', listener)
+    return () => ipcRenderer.removeListener('drive:autoStatusChanged', listener)
+  },
   applyDriveSync: (planId: string) =>
     invoke<DriveSyncApplyResult>('drive:apply', planId),
   getUpdateStatus: () => invoke<AppUpdateStatus>('app:updateStatus'),

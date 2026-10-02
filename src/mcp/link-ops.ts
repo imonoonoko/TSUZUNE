@@ -152,7 +152,7 @@ export function suggestLinkCandidates(
     )
   )
 
-  const outgoing = getOutgoingLinks(source.content, notes, aliases)
+  const outgoing = getOutgoingLinks(source.content, notes, aliases, source.path)
   const outgoingPaths = new Set(
     outgoing
       .map((link) => link.resolvedPath)

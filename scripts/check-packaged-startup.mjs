@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict'
-import { spawn, spawnSync } from 'node:child_process'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { execFile, spawn, spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
+import { promisify } from 'node:util'
+import { extractFile } from '@electron/asar'
 
 const root = process.cwd()
 const appPath =
@@ -11,6 +14,39 @@ const appPath =
 const smokeDirectory = await mkdtemp(join(tmpdir(), 'tsuzune-smoke-'))
 const readyFile = join(smokeDirectory, 'ready.json')
 const isolatedUserData = join(smokeDirectory, 'user-data')
+const run = promisify(execFile)
+
+async function checkEmbeddedMcp() {
+  const archivePath = join(dirname(resolve(appPath)), 'resources', 'app.asar')
+  const directory = join(smokeDirectory, 'embedded-mcp')
+  await mkdir(directory)
+  // The extracted server and sibling Worker retain their packaged ESM identity.
+  await writeFile(join(directory, 'package.json'), '{"type":"module"}\n')
+  const artifacts = []
+  for (const name of ['server.js', 'base-worker.js']) {
+    const archiveEntry = `out/mcp/${name}`
+    const content = extractFile(archivePath, join('out', 'mcp', name))
+    await writeFile(join(directory, name), content)
+    artifacts.push({ archiveEntry, sha256: createHash('sha256').update(content).digest('hex') })
+  }
+  const pending = run(process.execPath, [join(root, 'scripts', 'check-mcp-knowledge-flow.mjs')], {
+    cwd: root,
+    env: { ...process.env, TSUZUNE_MCP_SERVER_PATH: join(directory, 'server.js') },
+    windowsHide: true,
+    maxBuffer: 1024 * 1024
+  })
+  const timer = setTimeout(() => {
+    if (process.platform === 'win32') {
+      spawnSync('taskkill.exe', ['/PID', String(pending.child.pid), '/T', '/F'], {
+        stdio: 'ignore', windowsHide: true
+      })
+    } else pending.child.kill()
+  }, 60_000)
+  const result = await pending.finally(() => clearTimeout(timer))
+  process.stdout.write(result.stdout)
+  process.stderr.write(result.stderr)
+  return { status: 'passed', archivePath, execution: 'extracted packaged server and Node Worker with isolated fixture', artifacts }
+}
 
 function windowsTsuzuneProcessIds() {
   if (process.platform !== 'win32') return []
@@ -82,9 +118,14 @@ try {
   assert.ok(ready, 'packaged TSUZUNE did not report renderer readiness')
   assert.equal(profile.userData.toLowerCase(), isolatedUserData.toLowerCase(), 'userData must be isolated')
   assert.equal(profile.sessionData.toLowerCase(), isolatedUserData.toLowerCase(), 'sessionData must be isolated')
+  const embeddedMcp = await checkEmbeddedMcp()
   console.log(
     JSON.stringify(
-      { packagedStartup: 'ready', isolatedUserData: true, isolatedSessionData: true },
+      {
+        packagedStartup: 'ready', isolatedUserData: true, isolatedSessionData: true,
+        guiExecutable: { path: resolve(appPath), rendererReady: true },
+        embeddedMcp
+      },
       null,
       2
     )

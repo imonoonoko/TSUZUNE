@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { evaluateBase } from '../src/core/base-evaluator'
 import { parseBaseProfile, type BaseProfile } from '../src/core/base-profile'
 import type { NoteDocument } from '../src/shared/types'
+import { baseDate } from '../src/core/base-expression'
 
 function note(
   path: string,
@@ -80,7 +81,7 @@ views:
       '10_プロジェクト/Bravo.md',
       '10_プロジェクト/No-date.md'
     ])
-    expect(result.rows[0]?.cells['file.name']).toEqual({ kind: 'value', value: 'Alpha' })
+    expect(result.rows[0]?.cells['file.name']).toEqual({ kind: 'value', value: 'Alpha.md' })
     expect(result.rows[0]?.cells.updated).toEqual({ kind: 'value', value: 10 })
     expect(result.rows[2]?.cells.updated).toEqual({ kind: 'missing' })
     expect(result.diagnostics).toEqual([])
@@ -120,14 +121,14 @@ views:
     expect(result.rows[0]).toEqual({
       path: '10_プロジェクト/Alpha.md',
       cells: {
-        'file.name': { kind: 'value', value: 'Alpha' },
+        'file.name': { kind: 'value', value: 'Alpha.md' },
         'file.basename': { kind: 'value', value: 'Alpha' },
         'file.path': { kind: 'value', value: '10_プロジェクト/Alpha.md' },
         'file.folder': { kind: 'value', value: '10_プロジェクト' },
         'file.ext': { kind: 'value', value: 'md' },
         'file.size': { kind: 'value', value: 42 },
-        'file.mtime': { kind: 'value', value: 123 },
-        'file.ctime': { kind: 'value', value: 45 }
+        'file.mtime': { kind: 'value', value: baseDate(123) },
+        'file.ctime': { kind: 'value', value: baseDate(45) }
       }
     })
   })
@@ -150,14 +151,11 @@ views:
 
     const shown = evaluateBase({ ...profile, filters: [] }, [note('Typed.md', source)])
     expect(shown.rows[0]?.cells.status).toEqual({ kind: 'value', value: '1' })
-    expect(shown.rows[0]?.cells.tags).toMatchObject({
-      kind: 'diagnostic',
-      code: 'UNSUPPORTED_PROPERTY'
-    })
-    expect(shown.diagnostics).toHaveLength(1)
+    expect(shown.rows[0]?.cells.tags).toEqual({ kind: 'value', value: ['one'] })
+    expect(shown.diagnostics).toHaveLength(0)
   })
 
-  it('matches official string and list contains filters without changing list columns', () => {
+  it('matches official string and list contains filters and displays list columns', () => {
     const profile = parsedProfile(`
 filters:
   and:
@@ -180,18 +178,8 @@ views:
     ])
 
     expect(result.rows.map((row) => row.path)).toEqual(['Match.md'])
-    expect(result.rows[0]?.cells.tags).toMatchObject({
-      kind: 'diagnostic',
-      code: 'UNSUPPORTED_PROPERTY'
-    })
-    expect(result.diagnostics).toEqual([
-      {
-        code: 'UNSUPPORTED_PROPERTY',
-        message: 'List properties are outside the fixed Bases profile.',
-        path: 'Match.md',
-        property: 'tags'
-      }
-    ])
+    expect(result.rows[0]?.cells.tags).toEqual({ kind: 'value', value: ['work', 'home'] })
+    expect(result.diagnostics).toEqual([])
   })
 
   it('normalizes date literals to snapshot millisecond metadata', () => {
@@ -216,11 +204,11 @@ views:
     expect(result.rows.map((row) => row.path)).toEqual(['New.md'])
     expect(result.rows[0]?.cells['file.mtime']).toEqual({
       kind: 'value',
-      value: Date.parse('2026-06-15T12:00:00Z')
+      value: baseDate(Date.parse('2026-06-15T12:00:00Z'))
     })
   })
 
-  it('does not match missing, null, or empty values even for inequality filters', () => {
+  it('uses normal inequality semantics for missing, null, and empty values', () => {
     const profile: BaseProfile = {
       filters: [{ kind: 'comparison', property: 'status', operator: '!=', value: 'done' }],
       view: { type: 'table', name: 'Empty', filters: [], order: ['file.name', 'status'] }
@@ -232,8 +220,8 @@ views:
       note('Missing.md', '---\nother: value\n---\n')
     ])
 
-    expect(result.rows).toEqual([])
-    expect(result.excludedCount).toBe(3)
+    expect(result.rows.map((row) => row.path)).toEqual(['Empty.md', 'Missing.md', 'Null.md'])
+    expect(result.excludedCount).toBe(0)
 
     const shown = evaluateBase({ ...profile, filters: [] }, [
       note('Empty.md', '---\nstatus: ""\n---\n'),
@@ -242,8 +230,8 @@ views:
     ])
     expect(shown.rows.map((row) => row.cells.status)).toEqual([
       { kind: 'empty' },
-      { kind: 'empty' },
-      { kind: 'missing' }
+      { kind: 'missing' },
+      { kind: 'empty' }
     ])
   })
 

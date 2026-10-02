@@ -1,0 +1,57 @@
+{
+  "observedAt": "2026-09-30T11:42:13.483Z",
+  "kind": "read-only-current-state-observation",
+  "installed": {
+    "packageVersion": "0.6.0",
+    "executable": {
+      "path": "C:\\Users\\Humin\\AppData\\Local/Programs/tsuzune/TSUZUNE.exe",
+      "sha256": "9c79c1ce856c1e6c20f6b21533d0261cb6f6e6f698a594731f7010c0232f4e55"
+    },
+    "asar": {
+      "path": "C:\\Users\\Humin\\AppData\\Local/Programs/tsuzune/resources/app.asar",
+      "sha256": "e884d2d8e77e89b91bef28fc38ebb5e679a660e92509e3d318ae6622cace5d06"
+    }
+  },
+  "historicalReceipt": {
+    "path": "docs/reports/production-update-latest.json",
+    "verifiedAt": "2026-09-21T11:33:34.449Z",
+    "status": "installed-and-verified",
+    "built": {
+      "executableSha256": "cf8b2014dc4c319eeaba55b460e05e3ad0321796e9495fc636057c9a8a0559b1",
+      "appAsarSha256": "ab979bce1f3805c2e62d8b209f84412b889a3688f7dec8591a71d9850da0878a"
+    },
+    "installed": {
+      "executable": "C:\\Users\\Humin\\AppData\\Local\\Programs\\tsuzune\\TSUZUNE.exe",
+      "version": "0.6.0",
+      "executableSha256": "cf8b2014dc4c319eeaba55b460e05e3ad0321796e9495fc636057c9a8a0559b1",
+      "appAsarSha256": "ab979bce1f3805c2e62d8b209f84412b889a3688f7dec8591a71d9850da0878a",
+      "rendererReady": true
+    }
+  },
+  "september24": {
+    "sourcePath": "C:/Users/Humin/Documents/Codex/2026-09-24/codex-threads-01a0cf0c-61ca-7962-9194-2/work/tsuzune-release",
+    "sourceExists": false,
+    "receiptExists": false,
+    "gateLog": "C:/Users/Humin/Documents/Codex/2026-09-24/codex-threads-01a0cf0c-61ca-7962-9194-2/work/tsuzune-production-update.log",
+    "result": "C:/Users/Humin/Documents/Codex/2026-09-24/codex-threads-01a0cf0c-61ca-7962-9194-2/outputs/検証結果.json",
+    "runtimeVerification": "C:/Users/Humin/Documents/Codex/2026-09-24/codex-threads-01a0cf0c-61ca-7962-9194-2/work/promoted-mcp-verification.json",
+    "partialManifest": "C:/Users/Humin/Documents/Codex/2026-09-24/codex-threads-01a0cf0c-61ca-7962-9194-2/review-residuals/tsuzune-release-final-sha256.json"
+  },
+  "runtime": {
+    "server_version": "0.6.0",
+    "package_version": "0.6.0",
+    "profile": "direct",
+    "process_started_at": "2026-09-30T11:22:42.767Z",
+    "build_updated_at": "2026-09-29T15:48:10.229Z",
+    "stale_runtime": false,
+    "delivery_info": "unknown",
+    "observationSource": "live MCP tools on 2026-09-30"
+  },
+  "boundaries": {
+    "installedToSeptember21Receipt": "mismatch",
+    "installedToSeptember24Receipt": "unknown",
+    "currentCheckoutToInstalled": "unknown",
+    "sourceProfileUnchangedNow": "not compared",
+    "newProductionAcceptance": "not performed"
+  }
+}

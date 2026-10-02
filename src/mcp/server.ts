@@ -18,6 +18,7 @@ interface ServerArguments {
   settingsPath?: string
   driveSyncStatePath?: string
   profile?: 'freebuff'
+  fetchPageCharacters?: number
 }
 
 declare const __TSUZUNE_VERSION__: string
@@ -37,6 +38,14 @@ const readOnlyAnnotations = {
   idempotentHint: true,
   openWorldHint: false
 } as const
+
+const sourceReferenceSchema = z.object({
+  note_id:z.string(), revision:z.string(), section_id:z.string(), heading:z.string(), slug:z.string(),
+  start_character:z.number().int().min(0), end_character:z.number().int().min(0),
+  start_line:z.number().int().min(1), end_line:z.number().int().min(1), heading_omitted:z.boolean().optional()
+})
+const sectionSchema = sourceReferenceSchema.extend({level:z.number().int().min(0).max(6),parent_section_id:z.string().optional()})
+const contextReferencesSchema = z.object({representation:z.literal('source_locators'),sections:z.array(sectionSchema),omitted_references:z.number().int().min(0),instruction:z.string()})
 
 const createAnnotations = {
   readOnlyHint: false,
@@ -133,7 +142,8 @@ const moveResultOutputSchema = {
 const trashResultOutputSchema = {
   old_path: z.string(),
   new_path: z.string(),
-  source_revision: z.string()
+  source_revision: z.string(),
+  operation_id: z.string().optional()
 }
 
 function parseArguments(args: string[]): ServerArguments {
@@ -160,6 +170,15 @@ function parseArguments(args: string[]): ServerArguments {
     }
     if (argument === '--profile' && value === 'freebuff') {
       parsed.profile = value
+      index += 1
+      continue
+    }
+    if (argument === '--fetch-page-characters' && value) {
+      const count = Number(value)
+      if (!Number.isInteger(count) || count < 2 || count > MAX_EDITABLE_CHARACTERS) {
+        throw new Error('--fetch-page-characters must be an integer from 2 to 100000')
+      }
+      parsed.fetchPageCharacters = count
       index += 1
       continue
     }
@@ -264,7 +283,7 @@ async function main(): Promise<void> {
     },
     {
       instructions:
-        'TSUZUNEのローカルMarkdown Vaultです。検索・取得・関連文脈はsearch/fetch/build_contextを使い、各ツールの説明に従ってください。40_情報源・50_履歴の保護と、削除・強制上書き・Vault外操作の禁止はMCPが強制します。'
+        '保存済みMarkdown。対象不明search→パスと内容で識別（曖昧なら確認）→単独本文fetch、比較build_context_set、関連・時間build_context。表list_bases/query_base、関係get_local_graph。不足節list_note_sections→fetch_note_section。検索0件は不存在の証明ではなく、抜粋・辺だけで結論を出さない。Contextは整形表示。根拠を引用する回答には原文確認済みのnote_id・完全revision・section_id・文字範囲を添え、事実・解釈・未確認を分ける。範囲不明なら節取得で確認する。AI更新はautonomous_update_noteで完全本文・未変更部分を保持しrevision検査・保存後再取得。patch_note/update_noteは人の確認。40_情報源・50_履歴の保護、永久削除・強制上書き・Vault外操作の禁止はMCPが強制。'
     }
   )
   const directTools = args.profile === 'freebuff' ? undefined : server
@@ -314,6 +333,7 @@ async function main(): Promise<void> {
       inputSchema: {
         query: z.string().min(1).describe('Search query'),
         limit: z.number().int().min(1).max(50).optional().default(10),
+        max_characters: z.number().int().min(1000).max(100000).default(15000),
       },
       outputSchema: {
         results: z.array(
@@ -321,16 +341,21 @@ async function main(): Promise<void> {
             id: z.string(),
             title: z.string(),
             text: z.string(),
+            raw_excerpt: z.string(),
+            excerpt_kind: z.enum(['body_match','fallback_preview']),
+            source_reference: sourceReferenceSchema,
             metadata: z.object({
               path: z.string(),
-              modified_at: z.string()
+              modified_at: z.string(),
+              revision: z.string()
             })
           })
-        )
+        ),
+        omitted_results: z.number()
       },
       annotations: readOnlyAnnotations
     },
-    async ({ query, limit }) => textResult(await vault.search(query, limit))
+    async ({ query, limit, max_characters }) => textResult(await vault.search(query, limit, max_characters))
   )
 
   server.registerTool(
@@ -362,8 +387,23 @@ async function main(): Promise<void> {
       },
       annotations: readOnlyAnnotations
     },
-    async ({ id, after }) => textResult(await vault.fetch(id, after))
+    async ({ id, after }) => textResult(await vault.fetch(id, after, args.fetchPageCharacters))
   )
+
+  server.registerTool('list_note_sections', {
+    title: 'TSUZUNE節一覧',
+    description: 'List saved source sections with unique position IDs, revision, duplicate-safe slugs, hierarchy and UTF-16/line ranges. Includes preamble. Page with next_after; on source/Vault changes restart listing. Use to locate omitted Context sections or distinguish duplicate headings; labels may be omitted while IDs/ranges remain.',
+    inputSchema: {id:z.string().min(1),limit:z.number().int().min(1).max(200).default(50),after:z.string().max(2048).optional(),max_characters:z.number().int().min(1000).max(100000).default(15000)},
+    outputSchema:{id:z.string(),revision:z.string(),sections:z.array(sectionSchema),total:z.number(),omitted_sections:z.number(),omitted_heading_labels:z.number(),next_after:z.string().optional()},
+    annotations:readOnlyAnnotations
+  },async ({id,...input})=>textResult(await vault.listNoteSections(id,input)))
+  server.registerTool('fetch_note_section', {
+    title: 'TSUZUNE節原文取得',
+    description: 'Fetch exact saved Markdown for a section ID from list_note_sections/source_references, with expected_revision required. A section includes its child headings; preamble covers the prefix or a headingless note. Returns exact quote coordinates and revision-bound next_after. Cite note_id, full revision, section_id and UTF-16 [start_character,end_character) with the quotation. Stale revisions return no body: list again. Do not use partial section text to replace a complete note; fetch full text before updating.',
+    inputSchema: {id:z.string().min(1),section_id:z.string().min(1),expected_revision:z.string().min(1),after:z.string().max(2048).optional(),max_characters:z.number().int().min(1000).max(100000).default(15000)},
+    outputSchema:{id:z.string(),revision:z.string(),section:sectionSchema,text:z.string(),source_reference:sourceReferenceSchema,total_characters:z.number(),omitted_characters:z.number(),truncated:z.boolean(),next_after:z.string().optional()},
+    annotations:readOnlyAnnotations
+  },async ({id,section_id,expected_revision,...input})=>textResult(await vault.fetchNoteSection(id,section_id,expected_revision,input)))
 
   server.registerTool(
     'list_directory',
@@ -637,7 +677,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNE AI自動ノート更新',
       description:
-        'Update one existing Markdown note without waiting for human approval. Fetch the note first and supply its required revision guard. On conflict, fetch again and reconcile changes before retrying. Identical content is a no-op only when the revision matches. Reason and source references are returned as response provenance but no history note is created. Use for AI-assisted knowledge maintenance; never use for raw source notes.',
+        'Save a user-requested AI update to an ordinary note without a separate approval prompt. Fetch full content and revision first; preserve all unrequested text, BOM and line endings in the replacement. On conflict, refetch and reconcile before retrying. Refetch after saving. No history is created. Never update raw sources. patch_note/update_note require human confirmation.',
       inputSchema: {
         id: z.string().min(1).max(500).describe('Vault-relative note path'),
         content: z
@@ -680,7 +720,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEノート部分更新',
       description:
-        'Apply find/replace patches to an existing Markdown note without replacing its full content. Fetch first and pass its revision. Each find must match exactly once by default (replace_all: true replaces every occurrence); all operations apply atomically or the note is left unchanged. No history note is created. Never use for raw source notes.',
+        'Apply revision-checked find/replace patches; requires human confirmation under the existing Codex catalog. For user-requested AI maintenance without a separate prompt, use autonomous_update_note with the full fetched content preserved. Each find matches once by default; operations are atomic. Never use for raw sources.',
       inputSchema: {
         id: z.string().min(1).max(500).describe('Vault-relative note path'),
         expected_revision: z
@@ -890,18 +930,19 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNE受信箱原典をごみ箱へ移動',
       description:
-        'Move one unlinked 01_受信箱 Markdown source directly to the Vault .trash. Requires the exact revision returned by fetch and explicit user authorization. The move is recoverable and works without the desktop app; permanent deletion is not exposed.',
+        'Move one unlinked 01_受信箱 Markdown source directly to the Vault .trash. Requires the exact revision returned by fetch and explicit user authorization. Supply operation_id to retry the exact move after a lost response; legacy calls may omit it. Permanent deletion is not exposed.',
       inputSchema: {
         source: z.string().min(1).max(500),
-        expected_revision: z.string().regex(/^sha256:[a-f0-9]{64}$/)
+        expected_revision: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+        operation_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/).optional()
       },
       outputSchema: trashResultOutputSchema,
       annotations: updateAnnotations
     },
-    async ({ source, expected_revision }) => {
+    async ({ source, expected_revision, operation_id }) => {
       await assertFreshRuntime()
       return textResult(
-        await vault.trashInboxSource(source, expected_revision)
+        await vault.trashInboxSource(source, expected_revision, operation_id)
       )
     }
   )
@@ -911,7 +952,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEバックリンク取得',
       description:
-        'List resolved Wiki-link sources. Excludes 50_履歴; use next_after as after to continue.',
+        'List resolved Wiki-link and Markdown note-link sources. Excludes 50_履歴; use next_after as after to continue.',
       inputSchema: {
         id: z.string().min(1).describe('Relative note path'),
         limit: z.number().int().min(1).max(50).optional().default(20),
@@ -1063,7 +1104,7 @@ async function main(): Promise<void> {
     {
       title: 'TSUZUNEコンテキスト作成',
       description:
-        'Build a bounded Markdown bundle from one note and linked or temporal sources. Use after search for linked or temporal evidence; use fetch for one note. Returns content_mode, revisions, omissions, a read-only usage receipt, and state_lineage. section_projection can omit requested sections even when truncated is false; full_note can still be truncated. Empty warnings do not establish current validity. Fetch missing source text when needed. If the complete sources are already present, do not call build_context or fetch again just to resolve unknown lineage or conflicting claims; report what remains unresolved.',
+        'Build a bounded Markdown bundle from one note and linked or temporal sources. Use after search for linked or temporal evidence; use fetch for one note. Returns content_mode, revisions, omissions, a read-only usage receipt, and state_lineage. section_projection can omit requested sections even when truncated is false; full_note can still be truncated. Empty warnings do not establish current validity. Use list_note_sections and fetch_note_section for missing source text and exact quotations; source_references are locators, not exact quote spans in formatted Context. If the complete sources are already present, do not call build_context or fetch again just to resolve unknown lineage or conflicting claims; report what remains unresolved.',
       inputSchema: {
         id: z.string().min(1).describe('Relative note path'),
         query: z
@@ -1094,6 +1135,7 @@ async function main(): Promise<void> {
           )
       },
       outputSchema: {
+        source_references: contextReferencesSchema,
         seed_id: z.string(),
         markdown: z.string(),
         character_count: z.number(),
@@ -1272,6 +1314,61 @@ async function main(): Promise<void> {
         })
       )
   )
+
+  server.registerTool('build_context_set', {
+    title: 'TSUZUNE複数ノートの文脈',
+    description: 'Compare 1–8 saved notes from one snapshot. Search for IDs first when unknown. Seeds receive a fair text budget before related sources; duplicate bodies are included once. Missing seeds stop the entire comparison. Each seed has separate state lineage, revisions and omissions. Check omitted sections with list_note_sections/fetch_note_section and fetch only missing evidence; source_references are locators for exact saved quotes; cite note IDs/headings/short quotations and distinguish fact, interpretation and unknown.',
+    inputSchema: {
+      ids: z.array(z.string().min(1)).min(1).max(8),
+      query: z.string().trim().max(500).optional(),
+      max_characters: z.number().int().min(1_000).max(100_000).default(15_000),
+      as_of: z.union([z.iso.date(), z.iso.datetime({offset:true})]).optional(),
+      temporal_perspective: z.enum(['valid-time','knowledge-time']).default('valid-time')
+    },
+    annotations: readOnlyAnnotations
+  }, async input => textResult(await vault.buildContextSet(input.ids, input.max_characters, {
+    query: input.query, asOf: input.as_of, temporalPerspective: input.temporal_perspective
+  })))
+
+  server.registerTool('get_local_graph', {
+    title: 'TSUZUNE局所Graph読取',
+    description: 'Explore explicit Wiki/Markdown links between visible saved notes, depth 1–3. Use search to find the seed ID, then fetch/build_context_set for actual evidence: a link is not a semantic claim. Returns note revisions, distances and omitted node/edge counts. No inferred relations, unlinked mentions, missing notes or legacy history. Nearest nodes are retained first when capped.',
+    inputSchema: {
+      id: z.string().min(1), depth: z.union([z.literal(1),z.literal(2),z.literal(3)]).default(1),
+      direction: z.enum(['incoming','outgoing','both']).default('both'),
+      neighbor_links: z.boolean().default(false), max_nodes: z.number().int().min(1).max(500).default(100)
+    },
+    outputSchema: {
+      seed_id: z.string(), depth: z.number(), direction: z.string(), neighbor_links: z.boolean(),
+      nodes: z.array(z.object({id:z.string(),title:z.string(),distance:z.number(),revision:z.string(),modified_at:z.string()})),
+      edges: z.array(z.object({source:z.string(),target:z.string()})),
+      omitted_nodes: z.number(), omitted_edges: z.number(), truncated: z.boolean(), evidence_notice: z.string()
+    },
+    annotations: readOnlyAnnotations
+  }, async ({id,...input}) => textResult(await vault.getLocalGraph(id,input)))
+
+  server.registerTool('list_bases', {
+    title: 'TSUZUNE Bases一覧',
+    description: 'Find visible saved .base files by name/path before query_base. Returns Base IDs, revisions, saved table view names/indexes and parsing diagnostics. Defaults to 50, maximum 100. Follow next_after with identical inputs; if the Vault/Base source changes restart from the first page. Reading never writes Vault/settings.',
+    inputSchema: {
+      query: z.string().trim().max(500).optional(),
+      limit: z.number().int().min(1).max(100).default(50), after: z.string().max(2048).optional(),
+      max_characters: z.number().int().min(1_000).max(100_000).default(15_000)
+    },
+    annotations: readOnlyAnnotations
+  }, async input => textResult(await vault.listBases(input)))
+
+  server.registerTool('query_base', {
+    title: 'TSUZUNE Basesの保存済みビュー読取',
+    description: 'Read rows of a saved table view (default first view). Use list_bases to find IDs/views. Applies the same filters, multiple sorts, formulas, view limit, groups and summaries as the app, then paginates. Provide context_note_id when expressions use this; never infer an unsaved/current UI note. Returns typed saved/file/computed cells and source revisions; HTML/images/links remain inert data. Inspect omissions and fetch needed note bodies before comparing. Default 50 rows, maximum 200; evaluation terminates after 3 seconds. Continuation binds source, types, view/context and evaluation time; changed inputs require restarting.',
+    inputSchema: {
+      id: z.string().min(1), view_index: z.number().int().min(0).default(0),
+      context_note_id: z.string().min(1).optional(),
+      limit: z.number().int().min(1).max(200).default(50), after: z.string().max(2048).optional(),
+      max_characters: z.number().int().min(1_000).max(100_000).default(15_000)
+    },
+    annotations: readOnlyAnnotations
+  }, async (input, extra) => textResult(await vault.queryBase(input, extra.signal)))
 
   await server.connect(new StdioServerTransport())
   console.error('TSUZUNE MCP server is ready.')

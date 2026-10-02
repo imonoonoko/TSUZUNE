@@ -79,6 +79,16 @@ describe('RelatedNotes', () => {
     expect(screen.queryByRole('tabpanel', { name: 'バックリンク 1件' })).toBeNull()
   })
 
+  it('explains missing Markdown destinations without exposing note creation', () => {
+    const onMissing = vi.fn()
+    render(<RelatedNotes outgoing={[{ target: '../Missing.md', alias: null, status: 'missing', candidates: [], kind: 'markdown' }, outgoing[1]]} backlinks={[]} temporal={null} onOpen={vi.fn()} onMissing={onMissing} />)
+    expect(screen.getByText('../Missing.md')).toBeTruthy()
+    expect(screen.getByText('リンク先のノートが見つかりません。相対パスを確認してください。')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Missing/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '＋ 未作成' }))
+    expect(onMissing).toHaveBeenCalledWith('未作成')
+  })
+
   it('moves selection and focus with tab keyboard controls', () => {
     render(
       <RelatedNotes

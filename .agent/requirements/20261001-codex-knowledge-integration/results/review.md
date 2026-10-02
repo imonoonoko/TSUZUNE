@@ -1,0 +1,44 @@
+# Independent integration review
+
+Read-only review of the task-added MCP context-set, Bases, Node Worker and local-graph modules, their service/server integration, catalog, worker build and check wiring. No product source edits. Existing dirty changes were preserved. No production Vault, normal settings, authentication or registered MCP artifacts were accessed or changed.
+
+## Findings requiring correction
+
+1. **P2 — Bases continuation does not bind creation timestamps.** `src/mcp/bases.ts:15-16,141-142` hashes path/content/mtime/size but excludes `NoteDocument.createdAt`, although `evaluateBase` evaluates and sorts `file.ctime` from that field. `VaultService.scan` reads this value from the creation-time registry or filesystem birthtime. A `.base` sorted by `file.ctime ASC`, five notes with creation timestamps 1000..5000, and `limit:2` returns N0,N1. Change only N4.createdAt to 0 and reuse the cursor: page two succeeds with N1,N2, repeating N1 and skipping N4 rather than requiring restart. Include `createdAt` in the query-specific source fingerprint (general revision compatibility need not change). Add one continuation rejection check for creation-time changes.
+
+2. **P2 — Duplicate heading titles hide omitted sections.** `src/mcp/context-set.ts:122` computes omissions by title membership, so a complete omission of a later section with the same heading is erased by an earlier included section. Reproducer: `# A\n## Repeated\nFIRST\n` + 5000 x + `\n## Repeated\nSECOND`, `maxCharacters:1000`. Output contains FIRST and no SECOND, `includedSections:[A,Repeated]`, `omittedSections:[]`, `truncated:true`. Truncation is disclosed globally, but the promised section omissions are wrong and cannot direct a caller to the missing second section. Track heading occurrence/range identity and preserve duplicate occurrences; the smallest conservative fix must at least report the omitted duplicate title. Add one same-title section clipping check.
+
+## Additional observation
+
+Query-projected seed bodies can be clipped by the core projector while `append` considers the projected envelope fully fitting. In that case structured `truncated:true` survives, but the existing Markdown truncation marker is absent (`context-set.ts:114-119`; callback body excludes the core marker). Reproducer: one `## Topic` section containing 5000 x, query Topic, maxCharacters 1000. This is not undisclosed truncation because metadata flags it; preserving the marker would make the Markdown independently honest.
+
+## Lean review
+
+`src/mcp/bases.ts:L80: delete: exported readBase paginated raw-source reader has no production caller or exposed MCP tool; only tests exercise it. Replacement: nothing under the four-tool approved scope; retain tests through visibleBase/query_base paths.`
+
+`net: -17 lines possible.` This is optional cleanup, not a correctness blocker.
+
+## Verification and boundaries
+
+- Executed the bounded bundled adversarial runner `work/codex-integration/review-adversarial.ts` through `build-review.mjs` and `review-adversarial.mjs`; retained outputs at `work/codex-integration/review-adversarial-output.txt`. Both findings reproduce against current source. All inputs are in-memory fixture snapshots/fake Base readers; no production paths.
+- Read the focused tests for seed fairness/dedup/projection/temporal lineage, Base type/time/source pagination, worker timeout/cancellation/error recovery and graph direction/depth/cycles/caps. Did not rerun the parent's already-passed full checks.
+- Traced service calls to `snapshot({persistCreationTimes:false})`, saved Base visibility and revision reads, property-type settings reads, explicit-this guard, output budget handling and frozen continuation time. Worker uses one request-owned worker, terminates before settling, and has timeout/abort/error/exit handlers. Build emits its sibling worker next to each server bundle; check suite builds into isolated temporary output and compares registered artifact hashes/mtimes. No additional concrete defect found in those paths.
+- Confirmed catalog shows common 23/direct 25 and four new read-only registrations; no new approval override. Graph retains existing visible note links, excludes history through the service snapshot filter, orders nearest nodes before path, and caps edges at 2000 with omissions.
+- Not reviewed: unrelated pre-existing feature changes, actual model-driven CLI scenarios, production install/hash/profile/MCP refresh, live installed-runtime behavior, or user acceptance. Model tests remain held as instructed. This report does not certify those boundaries.
+- Requested model/reasoning: sol/medium per dispatch. Actual execution model/reasoning is not observable from tools available to this review agent; no claim of a verified runtime model.
+
+Parent independently decides fixes and acceptance. Correct the two P2 findings before final pagination/section-omission acceptance.
+
+## Final targeted re-review
+
+Re-reviewed only the two fixes, the new heading-position callback/projection wiring and three new fixture/evaluation scripts. No general exploration or full gate repetition.
+
+- **Previous P2 creation-time cursor finding: resolved.** `bases.ts` adds `created_at: note.createdAt ?? null` to the source fingerprint while preserving the ordinary revision contract. Re-ran the original creation-time sort reproducer as an assertion: the altered snapshot now rejects continuation with Restart. The new regression also checks unchanged continuation and fresh sorting after the change.
+- **Previous P2 duplicate-heading finding: resolved for the reproduced and requested occurrence/projection paths.** `context-set.ts` identifies original headings by source offsets and labels duplicates with occurrence/line. The core callback supplies projection-to-source heading offsets, including nested branch bodies. The original duplicate repro now reports `Repeated (2; line 5)` omitted; the projected body includes its truncation marker. New regressions cover a selected later identical title/body prefix, frontmatter/indented branch headings and Setext/code fences. Original assertion runner passes; evidence: `work/codex-integration/review-final-output.txt`.
+- **New P2 before model-driven execution: Windows timeout only kills the launcher.** `evaluate-codex-knowledge.mjs` calls `child.kill()` after 240 seconds, but the installed `codex.js` launcher spawns the native CLI with inherited stdio. On Windows, forcibly killing the Node launcher does not reliably terminate the native CLI/MCP process tree; the inherited pipe handles can also keep the awaited `close` event pending. Kill only the owned launcher PID tree with `taskkill /PID ... /T /F` on Windows, and bound the post-kill wait. This is source-path evidence, not an actual Codex execution; notified parent immediately.
+- **Model acceptance contract boundary:** the evaluation harness currently leaves `enabled_tools` unspecified, exposing direct server 25 tools rather than configured common Codex 23. Bind final model runs to catalog.common, and baseline runs to the frozen corresponding common set (exclude direct-only suggest_links/add_link). Direct-transport flow may continue to expose the full server contract. Without this restriction, manually reviewed model success would establish the broader direct exposure rather than the user's registered Codex contract.
+- **New transport flow is properly isolated in source.** It creates a synthetic Vault and a separate empty profile, passes both paths explicitly, checks read-only tree integrity, exercises real bundled query_base/Worker, checks the four registrations, verifies exact patched BOM/CRLF/body/comment bytes, tests stale-revision failure and reconnects a separate MCP client for persisted resumption. Its PASS explicitly disclaims model-driven acceptance. I did not rerun the parent's passed flow.
+- **Model harness preserves acceptance distinctions.** It requires explicit `--model`, ignores user config/rules, uses ephemeral runs, new fixture/empty cwd and missing fixture settings, retains replies/JSONL/stderr/saved bytes and marks every scenario evidence review pending. Prompts contain natural tasks/note names, not MCP function names or answer bodies. Actual model quality, successful source finding, citations, write authorization interaction and resumed reasoning still require the held six runs and human evidence review.
+- Syntax checks for all three new scripts and targeted diff whitespace check passed. The repeated adversarial assertions passed. No normal settings, production paths or actual Codex execution were touched. Parent's fulltests/typecheck/check:mcp outcomes were not independently rerun or claimed here.
+
+The two original implementation P2s are closed in this review. Address the new timeout lifecycle and common-tool exposure boundaries before unholding model acceptance. Production and live/user acceptance remain outside this review.

@@ -1,466 +1,243 @@
+import { isMap, isSeq, parseDocument, stringify } from 'yaml'
+import { parseBaseExpression, validateBaseExpression } from './base-expression'
 export type BaseDiagnosticCode = 'MALFORMED_BASE' | 'UNSUPPORTED_BASE'
-
-export interface BaseDiagnostic {
-  code: BaseDiagnosticCode
-  message: string
-  line?: number
-  key?: string
-}
-
-export type BaseComparisonOperator = '==' | '!=' | '>' | '<' | '>=' | '<='
+export interface BaseDiagnostic { code: BaseDiagnosticCode; message: string; line?: number; key?: string }
 export type BaseScalar = string | number | boolean
-
-export type BaseFilter =
-  | { kind: 'inFolder'; folder: string }
-  | {
-      kind: 'comparison'
-      property: string
-      operator: BaseComparisonOperator
-      value: BaseScalar
-    }
-  | {
-      kind: 'contains'
-      property: string
-      value: BaseScalar
-    }
-
-export interface BaseSort {
-  property: string
-  direction: 'ASC' | 'DESC'
+export type BaseComparisonOperator = '==' | '!=' | '>' | '<' | '>=' | '<='
+export type BaseFilter = { kind: 'expression'; expression: string } | { kind: 'and' | 'or' | 'not'; children: BaseFilter[] } | { kind: 'inFolder'; folder: string } | { kind: 'comparison'; property: string; operator: BaseComparisonOperator; value: BaseScalar } | { kind: 'contains'; property: string; value: BaseScalar }
+export interface BaseSort { property: string; direction: 'ASC' | 'DESC' }
+export interface BaseTableView { type: 'table'; name: string; filters: BaseFilter[]; order: string[]; sort?: BaseSort; sorts?: BaseSort[]; groupBy?: BaseSort; summaries?: Record<string, string>; limit?: number; sourceIndex?: number }
+export interface BaseProfile { filters: BaseFilter[]; view: BaseTableView; views?: BaseTableView[]; formulas?: Record<string, string>; properties?: Record<string, { displayName?: string; type?: string }>; summaries?: Record<string, string> }
+export type BaseParseResult = { ok: true; profile: BaseProfile } | { ok: false; diagnostics: BaseDiagnostic[] }
+const unsafe = new Set(['__proto__', 'prototype', 'constructor'])
+function mapping(value: unknown, key: string): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${key} must be a mapping.`)
+  const object = value as Record<string, unknown>
+  if (Object.keys(object).some((name) => unsafe.has(name))) throw new Error(`Unsafe key in ${key}.`)
+  return object
+}
+function text(value: unknown, key: string): string { if (typeof value !== 'string' || !value.trim()) throw new Error(`${key} must be a non-empty string.`); return value }
+function expression(value: unknown, key: string): string { const source = text(value, key); validateBaseExpression(parseBaseExpression(source)); return source }
+function filter(value: unknown): BaseFilter {
+  if (typeof value === 'string') return { kind: 'expression', expression: expression(value, 'filter') }
+  const object = mapping(value, 'filter'); const keys = Object.keys(object)
+  if (keys.length !== 1 || !['and', 'or', 'not'].includes(keys[0])) throw new Error('Filters require one and, or, or not group.')
+  const kind = keys[0] as 'and' | 'or' | 'not'
+  return { kind, children: (Array.isArray(object[kind]) ? object[kind] as unknown[] : [object[kind]]).map(filter) }
+}
+function filters(value: unknown): BaseFilter[] { return value == null ? [] : [filter(value)] }
+function stringMap(value: unknown, key: string): Record<string, string> { return Object.fromEntries(Object.entries(mapping(value, key)).map(([name, item]) => [name, expression(item, `${key}.${name}`)])) }
+function sort(value: unknown): BaseSort {
+  const item = mapping(value, 'sort'); const direction = String(item.direction ?? 'ASC').toUpperCase()
+  if (direction !== 'ASC' && direction !== 'DESC') throw new Error('Sort direction must be ASC or DESC.')
+  return { property: text(item.property, 'sort.property'), direction }
+}
+export function parseBaseProfile(content: string): BaseParseResult {
+  try {
+    if (content.length > 1_000_000) throw new Error('Base profile is too large.')
+    const doc = parseDocument(content, { uniqueKeys: true, strict: true })
+    if (doc.errors.length) return { ok: false, diagnostics: doc.errors.map((error) => ({ code: 'MALFORMED_BASE', message: error.message, line: error.linePos?.[0].line })) }
+    const data = mapping(doc.toJS({ maxAliasCount: 50 }), 'Base')
+    if (!Array.isArray(data.views) || !data.views.length) throw new Error('At least one view is required.')
+    const views = data.views.map((raw, index): BaseTableView => {
+      const item = mapping(raw, 'view')
+      if (item.type !== 'table') throw new Error(`Unsupported view type: ${String(item.type)}.`)
+      const order = item.order == null ? ['file.name'] : item.order
+      if (!Array.isArray(order) || !order.length || order.some((key) => typeof key !== 'string')) throw new Error('View order must be a non-empty property list.')
+      const sorts = item.sort == null ? [] : (Array.isArray(item.sort) ? item.sort : [item.sort]).map(sort)
+      const summaries = item.summaries == null ? undefined : Object.fromEntries(Object.entries(mapping(item.summaries, 'view.summaries')).map(([key, value]) => [key, text(value, 'summary')]))
+      if (item.limit != null && (!Number.isInteger(item.limit) || Number(item.limit) < 0)) throw new Error('View limit must be a nonnegative integer.')
+      return { type: 'table', name: item.name == null ? `Table ${index + 1}` : text(item.name, 'view.name'), sourceIndex: index, filters: filters(item.filters), order: order as string[], ...(sorts.length ? { sorts, sort: sorts[0] } : {}), ...(item.groupBy ? { groupBy: sort(item.groupBy) } : {}), ...(summaries ? { summaries } : {}), ...(item.limit != null ? { limit: Number(item.limit) } : {}) }
+    })
+    const properties = data.properties == null ? undefined : Object.fromEntries(Object.entries(mapping(data.properties, 'properties')).map(([key, value]) => {
+      const item = mapping(value, `properties.${key}`)
+      return [key, { ...(item.displayName != null ? { displayName: text(item.displayName, 'displayName') } : {}), ...(item.type != null ? { type: text(item.type, 'property.type') } : {}) }]
+    }))
+    return { ok: true, profile: { filters: filters(data.filters), view: views[0], views, ...(data.formulas ? { formulas: stringMap(data.formulas, 'formulas') } : {}), ...(properties ? { properties } : {}), ...(data.summaries ? { summaries: stringMap(data.summaries, 'summaries') } : {}) } }
+  } catch (error) { return { ok: false, diagnostics: [{ code: 'MALFORMED_BASE', message: error instanceof Error ? error.message : String(error) }] } }
+}
+export function baseFilterSource(item: BaseFilter): unknown {
+  if (item.kind === 'expression') return item.expression
+  if (item.kind === 'and' || item.kind === 'or' || item.kind === 'not') return { [item.kind]: item.children.map(baseFilterSource) }
+  if (item.kind === 'inFolder') return `file.inFolder(${JSON.stringify(item.folder)})`
+  if (item.kind === 'contains') return `${item.property}.contains(${JSON.stringify(item.value)})`
+  if (item.kind === 'comparison') return `${item.property} ${item.operator} ${JSON.stringify(item.value)}`
+  return ''
+}
+export function serializeBaseProfile(profile: BaseProfile): string {
+  return stringify({ ...(profile.filters.length ? { filters: { and: profile.filters.map(baseFilterSource) } } : {}), ...(profile.formulas ? { formulas: profile.formulas } : {}), ...(profile.properties ? { properties: profile.properties } : {}), ...(profile.summaries ? { summaries: profile.summaries } : {}), views: (profile.views ?? [profile.view]).map((view) => ({ type: view.type, name: view.name, ...(view.filters.length ? { filters: { and: view.filters.map(baseFilterSource) } } : {}), order: view.order, ...((view.sorts ?? (view.sort ? [view.sort] : [])).length ? { sort: view.sorts ?? [view.sort] } : {}), ...(view.groupBy ? { groupBy: view.groupBy } : {}), ...(view.summaries ? { summaries: view.summaries } : {}), ...(view.limit != null ? { limit: view.limit } : {}) })) })
 }
 
-export interface BaseTableView {
-  type: 'table'
-  name: string
-  filters: BaseFilter[]
-  order: string[]
-  sort?: BaseSort
-}
-
-export interface BaseProfile {
-  filters: BaseFilter[]
-  view: BaseTableView
-}
-
-export type BaseParseResult =
-  | { ok: true; profile: BaseProfile }
-  | { ok: false; diagnostics: BaseDiagnostic[] }
-
-interface SourceLine {
-  line: number
-  indent: number
-  text: string
-}
-
-interface KeyValue {
-  key: string
-  value: string
-}
-
-class BaseParseFailure extends Error {
-  constructor(readonly diagnostic: BaseDiagnostic) {
-    super(diagnostic.message)
-  }
-}
-
-function fail(
-  code: BaseDiagnosticCode,
-  message: string,
-  line: number,
-  key?: string
-): never {
-  throw new BaseParseFailure({ code, message, line, ...(key ? { key } : {}) })
-}
-
-function sourceLines(content: string): SourceLine[] {
-  const lines = content.replace(/^\uFEFF/, '').split(/\r?\n/)
-  const result: SourceLine[] = []
-
-  for (const [index, raw] of lines.entries()) {
-    if (/\t/.test(raw)) {
-      fail('MALFORMED_BASE', 'Tabs are not supported in a .base profile.', index + 1)
-    }
-    const text = raw.trimEnd()
-    if (!text.trim() || text.trimStart().startsWith('#')) continue
-    const indent = text.length - text.trimStart().length
-    result.push({ line: index + 1, indent, text: text.trimStart() })
-  }
-
-  return result
-}
-
-function keyValue(line: SourceLine): KeyValue {
-  const match = /^([A-Za-z_][A-Za-z0-9_.-]*):(?:\s*(.*))?$/.exec(line.text)
-  if (!match) {
-    fail('MALFORMED_BASE', 'A mapping key and colon are required.', line.line)
-  }
-  return { key: match[1], value: match[2] ?? '' }
-}
-
-function listValue(line: SourceLine): string {
-  const match = /^-\s*(.*)$/.exec(line.text)
-  if (!match || !match[1]) {
-    fail('MALFORMED_BASE', 'A non-empty list item is required.', line.line)
-  }
-  return match[1]
-}
-
-function scalar(value: string, line: number, key: string): string {
-  const source = value.trim()
-  if (!source) fail('MALFORMED_BASE', `A value is required for ${key}.`, line, key)
-
-  if (source.startsWith('"')) {
-    try {
-      const parsed: unknown = JSON.parse(source)
-      if (typeof parsed !== 'string') {
-        fail('MALFORMED_BASE', `${key} must be a string.`, line, key)
+/** Patch only supported fields in the original YAML AST; keep comments and extension keys. */
+export function updateBaseProfileSource(content: string, profile: BaseProfile): string {
+  const before = parseDocument(content, { uniqueKeys: true, strict: true })
+  const document = parseDocument(content, { uniqueKeys: true, strict: true })
+  if (document.errors.length || !isMap(document.contents)) throw new Error('Cannot modify malformed Base YAML.')
+  const replacement = parseDocument(serializeBaseProfile(profile))
+  for (const key of ['filters', 'formulas', 'properties', 'summaries']) {
+    const next = replacement.get(key, true)
+    if (next == null) { document.delete(key); continue }
+    const current = document.get(key, true)
+    if (isMap(current) && isMap(next)) {
+      for (const entry of next.items) {
+        const previous = current.get(entry.key, true)
+        if (key === 'properties' && isMap(previous) && isMap(entry.value)) {
+          for (const field of ['displayName', 'type']) { const value = entry.value.get(field, true); if (value == null) previous.delete(field); else previous.set(field, value) }
+        } else current.set(entry.key, entry.value)
       }
-      return parsed
-    } catch {
-      fail('MALFORMED_BASE', `The quoted value for ${key} is invalid.`, line, key)
+      // Removed formulas/property labels are explicit GUI changes; extension keys live in views/root.
+      for (const entry of [...current.items]) if (!next.has(entry.key)) current.delete(entry.key)
+    } else document.set(key, next)
+  }
+  const existing = document.get('views', true); const proposed = replacement.get('views', true)
+  if (!isSeq(existing) || !isSeq(proposed)) throw new Error('Views must be a YAML sequence.')
+  const originalViews = [...existing.items]
+  const changedViews = profile.views ?? [profile.view]
+  proposed.items.forEach((next, index) => {
+    const originalIndex = changedViews[index]?.sourceIndex
+    const current = originalIndex == null ? undefined : originalViews[originalIndex]
+    if (!isMap(current) || !isMap(next)) { existing.items[index] = next; return }
+    existing.items[index] = current
+    for (const key of ['type', 'name', 'filters', 'order', 'sort', 'groupBy', 'summaries', 'limit']) {
+      const value = next.get(key, true)
+      if (!current.has(key) && (key === 'order' && JSON.stringify(nodeValue(value)) === '["file.name"]' || key === 'name' && nodeValue(value) === `Table ${originalIndex! + 1}`)) continue
+      if (value == null) current.delete(key); else { const previous = current.get(key, true); if (previous && typeof previous === 'object' && 'comment' in previous && typeof value === 'object') value.comment = previous.comment; current.set(key, value) }
     }
-  }
-
-  if (source.startsWith("'")) {
-    if (!source.endsWith("'") || source.length < 2) {
-      fail('MALFORMED_BASE', `The quoted value for ${key} is invalid.`, line, key)
-    }
-    return source.slice(1, -1).replace(/''/g, "'")
-  }
-
-  if (/^[\[\]{},&*!|>]/.test(source)) {
-    fail('UNSUPPORTED_BASE', `${key} uses unsupported YAML syntax.`, line, key)
-  }
+  })
+  existing.items.length = proposed.items.length
+  const source = patchYamlSource(content, before.contents, document.contents, changedViews.map((view) => view.sourceIndex))
+  const verified = parseBaseProfile(source)
+  if (!verified.ok) throw new Error(verified.diagnostics[0]?.message ?? 'Invalid edited Base.')
   return source
 }
 
-function expressionScalar(value: string, line: number): BaseScalar {
-  const source = value.trim()
-  if (!source) fail('MALFORMED_BASE', 'A filter comparison value is required.', line)
-
-  if (source.startsWith('"') || source.startsWith("'")) {
-    return scalar(source, line, 'filter')
-  }
-  if (source === 'true' || source === 'false') return source === 'true'
-  if (/^[+-]?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/.test(source)) {
-    return Number(source)
-  }
-  if (/^(?:null|~)$/i.test(source)) {
-    fail('UNSUPPORTED_BASE', 'Null filter values are outside the fixed profile.', line)
-  }
-  const date = /^date\((.*)\)$/.exec(source)
-  if (date) {
-    const dateText = scalar(date[1], line, 'date')
-    const parts = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(dateText)
-    // The fixed profile uses this PC's local time, matching the isolated reference.
-    const timestamp = Date.parse(dateText.replace(' ', 'T'))
-    const parsed = new Date(timestamp)
-    const local = [parsed.getFullYear(), parsed.getMonth() + 1, parsed.getDate(),
-      parsed.getHours(), parsed.getMinutes(), parsed.getSeconds()]
-    if (!parts || !Number.isFinite(timestamp) || local.some((value, index) => value !== Number(parts[index + 1]))) {
-      fail('MALFORMED_BASE', `The date value "${dateText}" is invalid.`, line)
-    }
-    return timestamp
-  }
-  fail('UNSUPPORTED_BASE', 'Only quoted text, numbers, and booleans are supported in filters.', line)
+type SourceEdit = { from: number; to: number; insert: string }
+function nodeRange(node: unknown): [number, number, number] | null {
+  if (node && typeof node === 'object' && 'range' in node && Array.isArray(node.range)) return node.range as [number, number, number]
+  return null
 }
-
-function propertyReference(value: string, line: number): string {
-  const property = value.trim()
-  if (
-    !/^(?:file\.(?:name|basename|path|folder|ext|size|mtime|ctime)|note\.[A-Za-z_][A-Za-z0-9_-]*|[A-Za-z_][A-Za-z0-9_-]*)$/.test(
-      property
-    )
-  ) {
-    fail('UNSUPPORTED_BASE', `Property reference "${property}" is unsupported.`, line)
-  }
-  return property
-}
-
-function filterExpression(value: string, line: number): BaseFilter {
-  const expression = scalar(value, line, 'filter')
-  const folder = /^file\.inFolder\((['"])(.*)\1\)$/.exec(expression)
-  if (folder) {
-    if (!folder[2]) fail('MALFORMED_BASE', 'file.inFolder requires a folder.', line)
-    return { kind: 'inFolder', folder: folder[2] }
-  }
-
-  const comparison =
-    /^(file\.(?:name|basename|path|folder|ext|size|mtime|ctime)|note\.[A-Za-z_][A-Za-z0-9_-]*|[A-Za-z_][A-Za-z0-9_-]*)\s*(==|!=|>=|<=|>|<)\s*(.+)$/.exec(
-      expression
-    )
-  if (comparison) {
-    return {
-      kind: 'comparison',
-      property: propertyReference(comparison[1], line),
-      operator: comparison[2] as BaseComparisonOperator,
-      value: expressionScalar(comparison[3], line)
-    }
-  }
-
-  const contains = /^(file\.(?:name|basename|path|folder|ext)|note\.[A-Za-z_][A-Za-z0-9_-]*|[A-Za-z_][A-Za-z0-9_-]*)\.contains\((.+)\)$/.exec(
-    expression
-  )
-  if (contains) {
-    return {
-      kind: 'contains',
-      property: propertyReference(contains[1], line),
-      value: expressionScalar(contains[2], line)
-    }
-  }
-
-  if (/\w+\s*\(/.test(expression)) {
-    fail('UNSUPPORTED_BASE', `Filter function "${expression}" is unsupported.`, line)
-  }
-  if (/^\S+\s+[A-Za-z][A-Za-z0-9_-]*\s+\S/.test(expression)) {
-    fail('UNSUPPORTED_BASE', `The filter operator in "${expression}" is unsupported.`, line)
-  }
-  fail('MALFORMED_BASE', `Filter expression "${expression}" is invalid.`, line)
-}
-
-function filterSection(
-  lines: SourceLine[],
-  start: number,
-  parentIndent: number
-): { filters: BaseFilter[]; next: number } {
-  const header = lines[start]
-  const headerValue = keyValue(header)
-  if (headerValue.value) {
-    fail('UNSUPPORTED_BASE', 'Only an and filter list is supported.', header.line, 'filters')
-  }
-
-  const conjunction = lines[start + 1]
-  if (!conjunction || conjunction.indent !== parentIndent + 2) {
-    fail('MALFORMED_BASE', 'A filter conjunction is required.', header.line, 'filters')
-  }
-  const conjunctionValue = keyValue(conjunction)
-  if (conjunctionValue.key !== 'and') {
-    fail('UNSUPPORTED_BASE', `Filter conjunction "${conjunctionValue.key}" is unsupported.`, conjunction.line, conjunctionValue.key)
-  }
-  if (conjunctionValue.value) {
-    fail('MALFORMED_BASE', 'The and filter must contain a list.', conjunction.line, 'and')
-  }
-
-  const filters: BaseFilter[] = []
-  let index = start + 2
-  while (index < lines.length && lines[index].indent === parentIndent + 4) {
-    const item = lines[index]
-    filters.push(filterExpression(listValue(item), item.line))
-    index += 1
-  }
-  if (filters.length === 0) {
-    fail('MALFORMED_BASE', 'The and filter list cannot be empty.', conjunction.line, 'and')
-  }
-  if (lines[index] && lines[index].indent === parentIndent + 2) {
-    fail('UNSUPPORTED_BASE', 'Only an and filter group is supported.', lines[index].line)
-  }
-  if (lines[index] && lines[index].indent > parentIndent) {
-    fail('MALFORMED_BASE', 'Unexpected indentation after the filter list.', lines[index].line)
-  }
-  return { filters, next: index }
-}
-
-function listSection(
-  lines: SourceLine[],
-  start: number,
-  parentIndent: number,
-  key: string
-): { values: string[]; next: number } {
-  const header = lines[start]
-  if (keyValue(header).value) {
-    fail('MALFORMED_BASE', `${key} must contain a list.`, header.line, key)
-  }
-
-  const values: string[] = []
-  let index = start + 1
-  while (index < lines.length && lines[index].indent === parentIndent + 2) {
-    const item = lines[index]
-    values.push(scalar(listValue(item), item.line, key))
-    index += 1
-  }
-  if (values.length === 0) fail('MALFORMED_BASE', `${key} cannot be empty.`, header.line, key)
-  if (lines[index] && lines[index].indent > parentIndent && lines[index].indent < parentIndent + 2) {
-    fail('MALFORMED_BASE', `Unexpected indentation in ${key}.`, lines[index].line, key)
-  }
-  return { values, next: index }
-}
-
-function sortSection(
-  lines: SourceLine[],
-  start: number,
-  parentIndent: number
-): { sort: BaseSort; next: number } {
-  const header = lines[start]
-  if (keyValue(header).value) {
-    fail('MALFORMED_BASE', 'sort must contain a list.', header.line, 'sort')
-  }
-  const item = lines[start + 1]
-  if (!item || item.indent !== parentIndent + 2) {
-    fail('MALFORMED_BASE', 'sort requires one property item.', header.line, 'sort')
-  }
-  const itemValue = listValue(item)
-  const propertyLine = {
-    ...item,
-    text: itemValue
-  }
-  const property = keyValue(propertyLine)
-  if (property.key !== 'property') {
-    fail('MALFORMED_BASE', 'sort requires a property key.', item.line, 'sort')
-  }
-  const sortProperty = propertyReference(scalar(property.value, item.line, 'property'), item.line)
-  let direction: BaseSort['direction'] = 'ASC'
-  let directionSeen = false
-  let index = start + 2
-  while (index < lines.length && lines[index].indent === parentIndent + 4) {
-    const field = keyValue(lines[index])
-    if (field.key !== 'direction') {
-      fail('UNSUPPORTED_BASE', `sort field "${field.key}" is unsupported.`, lines[index].line, field.key)
-    }
-    if (directionSeen) {
-      fail('MALFORMED_BASE', 'sort direction is duplicated.', lines[index].line, 'direction')
-    }
-    directionSeen = true
-    const value = scalar(field.value, lines[index].line, 'direction').toUpperCase()
-    if (value !== 'ASC' && value !== 'DESC') {
-      fail('MALFORMED_BASE', 'sort direction must be ASC or DESC.', lines[index].line, 'direction')
-    }
-    direction = value
-    index += 1
-  }
-  if (lines[index] && lines[index].indent === parentIndent + 2) {
-    fail('UNSUPPORTED_BASE', 'Only one sort is supported.', lines[index].line, 'sort')
-  }
-  if (lines[index] && lines[index].indent > parentIndent) {
-    fail('MALFORMED_BASE', 'Unexpected indentation in sort.', lines[index].line, 'sort')
-  }
-  return { sort: { property: sortProperty, direction }, next: index }
-}
-
-function viewSection(
-  lines: SourceLine[],
-  start: number
-): { view: BaseTableView; next: number } {
-  const item = lines[start]
-  const itemValue = listValue(item)
-  const first = keyValue({ ...item, text: itemValue })
-  if (first.key !== 'type' || !first.value) {
-    fail('MALFORMED_BASE', 'Each view must start with type.', item.line, 'views')
-  }
-
-  const type = scalar(first.value, item.line, 'type')
-  if (type !== 'table') {
-    fail('UNSUPPORTED_BASE', `View type "${type}" is unsupported.`, item.line, 'type')
-  }
-
-  let name: string | undefined
-  let filters: BaseFilter[] = []
-  let order: string[] | undefined
-  let sort: BaseSort | undefined
-  const seen = new Set<string>(['type'])
-  let index = start + 1
-
-  while (index < lines.length && lines[index].indent >= 4) {
-    if (lines[index].indent !== 4) {
-      fail('MALFORMED_BASE', 'View fields must use two-space nesting.', lines[index].line, 'views')
-    }
-    const field = keyValue(lines[index])
-    if (seen.has(field.key)) fail('MALFORMED_BASE', `View key "${field.key}" is duplicated.`, lines[index].line, field.key)
-    seen.add(field.key)
-    if (field.key === 'name') {
-      name = scalar(field.value, lines[index].line, 'name')
-      index += 1
-    } else if (field.key === 'filters') {
-      const parsed = filterSection(lines, index, 4)
-      filters = parsed.filters
-      index = parsed.next
-    } else if (field.key === 'order') {
-      const parsed = listSection(lines, index, 4, 'order')
-      order = parsed.values
-      index = parsed.next
-    } else if (field.key === 'sort') {
-      const parsed = sortSection(lines, index, 4)
-      sort = parsed.sort
-      index = parsed.next
-    } else {
-      fail('UNSUPPORTED_BASE', `View key "${field.key}" is unsupported.`, lines[index].line, field.key)
-    }
-  }
-
-  if (!name) fail('MALFORMED_BASE', 'A table view name is required.', item.line, 'name')
-  if (!order) fail('MALFORMED_BASE', 'A table view order is required.', item.line, 'order')
-  if (order.length > 3 || !order.includes('file.name')) {
-    fail('UNSUPPORTED_BASE', 'The fixed profile requires file.name and at most two other columns.', item.line, 'order')
-  }
-  for (const property of order) propertyReference(property, item.line)
-
-  return { view: { type: 'table', name, filters, order, ...(sort ? { sort } : {}) }, next: index }
-}
-
-function hasMarkdownFilter(filters: BaseFilter[]): boolean {
-  return filters.some(
-    (filter) =>
-      filter.kind === 'comparison' &&
-      filter.property === 'file.ext' &&
-      filter.operator === '==' &&
-      filter.value === 'md'
-  )
-}
-
-export function parseBaseProfile(content: string): BaseParseResult {
-  try {
-    const lines = sourceLines(content)
-    if (lines.length === 0) {
-      fail('MALFORMED_BASE', 'A .base profile cannot be empty.', 1)
-    }
-
-    let filters: BaseFilter[] = []
-    let view: BaseTableView | undefined
-    const seen = new Set<string>()
-    let index = 0
-
-    while (index < lines.length) {
-      const line = lines[index]
-      if (line.indent !== 0) {
-        fail('MALFORMED_BASE', 'Top-level keys must not be indented.', line.line)
-      }
-      const field = keyValue(line)
-      if (seen.has(field.key)) fail('MALFORMED_BASE', `Top-level key "${field.key}" is duplicated.`, line.line, field.key)
-      seen.add(field.key)
-
-      if (field.key === 'filters') {
-        const parsed = filterSection(lines, index, 0)
-        filters = parsed.filters
-        index = parsed.next
-      } else if (field.key === 'views') {
-        if (field.value) fail('MALFORMED_BASE', 'views must contain a list.', line.line, 'views')
-        const firstView = lines[index + 1]
-        if (!firstView || firstView.indent !== 2 || !firstView.text.startsWith('-')) {
-          fail('MALFORMED_BASE', 'views requires a list.', line.line, 'views')
+function nodeValue(node: unknown): unknown { return node && typeof node === 'object' && 'toJSON' in node && typeof node.toJSON === 'function' ? node.toJSON() : node }
+/** YAML ranges refer to the original source, so unrelated bytes, BOM and line endings survive. */
+function patchYamlSource(source: string, before: unknown, after: unknown, viewOrigins: (number | undefined)[]): string {
+  const edits: SourceEdit[] = []
+  const newline = source.includes('\r\n') ? '\r\n' : '\n'
+  const lineStart = (position: number): number => source.lastIndexOf('\n', position - 1) + 1
+  const indentation = (position: number): string => /^ */.exec(source.slice(lineStart(position)))?.[0] ?? ''
+  const fragment = (node: unknown): string => JSON.stringify(nodeValue(node))
+  const preservedComments = (node: unknown, from: number, to: number): string[] => {
+    const found: string[] = []
+    const collect = (item: unknown): void => {
+      if (!item || typeof item !== 'object') return
+      for (const key of ['comment', 'commentBefore']) if (key in item) {
+        const comment = (item as Record<string, unknown>)[key]
+        if (typeof comment === 'string') for (const line of comment.split('\n')) {
+          const token = `#${line}`; const position = source.indexOf(token, from)
+          if (position >= from && position < to && !found.includes(token)) found.push(token)
         }
-        const parsed = viewSection(lines, index + 1)
-        view = parsed.view
-        index = parsed.next
-        if (lines[index] && lines[index].indent === 2 && lines[index].text.startsWith('-')) {
-          fail('UNSUPPORTED_BASE', 'Only one table view is supported.', lines[index].line, 'views')
-        }
-      } else {
-        fail('UNSUPPORTED_BASE', `Top-level key "${field.key}" is unsupported.`, line.line, field.key)
       }
+      if (isMap(item)) item.items.forEach((pair) => { collect(pair.key); collect(pair.value) })
+      else if (isSeq(item)) item.items.forEach(collect)
     }
-
-    if (!view) fail('MALFORMED_BASE', 'A table view is required.', 1, 'views')
-    const allFilters = [...filters, ...view.filters]
-    if (!hasMarkdownFilter(allFilters)) {
-      fail('UNSUPPORTED_BASE', 'The fixed profile requires file.ext == "md".', 1, 'filters')
-    }
-    return { ok: true, profile: { filters, view } }
-  } catch (error) {
-    if (error instanceof BaseParseFailure) {
-      return { ok: false, diagnostics: [error.diagnostic] }
-    }
-    return {
-      ok: false,
-      diagnostics: [{ code: 'MALFORMED_BASE', message: 'The .base profile could not be parsed.' }]
-    }
+    collect(node); return found
   }
+  const withComments = (raw: string, node: unknown, from: number, to: number, indent: string): string => {
+    const comments = preservedComments(node, from, to)
+    return raw + (comments.length ? newline + comments.map((comment) => indent + comment).join(newline) : '')
+  }
+  const apply = (raw: string, changes: SourceEdit[], offset = 0): string => changes.sort((a, b) => b.from - a.from).reduce((text, edit) => text.slice(0, edit.from - offset) + edit.insert + text.slice(edit.to - offset), raw)
+  const walk = (oldNode: unknown, newNode: unknown, key = ''): void => {
+    if (JSON.stringify(nodeValue(oldNode)) === JSON.stringify(nodeValue(newNode))) return
+    const range = nodeRange(oldNode)
+    if (!range) throw new Error('Cannot safely locate the edited YAML node.')
+    if (isMap(oldNode) && isMap(newNode)) {
+      if (oldNode.flow && oldNode.items.some((pair) => !newNode.has(String(nodeValue(pair.key))))) {
+        const fragments = newNode.items.map((pair) => {
+          const name = String(nodeValue(pair.key)); const previous = oldNode.items.find((item) => String(nodeValue(item.key)) === name)
+          const from = nodeRange(previous?.key)?.[0]; const to = nodeRange(previous?.value)?.[1]
+          if (from == null || to == null) return `${JSON.stringify(name)}: ${fragment(pair.value)}`
+          const start = edits.length; walk(previous!.value, pair.value, name); const changes = edits.splice(start)
+          return apply(source.slice(from, to), changes, from)
+        })
+        edits.push({ from: range[0], to: range[1], insert: withComments(`{${fragments.join(', ')}}`, oldNode, range[0], range[1], indentation(range[0])) }); return
+      }
+      for (const pair of oldNode.items) {
+        const name = String(nodeValue(pair.key))
+        if (newNode.has(name)) { walk(pair.value, newNode.get(name, true), name); continue }
+        const keyRange = nodeRange(pair.key); const valueRange = nodeRange(pair.value)
+        if (!keyRange || !valueRange) throw new Error('Cannot safely remove YAML field.')
+        if (oldNode.flow) {
+          let from = keyRange[0]; let to = valueRange[1]
+          const remaining = source.slice(to, range[1] - 1); const following = /^\s*,\s*/.exec(remaining)
+          if (following) to += following[0].length
+          else { const preceding = /,\s*$/.exec(source.slice(range[0] + 1, from)); if (preceding) from -= preceding[0].length }
+          edits.push({ from, to, insert: '' })
+        } else {
+          const from = lineStart(keyRange[0]); const comments = preservedComments(pair.value, from, valueRange[2])
+          edits.push({ from, to: valueRange[2], insert: comments.map((comment) => indentation(keyRange[0]) + comment + newline).join('') })
+        }
+      }
+      const added = newNode.items.filter((pair) => !oldNode.has(String(nodeValue(pair.key))))
+      if (added.length) {
+        if (oldNode.flow) edits.push({ from: range[1] - 1, to: range[1] - 1, insert: `${oldNode.items.length ? ', ' : ''}${added.map((pair) => `${JSON.stringify(nodeValue(pair.key))}: ${fragment(pair.value)}`).join(', ')}` })
+        else {
+          const keyPosition = nodeRange(oldNode.items[0]?.key)?.[0] ?? range[0]
+          const indent = ' '.repeat(source.slice(lineStart(keyPosition), keyPosition).replace(/^\uFEFF/, '').length)
+          const values = Object.fromEntries(added.map((pair) => [String(nodeValue(pair.key)), nodeValue(pair.value)]))
+          const block = stringify(values).trimEnd().split('\n').map((line) => indent + line).join(newline) + newline
+          edits.push({ from: range[2], to: range[2], insert: (range[2] > 0 && source[range[2] - 1] !== '\n' ? newline : '') + block })
+        }
+      }
+      return
+    }
+    if (isSeq(oldNode) && isSeq(newNode)) {
+      if (key === 'views') {
+        const sameOrigins = newNode.items.length === oldNode.items.length && viewOrigins.every((origin, at) => origin === at)
+        if (sameOrigins) { oldNode.items.forEach((item, at) => walk(item, newNode.items[at])); return }
+        if (oldNode.flow) {
+          const segments = newNode.items.map((item, at) => {
+            const origin = viewOrigins[at]; const original = origin == null ? undefined : oldNode.items[origin]; const itemRange = nodeRange(original)
+            if (!itemRange) return fragment(item)
+            const start = edits.length; walk(original, item); const changes = edits.splice(start)
+            return apply(source.slice(itemRange[0], itemRange[1]), changes, itemRange[0])
+          })
+          edits.push({ from: range[0], to: range[1], insert: `[${segments.join(', ')}]` }); return
+        }
+        const firstRange = nodeRange(oldNode.items[0]); const firstStart = firstRange ? lineStart(firstRange[0]) : range[0]
+        const indent = indentation(firstStart)
+        const segments = newNode.items.map((item, at) => {
+          const origin = viewOrigins[at]; const original = origin == null ? undefined : oldNode.items[origin]; const itemRange = nodeRange(original)
+          if (!itemRange) return stringify([nodeValue(item)]).trimEnd().split('\n').map((line) => indent + line).join(newline) + newline
+          const from = lineStart(itemRange[0]); const followingRange = nodeRange(oldNode.items[origin! + 1]); const to = followingRange ? lineStart(followingRange[0]) : range[2]
+          const start = edits.length; walk(original, item); const changes = edits.splice(start)
+          return apply(source.slice(from, to), changes, from)
+        })
+        edits.push({ from: firstStart, to: range[2], insert: segments.join('') }); return
+      }
+      if (oldNode.items.length === newNode.items.length) { oldNode.items.forEach((item, at) => walk(item, newNode.items[at])); return }
+    }
+    const comments = preservedComments(oldNode, range[0], range[1])
+    // Put removed collection comments before a standalone replacement value, so a sibling field stays valid.
+    const prefix = comments.length ? newline + comments.map((comment) => indentation(range[0]) + '  ' + comment).join(newline) + newline + indentation(range[0]) + '  ' : ''
+    edits.push({ from: range[0], to: range[1], insert: prefix + fragment(newNode) })
+  }
+  walk(before, after)
+  return apply(source, edits)
+}
+
+export function basePropertyReferences(profile: BaseProfile, name: string): string[] {
+  const references: string[] = []
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const matches = (source: string): boolean => new RegExp(`(?:\\bnote\\.)?${escaped}(?![\\p{L}\\p{N}_])|note\\[\\s*["']${escaped}["']\\s*\\]`, 'u').test(source)
+  const inspectFilter = (item: BaseFilter, location: string): void => {
+    if (item.kind === 'and' || item.kind === 'or' || item.kind === 'not') item.children.forEach((child, index) => inspectFilter(child, `${location}.${item.kind}[${index}]`))
+    else if (matches(String(baseFilterSource(item)))) references.push(location)
+  }
+  profile.filters.forEach((item, index) => inspectFilter(item, `filters[${index}]`))
+  for (const [index, view] of (profile.views ?? [profile.view]).entries()) {
+    view.filters.forEach((item, at) => inspectFilter(item, `views[${index}].filters[${at}]`))
+    for (const field of [...view.order, ...(view.sorts ?? (view.sort ? [view.sort] : [])).map((item) => item.property), ...(view.groupBy ? [view.groupBy.property] : []), ...Object.keys(view.summaries ?? {})]) if (matches(field)) references.push(`views[${index}]: ${field}`)
+  }
+  for (const [key, value] of Object.entries(profile.formulas ?? {})) if (matches(value)) references.push(`formulas.${key}`)
+  for (const [key, value] of Object.entries(profile.summaries ?? {})) if (matches(value)) references.push(`summaries.${key}`)
+  return [...new Set(references)]
 }

@@ -12,6 +12,11 @@ import type {
   VaultSnapshot
 } from '../src/shared/types'
 
+vi.mock('../src/renderer/base-worker-client', async () => {
+  const core = await import('../src/core/base-evaluator')
+  return { evaluateBaseInWorker: vi.fn((...args: Parameters<typeof core.evaluateBase>) => Promise.resolve(core.evaluateBase(...args))) }
+})
+
 vi.mock('../src/renderer/components/MarkdownEditor', async () => {
   const ReactApi = await import('react')
   return {
@@ -61,6 +66,7 @@ import { DEFAULT_GRAPH_FORCE_SETTINGS } from '../src/shared/graph-settings'
 import { DEFAULT_GRAPH_FILTER_SETTINGS } from '../src/shared/graph-filters'
 import { DEFAULT_GRAPH_GROUPS } from '../src/shared/graph-groups'
 import { DEFAULT_GRAPH_VIEW_STATES } from '../src/shared/graph-view-state'
+import { migrateWorkspaceSnapshotV1, type WorkspaceSnapshotV1 } from '../src/shared/workspace-state'
 
 const noteA: NoteDocument = {
   path: 'A.md',
@@ -91,6 +97,12 @@ const snapshot: VaultSnapshot = {
 }
 
 const baseContent = 'filters:\n  and:\n    - file.ext == "md"\nviews:\n  - type: table\n    name: Notes\n    order:\n      - file.name\n'
+
+function expectedSavedWorkspace(snapshot: WorkspaceSnapshotV1) {
+  const migrated = migrateWorkspaceSnapshotV1(snapshot)
+  migrated.panes[0].localGraph.filters = DEFAULT_GRAPH_FILTER_SETTINGS
+  return migrated
+}
 
 let vaultChanged: ((event: VaultChangeEvent) => void) | null
 let updateStatusChanged: ((status: AppUpdateStatus) => void) | null
@@ -549,7 +561,7 @@ describe('App Bases', () => {
     }
     fireEvent.change(input, { target: { value: 'views\\notes.base' } })
     fireEvent.click(within(dialog).getByRole('button', { name: '開く', exact: true }))
-    const table = await screen.findByRole('table', { name: 'Notes（読み取り専用）' })
+    const table = await screen.findByRole('table', { name: 'Notes（file.* / formula.* は読み取り専用）' })
     expect(within(table).getAllByRole('row')).toHaveLength(4)
     expect(table.querySelector('input, textarea, [contenteditable="true"]')).toBeNull()
     await waitFor(() => expect(api.saveLastWorkspaceSession).toHaveBeenCalledWith(
@@ -595,7 +607,7 @@ describe('App Bases', () => {
     let table = await screen.findByRole('table')
     expect(within(table).queryByRole('button', { name: 'B.mdを開く' })).toBeNull()
     expect(within(table).getAllByRole('row')).toHaveLength(3)
-    fireEvent.click(screen.getByRole('button', { name: '設定' }))
+    fireEvent.click(within(screen.getByRole('navigation', { name: '主なナビゲーション' })).getByRole('button', { name: '設定' }))
     const dialog = await screen.findByRole('dialog', { name: '設定' })
     fireEvent.change(within(dialog).getByRole('textbox', { name: '除外するファイル' }), { target: { value: 'A.md' } })
     fireEvent.click(within(dialog).getByRole('button', { name: '設定を保存' }))
@@ -641,7 +653,7 @@ describe('App Bases', () => {
     await act(async () => vaultChanged?.({ type: 'unlink', path: 'A.md' }))
     await screen.findByRole('table')
     await act(async () => resolveOld({ ok: true, value: { path: 'views/notes.base', content: baseContent.replace('Notes', 'Stale'), modifiedAt: 100 } }))
-    const table = screen.getByRole('table', { name: 'Notes（読み取り専用）' })
+    const table = screen.getByRole('table', { name: 'Notes（file.* / formula.* は読み取り専用）' })
     expect(within(table).getAllByRole('row')).toHaveLength(2)
     expect(within(table).getByRole('button', { name: 'C.mdを開く' })).toBeTruthy()
   })
@@ -712,7 +724,7 @@ describe('App data-loss guards', () => {
     fireEvent.click(await screen.findByRole('button', { name: '見つからないタブを前回の配置から外す' }))
     await waitFor(() => expect(api.saveLastWorkspaceSession).toHaveBeenCalledWith(
       { rootPath: snapshot.rootPath, rootRevision: 1 },
-      { ...saved, tabs: [{ kind: 'note', path: 'B.md' }], activeIndex: 0 }
+      expectedSavedWorkspace({ ...saved, tabs: [{ kind: 'note', path: 'B.md' }], activeIndex: 0 })
     ))
     if (saveFails) {
       expect(await screen.findByText(/前回の配置を保存できませんでした/)).toBeTruthy()
@@ -908,7 +920,7 @@ describe('App data-loss guards', () => {
 
     expect(
       await screen.findByText(
-        '左の一覧からノートを選ぶか、新しいノートを作成してください。'
+        'ノートを検索するか、左の一覧から選んでください。'
       )
     ).toBeTruthy()
     expect(screen.queryByLabelText('Markdown編集欄')).toBeNull()
@@ -1396,6 +1408,54 @@ describe('App data-loss guards', () => {
     expect(await screen.findByRole('heading', { name: 'カレンダーから開いたノート' })).toBeTruthy()
   })
 
+  it('updates the avatar with a content guard and rejects duplicate clicks', async () => {
+    const profileNote = { ...noteA, path: 'user.md', name: 'user', content: '---\nname: Test\n---\n\nKeep this body' }
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok({ ...snapshot, notes: [...snapshot.notes, profileNote] }))
+    vi.mocked(api.readNote).mockImplementation(() => ok(profileNote))
+    let resolveImport!: (value: Awaited<ReturnType<TsuzuneApi['importAttachments']>>) => void
+    api.importAttachments = vi.fn(() => new Promise((resolve) => { resolveImport = resolve }))
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'ノート活動' }))
+    const change = screen.getByRole('button', { name: 'アイコン画像を変更', exact: true })
+    fireEvent.click(change)
+    fireEvent.click(change)
+    await waitFor(() => expect(api.importAttachments).toHaveBeenCalledTimes(1))
+    await act(async () => resolveImport({ ok: true, value: [{ path: 'assets/avatar.png' }] }))
+    await waitFor(() => expect(api.saveNote).toHaveBeenCalled())
+    expect(vi.mocked(api.saveNote).mock.calls.at(-1)?.[0]).toMatchObject({
+      path: 'user.md', expectedContent: profileNote.content, expectedModifiedAt: profileNote.modifiedAt
+    })
+    expect(vi.mocked(api.saveNote).mock.calls.at(-1)?.[0].force).not.toBe(true)
+    expect(vi.mocked(api.saveNote).mock.calls.at(-1)?.[0].content).toContain('Keep this body')
+  })
+
+  it('keeps unsaved profile edits when an avatar save conflicts', async () => {
+    let profileNote = { ...noteA, path: 'user.md', name: 'user', content: '---\nname: Test\n---\nOriginal' }
+    const profileSnapshot = () => ({ ...snapshot, notes: [profileNote] })
+    vi.mocked(api.openLastVault).mockImplementation(() => ok(profileSnapshot()))
+    vi.mocked(api.getSnapshot).mockImplementation(() => ok(profileSnapshot()))
+    vi.mocked(api.readNote).mockImplementation(() => ok(profileNote))
+    api.importAttachments = vi.fn(() => ok([{ path: 'assets/avatar.png' }]))
+    vi.mocked(api.saveNote).mockImplementation((input) => {
+      if (input.content.includes('icon:')) return Promise.resolve({ ok: false, error: { code: 'FILE_CHANGED', message: 'conflict' } })
+      profileNote = { ...profileNote, content: input.content, modifiedAt: profileNote.modifiedAt + 1 }
+      return ok(profileNote)
+    })
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'ノート活動' }))
+    fireEvent.click(screen.getByRole('button', { name: 'user.md を開く', exact: true }))
+    fireEvent.click(await screen.findByRole('button', { name: '編集', exact: true }))
+    const draft = '---\nname: Edited\n---\nMy unsaved draft'
+    fireEvent.change(screen.getByLabelText('Markdown編集欄'), { target: { value: draft } })
+    fireEvent.click(screen.getByRole('button', { name: 'ノート活動' }))
+    fireEvent.click(screen.getByRole('button', { name: 'アイコン画像を変更', exact: true }))
+    await screen.findByText('user.md の保存に失敗しました。')
+    expect(profileNote.content).toBe(draft)
+    expect(vi.mocked(api.saveNote).mock.calls.at(-1)?.[0].expectedContent).toBe(draft)
+    fireEvent.click(screen.getByRole('button', { name: 'ノートに戻る' }))
+    expect((screen.getByLabelText('Markdown編集欄') as HTMLTextAreaElement).value).toBe(draft)
+  })
+
   it('keeps the current note and explains when a calendar date has no daily note', async () => {
     const now = new Date()
     const day = now.getDate() === 4 ? 5 : 4
@@ -1621,6 +1681,22 @@ describe('App data-loss guards', () => {
         (screen.getByLabelText('Markdown編集欄') as HTMLTextAreaElement).value
       ).toBe('置換後の本文')
     })
+  })
+
+  it('keeps editing when a delayed file event still reads the known saved revision', async () => {
+    vi.mocked(api.readNote).mockResolvedValue(await ok({ ...noteA }))
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '編集' }))
+    const editor = await screen.findByLabelText('Markdown編集欄')
+    fireEvent.change(editor, { target: { value: '保持する編集中の本文' } })
+    act(() => { vaultChanged?.({ type: 'add', path: noteA.path }) })
+    await waitFor(() => expect(api.readNote).toHaveBeenCalledWith(noteA.path))
+    expect(screen.queryByRole('button', { name: '外部版を読み込む' })).toBeNull()
+    expect((screen.getByLabelText('Markdown編集欄') as HTMLTextAreaElement).value).toBe('保持する編集中の本文')
+    await waitFor(() => expect(api.saveNote).toHaveBeenCalledWith(expect.objectContaining({
+      path: noteA.path, content: '保持する編集中の本文', expectedContent: noteA.content,
+      expectedModifiedAt: noteA.modifiedAt
+    })), { timeout: 2000 })
   })
 
   it('keeps local text until an external change is explicitly overwritten', async () => {
@@ -1860,7 +1936,7 @@ describe('App data-loss guards', () => {
     await waitFor(() => expect(api.saveWorkspace).toHaveBeenCalledWith(
       savedCollection.scope,
       '調査',
-      namedSnapshot,
+      expectedSavedWorkspace(namedSnapshot),
       false
     ))
     expect(screen.queryByRole('dialog', { name: 'ワークスペース' })).toBeNull()
@@ -1949,7 +2025,7 @@ describe('App data-loss guards', () => {
       })
     )
     render(<App />)
-    await screen.findByText('左の一覧からノートを選ぶか、新しいノートを作成してください。')
+    await screen.findByText('ノートを検索するか、左の一覧から選んでください。')
     fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
     const dialog = await screen.findByRole('dialog', { name: '操作を実行' })
     for (const label of ['編集', 'プレビュー', 'ローカルグラフ']) {

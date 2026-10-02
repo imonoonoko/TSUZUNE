@@ -27,10 +27,18 @@ describe('extractMarkdownHeadings', () => {
     expect(extractMarkdownHeadings(markdown).map((heading) => heading.title)).toEqual(['before', 'after'])
   })
 
-  it('excludes four-space and setext headings, and gives duplicate titles unique ids', () => {
+  it('excludes four-space indentation and gives duplicate titles unique ids', () => {
     const headings = extractMarkdownHeadings('    # indented\nsetext\n=======\n# same\n# same')
-    expect(headings.map((heading) => heading.title)).toEqual(['same', 'same'])
-    expect(new Set(headings.map((heading) => heading.id)).size).toBe(2)
+    expect(headings.map((heading) => heading.title)).toEqual(['setext', 'same', 'same'])
+    expect(new Set(headings.map((heading) => heading.id)).size).toBe(3)
+  })
+
+  it('anchors Setext headings at their title line after CRLF frontmatter', () => {
+    const markdown = '---\r\ntype: note\r\n---\r\nTitle\r\n=====\r\n\r\nSub\r\n---'
+    expect(extractMarkdownHeadings(markdown)).toMatchObject([
+      { title: 'Title', level: 1, line: 4, previewLine: 1, sourceOffset: markdown.indexOf('Title'), id: `heading-${markdown.indexOf('Title')}` },
+      { title: 'Sub', level: 2, line: 7, previewLine: 4, sourceOffset: markdown.indexOf('Sub'), id: `heading-${markdown.indexOf('Sub')}` }
+    ])
   })
 
   it('handles CRLF offsets', () => {

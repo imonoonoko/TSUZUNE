@@ -6,6 +6,7 @@ import { DEFAULT_GRAPH_FORCE_SETTINGS } from '../src/core/graph-layout'
 import { parseGraphForceSettings } from '../src/shared/graph-settings'
 import * as graphDisplayModule from '../src/shared/graph-display'
 import { DEFAULT_GRAPH_FILTER_SETTINGS } from '../src/shared/graph-filters'
+import { DEFAULT_HOTKEYS } from '../src/shared/hotkeys'
 import { DEFAULT_GRAPH_GROUPS } from '../src/shared/graph-groups'
 import { DEFAULT_GRAPH_VIEW_STATES } from '../src/shared/graph-view-state'
 
@@ -29,6 +30,14 @@ import {
 } from '../src/main/settings'
 
 describe('App settings', () => {
+  it('defaults automatic sync to off and persists enablement only for explicitly selected Vaults', async () => {
+    await updateSettings({ driveAutoSyncByVault: { 'C:/A': true, 'C:/B': false } })
+    expect((await readSettings()).driveAutoSyncByVault).toEqual({ 'C:/A': true })
+    await updateSettings({ lastNotePath: 'Home.md' })
+    expect((await readSettings()).driveAutoSyncByVault).toEqual({ 'C:/A': true })
+    await writeFile(join(appData.path, 'settings.json'), JSON.stringify({ driveAutoSyncByVault: { 'C:/A': 'true', 'C:/B': 1, 'C:/C': true } }))
+    expect((await readSettings()).driveAutoSyncByVault).toEqual({ 'C:/C': true })
+  })
   beforeEach(async () => {
     appData.path = await mkdtemp(join(tmpdir(), 'tsuzune-settings-'))
   })
@@ -57,6 +66,7 @@ describe('App settings', () => {
     )
 
     await expect(readSettings()).resolves.toEqual({
+      hotkeys: DEFAULT_HOTKEYS,
       lastVaultPath: 'C:/Vault',
       lastNotePath: 'A.md',
       graphForces: DEFAULT_GRAPH_FORCE_SETTINGS,
@@ -89,6 +99,7 @@ describe('App settings', () => {
     await updateSettings({ graphFilters })
 
     await expect(readSettings()).resolves.toEqual({
+      hotkeys: DEFAULT_HOTKEYS,
       lastVaultPath: 'C:/Vault',
       lastNotePath: 'A.md',
       graphForces: DEFAULT_GRAPH_FORCE_SETTINGS,
@@ -232,6 +243,7 @@ describe('App settings', () => {
     expect(
       JSON.parse(await readFile(join(appData.path, 'settings.json'), 'utf8'))
     ).toEqual({
+      hotkeys: DEFAULT_HOTKEYS,
       lastVaultPath: 'C:/Vault',
       lastNotePath: 'A.md',
       graphForces,

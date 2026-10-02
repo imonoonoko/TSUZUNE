@@ -30,8 +30,8 @@ function tableTools(markdown) {
   return [...markdown.matchAll(/^\| `([^`]+)` \|/gm)].map((match) => match[1])
 }
 
-assert(commonTools.length === 19, `Expected 19 common tools, got ${commonTools.length}.`)
-assert(directTools.length === 21, `Expected 21 direct tools, got ${directTools.length}.`)
+assert(commonTools.length === 25, `Expected 25 common tools, got ${commonTools.length}.`)
+assert(directTools.length === 27, `Expected 27 direct tools, got ${directTools.length}.`)
 assert(
   new Set(directTools).size === directTools.length,
   'MCP tool catalog contains duplicate names.'

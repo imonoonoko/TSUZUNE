@@ -3,14 +3,15 @@ import { resolve } from 'node:path'
 import {
   emptyVaultWorkspaces,
   MAX_NAMED_WORKSPACES,
-  parseVaultWorkspacesV1,
+  parseVaultWorkspaces,
   parseWorkspaceName,
   parseWorkspaceScope,
-  parseWorkspaceSnapshotV1,
-  type VaultWorkspacesV1,
+  parseWorkspaceSnapshot,
+  type VaultWorkspacesV2,
   type WorkspaceCollection,
   type WorkspaceScope,
-  type WorkspaceSnapshotV1
+  type WorkspaceSnapshotV1,
+  type WorkspaceSnapshotV2
 } from '../shared/workspace-state'
 import { readRawSettingsForUpdate, writeRawSettings } from './settings'
 import { VaultError, type VaultService } from './vault'
@@ -45,16 +46,16 @@ function workspaceMap(raw: Record<string, unknown>): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
-function stateFor(map: Record<string, unknown>, key: string): VaultWorkspacesV1 {
+function stateFor(map: Record<string, unknown>, key: string): VaultWorkspacesV2 {
   if (!Object.prototype.hasOwnProperty.call(map, key)) return emptyVaultWorkspaces()
   return parseInput(
-    parseVaultWorkspacesV1,
+    parseVaultWorkspaces,
     map[key],
     'このVaultの保存済みワークスペースを読み込めません。'
   )
 }
 
-function sameSnapshot(left: WorkspaceSnapshotV1, right: WorkspaceSnapshotV1): boolean {
+function sameSnapshot(left: WorkspaceSnapshotV2, right: WorkspaceSnapshotV2): boolean {
   return JSON.stringify(left) === JSON.stringify(right)
 }
 
@@ -131,7 +132,7 @@ export class WorkspaceService {
   async saveWorkspace(
     scopeValue: WorkspaceScope,
     nameValue: string,
-    snapshotValue: WorkspaceSnapshotV1,
+    snapshotValue: WorkspaceSnapshotV1 | WorkspaceSnapshotV2,
     replaceExisting: boolean
   ): Promise<WorkspaceCollection> {
     const scope = await this.assertScope(scopeValue)
@@ -145,7 +146,7 @@ export class WorkspaceService {
       )
     }
     const snapshot = parseInput(
-      parseWorkspaceSnapshotV1,
+      parseWorkspaceSnapshot,
       snapshotValue,
       'ワークスペースの内容が不正です。'
     )
@@ -179,7 +180,7 @@ export class WorkspaceService {
             : 0
         : right.savedAt.localeCompare(left.savedAt)
     )
-    const state: VaultWorkspacesV1 = { ...current, named }
+    const state: VaultWorkspacesV2 = { ...current, named }
     await this.assertScope(scope)
     await writeRawSettings({
       ...raw,
@@ -205,7 +206,7 @@ export class WorkspaceService {
     if (!current.named.some((item) => item.name === name)) {
       throw new VaultError({ code: 'NOT_FOUND', message: 'ワークスペースが見つかりません。' })
     }
-    const state: VaultWorkspacesV1 = {
+    const state: VaultWorkspacesV2 = {
       ...current,
       named: current.named.filter((item) => item.name !== name)
     }
@@ -219,11 +220,11 @@ export class WorkspaceService {
 
   async saveLastWorkspaceSession(
     scopeValue: WorkspaceScope,
-    snapshotValue: WorkspaceSnapshotV1
+    snapshotValue: WorkspaceSnapshotV1 | WorkspaceSnapshotV2
   ): Promise<null> {
     const scope = await this.assertScope(scopeValue)
     const snapshot = parseInput(
-      parseWorkspaceSnapshotV1,
+      parseWorkspaceSnapshot,
       snapshotValue,
       'ワークスペースの内容が不正です。'
     )
@@ -234,7 +235,7 @@ export class WorkspaceService {
       await this.assertScope(scope)
       return null
     }
-    const state: VaultWorkspacesV1 = { ...current, lastSession: snapshot }
+    const state: VaultWorkspacesV2 = { ...current, lastSession: snapshot }
     await this.assertScope(scope)
     await writeRawSettings({
       ...raw,

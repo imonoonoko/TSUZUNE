@@ -1,4 +1,5 @@
 import { commonmarkLanguage } from '@codemirror/lang-markdown'
+import { decodeString } from 'micromark-util-decode-string'
 import { resolveIndexedWikiLink, type WikiLinkIndex } from './links'
 import { dirnameRelative, withoutMarkdownExtension } from './paths'
 import type { NoteDocument } from '../shared/types'
@@ -38,7 +39,7 @@ export function rewriteMovedLinks(
   const singleQuotedValues: Array<{ from: number; to: number }> = []
   commonmarkLanguage.parser.parse(content).iterate({
     enter(node) {
-      if (['FencedCode', 'CodeBlock', 'InlineCode', 'CommentBlock', 'HTMLBlock', 'HTMLTag', 'LinkTitle'].includes(node.name)) {
+      if (['FencedCode', 'CodeBlock', 'InlineCode', 'Comment', 'CommentBlock', 'HTMLBlock', 'HTMLTag', 'LinkTitle'].includes(node.name)) {
         ignored.push({ from: node.from, to: node.to })
         return false
       }
@@ -120,20 +121,31 @@ export function rewriteMovedLinks(
     let from = span.from
     let to = span.to
     if (content[from] === '<' && content[to - 1] === '>') { from++; to-- }
-    const raw = content.slice(from, to)
+    const original = content.slice(from, to)
+    const raw = decodeString(original)
     const fragment = raw.indexOf('#')
     const path = fragment < 0 ? raw : raw.slice(0, fragment)
     if (!path || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(path) || /[?\\]/.test(path)) continue
     let decoded: string
     try { decoded = decodeURIComponent(path) } catch { continue }
     const resolved = localPath(dirnameRelative(note.path), decoded)
-    if (resolved?.toLowerCase() !== source.toLowerCase()) continue
+    if (!resolved) continue
+    const incoming = resolved.toLowerCase() === source.toLowerCase()
+    // The moving source needs every relative destination rebased, including missing assets.
+    if (!incoming && (note.path !== source || path.startsWith('/'))) continue
+    const target = incoming ? destination : resolved
     const base = dirnameRelative(note.path === source ? destination : note.path)
-    const replacement = path.startsWith('/') ? `/${destination}` : relativePath(base, destination)
+    const replacement = path.startsWith('/') ? `/${target}` : relativePath(base, target)
     const encoded = replacement.split('/').map(part =>
       encodeURIComponent(part).replace(/[!'()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
     ).join('/')
-    edits.push({ from, to: from + path.length, text: (path.startsWith('./') ? './' : '') + encoded })
+    // Find the original fragment delimiter, including escaped/entity forms.
+    // Preserve its bytes so encoded spaces/parentheses cannot break Markdown.
+    const fragmentToken = fragment < 0 ? undefined : Array.from(original.matchAll(
+      /\\[!-/:-@[-`{-~]|&(?:#(?:\d{1,7}|x[\da-f]{1,6})|[\da-z]{1,31});|[\s\S]/gi
+    )).find(token => decodeString(token[0]).includes('#'))
+    edits.push({ from, to, text: (path.startsWith('./') ? './' : '') + encoded +
+      (fragmentToken ? original.slice(fragmentToken.index) : '') })
   }
   return edits.sort((a, b) => b.from - a.from).reduce(
     (text, edit) => text.slice(0, edit.from) + edit.text + text.slice(edit.to), content

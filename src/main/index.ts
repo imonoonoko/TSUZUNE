@@ -3,6 +3,8 @@ import electronUpdater from 'electron-updater'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { basename, isAbsolute, join } from 'node:path'
 import { DriveSyncService } from './drive-sync-service'
+import { DriveAutoSync } from './drive-auto-sync'
+import { readSettings } from './settings'
 import { GoogleConnectionService } from './google-connection'
 import { runGoogleOAuthLoopback } from './google-oauth-flow'
 import { registerIpc, runEntryMoveInOrder, runGoogleInOrder } from './ipc'
@@ -53,11 +55,13 @@ let quitRequested = false
 let driveSyncBridge: DriveSyncBridge | null = null
 let browserClipBridge: BrowserClipBridge | null = null
 let tray: Tray | null = null
+let driveAutoSync: DriveAutoSync | null = null
 
 const vault = new VaultService()
 const attachmentWindows = new Set<BrowserWindow>()
 const watcher = new VaultWatcher((change) => {
   mainWindow?.webContents.send('vault:changed', change)
+  driveAutoSync?.notifyLocalChange()
 })
 
 function escapeHtml(value: string): string {
@@ -113,6 +117,11 @@ function createWindow(): void {
       sandbox: true,
       backgroundThrottling: process.env.TSUZUNE_HEADLESS_SMOKE !== '1'
     }
+  })
+
+  // Restore Chromium's input focus together with the native window on Windows.
+  mainWindow.on('focus', () => {
+    mainWindow?.webContents.focus()
   })
 
   mainWindow.once('ready-to-show', () => {
@@ -269,6 +278,20 @@ if (singleInstanceLock) {
     connection: googleConnection
   })
   const entryMove = new EntryMoveCoordinator({ vault, drive: driveSync })
+  driveAutoSync = new DriveAutoSync({
+    context: async () => {
+      const rootPath = vault.getRootPath()
+      const settings = await readSettings()
+      const connection = await googleConnection.getStatus()
+      const metadata = await driveSync.getStatusMetadata(rootPath)
+      return { rootPath, enabled: Boolean(rootPath && settings.driveAutoSyncByVault?.[rootPath] === true),
+        connected: connection.connected && connection.authorizedFeatures.includes('drive_sync'), lastSyncAt: metadata.lastSyncAt }
+    },
+    sync: driveSync,
+    runExclusive: runEntryMoveInOrder,
+    onStatus: (status) => mainWindow?.webContents.send('drive:autoStatusChanged', status)
+  })
+  driveAutoSync.start()
   registerCalendarPluginProtocol(() => vault.getRootPath(), {
     bootstrap: calendarBootstrapSource,
     commonjs: calendarCommonJsSource,
@@ -294,7 +317,8 @@ if (singleInstanceLock) {
     watcher,
     {
       connection: googleConnection,
-      driveSync
+      driveSync,
+      autoSync: driveAutoSync
     },
     updates,
     () => mainWindow,
@@ -365,6 +389,7 @@ if (singleInstanceLock) {
   })
 
   app.on('window-all-closed', () => {
+    driveAutoSync?.stop()
     if (process.platform !== 'darwin') {
       void Promise.all([
         watcher.stop(),

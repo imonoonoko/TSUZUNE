@@ -33,6 +33,7 @@ export interface RendererSearchClause {
   kind: 'term' | 'tag' | 'path' | 'file' | 'category' | 'topic' | 'type' | 'role' | 'lifecycle'
   value: string
   negated: boolean
+  quoted?: true
 }
 
 function plainTokenEnd(query: string, start: number): number {
@@ -98,7 +99,8 @@ export function parseRendererSearchQuery(rawQuery: string): RendererSearchClause
         clauses.push({
           kind: 'term',
           value: rawQuery.slice(valueStart + 1, closingQuote),
-          negated
+          negated,
+          quoted: true
         })
         index = closingQuote + 1
         continue
@@ -147,6 +149,32 @@ function excerptFor(content: string, query: string, fallbackTerms: string[] = []
   const prefix = start > 0 ? '…' : ''
   const suffix = end < content.length ? '…' : ''
   return `${prefix}${content.slice(start, end).replace(/\s+/g, ' ').trim()}${suffix}`
+}
+
+/** Locate the unformatted source behind a search preview without using normalized offsets. */
+export function searchSourceExcerpt(content: string, rawQuery: string) {
+  const clauses = parseRendererSearchQuery(rawQuery).filter(clause => clause.kind === 'term' && !clause.negated)
+  const terms = clauses.flatMap(clause => clause.quoted || /\s/.test(clause.value) ? [clause.value] : segmentJapaneseQuery(clause.value))
+  const query = clauses[0]?.value
+  const offsets: number[] = []
+  let original = 0
+  for (const point of content) {
+    for (let i=0;i<normalized(point).length;i++) offsets.push(original)
+    original += point.length
+  }
+  offsets.push(content.length)
+  const lower = normalized(content)
+  let index = query ? lower.indexOf(normalized(query)) : -1
+  let matchLength = query ? normalized(query).length : 0
+  if (index<0) for (const term of terms) {
+    const next=lower.indexOf(normalized(term))
+    if(next>=0 && (index<0 || next<index || next===index && term.length>matchLength)) {index=next;matchLength=normalized(term).length}
+  }
+  let start = index<0 ? 0 : Math.max(0,offsets[index]-45)
+  let end = index<0 ? Math.min(120,content.length) : Math.min(content.length,offsets[index+matchLength]+75)
+  if(start>0 && /[\uDC00-\uDFFF]/.test(content[start])) start--
+  if(end<content.length && /[\uD800-\uDBFF]/.test(content[end-1])) end--
+  return {text:content.slice(start,end),start,end,match_start:index<0 ? 0 : offsets[index],kind:index<0 ? 'fallback_preview' as const : 'body_match' as const}
 }
 
 function scoreTerm(note: NoteDocument, query: string): number {
@@ -324,7 +352,7 @@ export function searchRendererRanked(notes: NoteDocument[], rawQuery: string): S
       }
 
       const groupTerms = positiveClauses.map((clause) =>
-        /\s/.test(clause.value)
+        clause.quoted || /\s/.test(clause.value)
           ? [normalized(clause.value)]
           : segmentJapaneseQuery(clause.value)
       )

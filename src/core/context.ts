@@ -5,6 +5,7 @@ import {
   resolveWikiLink
 } from './links'
 import { parseFrontmatter } from './frontmatter'
+import { extractMarkdownHeadings } from './markdown-headings'
 import { withoutMarkdownExtension } from './paths'
 import { segmentJapaneseQuery } from './search'
 import {
@@ -113,6 +114,18 @@ export interface ContextBundleOptions {
   query?: string
   temporalPerspective?: TemporalPerspective
   pathAliases?: CompiledPathAliases
+  /** Internal consumer hook; preserves the public single-seed bundle shape. */
+  onRenderedSources?: (sources: ContextRenderedSource[]) => void
+}
+
+export interface ContextRenderedSource {
+  note: NoteDocument
+  source: Omit<ContextSource, 'truncated'>
+  prefix: string
+  body: string
+  suffix: string
+  /** Original heading positions, in the emitted projection's heading order. */
+  headingSourceOffsets?: number[]
 }
 
 export interface ContextSnapshotIndex {
@@ -135,7 +148,7 @@ function projectQuerySections(
   note: NoteDocument,
   query: string,
   maxContentCharacters: number
-): { note: NoteDocument; projected: boolean; budgetClipped: boolean } {
+): { note: NoteDocument; projected: boolean; budgetClipped: boolean; headingSourceOffsets?: number[] } {
   const parsed = parseFrontmatter(note.content)
   const body = parsed.body
   const headings = [
@@ -279,7 +292,10 @@ function projectQuerySections(
         return [
           {
             heading: newline >= 0 ? text.slice(0, newline).trim() : text,
-            body: newline >= 0 ? text.slice(newline + 1).trim() : ''
+            body: newline >= 0 ? text.slice(newline + 1).trim() : '',
+            sourceOffset: section.start,
+            bodySourceOffset: section.start + body.slice(section.start).search(/\S/) + newline + 1 +
+              (newline >= 0 ? text.slice(newline + 1).length - text.slice(newline + 1).trimStart().length : 0)
           }
         ]
       }
@@ -288,7 +304,9 @@ function projectQuerySections(
         ? [
             {
               heading: `${'#'.repeat(section.level)} ${section.title}`,
-              body: ''
+              body: '',
+              sourceOffset: section.start,
+              bodySourceOffset: section.start
             }
           ]
         : []
@@ -297,11 +315,39 @@ function projectQuerySections(
     .map(({ heading, body }) => [heading, body].filter(Boolean).join('\n\n'))
     .join('\n\n')
   const fullProjection = [parsed.raw, fullBody].filter(Boolean).join('\n\n')
+  const projectionHeadingOffsets = (content: string, bodyBudgets?: Map<number, number>) => {
+    let position = parsed.raw ? parsed.raw.length + 2 : 0
+    const bodyOffset = note.content.length - body.length
+    const spans: Array<{ start: number; end: number; sourceOffset: number }> = []
+    projectedSections.forEach((section, index) => {
+      spans.push({ start: position, end: position + section.heading.length, sourceOffset: bodyOffset + section.sourceOffset })
+      position += section.heading.length
+      const text = section.body.slice(0, bodyBudgets?.get(index) ?? section.body.length)
+      if (text) {
+        position += 2
+        spans.push({ start: position, end: position + text.length, sourceOffset: bodyOffset + section.bodySourceOffset })
+        position += text.length
+      }
+      position += 2
+    })
+    const originalHeadings = extractMarkdownHeadings(note.content)
+    return extractMarkdownHeadings(content).map((heading) => {
+      const span = spans.find((candidate) => heading.sourceOffset >= candidate.start && heading.sourceOffset < candidate.end)
+      if (!span) return -1
+      const sourceOffset = span.sourceOffset + (heading.sourceOffset - span.start)
+      // Trimming a branch body may remove heading indentation; retain the original line start.
+      return originalHeadings.find((original) => {
+        const lineEnd = note.content.indexOf('\n', original.sourceOffset)
+        return sourceOffset >= original.sourceOffset && sourceOffset <= (lineEnd < 0 ? note.content.length : lineEnd)
+      })?.sourceOffset ?? -1
+    })
+  }
   if (fullProjection.length <= maxContentCharacters) {
     return {
       note: { ...note, content: fullProjection },
       projected: true,
-      budgetClipped: false
+      budgetClipped: false,
+      headingSourceOffsets: projectionHeadingOffsets(fullProjection)
     }
   }
 
@@ -337,11 +383,12 @@ function projectQuerySections(
       content: compactProjection.slice(0, compactContentBudget)
     },
     projected: true,
-    budgetClipped: true
+    budgetClipped: true,
+    headingSourceOffsets: projectionHeadingOffsets(compactProjection.slice(0, compactContentBudget), budgetByIndex)
   }
 }
 
-function allocateSectionBudgets(
+export function allocateSectionBudgets(
   sectionLengths: number[],
   totalBudget: number
 ): number[] {
@@ -429,7 +476,7 @@ export function createContextSnapshotIndex(
   const backlinkPaths = new Map<string, string[]>()
 
   for (const note of notes) {
-    const outgoing = getOutgoingLinks(note.content, notes, pathAliases)
+    const outgoing = getOutgoingLinks(note.content, notes, pathAliases, note.path)
     outgoingByPath.set(note.path, outgoing)
     for (const link of outgoing) {
       if (
@@ -507,7 +554,7 @@ function buildContextBundleInternal(
   const seedIsMoc = isMocNote(seed)
   const seedOutgoingLinks = seedIsMoc
     ? snapshot?.outgoingByPath.get(seed.path) ??
-      getOutgoingLinks(seed.content, notes, pathAliases)
+      getOutgoingLinks(seed.content, notes, pathAliases, seed.path)
     : undefined
   const seedTemporal = parseContextTemporalNote(
     seed,
@@ -577,6 +624,7 @@ function buildContextBundleInternal(
   let projectedContextSeed = contextSeed
   let seedWasQueryProjected = false
   let seedWasBudgetClipped = false
+  let seedHeadingSourceOffsets: number[] | undefined
   if (seedIsUnscoped) {
     omittedNormalPaths.add(seed.path)
   }
@@ -618,7 +666,7 @@ function buildContextBundleInternal(
   const outgoingNotes = (
     allowRelatedNormalMetadata
       ? snapshot?.outgoingByPath.get(seed.path) ??
-        getOutgoingLinks(seed.content, notes, pathAliases)
+        getOutgoingLinks(seed.content, notes, pathAliases, seed.path)
       : []
   )
     .flatMap((link) => {
@@ -953,7 +1001,7 @@ function buildContextBundleInternal(
         displayNote = projectMocTitles(
           candidate.note,
           snapshot?.outgoingByPath.get(candidate.note.path) ??
-            getOutgoingLinks(candidate.note.content, notes, pathAliases)
+            getOutgoingLinks(candidate.note.content, notes, pathAliases, candidate.note.path)
         )
         candidate.source.contentMode = 'moc_index'
       }
@@ -961,6 +1009,7 @@ function buildContextBundleInternal(
       const prefix = `\n${parts.prefix}`
       return {
         candidate,
+        note: displayNote,
         parts,
         prefix,
         section: `${prefix}${parts.body}${candidate.source.relation === 'seed' && seedWasBudgetClipped ? TRUNCATION_MARKER : ''}${parts.suffix}`
@@ -998,6 +1047,7 @@ function buildContextBundleInternal(
     projectedContextSeed = projection.note
     seedWasQueryProjected = projection.projected
     seedWasBudgetClipped = projection.budgetClipped
+    seedHeadingSourceOffsets = projection.headingSourceOffsets
     if (seedWasQueryProjected) {
       candidates[0].note = projectedContextSeed
       candidates[0].source.contentMode = 'section_projection'
@@ -1005,6 +1055,14 @@ function buildContextBundleInternal(
       renderedCandidates = renderCandidates()
     }
   }
+  options.onRenderedSources?.(renderedCandidates.map(({ candidate, note, prefix, parts }) => ({
+    note,
+    source: candidate.source,
+    prefix,
+    body: parts.body,
+    suffix: parts.suffix,
+    ...(candidate.source.relation === 'seed' && seedHeadingSourceOffsets ? { headingSourceOffsets: seedHeadingSourceOffsets } : {})
+  })))
   const isProtected = ({ candidate }: (typeof renderedCandidates)[number]) =>
     candidate.source.relation === 'seed' ||
     candidate.source.temporalStatus !== undefined ||

@@ -404,4 +404,33 @@ describe('MarkdownEditor properties', () => {
       value.replace('status: active', 'status: "complete"')
     )
   })
+
+  it('edits a declared date with a native date input while keeping YAML text', () => {
+    const onChange = vi.fn()
+    const value = '---\ndue: "2026-09-30" # schedule\n---\nBody'
+    render(<MarkdownEditor value={value} onChange={onChange} declaredTypes={{ due: 'date' }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'dueを編集' }))
+    const field = screen.getByLabelText('dueの値') as HTMLInputElement
+    expect(field.type).toBe('date')
+    fireEvent.change(field, { target: { value: '2026-10-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'dueの変更を確定' }))
+    expect(onChange).toHaveBeenCalledWith(value.replace('2026-09-30', '2026-10-01'))
+  })
+
+  it('preserves datetime seconds, fraction and offset and rejects invalid input', () => {
+    const onChange = vi.fn()
+    const value = '---\nwhen: "2026-09-30T12:34:56.123+09:00"\n---\nBody'
+    render(<MarkdownEditor value={value} onChange={onChange} declaredTypes={{ when: 'datetime' }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'whenを編集' }))
+    const field = screen.getByRole('textbox', { name: 'whenの値' }) as HTMLInputElement
+    expect(field.type).toBe('text')
+    expect(field.value).toBe('2026-09-30T12:34:56.123+09:00')
+    fireEvent.change(field, { target: { value: '2026-09-30T25:00Z' } })
+    fireEvent.click(screen.getByRole('button', { name: 'whenの変更を確定' }))
+    expect(onChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toContain('invalid')
+    fireEvent.change(field, { target: { value: '2026-10-01T01:02:03.456-04:00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'whenの変更を確定' }))
+    expect(onChange).toHaveBeenCalledWith(value.replace('2026-09-30T12:34:56.123+09:00', '2026-10-01T01:02:03.456-04:00'))
+  })
 })
