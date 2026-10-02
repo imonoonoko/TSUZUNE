@@ -40,7 +40,7 @@
 
 extractNoteLinksはCommonMark treeを除外range計算でも共有し、リンク記号のない本文を解析前に返す。既存react-markdown配下のmicromark-util-decode-string 2.0.1を直接依存として宣言し、同じMarkdown文字参照処理をstructural linksと移動で再利用した。新しいpackageはインストールしない。移動先だけを書き換え、fragmentの元bytesを保つ。
 
-同じ疎なfixtureのgetBacklinks中央値は500件187.96→19.04 ms、2,000件664.33→43.11 ms。結果hashは両サイズ一致。warm Node、3試行、500件10結果／2,000件40結果。process high-water RSSは約81.8→72.7 MiB／99.3→82.5 MiBだがElectronの常駐RAM比較ではない。証拠はwork/performance-20261002/github-review/{baseline,optimized}-links.jsonとmeasure-links.mjs。
+同じ疎なfixtureのgetBacklinks中央値は500件187.96→21.70 ms、2,000件664.33→48.41 ms。結果hashは両サイズ一致。warm Node、3試行、500件10結果／2,000件40結果。process high-water RSSは約81.8→74.6 MiB／99.3→84.8 MiBだがElectronの常駐RAM比較ではない。証拠はwork/performance-20261002/github-review/{baseline,optimized}-links.jsonとmeasure-links.mjs。
 
 500件fresh isolated profileの実Electronで3回のDOMクリック切替は、直前installed中央値112.3 ms→候補31.4 ms。fixture本文不変、通常Vaultを開かない。GC後renderer heapは11,363,680→11,339,916 bytesでほぼ同じ。fixture親processと子processのみのOS memory snapshotはworking set合計448,716,800→427,073,536 bytes、private bytes332,660,736→308,498,432 bytes。process数は各4。共有pageの重複計上、単一snapshot、候補runtimeとinstalledの違いを含むため一般的な削減率を保証しない。最終installed観測は同作業のexcluded証拠に残す。
 
