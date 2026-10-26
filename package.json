@@ -136,7 +136,7 @@
     "esbuild": "0.25.12",
     "jsdom": "29.1.1",
     "typescript": "5.9.3",
-    "vite": "7.3.6",
+    "vite": "7.3.7",
     "vitest": "4.1.10"
   },
   "build": {
