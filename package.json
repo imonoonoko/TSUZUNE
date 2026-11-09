@@ -103,7 +103,7 @@
   },
   "dependencies": {
     "@codemirror/lang-markdown": "6.5.1",
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/sdk": "1.32.0",
     "chokidar": "5.0.0",
     "codemirror": "6.0.2",
     "d3-force": "3.0.0",
