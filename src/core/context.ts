@@ -718,7 +718,10 @@ function buildContextBundleInternal(
 
   const backlinkNotes = allowRelatedNormalMetadata
     ? (snapshot?.backlinksByPath.get(seed.path) ??
-        getBacklinks(seed.path, notes, pathAliases, options.linkCache)).filter((note) =>
+        // These sources are always rejected by isSafeNormalContextNote. Keep
+        // them in the resolver and timeline so ambiguity/history stay intact.
+        getBacklinks(seed.path, notes, pathAliases, options.linkCache,
+          notes.filter(note => !note.path.startsWith('50_履歴/AI更新/')))).filter((note) =>
         isSafeNormalContextNote(
           note,
           warnings,

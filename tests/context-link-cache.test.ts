@@ -5,6 +5,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { commonmarkLanguage } from '@codemirror/lang-markdown'
 import { VaultMcpService } from '../src/mcp/service'
 import { NoteLinkCache } from '../src/core/note-link-cache'
+import { buildContextBundle, buildContextBundleFromSnapshot, createContextSnapshotIndex } from '../src/core/context'
+import type { NoteDocument } from '../src/shared/types'
 
 let root: string
 let service: VaultMcpService
@@ -32,6 +34,93 @@ it('reuses unchanged link parsing across context requests without changing the r
   expect(warm).toEqual(cold)
   expect(parse.mock.calls.length).toBeLessThan(coldCalls / 2)
   expect(await readFile(join(root, 'Home.md'), 'utf8')).toBe('# Home\n\n[[Target]]')
+})
+
+it('skips legacy AI-update backlink syntax while keeping history targets in link resolution', async () => {
+  await mkdir(join(root, '50_履歴/AI更新'), { recursive: true })
+  const legacy = '# Legacy\n\n[[Home]]\n\n解析不要の旧履歴'
+  await writeFile(join(root, '50_履歴/AI更新/Legacy.md'), legacy)
+  await writeFile(join(root, '50_履歴/Other.md'), '# Other\n\n[[Home]]')
+  await writeFile(join(root, '50_履歴/AI更新/Target.md'), '# Target\n\n曖昧さを保つ')
+  const parse = vi.spyOn(commonmarkLanguage.parser, 'parse')
+  const result = await service.buildContext('Home.md', 100_000)
+  expect(result.included.map(source => source.path)).toContain('50_履歴/Other.md')
+  expect(result.included.map(source => source.path)).not.toContain('Target.md')
+  expect(result.included.map(source => source.path)).not.toContain('50_履歴/AI更新/Legacy.md')
+  expect(parse.mock.calls.some(([text]) => text === legacy)).toBe(false)
+})
+
+it('keeps reusable syntax during repeated context scans larger than the entry cap', () => {
+  const notes: NoteDocument[] = Array.from({ length: 2060 }, (_, i) => ({
+    path: `Note-${i}.md`, name: `Note-${i}`, content: '# Note\n\n[[Note-0]]',
+    modifiedAt: 0, size: 20
+  }))
+  const cache = new NoteLinkCache()
+  const cold = buildContextBundle('Note-0.md', notes, { linkCache: cache })
+  const parse = vi.spyOn(commonmarkLanguage.parser, 'parse')
+  const warm = buildContextBundle('Note-0.md', notes, { linkCache: cache })
+  expect(warm).toEqual(cold)
+  expect(parse.mock.calls.length).toBeLessThan(32)
+})
+
+it('preserves history temporal entries, warnings and full-snapshot resolutions', () => {
+  const doc = (path: string, content: string): NoteDocument => ({
+    path, name: path.split('/').at(-1)!.slice(0, -3), content, modifiedAt: 0, size: content.length
+  })
+  const notes = [
+    doc('Home.md', '# Home\n\n[[Target]]'),
+    doc('Target.md', '# Target'),
+    doc('50_履歴/AI更新/Target.md', '# Duplicate target\n\n[[Home]]'),
+    doc('50_履歴/AI更新/State.md', '---\nkind: state\nsubject: "[[Home]]"\nstatus: active\nvalid_from: 2026-07-01\nobserved_at: 2026-07-02\nsource: "[[Missing]]"\n---\n# State\n\n[[Home]]'),
+    doc('Event.md', '---\nkind: event\nevent: check\nsubject: "[[Home]]"\noccurred_at: 2026-07-01\nobserved_at: 2026-07-02\nsource: "[[50_履歴/AI更新/Target]]"\n---\n# Event'),
+    doc('50_履歴/AI更新/Broken.md', '---\nkind: state\nvalid_from: invalid\n---\n[[Home]]'),
+    doc('50_履歴/Other.md', '# Other\n\n[[Home]]'),
+    doc('Broken.md', '---\nkind: state\nvalid_from: invalid\n---\n[[Home]]')
+  ]
+  const full = createContextSnapshotIndex(notes)
+  for (const includeHistory of [false, true]) {
+    for (const temporalPerspective of ['valid-time', 'knowledge-time'] as const) {
+      const options = { asOf: '2026-11-09', includeHistory, temporalPerspective }
+      const actual = buildContextBundle('Home.md', notes, options)
+      expect(actual).toEqual(buildContextBundleFromSnapshot('Home.md', full, options))
+      expect(actual.included.some(source => source.path === '50_履歴/AI更新/State.md')).toBe(true)
+      expect(actual.included.some(source => source.path === 'Target.md')).toBe(false)
+      expect(actual.included.find(source => source.path === 'Event.md')?.provenance)
+        .toMatchObject({ status: 'resolved', resolvedPath: '50_履歴/AI更新/Target.md' })
+      expect(actual.warnings.some(warning => warning.path === 'Broken.md')).toBe(true)
+    }
+  }
+})
+
+it.each([
+  { label: 'character', content: '[[Home]]' + 'x'.repeat(3_999_993) },
+  { label: 'occurrence', content: '[[Home]] '.repeat(25_001) }
+])('preserves bounded reuse when the $label limit is reached', ({ content }) => {
+  const cache = new NoteLinkCache()
+  cache.extract(content, 'First.md')
+  cache.extract(content, 'Second.md')
+  const parse = vi.spyOn(commonmarkLanguage.parser, 'parse')
+  cache.extract(content, 'First.md')
+  expect(parse).not.toHaveBeenCalled()
+  cache.extract(content, 'Second.md')
+  expect(parse).toHaveBeenCalledTimes(1)
+}, 15_000)
+
+it('releases edited and absent snapshot sources before admitting new syntax', () => {
+  const cache = new NoteLinkCache()
+  const notes: NoteDocument[] = Array.from({ length: 2048 }, (_, i) => ({
+    path: `N-${i}.md`, name: `N-${i}`, content: '[[Home]]', modifiedAt: 0, size: 8
+  }))
+  for (const note of notes) cache.extract(note.content, note.path)
+  notes.shift()
+  notes[0] = { ...notes[0], content: '[[Next]]' }
+  cache.retain(notes)
+  cache.extract('[[Next]]', 'N-1.md')
+  cache.extract('[[New]]', 'New.md')
+  const parse = vi.spyOn(commonmarkLanguage.parser, 'parse')
+  expect(cache.extract('[[Next]]', 'N-1.md')[0].target).toBe('Next')
+  expect(cache.extract('[[New]]', 'New.md')[0].target).toBe('New')
+  expect(parse).not.toHaveBeenCalled()
 })
 
 function fresh(): VaultMcpService {
@@ -123,7 +212,7 @@ it('uses current ignore settings and clears reuse when the selected Vault change
   }
 })
 
-it('does not let caller mutation change retained syntax, and reparses evicted entries', () => {
+it('does not let caller mutation or a full scan displace retained syntax', () => {
   const cache = new NoteLinkCache()
   const links = cache.extract('[[Home]]', 'Source.md')
   links[0].target = 'Wrong'
@@ -132,5 +221,7 @@ it('does not let caller mutation change retained syntax, and reparses evicted en
   for (let i = 0; i < 2048; i++) cache.extract('[[Home]]', `Note-${i}.md`)
   const parse = vi.spyOn(commonmarkLanguage.parser, 'parse')
   expect(cache.extract('[[Home]]', 'Source.md')[0].target).toBe('Home')
+  expect(parse).not.toHaveBeenCalled()
+  cache.extract('[[Home]]', 'Note-2047.md')
   expect(parse).toHaveBeenCalledTimes(1)
 })

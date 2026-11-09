@@ -447,10 +447,11 @@ export function getBacklinks(
   currentPath: string,
   notes: NoteDocument[],
   pathAliases?: CompiledPathAliases,
-  linkCache?: NoteLinkCache
+  linkCache?: NoteLinkCache,
+  sourceNotes: NoteDocument[] = notes
 ): NoteDocument[] {
   const index = buildWikiLinkIndex(notes, pathAliases)
-  return notes.filter((note) => {
+  return sourceNotes.filter((note) => {
     if (note.path === currentPath) {
       return false
     }
