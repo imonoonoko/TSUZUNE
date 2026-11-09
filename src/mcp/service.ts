@@ -611,6 +611,7 @@ export class VaultMcpService {
       this.linkCache.clear()
       this.contextVaultPath = snapshot.rootPath
     }
+    this.linkCache.retain(snapshot.notes)
     return this.linkCache
   }
 
