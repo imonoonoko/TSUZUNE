@@ -18,6 +18,7 @@ import {
   type TemporalTimelineEntry
 } from './temporal'
 import type { CompiledPathAliases } from './path-aliases'
+import type { NoteLinkCache } from './note-link-cache'
 import type { NoteDocument, ResolvedWikiLink } from '../shared/types'
 
 export type ContextRelation = 'seed' | 'outgoing' | 'backlink'
@@ -114,6 +115,7 @@ export interface ContextBundleOptions {
   query?: string
   temporalPerspective?: TemporalPerspective
   pathAliases?: CompiledPathAliases
+  linkCache?: NoteLinkCache
   /** Internal consumer hook; preserves the public single-seed bundle shape. */
   onRenderedSources?: (sources: ContextRenderedSource[]) => void
 }
@@ -469,14 +471,15 @@ function sourceSectionParts(
 
 export function createContextSnapshotIndex(
   notes: NoteDocument[],
-  pathAliases?: CompiledPathAliases
+  pathAliases?: CompiledPathAliases,
+  linkCache?: NoteLinkCache
 ): ContextSnapshotIndex {
   const noteByPath = new Map(notes.map((note) => [note.path, note]))
   const outgoingByPath = new Map<string, ResolvedWikiLink[]>()
   const backlinkPaths = new Map<string, string[]>()
 
   for (const note of notes) {
-    const outgoing = getOutgoingLinks(note.content, notes, pathAliases, note.path)
+    const outgoing = getOutgoingLinks(note.content, notes, pathAliases, note.path, linkCache)
     outgoingByPath.set(note.path, outgoing)
     for (const link of outgoing) {
       if (
@@ -554,7 +557,7 @@ function buildContextBundleInternal(
   const seedIsMoc = isMocNote(seed)
   const seedOutgoingLinks = seedIsMoc
     ? snapshot?.outgoingByPath.get(seed.path) ??
-      getOutgoingLinks(seed.content, notes, pathAliases, seed.path)
+      getOutgoingLinks(seed.content, notes, pathAliases, seed.path, options.linkCache)
     : undefined
   const seedTemporal = parseContextTemporalNote(
     seed,
@@ -666,7 +669,7 @@ function buildContextBundleInternal(
   const outgoingNotes = (
     allowRelatedNormalMetadata
       ? snapshot?.outgoingByPath.get(seed.path) ??
-        getOutgoingLinks(seed.content, notes, pathAliases, seed.path)
+        getOutgoingLinks(seed.content, notes, pathAliases, seed.path, options.linkCache)
       : []
   )
     .flatMap((link) => {
@@ -715,7 +718,7 @@ function buildContextBundleInternal(
 
   const backlinkNotes = allowRelatedNormalMetadata
     ? (snapshot?.backlinksByPath.get(seed.path) ??
-        getBacklinks(seed.path, notes, pathAliases)).filter((note) =>
+        getBacklinks(seed.path, notes, pathAliases, options.linkCache)).filter((note) =>
         isSafeNormalContextNote(
           note,
           warnings,
@@ -1001,7 +1004,7 @@ function buildContextBundleInternal(
         displayNote = projectMocTitles(
           candidate.note,
           snapshot?.outgoingByPath.get(candidate.note.path) ??
-            getOutgoingLinks(candidate.note.content, notes, pathAliases, candidate.note.path)
+            getOutgoingLinks(candidate.note.content, notes, pathAliases, candidate.note.path, options.linkCache)
         )
         candidate.source.contentMode = 'moc_index'
       }

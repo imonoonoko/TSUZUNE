@@ -76,7 +76,7 @@ export function buildContextSetFromSnapshot(
   const reserved = options.reservedCharacters ?? 0
   if (!Number.isInteger(reserved) || reserved<0 || reserved>requestedCharacters-500) throw new Error('Invalid metadata reserve.')
   const maxCharacters = requestedCharacters-reserved
-  const index = createContextSnapshotIndex(snapshot.notes, options.pathAliases ?? compilePathAliases(snapshot.pathAliases ?? {}))
+  const index = createContextSnapshotIndex(snapshot.notes, options.pathAliases ?? compilePathAliases(snapshot.pathAliases ?? {}), options.linkCache)
   const uniqueSeeds = [...new Map(seeds.map((seed) => [seed.path, seed])).values()].map((seed) => {
     const canonical = index.noteByPath.get(seed.path)
     if (!canonical) throw new Error(`ノートが見つかりません: ${seed.path}`)

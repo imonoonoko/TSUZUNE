@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { buildContextBundle, type ContextBundle } from '../core/context'
+import { NoteLinkCache } from '../core/note-link-cache'
 import {
   buildNoteCreationPath,
   getBacklinks,
@@ -600,7 +601,18 @@ function applyPatchOperations(
 }
 
 export class VaultMcpService {
+  private readonly linkCache = new NoteLinkCache()
+  private contextVaultPath = ''
+
   constructor(private readonly source: VaultSourceOptions = {}) {}
+
+  private contextLinks(snapshot: VaultSnapshot): NoteLinkCache {
+    if (this.contextVaultPath !== snapshot.rootPath) {
+      this.linkCache.clear()
+      this.contextVaultPath = snapshot.rootPath
+    }
+    return this.linkCache
+  }
 
   async vaultIdentity(): Promise<string> {
     const source = await resolveVaultSource(this.source)
@@ -1368,7 +1380,8 @@ export class VaultMcpService {
       asOf: options.asOf,
       query: options.query,
       temporalPerspective: options.temporalPerspective,
-      pathAliases: aliases
+      pathAliases: aliases,
+      linkCache: this.contextLinks(snapshot)
     })
     const notesByPath = new Map(
       snapshot.notes.map((source) => [source.path, source])
@@ -1463,6 +1476,7 @@ export class VaultMcpService {
     const referenceBudget = Math.floor(characterBudget(maxCharacters)/3)
     const bundle = buildContextSetFromSnapshot(visible, seeds, {
       maxCharacters, reservedCharacters:referenceBudget, ...options, pathAliases: aliases,
+      linkCache: this.contextLinks(visible),
       revisionFor: note => revisionFor(visible.rootPath, note)
     })
     const notes = new Map(visible.notes.map(note => [note.path, note]))
