@@ -15,6 +15,7 @@ import type { CompiledPathAliases } from './path-aliases'
 import { isSupportedAttachmentPath } from '../shared/attachments'
 import { commonmarkLanguage } from '@codemirror/lang-markdown'
 import { decodeString } from 'micromark-util-decode-string'
+import type { NoteLinkCache } from './note-link-cache'
 
 export interface SourceRange { from: number; to: number }
 export interface NoteLinkOccurrence extends WikiLinkOccurrence {
@@ -427,12 +428,13 @@ export function getOutgoingLinks(
   content: string,
   notes: NoteDocument[],
   pathAliases?: CompiledPathAliases,
-  sourcePath = ''
+  sourcePath = '',
+  linkCache?: NoteLinkCache
 ): ResolvedNoteLink[] {
   const unique = new Map<string, ResolvedNoteLink>()
   const index = buildWikiLinkIndex(notes, pathAliases)
 
-  for (const occurrence of extractNoteLinks(content, sourcePath)) {
+  for (const occurrence of linkCache?.extract(content, sourcePath) ?? extractNoteLinks(content, sourcePath)) {
     const resolved = resolvedWikiLink(occurrence.target, resolveIndexedNoteLink(occurrence, index))
     const key = `${occurrence.kind}:${occurrence.target.toLocaleLowerCase()}`
     if (!unique.has(key)) unique.set(key, { ...occurrence, ...resolved, alias: occurrence.alias })
@@ -444,7 +446,8 @@ export function getOutgoingLinks(
 export function getBacklinks(
   currentPath: string,
   notes: NoteDocument[],
-  pathAliases?: CompiledPathAliases
+  pathAliases?: CompiledPathAliases,
+  linkCache?: NoteLinkCache
 ): NoteDocument[] {
   const index = buildWikiLinkIndex(notes, pathAliases)
   return notes.filter((note) => {
@@ -452,7 +455,7 @@ export function getBacklinks(
       return false
     }
 
-    return extractNoteLinks(note.content, note.path).some(
+    return (linkCache?.extract(note.content, note.path) ?? extractNoteLinks(note.content, note.path)).some(
       (link) =>
         resolvedWikiLink(
           link.target,

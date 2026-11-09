@@ -171,6 +171,8 @@ FreebuffからVault直下の`.agents/mcp.json`で起動する場合は、引数�
 
 `included`の各sourceには、Contextを組み立てた同一snapshot時点の`revision`と`modified_at`が含まれます。取得根拠の監査や再取得要否の判断に使えますが、返却後の変更を防ぐものではありません。書き込み時は従来どおり、直前に`fetch`し直して得たrevisionを`expected_revision`へ渡してください。競合した場合は再取得した本文と変更意図を突き合わせ、更新案を作り直します。新しいrevisionだけを付けて古い全文を再送してはいけません。
 
+`build_context`と`build_context_set`は同じMCPプロセス内でリンクの構文解析結果を再利用します。ノートの相対パスと本文の完全一致を確認し、mtimeやサイズだけでは判定しません。各要求でVaultを読み直し、リンク先の解決、別名、除外設定、時点判定、出典revisionは現在のsnapshotから計算します。Vault切替とプロセス再起動では保持内容を捨てます。保持上限は2,048パス、本文合計8,000,000 UTF-16文字、リンク出現50,000件で、いずれかを超えると古い解析から破棄します。上限を超える全体走査では再利用効果が小さくなる場合があります。これはsnapshotやファイルI/Oのキャッシュではありません。[更新後の検証と比較計測](reports/context-link-reuse-2026-11-09.md)。
+
 `usage_receipt`は「候補になったこと」と「実際に使われたこと」を同一視しません。`context_candidates`はContext compilerが到達した`included + omitted_ids`、`context_included`は実際にbundleへ収録したsourceとして`observed`を返します。一方、別呼び出しの`search`結果との因果関係、回答での根拠引用、判断または操作への反映、結果検証はMCPサーバーから確認できないため、それぞれ`search_candidates`、`evidence_cited`、`decision_or_action`、`outcome_verified`を`not_observable`とします。このレシートは応答内だけの読み取り専用情報で、Vaultや別DBへ保存せず、検索順位・重要度・次回Context選定へ反映しません。
 
 `state_lineage`は、起点ノートの現在revisionと、同じsnapshot・`as_of`・`temporal_perspective`で確認できた状態由来を分けて返す読み取り専用レシートです。validなState Noteがあれば、`current_states`へ状態値・有効期間・検証日・再確認日・revisionを返し、現在Stateの明示的な単一`source`だけを`explicit_sources`、同一subject内で解決できた有効な単一`supersedes`だけを`supersession`へ載せます。異なる状態値が同時にcurrentなら`conflicts`へ全対象を残して勝手に優先せず、`freshness`は`review_after`を過ぎたかだけを`current`または`review_due`として示します。State Noteや明示関係がなければ空の事実として断定せず`unknown`とし、本文中の一般Wiki linkから証拠・判断を推測しません。判断記録を識別する統一schemaはないため`decision_records`は`not_observable`です。これは完全なevent sourcing、監査DB、証拠の強さ、意味的な鮮度を表さず、Vaultへの自動書き込みや検索順位にも影響しません。
