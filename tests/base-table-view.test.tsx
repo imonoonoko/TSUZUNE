@@ -67,4 +67,45 @@ describe('Base table and configuration controls', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open' })); expect(open).toHaveBeenCalledWith('A.md')
     expect(screen.getByText('local.png')).toBeTruthy()
   })
+  it('renders cards and filters them with the Base-local search box', () => {
+    const base = parseBaseProfile(`views:\n - {type: cards, name: Tasks, order: [file.name, status]}\n`)
+    if (!base.ok) throw new Error(base.diagnostics[0].message)
+    const notes = [note, { ...note, path: 'B.md', name: 'B.md', content: '---\nstatus: done\n---' }]
+    render(<BaseTableView state={{ status: 'ready', path: 'Tasks.base', profile: base.profile, evaluation: evaluateBase(base.profile, notes) }} onReload={vi.fn()} onOpenNote={vi.fn()} />)
+    expect(screen.getAllByRole('article')).toHaveLength(2)
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Base内を検索' }), { target: { value: 'done' } })
+    expect(screen.getAllByRole('article')).toHaveLength(1)
+    expect(screen.getByText('B.md')).toBeTruthy()
+  })
+  it('lets the profile editor switch a view to Kanban before previewing its saved YAML', async () => {
+    const preview = vi.fn().mockResolvedValue(true)
+    render(<BaseSettingsPanel content={content} profile={profile()} selectedView={0} onPreview={preview} onSave={vi.fn()} onClose={vi.fn()} />)
+    fireEvent.change(screen.getByRole('combobox', { name: '表示形式' }), { target: { value: 'kanban' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'グループProperty' }), { target: { value: 'status' } })
+    fireEvent.click(screen.getByRole('button', { name: '下書きをプレビュー' }))
+    await waitFor(() => expect(preview).toHaveBeenCalled())
+    expect(preview.mock.calls[0][0]).toContain('type: "kanban"')
+    expect(preview.mock.calls[0][0]).toContain('groupBy')
+  })
+  it('routes a Kanban card drop to the preview callback and disables dragging in read-only panes', () => {
+    const parsed = parseBaseProfile('views:\n - {type: kanban, name: Board, order: [file.name], groupBy: {property: status}}\n')
+    if (!parsed.ok) throw new Error(parsed.diagnostics[0].message)
+    const notes = [note, { ...note, path: 'B.md', name: 'B.md', content: '---\nstatus: done\n---' }]
+    const callback = vi.fn()
+    const state = { status: 'ready' as const, path: 'Board.base', profile: parsed.profile, evaluation: evaluateBase(parsed.profile, notes), notes, viewIndex: 0 }
+    const { container, rerender } = render(<BaseTableView state={state} onReload={vi.fn()} onOpenNote={vi.fn()} onMoveCard={callback} />)
+    const card = [...container.querySelectorAll('.base-card')].find(item => item.textContent?.includes('A.md')) as HTMLElement
+    expect(card.draggable).toBe(true)
+    const dataTransfer = { effectAllowed: 'none', types: ['application/x-tsuzune-kanban-card'], setData: vi.fn(), getData: vi.fn(() => 'A.md') }
+    const dragStart = new Event('dragstart', { bubbles: true, cancelable: true }); Object.defineProperty(dragStart, 'dataTransfer', { value: dataTransfer }); card.dispatchEvent(dragStart)
+    const drop = new Event('drop', { bubbles: true, cancelable: true }); Object.defineProperty(drop, 'dataTransfer', { value: dataTransfer }); container.querySelectorAll('.base-kanban-column')[0].dispatchEvent(drop)
+    expect(dataTransfer.setData).toHaveBeenCalledWith('application/x-tsuzune-kanban-card', 'A.md')
+    expect(callback).toHaveBeenCalledWith('A.md', { kind: 'set', property: 'status', value: { type: 'text', value: 'done' } })
+    callback.mockClear()
+    const unrelatedData = { effectAllowed: 'none', types: ['text/plain'], setData: vi.fn(), getData: vi.fn(() => 'A.md') }
+    const unrelatedDrop = new Event('drop', { bubbles: true, cancelable: true }); Object.defineProperty(unrelatedDrop, 'dataTransfer', { value: unrelatedData }); container.querySelectorAll('.base-kanban-column')[0].dispatchEvent(unrelatedDrop)
+    expect(callback).not.toHaveBeenCalled()
+    rerender(<BaseTableView state={state} onReload={vi.fn()} onOpenNote={vi.fn()} onMoveCard={callback} editingDisabled />)
+    expect((container.querySelector('.base-card') as HTMLElement).draggable).toBe(false)
+  })
 })

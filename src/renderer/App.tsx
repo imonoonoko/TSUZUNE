@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DriveAutoSyncSettings from './components/DriveAutoSyncSettings'
+import ImportDialog from './components/ImportDialog'
+import CanvasPathDialog from './components/CanvasPathDialog'
+import CanvasView from './components/CanvasView'
+import { useCanvasDocuments } from './useCanvasDocuments'
 import {
   buildNoteCreationPath,
   findLinkImpact,
@@ -287,6 +291,15 @@ export default function App(): React.JSX.Element {
   const nextTabIdRef = useRef(1)
   const workspaceCollectionRef = useRef<WorkspaceCollection | null>(null)
   const [workspaceCollection, setWorkspaceCollection] = useState<WorkspaceCollection | null>(null)
+  const [importScope, setImportScope] = useState<PropertyChangeScope | null>(null)
+  const importOpenerRef = useRef<HTMLButtonElement | null>(null)
+  const [canvasPicker, setCanvasPicker] = useState<{
+    paths: string[]; loading: boolean; error: string | null
+  } | null>(null)
+  const canvasOpenerRef = useRef<HTMLButtonElement | null>(null)
+  const canvas = useCanvasDocuments(workspaceCollection && snapshot
+    ? { rootPath: snapshot.rootPath, rootRevision: workspaceCollection.scope.rootRevision }
+    : null)
   const [rightSidebarView, setRightSidebarView] = useState<WorkspaceSnapshotV1['right']['view']>('links')
   const [workspaceMissingPaths, setWorkspaceMissingPaths] = useState<string[]>([])
   const [workspaceDialogMode, setWorkspaceDialogMode] = useState<'save' | 'open' | null>(null)
@@ -439,7 +452,21 @@ export default function App(): React.JSX.Element {
     Boolean(bookmarkPath) ||
     Boolean(captureKind) ||
     Boolean(workspaceDialogMode) ||
+    Boolean(importScope) ||
+    Boolean(canvasPicker) ||
     basePathDialogOpen
+  useEffect(() => {
+    if (modalOpen || busy) return
+    const opener = importOpenerRef.current
+    importOpenerRef.current = null
+    if (opener?.isConnected && !opener.disabled) opener.focus()
+  }, [modalOpen, busy])
+  useEffect(() => {
+    if (modalOpen || busy) return
+    const opener = canvasOpenerRef.current
+    canvasOpenerRef.current = null
+    if (opener?.isConnected) opener.focus()
+  }, [modalOpen, busy])
   const settingsDialogRef = useRef<HTMLElement | null>(null)
   const settingsDialogPreviousFocusRef = useRef<HTMLElement | null>(null)
   const workspaceDialogPreviousFocusRef = useRef<HTMLElement | null>(null)
@@ -713,7 +740,7 @@ export default function App(): React.JSX.Element {
       let activeIndex: number | null = null
       pane.tabs.forEach((tab, index) => {
         let next = tab
-        if ('path' in tab && tab.kind !== 'base') {
+        if ('path' in tab && tab.kind !== 'base' && tab.kind !== 'canvas') {
           const path = (tab.kind !== 'attachment' ? restoredLastNote(vault.notes, tab.path, vault.pathAliases)?.path : undefined)
             ?? (tab.kind !== 'note' ? vault.attachments?.find(item => item.path.toLocaleLowerCase() === tab.path.toLocaleLowerCase())?.path : undefined)
           if (!path) { missing.push(tab.path); return }
@@ -735,9 +762,8 @@ export default function App(): React.JSX.Element {
     const tabs: WorkspaceTab[] = []
     restored.tabs.forEach((tab, index) => {
       let path: string | null = null
-      if (tab.kind === 'base') {
-        // .base files are intentionally outside the Vault Markdown snapshot.
-        // Keep the tab and let the table state report a missing source.
+      if (tab.kind === 'base' || tab.kind === 'canvas') {
+        // Structured files are loaded separately from the Vault Markdown snapshot.
         path = tab.path
       } else if (tab.kind !== 'global-graph' && tab.kind !== 'global-properties') {
         path = tab.kind !== 'attachment'
@@ -1108,7 +1134,10 @@ export default function App(): React.JSX.Element {
     if (!beginOperation()) { window.tsuzune.confirmClose(false); return }
     try {
       clearWorkspaceTimer()
-      if (!(await flushSave()) || dirtyRef.current) {
+      if (!(await flushSave()) || dirtyRef.current || !(await canvas.flush())) {
+        if (Object.values(canvas.documents).some(document => document.dirty)) {
+          setMessage('Canvasを保存できませんでした。保存状態を確認してください。')
+        }
         window.tsuzune.confirmClose(false)
         return
       }
@@ -1376,7 +1405,8 @@ export default function App(): React.JSX.Element {
       return
     }
     const activeTab = workspaceTabs.find((tab) => tab.id === activeTabId)
-    if (activeTab?.kind === 'global-graph' || activeTab?.kind === 'global-properties' || activeTab?.kind === 'base') {
+    if (activeTab?.kind === 'global-graph' || activeTab?.kind === 'global-properties' ||
+        activeTab?.kind === 'base' || activeTab?.kind === 'canvas') {
       const existing = workspaceTabs.find(
         (tab) => tab.kind === 'note' && tab.path === path
       )
@@ -1489,6 +1519,13 @@ export default function App(): React.JSX.Element {
       return
     }
 
+    for (const { path } of events) {
+      const draft = canvas.get(path)
+      if (draft && !draft.dirty && draft.status !== 'loading') {
+        canvas.forget(path)
+        if (draft.status === 'saved') void canvas.open(path)
+      }
+    }
     const generation = vaultGenerationRef.current
     const currentPath = selectedPathRef.current
     const wasDirty = dirtyRef.current || savingRef.current
@@ -1816,6 +1853,15 @@ export default function App(): React.JSX.Element {
     [normalDiscoveryNotes, userExcludedMatcher]
   )
   const activeWorkspaceTab = workspaceTabs.find((tab) => tab.id === activeTabId) ?? null
+  useEffect(() => {
+    for (const pane of currentWorkspace.panes) {
+      const tab = pane.tabs[pane.activeIndex ?? -1]
+      if (tab?.kind === 'canvas' && !canvas.get(tab.path) && !userExcludedMatcher(tab.path)) {
+        void canvas.open(tab.path)
+      }
+    }
+  }, [canvas.get, canvas.open, currentWorkspace.panes, userExcludedMatcher,
+    workspaceCollection?.scope.rootPath, workspaceCollection?.scope.rootRevision])
   const showingPropertyInventory = activeWorkspaceTab?.kind === 'global-properties'
   const propertyInventory = useMemo(
     () => showingPropertyInventory ? buildPropertyInventory(searchNotes) : null,
@@ -2012,9 +2058,12 @@ export default function App(): React.JSX.Element {
     queuedExternalEventsRef.current.clear()
     pendingExternalEventsRef.current.length = 0
     try {
-      if (!(await flushSave())) {
+      if (!(await flushSave()) || !(await canvas.flush())) {
         vaultSwitchingRef.current = false
         await refreshSnapshot(vaultGenerationRef.current)
+        if (Object.values(canvas.documents).some(document => document.dirty)) {
+          setMessage('Canvasを保存できませんでした。保存状態を確認してください。')
+        }
         return
       }
       if (!(await checkpointWorkspace())) {
@@ -2495,8 +2544,8 @@ export default function App(): React.JSX.Element {
     }
 
     try {
-      if (!(await flushSave())) {
-        return '編集中のノートを保存できませんでした。'
+      if (!(await flushSave()) || !(await canvas.flush())) {
+        return '編集中のファイルを保存できませんでした。'
       }
 
       const finalName =
@@ -2575,7 +2624,8 @@ export default function App(): React.JSX.Element {
     }
 
     try {
-      if (!(await flushSave())) {
+      if (!(await flushSave()) || !(await canvas.flush())) {
+        setMessage('編集中のファイルを保存できなかったため、移動を中止しました。')
         return
       }
 
@@ -2709,7 +2759,8 @@ export default function App(): React.JSX.Element {
     }
 
     try {
-      if (!(await flushSave())) {
+      if (!(await flushSave()) || !(await canvas.flush())) {
+        setMessage('編集中のファイルを保存できなかったため、ゴミ箱への移動を中止しました。')
         return
       }
       const result = await window.tsuzune.trashEntry(path)
@@ -2865,7 +2916,7 @@ export default function App(): React.JSX.Element {
     } finally { finishOperation() }
   }
 
-  const openPropertyChange = (property: string, path?: string): void => {
+  const openPropertyChange = (property: string, path?: string, proposedValue?: PropertyValue): void => {
     try {
       const scope = ensurePropertyOperation()
       if (busyRef.current) return
@@ -2883,7 +2934,7 @@ export default function App(): React.JSX.Element {
       setPropertyRequest({ scope, property, paths: path ? [path] : eligible.filter(note => {
         const inspected = inspectFrontmatterProperty(note.content, property)
         return !inspected.ok || inspected.property !== null
-      }).map(note => note.path), initialValue, single: Boolean(path) })
+      }).map(note => note.path), initialValue: proposedValue ?? initialValue, single: Boolean(path) })
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Property編集を開けませんでした。') }
   }
 
@@ -3054,7 +3105,7 @@ export default function App(): React.JSX.Element {
         setMessage(null)
         return true
       }
-      if (tab.kind === 'base') {
+      if (tab.kind === 'base' || tab.kind === 'canvas') {
         setActiveTabId(tab.id)
         loadNoteState(null, false)
         setActiveAttachmentPath(null)
@@ -3149,7 +3200,7 @@ export default function App(): React.JSX.Element {
     void loadWorkspaceTab(propertiesTab)
   }
 
-  const openBasePath = async (path: string, mode: 'list' | 'manual'): Promise<boolean> => {
+  const openBasePath = async (path: string, mode: 'list' | 'manual' | 'create'): Promise<boolean> => {
     const rootPath = snapshotRef.current?.rootPath
     const generation = vaultGenerationRef.current
     if (!rootPath || !beginOperation()) {
@@ -3165,6 +3216,18 @@ export default function App(): React.JSX.Element {
       if (mode === 'list' && createExcludedFileMatcher(userIgnoreFiltersRef.current)(path)) {
         setBasePathDialogError('このBaseは除外設定の対象です。一覧を更新してください。')
         return false
+      }
+      if (mode === 'create') {
+        if (createExcludedFileMatcher(userIgnoreFiltersRef.current)(path)) {
+          setBasePathDialogError('除外設定の対象にはBaseを作成できません。')
+          return false
+        }
+        const result = await window.tsuzune.createBase(path, rootPath)
+        if (!result.ok) {
+          setBasePathDialogError(errorMessage(result.error))
+          return false
+        }
+        path = result.value.path
       }
       const existing = workspaceTabs.find(
         (tab): tab is Extract<WorkspaceTab, { kind: 'base' }> =>
@@ -3215,6 +3278,65 @@ export default function App(): React.JSX.Element {
     setBasePathDialogOpen(true)
   }
 
+  const openCanvasPicker = async (opener: HTMLButtonElement): Promise<void> => {
+    const scope = workspaceCollectionRef.current?.scope
+    const rootPath = snapshotRef.current?.rootPath
+    if (!scope || !rootPath || busyRef.current || editorComposingRef.current) return
+    canvasOpenerRef.current = opener
+    setCanvasPicker({ paths: [], loading: true, error: null })
+    try {
+      const result = await window.tsuzune.listCanvases(rootPath)
+      const active = workspaceCollectionRef.current?.scope
+      if (active?.rootPath !== scope.rootPath || active.rootRevision !== scope.rootRevision) return
+      setCanvasPicker(current => current && {
+        paths: result.ok ? result.value : [],
+        loading: false,
+        error: result.ok ? null : errorMessage(result.error)
+      })
+    } catch {
+      setCanvasPicker(current => current && { ...current, loading: false, error: 'Canvasの一覧を取得できませんでした。' })
+    }
+  }
+
+  const openCanvasPath = async (path: string, create: boolean): Promise<void> => {
+    if (!beginOperation()) return
+    try {
+      if (!(await flushSave())) {
+        setCanvasPicker(current => current && { ...current, error: '編集中のノートを保存できませんでした。' })
+        return
+      }
+      if (userExcludedMatcher(path)) {
+        setCanvasPicker(current => current && { ...current, error: 'このパスは除外設定の対象です。' })
+        return
+      }
+      if (!(await (create ? canvas.create(path) : canvas.open(path)))) {
+        setCanvasPicker(current => current && {
+          ...current,
+          error: create ? 'Canvasを作成できませんでした。保存先や同名のファイルを確認してください。'
+            : 'Canvasを開けませんでした。ファイルの場所と内容を確認してください。'
+        })
+        return
+      }
+      closeDailyOverview()
+      const existing = workspaceTabs.find(tab => tab.kind === 'canvas' && tab.path.toLocaleLowerCase() === path.toLocaleLowerCase())
+      const tab = existing ?? { id: nextTabIdRef.current++, kind: 'canvas' as const, path }
+      if (!existing) {
+        const current = workspaceTabs.length ? workspaceTabs
+          : selectedPathRef.current ? [{ id: nextTabIdRef.current++, kind: 'note' as const, path: selectedPathRef.current }] : []
+        setWorkspaceTabs([...current, tab])
+      }
+      setActiveTabId(tab.id)
+      loadNoteState(null, false)
+      setGraphScope('local')
+      setViewMode('preview')
+      setCanvasPicker(null)
+      canvasOpenerRef.current = null
+      focusWorkspaceTab(tab.id)
+    } finally {
+      finishOperation()
+    }
+  }
+
   const closeBasePathDialog = (): void => {
     if (busyRef.current) return
     baseDialogSessionRef.current += 1
@@ -3226,7 +3348,7 @@ export default function App(): React.JSX.Element {
     setTimeout(() => { if (previousFocus?.isConnected) previousFocus.focus() }, 0)
   }
 
-  const confirmBasePath = async (path: string, mode: 'list' | 'manual'): Promise<void> => {
+  const confirmBasePath = async (path: string, mode: 'list' | 'manual' | 'create'): Promise<void> => {
     if (mode === 'list' && (!currentBaseList?.paths.includes(path) || userExcludedMatcher(path))) return
     const session = baseDialogSessionRef.current
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -3336,6 +3458,16 @@ export default function App(): React.JSX.Element {
     if (index < 0) {
       return
     }
+    const tab = workspaceTabs[index]
+    if (busyRef.current) return
+    if (tab.kind === 'canvas' && canvas.get(tab.path)?.dirty) {
+      if (!beginOperation()) return
+      try {
+        if (!(await canvas.save(tab.path))) return
+      } finally {
+        finishOperation()
+      }
+    }
     const remaining = workspaceTabs.filter((tab) => tab.id !== tabId)
     if (tabId !== activeTabId) {
       setWorkspaceTabs(remaining)
@@ -3427,7 +3559,9 @@ export default function App(): React.JSX.Element {
       }
       if (command === 'save') {
         event.preventDefault()
-        void flushSave()
+        const tab = workspaceTabs.find(candidate => candidate.id === activeTabId)
+        if (tab?.kind === 'canvas') void canvas.save(tab.path)
+        else void flushSave()
         return
       }
       if (workspaceTabs.length === 0) return
@@ -3463,7 +3597,7 @@ export default function App(): React.JSX.Element {
 
     window.addEventListener('keydown', handleWorkspaceShortcut)
     return () => window.removeEventListener('keydown', handleWorkspaceShortcut)
-  }, [activeTabId, modalOpen, workspaceTabs, hotkeys, openQuickSwitcher, openCommandPalette, focusVaultSearch])
+  }, [activeTabId, modalOpen, workspaceTabs, hotkeys, openQuickSwitcher, openCommandPalette, focusVaultSearch, canvas.save])
 
   const activeAttachment: VaultAttachment | null = activeAttachmentPath
     ? snapshot?.attachments?.find((item) => item.path === activeAttachmentPath) ?? null
@@ -4078,6 +4212,10 @@ export default function App(): React.JSX.Element {
           setMessage('編集中のノートを保存できなかったため、更新を中止しました。')
           return
         }
+        if (!(await canvas.flush())) {
+          setMessage('編集中のCanvasを保存できなかったため、更新を中止しました。')
+          return
+        }
         const result = await window.tsuzune.installUpdate()
         if (!result.ok) {
           setMessage(errorMessage(result.error))
@@ -4471,7 +4609,7 @@ export default function App(): React.JSX.Element {
   const changePaneLayout = async (action: 'horizontal' | 'vertical' | 'close' | 'move', target?: string, sourceId = currentWorkspace.activePaneId): Promise<void> => {
     if (!snapshotRef.current || !beginOperation()) return
     try {
-      if (!(await flushSave())) return
+      if (!(await flushSave()) || (action === 'close' && !(await canvas.flush()))) return
       const workspace = workspaceSnapshotRef.current ?? currentWorkspace
       const source = workspace.panes.find(pane => pane.id === sourceId)
       if (!source) return
@@ -4487,6 +4625,8 @@ export default function App(): React.JSX.Element {
     try {
       if (!(await flushSave())) return
       const workspace = workspaceSnapshotRef.current ?? currentWorkspace
+      const tab = workspace.panes.find(pane => pane.id === paneId)?.tabs[index]
+      if (tab?.kind === 'canvas' && !(await canvas.save(tab.path))) return
       const next = projectWorkspaceSnapshotV2({ ...workspace, panes: workspace.panes.map(pane => {
         if (pane.id !== paneId) return pane
         const tabs = pane.tabs.filter((_, tabIndex) => tabIndex !== index)
@@ -4510,6 +4650,49 @@ export default function App(): React.JSX.Element {
     scheduleSave()
   }
   const editorGeneration = vaultGenerationRef.current
+  const canvasNoteByPath = new Map(searchNotes.map(note => [note.path, note]))
+  const canvasAttachmentByPath = new Map((snapshot?.attachments ?? [])
+    .filter(item => !userExcludedMatcher(item.path)).map(item => [item.path, item]))
+  const canvasFilePaths = [...canvasNoteByPath.keys(), ...canvasAttachmentByPath.keys()]
+  const renderCanvasPanel = (path: string, paneId?: string): React.ReactNode => {
+    if (userExcludedMatcher(path)) return <p role="status">このファイルは表示対象から除外されています。</p>
+    const draft = canvas.get(path)
+    if (!draft?.data) {
+      return draft?.status === 'error'
+        ? <div className="canvas-document-status"><p role="alert">{draft.message}</p>
+          <button type="button" disabled={busy} onClick={() => void canvas.reload(path)}>再読み込み</button></div>
+        : <p role="status">Canvasを読み込んでいます…</p>
+    }
+    return <section className="canvas-document" aria-label={path}>
+      <CanvasView key={path} data={draft.data} disabled={busy || draft.status === 'saving'}
+        status={draft.status} filePaths={canvasFilePaths}
+        onChange={data => canvas.change(path, data)} onSave={() => void canvas.save(path)}
+        renderFile={file => {
+          const note = canvasNoteByPath.get(file)
+          if (note) {
+            const excerpt = note.content.replace(/^\uFEFF?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '').trim()
+            return excerpt && <div className="canvas-note-excerpt">{excerpt.slice(0, 800)}</div>
+          }
+          const attachment = canvasAttachmentByPath.get(file)
+          return attachment && /\.(png|jpe?g|gif|bmp|svg|webp|avif)$/i.test(attachment.path)
+            ? <AttachmentPreview attachment={attachment} onOpenExternally={() => void window.tsuzune.openVaultFile(file)} />
+            : null
+        }}
+        onOpenFile={file => {
+          if (!canvasNoteByPath.has(file) && !canvasAttachmentByPath.has(file)) return
+          if (paneId) activatePane(paneId)
+          void openVaultEntryInNewTab(file, canvasNoteByPath.has(file) ? 'note' : 'attachment')
+        }} />
+      {draft.message && <div className="canvas-document-status">
+        <p role="alert">{draft.message}</p>
+        <button type="button" disabled={busy || draft.status === 'saving'} onClick={() => {
+          if (!draft.dirty || window.confirm('保存していないCanvasの編集を破棄して再読み込みしますか？')) {
+            void canvas.reload(path)
+          }
+        }}>再読み込み</button>
+      </div>}
+    </section>
+  }
   const renderInactivePane = (id: string): React.ReactNode => {
     const pane = currentWorkspace.panes.find(item => item.id === id)!
     const tab = pane.tabs[pane.activeIndex ?? -1]
@@ -4530,10 +4713,12 @@ export default function App(): React.JSX.Element {
           : <MarkdownPreview content={draftFor(note.path)} notePath={note.path} attachments={snapshot?.attachments ?? []} notes={savedNotes}
             pathAliases={pathAliases} onWikiLink={target => { activatePane(id); handleWikiLink(target) }}
             onNavigate={target => { activatePane(id); void handleNoteNavigation(target) }} />}</>
+        : tab?.kind === 'canvas' ? renderCanvasPanel(tab.path, id)
         : tab ? <PaneAuxiliaryContent tab={tab} notes={normalDiscoveryNotes} attachments={snapshot?.attachments ?? []} pathAliases={pathAliases}
           scope={workspaceCollection?.scope ?? null} declaredTypes={propertyTypes} userExcluded={userExcludedMatcher}
           editingDisabled={busy || dirtyRef.current || [...heldDraftsRef.current.values()].some(draft => draft.status !== 'saved')}
           onOpenNote={path => { activatePane(id); void openNote(path) }} onEditCell={(path, property) => { activatePane(id); openPropertyChange(property, path) }}
+          onMoveBaseCard={(path, operation) => { activatePane(id); openPropertyChange(operation.property, path, operation.value) }}
           onDeclare={declareProperty} />
         : <p>タブを開いてください。</p>}
     </>
@@ -4749,6 +4934,11 @@ export default function App(): React.JSX.Element {
               <Icon name="preview" />
               <span className="sr-only">Baseを開く</span>
             </button>
+            <button type="button" className="activity-rail-button" aria-label="Canvasを開く" title="Canvasを開く"
+              aria-pressed={activeWorkspaceTab?.kind === 'canvas'} disabled={!workspaceCollection}
+              onClick={event => void openCanvasPicker(event.currentTarget)}>
+              <Icon name="graph" />
+            </button>
             <button
               type="button"
               className="activity-rail-button"
@@ -4832,6 +5022,23 @@ export default function App(): React.JSX.Element {
               onClick={() => void chooseVault()}
             >
               <Icon name="folder-open" />
+            </button>
+            <button
+              type="button"
+              className="activity-rail-button"
+              aria-label="他アプリから取り込む"
+              title="他アプリから取り込む"
+              disabled={busy || modalOpen || saveStatus === 'saving' || !workspaceCollection}
+              onClick={event => {
+                const scope = workspaceCollectionRef.current?.scope
+                if (!scope || busyRef.current || savingRef.current || editorComposingRef.current) return
+                captureActiveEditorState()
+                clearSaveTimer()
+                importOpenerRef.current = event.currentTarget
+                setImportScope(scope)
+              }}
+            >
+              <Icon name="folder-plus" />
             </button>
             <button
               type="button"
@@ -5111,7 +5318,8 @@ export default function App(): React.JSX.Element {
                   />
                 )}
               </DailyProfile>
-            ) : activeWorkspaceTab?.kind === 'base' && activeBaseState ? (
+            ) : activeWorkspaceTab?.kind === 'canvas' ? renderCanvasPanel(activeWorkspaceTab.path) :
+            activeWorkspaceTab?.kind === 'base' && activeBaseState ? (
               <>
 
                 <BaseTableView
@@ -5119,6 +5327,7 @@ export default function App(): React.JSX.Element {
                   onReload={() => setBaseReloadKey((key) => key + 1)}
                   onOpenNote={(path) => void openNote(path)}
                   onEditCell={(path, property) => openPropertyChange(property, path)}
+                  onMoveCard={(path, operation) => openPropertyChange(operation.property, path, operation.value)}
                   editingDisabled={busy || !propertyTypesReady || saveStatus !== 'saved' || conflict !== null}
                   onSelectView={setBaseViewIndex}
                   onPreviewProfile={(source, index) => previewBaseSettings(source, index)}
@@ -5551,6 +5760,40 @@ export default function App(): React.JSX.Element {
           onRefresh={() => setBaseListRefresh((key) => key + 1)}
           onCancel={closeBasePathDialog}
           onConfirm={(path, mode) => void confirmBasePath(path, mode)}
+          onCreate={path => void confirmBasePath(path, 'create')}
+        />
+      )}
+
+      {canvasPicker && (
+        <CanvasPathDialog candidates={canvasPicker.paths} loading={canvasPicker.loading} busy={busy}
+          error={canvasPicker.error} initialDirectory={targetDirectory()}
+          onConfirm={(path, create) => void openCanvasPath(path, create)}
+          onCancel={() => { if (!busyRef.current) setCanvasPicker(null) }} />
+      )}
+
+      {importScope && (
+        <ImportDialog
+          scope={importScope}
+          api={window.tsuzune}
+          onClose={() => {
+            if (busyRef.current) return
+            setImportScope(null)
+            if (dirtyRef.current || heldDraftsRef.current.size) scheduleSave()
+          }}
+          onBusyChange={active => {
+            if (active) {
+              busyRef.current = true
+              setBusy(true)
+            } else {
+              finishOperation()
+            }
+          }}
+          onApplied={result => {
+            const scope = workspaceCollectionRef.current?.scope
+            if (scope?.rootPath !== importScope.rootPath || scope.rootRevision !== importScope.rootRevision) return
+            committedSnapshotRequestRef.current = ++snapshotRequestRef.current
+            setCurrentSnapshot(result.snapshot)
+          }}
         />
       )}
 

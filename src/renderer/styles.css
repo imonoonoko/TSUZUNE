@@ -2002,6 +2002,27 @@ button.daily-calendar-heatmap-cell:focus-visible {
   border-radius: 999px;
 }
 
+.base-cards-grid, .base-kanban-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; align-items: start; }
+.base-cards-grid.base-width-narrow { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+.base-cards-grid.base-width-wide { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.base-kanban-board { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.base-kanban-board.base-width-narrow { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.base-kanban-board.base-width-wide { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+.base-kanban-column { min-width: 0; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.base-kanban-column h3 { display: flex; justify-content: space-between; margin: 0 0 10px; font-size: 13px; }
+.base-kanban-column > div { display: grid; gap: 8px; }
+.base-card { min-width: 0; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.base-kanban-column .base-card[draggable='true'] { cursor: grab; }
+.base-kanban-column .base-card[draggable='true']:active { cursor: grabbing; }
+.base-card h3 { margin: 0 0 8px; font-size: 14px; }
+.base-card dl { display: grid; gap: 6px; margin: 8px 0 0; }
+.base-card dl > div { display: grid; grid-template-columns: minmax(60px, 35%) 1fr; gap: 8px; }
+.base-card dt { color: var(--muted); }
+.base-card dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.base-list-view { padding-left: 24px; }
+.base-list-view li { padding: 5px 0; }
+.base-list-view li > span { margin-left: 10px; color: var(--muted); font-size: 12px; }
+
 .base-table-scroll {
   overflow: auto;
   border: 1px solid var(--line);
@@ -4922,3 +4943,29 @@ details.markdown-properties .markdown-properties-editor-header .markdown-propert
 @media (forced-colors: active) { .is-multiple-panes .workspace-pane.is-active { border-top-color: Highlight; } }
 
 .file-tree .tree-label { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; overflow-wrap: anywhere; overflow: hidden; }
+
+.import-dialog {
+  width: min(780px, 100%);
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  display: grid;
+  gap: 12px;
+}
+.import-dialog h2, .import-dialog h3, .import-dialog p { margin: 0; }
+.import-dialog label { display: grid; gap: 6px; min-width: 0; }
+.import-dialog input, .import-dialog select, .import-dialog textarea { width: 100%; min-width: 0; }
+.import-dialog input[type="file"] { white-space: normal; }
+.import-help { color: var(--muted); font-size: 0.85rem; line-height: 1.6; }
+.import-preview { display: grid; gap: 12px; min-width: 0; border-top: 1px solid var(--line); padding-top: 16px; }
+.import-preview p, .import-preview li { overflow-wrap: anywhere; }
+.import-warnings { max-height: 160px; overflow: auto; }
+.import-warnings ul { margin: 8px 0; padding-left: 24px; }
+.import-preview pre { max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 0; }
+.import-dialog .modal-actions { flex-wrap: wrap; }
+@media (max-width: 520px) { .import-dialog { padding: 16px; } }
+
+.canvas-document { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.canvas-document-status { padding: 8px 12px; }
+.canvas-note-excerpt { min-height: 0; overflow: auto; padding: 0 12px 12px; font-size: 0.85rem; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.canvas-document .canvas-card .attachment-preview { min-height: 0; padding: 0 12px 12px; }
+.canvas-document .canvas-card .attachment-preview img { max-height: 140px; max-width: 100%; object-fit: contain; }

@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type {
   AppSettings,
   AppUpdateStatus,
@@ -86,8 +86,20 @@ const api: TsuzuneApi = {
   getSnapshot: () => invoke<VaultSnapshot>('vault:snapshot'),
   readNote: (path: string) => invoke<NoteDocument>('vault:readNote', path),
   readBase: (path: string) => invoke<BaseDocument>('vault:readBase', path),
+  createBase: (path, expectedVaultPath) => invoke('vault:createBase', path, expectedVaultPath),
   listBases: (expectedVaultPath: string) =>
     invoke<string[]>('vault:listBases', expectedVaultPath),
+  listCanvases: expectedVaultPath => invoke('canvas:list', expectedVaultPath),
+  readCanvas: (path, expectedVaultPath) => invoke('canvas:read', path, expectedVaultPath),
+  createCanvas: input => invoke('canvas:create', input),
+  saveCanvas: input => invoke('canvas:save', input),
+  readImportSource: (request, files) => invoke('importer:readSource', request, files.map(file => ({
+    path: webUtils.getPathForFile(file),
+    relativePath: file.webkitRelativePath || file.name
+  }))),
+  previewImport: input => invoke('importer:preview', input),
+  applyImport: input => invoke('importer:apply', input),
+  discardImport: token => invoke('importer:discard', token),
   readVaultImage: (path: string) => invoke<string>('vault:readImage', path),
   openVaultFile: (path: string) => invoke<null>('system:openVaultFile', path),
   revealVaultFile: (path: string) =>

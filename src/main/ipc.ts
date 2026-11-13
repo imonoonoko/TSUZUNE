@@ -47,6 +47,9 @@ import { parseHotkeySettings } from '../shared/hotkeys'
 import { PropertyTypeSettingsService } from './property-type-settings'
 import { PropertyChangesService } from './property-changes'
 import { HumanChangesService } from './human-changes'
+import { ImporterService } from './importer'
+import type { CanvasCreateInput, CanvasSaveInput } from '../shared/canvas'
+import type { ImportPreviewInput, ImportReadRequest, ImportSelectedFile } from '../shared/importer'
 import type { PropertyChangeScope, PropertyDeclaredType, PropertyPreviewInput, PropertyApplyInput } from '../shared/property-changes'
 import { VaultError, VaultService } from './vault'
 import { packStartupSnapshot } from './startup-snapshot'
@@ -254,6 +257,17 @@ export function registerIpc(
   const propertyTypes = new PropertyTypeSettingsService(vault)
   const propertyChanges = new PropertyChangesService(vault, async () => (await readSettings()).userIgnoreFilters)
   const humanChanges = new HumanChangesService(vault, async () => (await readSettings()).userIgnoreFilters)
+  const importer = new ImporterService(vault, async () => (await readSettings()).userIgnoreFilters)
+  const importFailure = (error: unknown): never => {
+    if (error instanceof VaultError) throw error
+    throw new VaultError({ code: 'UNKNOWN', message: '取り込みに失敗しました。元ファイルと保存先を確認し、再度プレビューしてください。' })
+  }
+  registerTrusted('importer:readSource', (request: ImportReadRequest, files: ImportSelectedFile[]) =>
+    importer.read(request, files).catch(importFailure))
+  registerTrusted('importer:preview', (input: ImportPreviewInput) => importer.preview(input).catch(importFailure))
+  registerTrusted('importer:apply', (input: { scope: PropertyChangeScope; planId: string }) =>
+    runGoogleInOrder(() => importer.apply(input)).catch(importFailure))
+  registerTrusted('importer:discard', (token: string) => importer.discard(token).catch(importFailure))
   registerTrusted('bases:preview', (input: import('../shared/base-changes').BaseChangeInput) => humanChanges.previewBase(input))
   registerTrusted('bases:apply', (input: import('../shared/base-changes').BaseChangeInput) => humanChanges.applyBase(input))
   registerTrusted('mentions:link', (input: import('../shared/mention-changes').MentionChangeInput) => humanChanges.linkMention(input))
@@ -371,6 +385,23 @@ export function registerIpc(
   registerTrusted('vault:snapshot', () => vault.scan())
   registerTrusted('vault:readNote', (path: string) => vault.readNote(path))
   registerTrusted('vault:readBase', (path: string) => vault.readBase(path))
+  registerTrusted('vault:createBase', (path: string, expectedVaultPath: string) => {
+    const revision = vault.getRootRevision()
+    return runGoogleInOrder(() => {
+      if (typeof path !== 'string' || !expectedVaultPath || vault.getRootPath() !== expectedVaultPath ||
+          vault.getRootRevision() !== revision) {
+        throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。もう一度作成してください。' })
+      }
+      return vault.createBase(path, 'views:\n  - type: table\n    name: 一覧\n')
+    })
+  })
+  registerTrusted('canvas:list', async (expectedVaultPath: string) =>
+    vault.listCanvases(expectedVaultPath, (await readSettings()).userIgnoreFilters))
+  registerTrusted('canvas:read', (path: string, expectedVaultPath: string) => vault.readCanvas(path, expectedVaultPath))
+  registerTrusted('canvas:create', (input: CanvasCreateInput) =>
+    runGoogleInOrder(() => vault.createCanvas(input)))
+  registerTrusted('canvas:save', (input: CanvasSaveInput) =>
+    runGoogleInOrder(() => vault.saveCanvas(input)))
   registerTrusted('vault:listBases', async (expectedVaultPath: string) => {
     if (
       typeof expectedVaultPath !== 'string' ||

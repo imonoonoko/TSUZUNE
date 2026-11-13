@@ -23,7 +23,7 @@ function compare(left: BaseValue, right: BaseValue): number {
 export const BASE_STANDARD_SUMMARIES = ['Average', 'Min', 'Max', 'Sum', 'Range', 'Median', 'Stddev', 'Earliest', 'Latest', 'Checked', 'Unchecked', 'Empty', 'Filled', 'Unique'] as const
 export function evaluateBase(profile: BaseProfile, notes: readonly NoteDocument[], viewIndex = 0, options: BaseEvaluationOptions = {}): BaseEvaluation {
   const view = (profile.views ?? [profile.view])[viewIndex] ?? profile.view
-  const columns = [...view.order]; const diagnostics: BaseEvaluationDiagnostic[] = []
+  const columns = view.order.filter(column => view.type !== 'table' || !view.hiddenColumns?.includes(column)); const diagnostics: BaseEvaluationDiagnostic[] = []
   const normalized = notes.map((note) => ({ ...note, path: note.path.replaceAll('\\', '/') }))
   const paths = new Map<string, NoteDocument>(); const duplicates = new Set<string>()
   for (const note of normalized) { if (paths.has(note.path)) duplicates.add(note.path); paths.set(note.path, note) }
@@ -152,7 +152,8 @@ export function evaluateBase(profile: BaseProfile, notes: readonly NoteDocument[
       try { return Boolean(evaluateBaseExpression(parsed(String(source)), context)) } catch (error) { record(note.path, filter.kind === 'expression' ? filter.expression : 'property' in filter ? filter.property : 'filter', error); return false }
     }
     if (![...profile.filters, ...view.filters].every(matchFilter)) continue
-    evaluated.push({ row: { path: note.path, cells: Object.fromEntries(columns.map((property) => [property, read(property)])) }, resolve, read })
+    const properties = [...new Set([...columns, ...((view.type === 'cards' || view.type === 'kanban') && view.image ? [view.image] : [])])]
+    evaluated.push({ row: { path: note.path, cells: Object.fromEntries(properties.map((property) => [property, read(property)])) }, resolve, read })
   }
   const sorts = view.sorts ?? (view.sort ? [view.sort] : [])
   evaluated.sort((a, b) => {
@@ -195,7 +196,11 @@ export function evaluateBase(profile: BaseProfile, notes: readonly NoteDocument[
       const groupCell = item.read(view.groupBy.property); const key = groupCell.kind === 'value' ? groupCell.value : null
       let group = groups.find((other) => baseValueEqual(other.key, key)); if (!group) { group = { key, rows: [], summaries: {} }; groups.push(group) }; group.rows.push(item.row)
     }
-    groups.sort((a, b) => compare(a.key, b.key) * (view.groupBy!.direction === 'DESC' ? -1 : 1))
+    const order = view.groupOrder ?? view.groupBy.order ?? []
+    for (const key of order) if (!groups.some(group => baseValueEqual(group.key, key))) groups.push({ key, rows: [], summaries: {} })
+    if (view.groupOrder) groups = groups.filter(group => view.groupOrder!.some(key => baseValueEqual(group.key, key)))
+    const position = (key: BaseValue): number => { const index = order.findIndex(value => baseValueEqual(value, key)); return index < 0 ? order.length : index }
+    groups.sort((a, b) => position(a.key) - position(b.key) || compare(a.key, b.key) * (view.groupBy!.direction === 'DESC' ? -1 : 1))
     for (const group of groups) group.summaries = summaries(included.filter((item) => group.rows.includes(item.row)))
   }
   return { scope: 'normal-discovery-snapshot', columns, targetCount: notes.length, excludedCount: notes.length - evaluated.length, rows: included.map((item) => item.row), diagnostics, ...(groups ? { groups } : {}), summaries: summaries(included), labels: Object.fromEntries(columns.map((column) => [column, profile.properties?.[column]?.displayName ?? column])), viewIndex }

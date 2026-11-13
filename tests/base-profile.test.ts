@@ -41,8 +41,36 @@ views:
     expect(profile.filters).toEqual([])
     expect(profile.view.order).toHaveLength(5)
   })
+  it('round-trips cards, list and Kanban presentation and group ordering settings', () => {
+    const profile = parsed(`views:
+  - type: cards
+    name: Cards
+    order: [file.name, status]
+    image: cover
+    cardWidth: wide
+    imageFit: contain
+    imageAspectRatio: 4:3
+  - type: list
+    name: Compact list
+    order: [file.name, status]
+    markers: numbers
+    indentProperties: true
+    separator: ' / '
+  - type: kanban
+    name: Board
+    order: [file.name, status]
+    groupBy: {property: status, order: [open, done], hidden: [done]}
+    groupOrder: [open, done]
+    columnWidth: wide
+`)
+    expect(profile.views?.map(view => view.type)).toEqual(['cards', 'list', 'kanban'])
+    const result = parsed(serializeBaseProfile(profile))
+    expect(result.views?.[0]).toMatchObject({ image: 'cover', cardWidth: 'wide', imageFit: 'contain', imageAspectRatio: '4:3' })
+    expect(result.views?.[1]).toMatchObject({ markers: 'numbers', indentProperties: true, separator: ' / ' })
+    expect(result.views?.[2]).toMatchObject({ groupBy: { property: 'status', order: ['open', 'done'], hidden: ['done'] }, groupOrder: ['open', 'done'], columnWidth: 'wide' })
+  })
   it.each([
-    'views: []', 'views: nope', 'views: [{type: cards}]', 'views: [{type: table, order: []}]',
+    'views: []', 'views: nope', 'views: [{type: nope}]', 'views: [{type: table, order: []}]',
     'views: [{type: table, sort: [{property: a, direction: sideways}]}]',
     'views: [{type: table, limit: -1}]', 'views: [{type: table, limit: 1.2}]',
     'views: [{type: table}]\nfilters: {xor: [true]}',

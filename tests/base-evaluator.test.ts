@@ -26,6 +26,23 @@ function parsedProfile(source: string): BaseProfile {
 }
 
 describe('evaluateBase', () => {
+  it('evaluates Kanban columns in configured order, including empty columns and cover values', () => {
+    const profile = parsedProfile(`views:
+  - type: kanban
+    name: Work
+    order: [file.name]
+    image: cover
+    groupBy: {property: status, order: [open, blocked, done]}
+`)
+    const result = evaluateBase(profile, [
+      note('A.md', '---\nstatus: done\ncover: photo.png\n---'),
+      note('B.md', '---\nstatus: open\n---')
+    ])
+    expect(result.groups?.map(group => [group.key, group.rows.map(row => row.path)])).toEqual([
+      ['open', ['B.md']], ['blocked', []], ['done', ['A.md']]
+    ])
+    expect(result.rows[1]?.cells.cover).toEqual({ kind: 'missing' })
+  })
   it('keeps duplicate null property diagnostics in columns and filters', () => {
     const profile: BaseProfile = {
       filters: [],

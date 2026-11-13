@@ -4,7 +4,7 @@ import { isAuditHistoryPath } from './ai-write-policy'
 import { DEFAULT_GRAPH_FILTER_SETTINGS, parseGraphFilterSettings, type GraphFilterSettings } from './graph-filters'
 
 export type SavedWorkspaceTab =
-  | { kind: 'note' | 'attachment' | 'linked-view' | 'base'; path: string }
+  | { kind: 'note' | 'attachment' | 'linked-view' | 'base' | 'canvas'; path: string }
   | { kind: 'global-graph' }
   | { kind: 'global-properties' }
 
@@ -104,7 +104,7 @@ function oneOf<T extends string>(value: unknown, values: readonly T[], label: st
 
 function parseTab(value: unknown): SavedWorkspaceTab {
   const tab = record(value, 'workspace tab')
-  const kind = oneOf(tab.kind, ['note', 'attachment', 'linked-view', 'base', 'global-graph', 'global-properties'], 'tab kind')
+  const kind = oneOf(tab.kind, ['note', 'attachment', 'linked-view', 'base', 'canvas', 'global-graph', 'global-properties'], 'tab kind')
   if (kind === 'global-graph' || kind === 'global-properties') {
     exactKeys(tab, ['kind'], 'global graph tab')
     return { kind }
@@ -116,12 +116,14 @@ function parseTab(value: unknown): SavedWorkspaceTab {
   if (!path.valid || !path.normalized) throw new Error('tab path is invalid.')
   const markdown = path.normalized.toLocaleLowerCase().endsWith('.md')
   const base = path.normalized.toLocaleLowerCase().endsWith('.base')
+  const canvas = path.normalized.toLocaleLowerCase().endsWith('.canvas')
   const attachment = isSupportedAttachmentPath(path.normalized)
   if (
     (kind === 'note' && !markdown) ||
     (kind === 'attachment' && !attachment) ||
     (kind === 'linked-view' && !markdown && !attachment) ||
-    (kind === 'base' && (!base || isAuditHistoryPath(path.normalized)))
+    (kind === 'base' && (!base || isAuditHistoryPath(path.normalized))) ||
+    (kind === 'canvas' && (!canvas || isAuditHistoryPath(path.normalized)))
   ) {
     throw new Error(`tab path is invalid for ${kind}.`)
   }
@@ -166,11 +168,18 @@ export function parseWorkspaceSnapshotV1(value: unknown): WorkspaceSnapshotV1 {
     throw new Error('workspace can contain only one global properties view.')
   }
   const basePaths = new Set<string>()
+  const canvasPaths = new Set<string>()
   for (const tab of tabs) {
-    if (tab.kind !== 'base') continue
+    if (!('path' in tab)) continue
     const key = tab.path.toLocaleLowerCase()
-    if (basePaths.has(key)) throw new Error('workspace can contain only one tab for each Base.')
-    basePaths.add(key)
+    if (tab.kind === 'base') {
+      if (basePaths.has(key)) throw new Error('workspace can contain only one tab for each Base.')
+      basePaths.add(key)
+    }
+    if (tab.kind === 'canvas') {
+      if (canvasPaths.has(key)) throw new Error('workspace can contain only one tab for each Canvas.')
+      canvasPaths.add(key)
+    }
   }
 
   const activeIndex = snapshot.activeIndex

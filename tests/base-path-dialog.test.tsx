@@ -22,6 +22,21 @@ function dialog(overrides: Partial<React.ComponentProps<typeof BasePathDialog>> 
 afterEach(cleanup)
 
 describe('BasePathDialog', () => {
+  it('creates a new Base by path only and never routes the action through opening', () => {
+    const onCreate = vi.fn()
+    const onConfirm = vi.fn()
+    render(dialog({ onCreate, onConfirm }))
+    fireEvent.click(screen.getByRole('button', { name: '新しいBaseを作成' }))
+    const path = screen.getByRole('textbox') as HTMLInputElement
+    expect(path.value).toBe('新しいBase.base')
+    fireEvent.change(path, { target: { value: '.hidden/Bad.base' } })
+    expect((screen.getByRole('button', { name: '作成' }) as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.change(path, { target: { value: 'views/Created.BASE' } })
+    fireEvent.keyDown(path, { key: 'Enter' })
+    expect(onCreate).toHaveBeenCalledWith('views/Created.BASE')
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
   it('filters with NFKC whitespace AND matching while preserving duplicate filenames and their paths', () => {
     render(dialog())
     const search = screen.getByRole('combobox', { name: 'Baseを検索' })

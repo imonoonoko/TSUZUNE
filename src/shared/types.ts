@@ -380,7 +380,16 @@ export interface TsuzuneApi {
   getSnapshot(): Promise<Result<VaultSnapshot>>
   readNote(path: string): Promise<Result<NoteDocument>>
   readBase(path: string): Promise<Result<BaseDocument>>
+  createBase(path: string, expectedVaultPath: string): Promise<Result<BaseDocument>>
   listBases(expectedVaultPath: string): Promise<Result<string[]>>
+  listCanvases(expectedVaultPath: string): Promise<Result<string[]>>
+  readCanvas(path: string, expectedVaultPath: string): Promise<Result<import('./canvas').CanvasDocument>>
+  createCanvas(input: import('./canvas').CanvasCreateInput): Promise<Result<import('./canvas').CanvasDocument>>
+  saveCanvas(input: import('./canvas').CanvasSaveInput): Promise<Result<import('./canvas').CanvasDocument>>
+  readImportSource(request: import('./importer').ImportReadRequest, files: File[]): Promise<Result<import('./importer').ImportSource>>
+  previewImport(input: import('./importer').ImportPreviewInput): Promise<Result<import('./importer').ImportPreview>>
+  applyImport(input: { scope: import('./property-changes').PropertyChangeScope; planId: string }): Promise<Result<import('./importer').ImportApplyResult>>
+  discardImport(token: string): Promise<Result<null>>
   readVaultImage(path: string): Promise<Result<string>>
   openVaultFile(path: string): Promise<Result<null>>
   revealVaultFile(path: string): Promise<Result<null>>

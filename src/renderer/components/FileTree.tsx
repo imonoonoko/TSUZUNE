@@ -766,8 +766,9 @@ export default function FileTree({
               }
               onDragStart={(event) => {
                 setDraggedEntry(selection)
-                event.dataTransfer.effectAllowed = 'move'
+                event.dataTransfer.effectAllowed = 'copyMove'
                 event.dataTransfer.setData('text/plain', note.path)
+                event.dataTransfer.setData('application/x-tsuzune-vault-file', note.path)
               }}
               onDragEnd={() => {
                 setDraggedEntry(null)

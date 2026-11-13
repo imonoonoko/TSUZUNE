@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { NoteDocument, VaultAttachment, BaseDocument } from '../../shared/types'
 import type { SavedWorkspaceTab, WorkspaceScope } from '../../shared/workspace-state'
-import type { PropertyDeclaredType } from '../../shared/property-changes'
+import type { PropertyChangeOperation, PropertyDeclaredType } from '../../shared/property-changes'
 import type { CompiledPathAliases } from '../../core/path-aliases'
 import { buildWikiGraph, getVaultWikiGraph } from '../../core/graph'
 import { buildPropertyInventory } from '../../core/property-inventory'
@@ -23,6 +23,7 @@ export interface PaneAuxiliaryContentProps {
   userExcluded?: (path: string) => boolean
   onOpenNote?: (path: string) => void
   onEditCell?: (path: string, property: string) => void
+  onMoveBaseCard?: (path: string, operation: Extract<PropertyChangeOperation, { kind: 'set' }>) => void
   onDeclare?: (name: string, type: PropertyDeclaredType | null) => Promise<void>
   onNavigateParent?: () => void
   editingDisabled?: boolean
@@ -57,7 +58,7 @@ export default function PaneAuxiliaryContent(props: PaneAuxiliaryContentProps): 
   return <p role="status">ノートの表示を選択してください。</p>
 }
 
-function AuxiliaryBase({ path, notes, scope, declaredTypes, onOpenNote = () => undefined, onEditCell, editingDisabled }: PaneAuxiliaryContentProps & { path: string }): React.JSX.Element {
+function AuxiliaryBase({ path, notes, scope, declaredTypes, onOpenNote = () => undefined, onEditCell, onMoveBaseCard, editingDisabled }: PaneAuxiliaryContentProps & { path: string }): React.JSX.Element {
   const [state, setState] = useState<BaseTableState>({ status: 'loading', path })
   const [index, setIndex] = useState(0)
   const [reload, setReload] = useState(0)
@@ -130,7 +131,7 @@ function AuxiliaryBase({ path, notes, scope, declaredTypes, onOpenNote = () => u
     } catch (error) { if (generation.current === current) setMessage(error instanceof Error ? error.message : '設定を保存できませんでした。') }
     finally { if (generation.current === current) setSaving(false) }
   }
-  return <><BaseTableView state={state} onReload={() => setReload(value => value + 1)} onOpenNote={onOpenNote} onEditCell={onEditCell}
+  return <><BaseTableView state={state} onReload={() => setReload(value => value + 1)} onOpenNote={onOpenNote} onEditCell={onEditCell} onMoveCard={onMoveBaseCard}
     editingDisabled={editingDisabled || saving || !scope} onSelectView={setIndex} onPreviewProfile={preview} onSaveProfile={source => { void save(source) }}
     evaluating={evaluating} onStopEvaluation={() => evaluation.current?.abort()} onResolveImage={async path => { const result = await window.tsuzune.readVaultImage(path); return result.ok ? result.value : null }} />
     {message && <p role="alert">{message}</p>}</>

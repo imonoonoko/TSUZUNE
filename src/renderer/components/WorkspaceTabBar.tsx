@@ -23,6 +23,11 @@ export type WorkspaceTab =
     }
   | {
       id: number
+      kind: 'canvas'
+      path: string
+    }
+  | {
+      id: number
       kind: 'global-graph'
     }
   | {
@@ -51,9 +56,6 @@ export function workspaceTabLabel(tab: WorkspaceTab): string {
   }
   if (tab.kind === 'linked-view') {
     return `${withoutFileExtension(tab.path)} へのバックリンク`
-  }
-  if (tab.kind === 'base') {
-    return basenameRelative(tab.path)
   }
   return tab.kind === 'note'
     ? withoutMarkdownExtension(basenameRelative(tab.path))

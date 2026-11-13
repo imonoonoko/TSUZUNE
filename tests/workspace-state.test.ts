@@ -68,6 +68,17 @@ describe('workspace state V1 parser', () => {
     ] })).toThrow(/only one tab/)
   })
 
+  it('round-trips local Canvas paths and rejects protected, invalid, and duplicate tabs', () => {
+    const value = { ...snapshot, tabs: [{ kind: 'canvas', path: 'boards\\ideas.canvas' }] }
+    expect(parseWorkspaceSnapshotV1(value).tabs).toEqual([{ kind: 'canvas', path: 'boards/ideas.canvas' }])
+    for (const path of ['../outside.canvas', '50_履歴/audit.canvas', 'notes.md']) {
+      expect(() => parseWorkspaceSnapshotV1({ ...value, tabs: [{ kind: 'canvas', path }] })).toThrow()
+    }
+    expect(() => parseWorkspaceSnapshotV1({ ...value, tabs: [
+      { kind: 'canvas', path: 'boards/ideas.canvas' }, { kind: 'canvas', path: 'BOARDS/IDEAS.CANVAS' }
+    ] })).toThrow(/only one tab/)
+  })
+
   it('strictly validates persisted V1 collections and all-or-nothing limits', () => {
     expect(
       parseVaultWorkspacesV1({
