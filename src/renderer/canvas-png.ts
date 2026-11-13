@@ -38,7 +38,7 @@ export function canvasPngSnapshot(world: HTMLElement, data: CanvasData, { scale,
   if (hideContent) clone.querySelectorAll('.canvas-card > header, .canvas-card-handle, .canvas-card-content, .canvas-group-background, .canvas-edge-label').forEach(element => element.remove())
   clone.style.transformOrigin = '0 0'
   clone.style.transform = `scale(${scale}) translate(${-left - originX}px, ${-top - originY}px)`
-  clone.querySelectorAll('.canvas-resize, .canvas-marquee, .canvas-card-content button, .canvas-group-tools, .canvas-port').forEach(element => element.remove())
+  clone.querySelectorAll('.canvas-resize, .canvas-marquee, .canvas-card-content button, .canvas-group-tools, .canvas-port, .canvas-attachment-player, .media-player').forEach(element => element.remove())
   clone.querySelectorAll<HTMLTextAreaElement>('.canvas-card-text textarea').forEach(textarea => {
     const card = textarea.closest<HTMLElement>('.canvas-card[data-node-id]')
     const node = data.nodes.find(item => item.id === card?.dataset.nodeId)

@@ -1352,6 +1352,47 @@ export class VaultService {
     }
   }
 
+  async readPdfBytes(relativePath: string, expectedRoot?: string): Promise<Uint8Array> {
+    if (typeof relativePath !== 'string' || extname(relativePath).toLowerCase() !== '.pdf') {
+      throw new VaultError({ code: 'INVALID_PATH', message: 'PDFファイルだけを内部表示できます。' })
+    }
+    const root = this.getRootPath(), revision = this.getRootRevision()
+    const assertCurrent = (): void => {
+      if ((expectedRoot !== undefined && root !== expectedRoot) || root !== this.getRootPath() || revision !== this.getRootRevision()) {
+        throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わったため、PDFの読み込みを中止しました。' })
+      }
+    }
+    assertCurrent()
+    const absolute = await this.resolveFileForOpen(relativePath)
+    assertCurrent()
+    const file = await open(absolute, 'r')
+    try {
+      const before = await file.stat()
+      if (!before.isFile() || before.size > 100 * 1024 * 1024) {
+        throw new VaultError({ code: 'INVALID_PATH', message: '内部表示できるPDFは100 MiB以下です。外部アプリで開いてください。' })
+      }
+      // Bound allocation even if another process grows the file during the read.
+      const bytes = new Uint8Array(before.size + 1)
+      let length = 0
+      while (length < bytes.length) {
+        const result = await file.read(bytes, length, bytes.length - length, length)
+        if (result.bytesRead === 0) break
+        length += result.bytesRead
+      }
+      const after = await file.stat()
+      assertCurrent()
+      if (length !== before.size || before.size !== after.size || before.mtimeMs !== after.mtimeMs) {
+        throw new VaultError({ code: 'FILE_CHANGED', message: '読み込み中にPDFが変更されました。再度開いてください。' })
+      }
+      if (!Buffer.from(bytes.subarray(0, Math.min(length, 1024))).includes(Buffer.from('%PDF-'))) {
+        throw new VaultError({ code: 'INVALID_PATH', message: 'PDFの形式を確認できませんでした。' })
+      }
+      return bytes.slice(0, length)
+    } catch (error) {
+      throw fromNodeError(error, 'UNKNOWN', 'PDFを読み込めませんでした。')
+    } finally { await file.close() }
+  }
+
   async readAttachmentBytes(relativePath: string): Promise<Buffer> {
     if (!isSupportedAttachmentPath(relativePath)) {
       throw new VaultError({

@@ -99,6 +99,8 @@ import type { PropertyDeclaredType, PropertyChangeOperation, PropertyPreviewResu
 import PropertyChangePanel from './components/PropertyChangePanel'
 import FileTree, { type TreeSelection } from './components/FileTree'
 import AttachmentPreview from './components/AttachmentPreview'
+import PdfExportDialog, { type PdfExportSnapshot } from './components/PdfExportDialog'
+import { mediaMimeType } from '../shared/attachments'
 import HumanNoteCaptureDialog, {
   type HumanNoteCaptureSubmission
 } from './components/HumanNoteCaptureDialog'
@@ -332,6 +334,12 @@ export default function App(): React.JSX.Element {
   const closeHandlerRef = useRef<() => Promise<void>>(async () => undefined)
   const [treeSelection, setTreeSelection] = useState<TreeSelection | null>(null)
   const [content, setContent] = useState('')
+  const [pdfExportSnapshot, setPdfExportSnapshot] = useState<PdfExportSnapshot | null>(null)
+  const pdfExportOpener = useRef<HTMLButtonElement>(null)
+  const closePdfExport = (): void => {
+    setPdfExportSnapshot(null)
+    requestAnimationFrame(() => pdfExportOpener.current?.focus())
+  }
   const contentRef = useRef('')
   const [modifiedAt, setModifiedAt] = useState(0)
   const modifiedAtRef = useRef(0)
@@ -445,6 +453,7 @@ export default function App(): React.JSX.Element {
   const [driveVaults, setDriveVaults] = useState<DriveRemoteVault[]>([])
   const [selectedDriveVaultId, setSelectedDriveVaultId] = useState('')
   const modalOpen =
+    Boolean(pdfExportSnapshot) ||
     Boolean(propertyRequest) ||
     quickSwitcherOpen ||
     commandPaletteOpen ||
@@ -1127,7 +1136,7 @@ export default function App(): React.JSX.Element {
   }, [workspaceDialogMode])
 
   closeHandlerRef.current = async (): Promise<void> => {
-    if (busyRef.current || editorComposingRef.current || searchComposing) {
+    if (busyRef.current || editorComposingRef.current || searchComposing || pdfExportSnapshot) {
       setMessage('入力の確定と処理の完了後にアプリを閉じてください。')
       window.tsuzune.confirmClose(false)
       return
@@ -3006,6 +3015,10 @@ export default function App(): React.JSX.Element {
 
   const handleNoteNavigation = async (target: NoteNavigationTarget): Promise<void> => {
     if (target.status !== 'resolved') { setMessage(target.reason); return }
+    if ((/\.pdf$/i.test(target.path) || mediaMimeType(target.path)) && snapshotRef.current?.attachments?.some(item => item.path === target.path)) {
+      await openVaultEntryInNewTab(target.path, 'attachment')
+      return
+    }
     const generation = vaultGenerationRef.current
     if (target.path === selectedPathRef.current) {
       if (!beginOperation()) return
@@ -3034,6 +3047,13 @@ export default function App(): React.JSX.Element {
     })
   }, [pendingHeading, selectedPath, viewMode, content, busy])
 
+  const openAttachmentExternally = (path: string, expectedVaultPath?: string): void => {
+    const open = expectedVaultPath === undefined ? window.tsuzune.openVaultFile(path) : window.tsuzune.openVaultFile(path, expectedVaultPath)
+    void open.then(result => {
+      if (!result.ok) setMessage(errorMessage(result.error))
+    })
+  }
+
   const openGraphNode = (path: string): void => {
     const node = visibleGraph.nodes.find((candidate) => candidate.path === path)
     if (!node || node.kind === 'tag') {
@@ -3045,11 +3065,8 @@ export default function App(): React.JSX.Element {
       return
     }
     if (node.kind === 'attachment') {
-      void window.tsuzune.openVaultFile(path).then((result) => {
-        if (!result.ok) {
-          setMessage(errorMessage(result.error))
-        }
-      })
+      if (/\.pdf$/i.test(path) || mediaMimeType(path)) void openVaultEntryInNewTab(path, 'attachment')
+      else openAttachmentExternally(path)
       return
     }
     void openNote(path)
@@ -5544,7 +5561,9 @@ export default function App(): React.JSX.Element {
                 </div>
                 <AttachmentPreview
                   attachment={activeAttachment}
-                  onOpenExternally={() => void openGraphNode(activeAttachment.path)}
+                  vaultPath={snapshot.rootPath}
+                  onOpenExternally={() => openAttachmentExternally(activeAttachment.path,
+                    /\.pdf$/i.test(activeAttachment.path) || mediaMimeType(activeAttachment.path) ? snapshot.rootPath : undefined)}
                 />
                 <footer className="note-footer">
                   <span>{activeAttachment.size.toLocaleString()} bytes</span>
@@ -5582,6 +5601,9 @@ export default function App(): React.JSX.Element {
                         内容を編集
                       </button>
                     )}
+                    <button ref={pdfExportOpener} type="button" disabled={busy} onClick={() => setPdfExportSnapshot({
+                      content, notePath: selectedPath, attachments: snapshot.attachments ?? [], notes: savedNotes, pathAliases
+                    })}>PDF書き出し</button>
                     <div
                       className="note-view-switcher"
                       role="group"
@@ -5840,6 +5862,9 @@ export default function App(): React.JSX.Element {
           onClose={closeCommandPalette}
         />
       )}
+
+      {pdfExportSnapshot && <PdfExportDialog snapshot={pdfExportSnapshot} onClose={closePdfExport}
+        onSaved={path => { closePdfExport(); setMessage(`PDFを保存しました: ${path}`) }} />}
 
       {basePathDialogOpen && (
         <BasePathDialog

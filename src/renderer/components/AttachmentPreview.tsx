@@ -1,6 +1,10 @@
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { basenameRelative } from '../../core/paths'
 import type { VaultAttachment } from '../../shared/types'
+
+import { mediaMimeType } from '../../shared/attachments'
+import { LazyPdfReader } from './PdfLink'
+import MediaPlayer from './MediaPlayer'
 
 const IMAGE_EXTENSIONS = new Set([
   '.png',
@@ -21,10 +25,12 @@ function isImage(path: string): boolean {
 
 export default function AttachmentPreview({
   attachment,
-  onOpenExternally
+  onOpenExternally,
+  vaultPath
 }: {
   attachment: VaultAttachment
   onOpenExternally: () => void
+  vaultPath?: string
 }): React.JSX.Element {
   const [dataUrl, setDataUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
@@ -55,6 +61,13 @@ export default function AttachmentPreview({
       active = false
     }
   }, [attachment.path])
+
+  if (/\.pdf$/i.test(attachment.path)) return <Suspense fallback={<p role="status">PDFビューアを準備しています…</p>}>
+    <LazyPdfReader key={`${vaultPath}:${attachment.path}:${attachment.modifiedAt}:${attachment.size}`}
+      path={attachment.path} expectedRoot={vaultPath} onOpenExternally={onOpenExternally} />
+  </Suspense>
+  if (mediaMimeType(attachment.path)) return <MediaPlayer key={`${attachment.path}:${attachment.modifiedAt}:${attachment.size}`}
+    path={attachment.path} label={attachment.name} expectedVaultPath={vaultPath} onOpenExternally={onOpenExternally} />
 
   return (
     <section className="attachment-preview" aria-label="添付ファイルプレビュー">

@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { flushSync } from 'react-dom'
-import { EditorState, type Extension } from '@codemirror/state'
+import { EditorState, StateEffect, type Extension } from '@codemirror/state'
 import { commonmarkLanguage } from '@codemirror/lang-markdown'
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 import { parseFrontmatter } from '../../core/frontmatter'
@@ -24,6 +24,8 @@ export interface LivePreviewContext {
 }
 
 interface PreviewBlock { from: number; to: number; markdown: string }
+
+export const refreshLivePreview = StateEffect.define<void>()
 
 function blocks(state: EditorState): PreviewBlock[] {
   const text = state.doc.toString()
@@ -95,17 +97,18 @@ class PreviewWidget extends WidgetType {
     host.style.display = 'block'
     host.setAttribute('contenteditable', 'false')
     const reveal = (): void => {
-      view.dispatch({ selection: { anchor: this.block.from }, scrollIntoView: true })
+      view.dispatch({ selection: { anchor: view.posAtDOM(host) }, scrollIntoView: true })
       view.focus()
     }
     host.addEventListener('pointerdown', event => {
-      if (event.target instanceof Element && event.target.closest('.note-embed')) return
+      if (event.target instanceof Element && event.target.closest('.note-embed, .media-player, .media-link-content')) return
       if (!event.ctrlKey && !event.metaKey) reveal()
     }, true)
     host.addEventListener('click', event => {
       const anchor = event.target instanceof Element ? event.target.closest('a') : null
       if (!anchor) return
       if (anchor.closest('.note-embed')) return
+      if (anchor.matches('[data-media-link], [data-pdf-link]') && (event.ctrlKey || event.metaKey || event.detail === 0)) return
       event.preventDefault()
       event.stopPropagation()
       if (!event.ctrlKey && !event.metaKey && event.detail !== 0) { reveal(); return }
@@ -124,6 +127,20 @@ class PreviewWidget extends WidgetType {
       else if (wiki) ctx.onWikiLink?.(targetHref)
     }, true)
     this.root = createRoot(host)
+    this.render(host, view)
+    return host
+  }
+
+  updateDOM(host: HTMLElement, view: EditorView, previous: PreviewWidget): boolean {
+    if (this.block.markdown !== previous.block.markdown || !previous.root || previous.destroyed) return false
+    // Keep the native media element when edits move an otherwise unchanged block.
+    this.root = previous.root
+    previous.root = null
+    this.render(host, view)
+    return true
+  }
+
+  private render(host: HTMLElement, view: EditorView): void {
     queueMicrotask(() => {
       if (this.destroyed || !this.root) return
       const ctx = this.context()
@@ -135,7 +152,6 @@ class PreviewWidget extends WidgetType {
       host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach(input => { input.disabled = true })
       view.requestMeasure()
     })
-    return host
   }
 
   destroy(): void {
@@ -166,7 +182,8 @@ export function livePreviewExtension(context: () => LivePreviewContext): Extensi
     decorations: DecorationSet
     constructor(view: EditorView) { this.decorations = decorations(view, context) }
     update(update: ViewUpdate): void {
-      if (!context().isComposing() && (update.docChanged || update.selectionSet || update.viewportChanged || update.transactions.length)) {
+      const refresh = update.transactions.some(transaction => transaction.effects.some(effect => effect.is(refreshLivePreview)))
+      if (!context().isComposing() && (update.docChanged || update.selectionSet || refresh)) {
         this.decorations = decorations(update.view, context)
       }
     }

@@ -6,7 +6,10 @@ import MarkdownPreview from '../src/renderer/components/MarkdownPreview'
 import type { NoteDocument } from '../src/shared/types'
 import MarkdownEditor from '../src/renderer/components/MarkdownEditor'
 
-afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+vi.mock('../src/renderer/components/PdfReader', () => ({
+  default: ({ path, expectedRoot }: { path: string; expectedRoot: string }) => <span>{path} in {expectedRoot}</span>
+}))
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 const note = (path: string, content: string): NoteDocument => ({ path, name: path, content, modifiedAt: 1, size: content.length })
 const board = { nodes: [
   { id: 'a', type: 'text', text: 'Canvas body', x: -200, y: 40, width: 240, height: 140 },
@@ -22,6 +25,23 @@ function preview(content = '![[Board.canvas]]', notes = [note('Source.md', '**No
   return <MarkdownPreview content={content} notePath="Home.md" notes={notes} attachments={[]} embedContext={{ vaultPath, notes, attachments: [], onOpenCanvas: open }} onWikiLink={vi.fn()} />
 }
 describe('Canvas embeds in normal notes', () => {
+  it('shows a scoped PDF reader and media controls for Vault attachments', async () => {
+    api(JSON.stringify({ nodes: [
+      { id: 'pdf', type: 'file', file: 'assets/paper.pdf', x: 0, y: 0, width: 300, height: 250 },
+      { id: 'media', type: 'file', file: 'assets/clip.wav', x: 400, y: 0, width: 300, height: 250 }
+    ], edges: [] }))
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {})
+    const getVaultMediaUrl = vi.fn(async () => ({ ok: true, value: 'tsuzune-media://vault/fixture' }))
+    window.tsuzune.getVaultMediaUrl = getVaultMediaUrl
+    const attachments = ['assets/paper.pdf', 'assets/clip.wav'].map(path => ({ path, name: path, size: 1, createdAt: 1, modifiedAt: 1 }))
+    render(<MarkdownPreview content="![[Board.canvas]]" notePath="Home.md" attachments={attachments}
+      onWikiLink={vi.fn()} embedContext={{ vaultPath: 'C:/fixture', notes: [], attachments }} />)
+    expect(await screen.findByText('assets/paper.pdf in C:/fixture')).toBeTruthy()
+    const player = await screen.findByLabelText('assets/clip.wav', { selector: 'audio' })
+    expect(getVaultMediaUrl).toHaveBeenCalledWith('assets/clip.wav', 'C:/fixture')
+    expect(player.hasAttribute('controls')).toBe(true)
+  })
   it('shows layout, connections and Markdown file cards without edit controls, and opens the original Canvas', async () => {
     const { readCanvas } = api(); const open = vi.fn()
     const { container } = render(preview(undefined, undefined, open))

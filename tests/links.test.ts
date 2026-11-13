@@ -165,6 +165,7 @@ describe('Wiki link resolution', () => {
     ]
 
     expect(getOutgoingLinks(linkedNotes[1].content, linkedNotes)).toHaveLength(1)
+    expect(getOutgoingLinks('[[assets/paper.pdf#page=2|引用]] [[assets/clip.wav|録音]]', linkedNotes)).toEqual([])
     expect(getBacklinks('方針.md', linkedNotes).map((item) => item.path)).toEqual([
       '概要.md'
     ])

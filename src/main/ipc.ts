@@ -57,6 +57,9 @@ import { WorkspaceService } from './workspaces'
 import type { WorkspaceScope, WorkspaceSnapshotV1 } from '../shared/workspace-state'
 import { EntryMoveCoordinator } from './entry-move'
 import { CanvasPngExportService } from './canvas-png'
+import { PdfExportService } from './pdf-export'
+import { VaultMedia } from './media-protocol'
+import type { PdfExportOptions } from '../shared/pdf-export'
 import { KanbanFolderMoveService } from './kanban-folder-move'
 import type { CanvasPngExportOptions } from '../shared/canvas-png'
 import type { KanbanFolderMoveApplyInput, KanbanFolderMoveInput } from '../shared/kanban-folder-move'
@@ -235,7 +238,8 @@ export function registerIpc(
   getWindow: () => BrowserWindow | null,
   confirmClose: (allow: boolean) => void,
   openVaultFileWindow?: (path: string) => Promise<void>,
-  entryMoveOverride?: EntryMoveCoordinator
+  entryMoveOverride?: EntryMoveCoordinator,
+  media = new VaultMedia(vault)
 ): void {
   const isTrusted = (event: IpcMainInvokeEvent): boolean =>
     trustedSender(event, getWindow)
@@ -260,8 +264,10 @@ export function registerIpc(
   const workspaces = new WorkspaceService(vault)
   const propertyTypes = new PropertyTypeSettingsService(vault)
   const canvasPng = new CanvasPngExportService(getWindow)
+  const pdfExport = new PdfExportService(getWindow)
   const kanbanFolderMoves = new KanbanFolderMoveService(vault, entryMove,
     async () => (await readSettings()).userIgnoreFilters, scope => propertyTypes.get(scope))
+  registerConcurrentTrusted('note:exportPdf', (input: PdfExportOptions) => pdfExport.export(input))
   registerConcurrentTrusted('canvas:exportPng', (input: CanvasPngExportOptions) => canvasPng.export(input))
   registerTrusted('kanban:folderMovePreview', (input: KanbanFolderMoveInput) => kanbanFolderMoves.preview(input))
   registerTrusted('kanban:folderMoveApply', (input: KanbanFolderMoveApplyInput) => runGoogleInOrder(() => kanbanFolderMoves.apply(input)))
@@ -451,6 +457,8 @@ export function registerIpc(
     return vault.listBases(expectedVaultPath, settings.userIgnoreFilters)
   })
   registerTrusted('vault:readImage', (path: string) => vault.readImageDataUrl(path))
+  registerConcurrentTrusted('vault:readPdf', (path: string, expectedRoot?: string) => vault.readPdfBytes(path, expectedRoot))
+  registerTrusted('vault:mediaUrl', (path: string, expectedVaultPath?: string) => media.getUrl(path, expectedVaultPath))
   registerTrusted('settings:get', () => readSettings())
   registerTrusted('workspaces:get', (expectedVaultPath: string) =>
     workspaces.getWorkspaces(expectedVaultPath)
@@ -795,8 +803,16 @@ export function registerIpc(
     return null
   })
 
-  registerTrusted('system:openVaultFile', async (path: string) => {
+  registerTrusted('system:openVaultFile', async (path: string, expectedVaultPath?: string) => {
+    const revision = expectedVaultPath === undefined ? undefined : vault.getRootRevision()
+    const ensureCurrentVault = (): void => {
+      if (expectedVaultPath !== undefined && (vault.getRootPath() !== expectedVaultPath || vault.getRootRevision() !== revision)) {
+        throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+      }
+    }
+    ensureCurrentVault()
     const absolutePath = await vault.resolveFileForOpen(path)
+    ensureCurrentVault()
     const error = await shell.openPath(absolutePath)
     if (error) {
       throw new VaultError({

@@ -29,7 +29,7 @@ import type { NoteNavigationTarget } from '../../core/note-navigation'
 import type { PropertyDeclaredType, PropertyValue } from '../../shared/property-changes'
 import type { NoteDocument, VaultAttachment } from '../../shared/types'
 import { MAX_PASTED_IMAGE_BYTES } from '../../shared/image-paste'
-import { livePreviewExtension, type LivePreviewContext } from './LivePreview'
+import { livePreviewExtension, refreshLivePreview, type LivePreviewContext } from './LivePreview'
 import type { VaultEmbedContext } from './VaultEmbed'
 import PropertyValueFields from './PropertyValueFields'
 import { useEditorLinkPreview } from './NoteHoverPreview'
@@ -284,7 +284,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
               compositionEndPendingRef.current = false
               composingRef.current = false
               onCompositionChangeRef.current?.(false)
-              queueMicrotask(() => viewRef.current?.dispatch({}))
+              queueMicrotask(() => viewRef.current?.dispatch({ effects: refreshLivePreview.of(undefined) }))
             }
           }
         })
@@ -304,7 +304,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
         compositionEndPendingRef.current = false
         composingRef.current = false
         onCompositionChangeRef.current?.(false)
-        viewRef.current?.dispatch({})
+        viewRef.current?.dispatch({ effects: refreshLivePreview.of(undefined) })
       })
     }
     view.dom.addEventListener('compositionstart', handleCompositionStart)
@@ -350,7 +350,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   }, [hoverPreview])
 
   useEffect(() => {
-    if (livePreview) viewRef.current?.dispatch({})
+    if (livePreview) viewRef.current?.dispatch({ effects: refreshLivePreview.of(undefined) })
   }, [livePreview, notePath, attachments, notes, pathAliases, hoverPreview,
     embedContext?.vaultPath, embedContext?.scopeRevision, embedContext?.documentRevision, embedContext?.notes,
     embedContext?.attachments, embedContext?.pathAliases, embedContext?.declaredTypes,

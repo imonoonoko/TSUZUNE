@@ -386,6 +386,7 @@ export interface TsuzuneApi {
   readCanvas(path: string, expectedVaultPath: string): Promise<Result<import('./canvas').CanvasDocument>>
   createCanvas(input: import('./canvas').CanvasCreateInput): Promise<Result<import('./canvas').CanvasDocument>>
   saveCanvas(input: import('./canvas').CanvasSaveInput): Promise<Result<import('./canvas').CanvasDocument>>
+  exportNotePdf(input: import('./pdf-export').PdfExportOptions): Promise<Result<import('./pdf-export').PdfExportResult>>
   exportCanvasPng(input: import('./canvas-png').CanvasPngExportOptions): Promise<Result<import('./canvas-png').CanvasPngExportResult>>
   previewKanbanFolderMove(input: import('./kanban-folder-move').KanbanFolderMoveInput): Promise<Result<import('./kanban-folder-move').KanbanFolderMovePreview>>
   applyKanbanFolderMove(input: import('./kanban-folder-move').KanbanFolderMoveApplyInput): Promise<Result<{ oldPath: string; path: string }>>
@@ -394,7 +395,9 @@ export interface TsuzuneApi {
   applyImport(input: { scope: import('./property-changes').PropertyChangeScope; planId: string }): Promise<Result<import('./importer').ImportApplyResult>>
   discardImport(token: string): Promise<Result<null>>
   readVaultImage(path: string): Promise<Result<string>>
-  openVaultFile(path: string): Promise<Result<null>>
+  readVaultPdf(path: string, expectedRoot?: string): Promise<Result<Uint8Array>>
+  getVaultMediaUrl(path: string, expectedVaultPath?: string): Promise<Result<string>>
+  openVaultFile(path: string, expectedVaultPath?: string): Promise<Result<null>>
   revealVaultFile(path: string): Promise<Result<null>>
   openVaultFileWindow(path: string): Promise<Result<null>>
   copyText(text: string): Promise<Result<null>>

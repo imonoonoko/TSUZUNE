@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from 'react'
+import { Suspense, useCallback, useEffect, useId, useState } from 'react'
 import { parseBaseProfile } from '../../core/base-profile'
 import { parseCanvas } from '../../core/canvas'
 import { resolveNoteEmbed } from '../../core/note-embeds'
@@ -12,6 +12,9 @@ import { evaluateBaseInWorker } from '../base-worker-client'
 import BaseTableView, { type BaseTableState } from './BaseTableView'
 import CanvasView from './CanvasView'
 import MarkdownPreview from './MarkdownPreview'
+import { mediaMimeType } from '../../shared/attachments'
+import { LazyPdfReader } from './PdfLink'
+import MediaPlayer from './MediaPlayer'
 import './VaultEmbed.css'
 
 export interface VaultEmbedContext {
@@ -28,6 +31,7 @@ export interface VaultEmbedContext {
   budget?: number
   scopeRevision?: string | number
   documentRevision?: object
+  printAttachments?: boolean
 }
 
 const MAX_DEPTH = 6
@@ -150,10 +154,24 @@ export function canvasEmbedContent(data: CanvasData, path: string, context: Vaul
   return {
     renderText: (text: string, id?: string) => text && (id && permitted.has(id) ? <MarkdownPreview content={text} notePath={path}
       notes={notes} attachments={attachments} pathAliases={pathAliases} onWikiLink={context.onWikiLink ?? (() => {})}
-      onNavigate={context.onNavigate} embedContext={next} localImagesOnly /> : <p>{text}</p>),
+      onNavigate={context.onNavigate} embedContext={next} localImagesOnly printAttachments={context.printAttachments} /> : <p>{text}</p>),
     renderFile: (file: string, subpath?: string, id?: string) => {
       if (!id || !permitted.has(id)) return null
-      if (attachments.some(item => item.path === file) && /\.(png|jpe?g|gif|bmp|svg|webp|avif)$/i.test(file)) {
+      const attachment = attachments.find(item => item.path === file)
+      const pdf = /\.pdf$/i.test(file)
+      if (pdf || mediaMimeType(file)) {
+        if (context.printAttachments) return <span>{file}</span>
+        if (subpath || !attachment) return <p role="status">{subpath ? '添付の見出し・ブロック限定は未対応です。' : '添付が見つかりません。'}</p>
+        const key = JSON.stringify([context.vaultPath, context.scopeRevision, file, attachment.modifiedAt, attachment.size])
+        return <div className="canvas-attachment-player" onPointerDown={event => event.stopPropagation()}>
+          {pdf
+            ? <Suspense fallback={<p role="status">PDFを読み込んでいます…</p>}>
+                <LazyPdfReader key={key} path={file} expectedRoot={context.vaultPath || undefined} compact />
+              </Suspense>
+            : <MediaPlayer key={key} path={file} label={attachment.name} expectedVaultPath={context.vaultPath || undefined} />}
+        </div>
+      }
+      if (attachment && /\.(png|jpe?g|gif|bmp|svg|webp|avif)$/i.test(file)) {
         return <MarkdownPreview content={`![](#/vault-asset/${encodeURIComponent(file)})`} notePath={path}
           attachments={attachments} onWikiLink={() => {}} localImagesOnly />
       }
@@ -202,6 +220,6 @@ export default function VaultEmbed({ target, label, hostPath, hostContent, conte
     <MarkdownPreview content={resolved.content} sourceContent={resolved.sourceContent} notePath={resolved.path}
       attachments={context.attachments} notes={context.notes} pathAliases={context.pathAliases} onNavigate={context.onNavigate}
       onWikiLink={context.onWikiLink ?? (() => {})} embedContext={{ ...next, ancestors: [...ancestors, resolved.key] }}
-      headingPrefix={`${id}-`} localImagesOnly />
+      headingPrefix={`${id}-`} localImagesOnly printAttachments={context.printAttachments} />
   </section>
 }

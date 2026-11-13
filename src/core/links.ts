@@ -12,7 +12,7 @@ import {
   withoutMarkdownExtension
 } from './paths'
 import type { CompiledPathAliases } from './path-aliases'
-import { isSupportedAttachmentPath } from '../shared/attachments'
+import { isSupportedAttachmentPath, mediaMimeType } from '../shared/attachments'
 import { commonmarkLanguage } from '@codemirror/lang-markdown'
 import { decodeString } from 'micromark-util-decode-string'
 import type { NoteLinkCache } from './note-link-cache'
@@ -90,7 +90,9 @@ export function extractNoteLinks(content: string, sourcePath: string, includeEmb
     const frontmatterWiki = to <= frontmatter.length && frontmatterWikiMask.slice(from, to) !== match[0]
     if (escapes % 2 || (!frontmatterWiki && excluded(from, to)) || markdownRanges.some(range => from < range.to && to > range.from)) continue
     const occurrence = readWikiLink(match[0])
-    if (!occurrence || (!includeEmbeddedAttachments && content[from - 1] === '!' && isSupportedAttachmentPath(occurrence.target.split('#')[0]))) continue
+    if (!occurrence) continue
+    const targetPath = occurrence.target.split('#')[0]
+    if (!includeEmbeddedAttachments && (/\.pdf$/i.test(targetPath) || mediaMimeType(targetPath) || (content[from - 1] === '!' && isSupportedAttachmentPath(targetPath)))) continue
     links.push({ ...occurrence, kind: 'wiki', sourcePath, fragment: occurrence.target.includes('#') ? occurrence.target.slice(occurrence.target.indexOf('#') + 1) : undefined, range: { from, to }, destinationRange: { from: from + 2, to: from + 2 + match[1].split('|')[0].length } })
   }
   return links.sort((a, b) => a.range.from - b.range.from)

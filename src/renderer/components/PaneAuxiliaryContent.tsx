@@ -10,6 +10,7 @@ import { basenameRelative } from '../../core/paths'
 import { parseBaseProfile } from '../../core/base-profile'
 import { evaluateBaseInWorker } from '../base-worker-client'
 import AttachmentPreview from './AttachmentPreview'
+import { mediaMimeType } from '../../shared/attachments'
 import BaseTableView, { type BaseTableState } from './BaseTableView'
 import PropertyInventoryView from './PropertyInventoryView'
 import WikiGraphView from './WikiGraphView'
@@ -44,7 +45,10 @@ export default function PaneAuxiliaryContent(props: PaneAuxiliaryContentProps): 
   if (tab.kind === 'base') return <AuxiliaryBase key={`${props.scope?.rootRevision}:${tab.path}`} {...props} notes={visibleNotes} path={tab.path} />
   if (tab.kind === 'attachment') {
     const attachment = visibleAttachments.find(item => item.path === tab.path)
-    return attachment ? <AttachmentPreview key={`${props.scope?.rootRevision}:${attachment.path}`} attachment={attachment} onOpenExternally={() => { void window.tsuzune.openVaultFile(attachment.path) }} />
+    return attachment ? <AttachmentPreview key={`${props.scope?.rootRevision}:${attachment.path}`} attachment={attachment} vaultPath={props.scope?.rootPath} onOpenExternally={() => {
+      if (/\.pdf$/i.test(attachment.path) || mediaMimeType(attachment.path)) void window.tsuzune.openVaultFile(attachment.path, props.scope?.rootPath)
+      else void window.tsuzune.openVaultFile(attachment.path)
+    }} />
       : <p role="status">添付ファイルが見つかりません。{tab.path}</p>
   }
   if (tab.kind === 'linked-view') {

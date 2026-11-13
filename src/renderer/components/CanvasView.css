@@ -19,6 +19,9 @@
 .canvas-card-content { flex: 1; min-height: 0; overflow: auto; }
 .canvas-card-content textarea { box-sizing: border-box; width: 100%; height: 100%; }
 .canvas-card-content p { overflow-wrap: anywhere; }
+.canvas-attachment-player { display: flex; min-width: 0; }
+.canvas-attachment-player .pdf-reader { min-height: 180px; }
+.canvas-attachment-player .pdf-canvas-area { min-height: 130px; }
 .canvas-resize { position: absolute; right: 2px; bottom: 2px; width: 14px; height: 14px; border: 1px solid var(--accent, #4d83da); background: var(--paper, white); cursor: nwse-resize; touch-action: none; }
 .canvas-empty-state { position: absolute; left: 40px; top: 40px; padding: .8rem; color: var(--muted, #777); background: var(--paper, white); border: 1px solid var(--line, #ccc); border-radius: 6px; }
 .canvas-readonly .canvas-editor-body { position: relative; }
