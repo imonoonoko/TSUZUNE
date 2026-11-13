@@ -49,6 +49,7 @@ import { PropertyChangesService } from './property-changes'
 import { HumanChangesService } from './human-changes'
 import type { PropertyChangeScope, PropertyDeclaredType, PropertyPreviewInput, PropertyApplyInput } from '../shared/property-changes'
 import { VaultError, VaultService } from './vault'
+import { packStartupSnapshot } from './startup-snapshot'
 import { WorkspaceService } from './workspaces'
 import type { WorkspaceScope, WorkspaceSnapshotV1 } from '../shared/workspace-state'
 import { EntryMoveCoordinator } from './entry-move'
@@ -340,7 +341,7 @@ export function registerIpc(
     }
   })
 
-  registerTrusted('vault:openLast', async () => {
+  const openLastVault = async () => {
     const settings = await readSettings()
     if (!settings.lastVaultPath) {
       return null
@@ -360,8 +361,13 @@ export function registerIpc(
       })
       return null
     }
-  })
+  }
 
+  registerTrusted('vault:openLast', openLastVault)
+  registerTrusted('vault:openLastStartup', async () => {
+    const snapshot = await openLastVault()
+    return snapshot ? packStartupSnapshot(snapshot) : null
+  })
   registerTrusted('vault:snapshot', () => vault.scan())
   registerTrusted('vault:readNote', (path: string) => vault.readNote(path))
   registerTrusted('vault:readBase', (path: string) => vault.readBase(path))

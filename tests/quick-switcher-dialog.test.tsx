@@ -149,6 +149,21 @@ describe('QuickSwitcherDialog', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('leaves candidate navigation and Escape to the IME during composition', () => {
+    const onClose = vi.fn()
+    render(<QuickSwitcherDialog notes={[note('one.md', 'One')]} recentPaths={['one.md']}
+      onOpen={vi.fn()} onOpenInNewTab={vi.fn()} onClose={onClose} />)
+
+    const input = screen.getByRole('combobox')
+    fireEvent.compositionStart(input)
+    expect(fireEvent.keyDown(input, { key: 'ArrowDown' })).toBe(true)
+    expect(fireEvent.keyDown(input, { key: 'Escape' })).toBe(true)
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.compositionEnd(input)
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
   it('uses the renderer ranker for title, path, and content queries', () => {
     render(
       <QuickSwitcherDialog

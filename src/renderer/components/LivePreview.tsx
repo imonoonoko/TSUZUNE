@@ -18,6 +18,7 @@ export interface LivePreviewContext {
   onNavigate?: (target: NoteNavigationTarget) => void
   onWikiLink?: (target: string) => void
   isComposing: () => boolean
+  editorLinkHover?: boolean
 }
 
 interface PreviewBlock { from: number; to: number; markdown: string }
@@ -124,7 +125,7 @@ class PreviewWidget extends WidgetType {
       if (this.destroyed || !this.root) return
       flushSync(() => this.root?.render(
         <MarkdownPreview content={this.block.markdown} notePath={ctx.notePath} attachments={ctx.attachments}
-          notes={ctx.notes} pathAliases={ctx.pathAliases} onNavigate={() => {}} onWikiLink={() => {}} />
+          notes={ctx.notes} pathAliases={ctx.pathAliases} onNavigate={() => {}} onWikiLink={() => {}} editorLinkHover={ctx.editorLinkHover} />
       ))
       host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach(input => { input.disabled = true })
       view.requestMeasure()

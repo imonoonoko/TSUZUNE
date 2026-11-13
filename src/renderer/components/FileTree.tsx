@@ -7,7 +7,8 @@ import {
   withoutMarkdownExtension
 } from '../../core/paths'
 import { orderSearchResults, parseRendererSearchQuery, searchResultContextRanges, segmentJapaneseQuery, type SearchResultOrder } from '../../core/search'
-import type { SearchResult, VaultSnapshot } from '../../shared/types'
+import type { AdvancedSearchResult } from '../../core/advanced-search'
+import type { VaultSnapshot } from '../../shared/types'
 
 export interface TreeSelection {
   kind: 'note' | 'directory'
@@ -17,7 +18,9 @@ interface FileTreeProps {
   snapshot: VaultSnapshot
   selectedNotePath: string | null
   treeSelection: TreeSelection | null
-  searchResults: SearchResult[]
+  searchResults: AdvancedSearchResult[]
+  searchPending?: boolean
+  searchError?: string | null
   query: string
   onOpenMatch?: (path: string, source: string, from: number, to: number) => void
   onSelectNote: (path: string) => void
@@ -102,6 +105,8 @@ export default function FileTree({
   selectedNotePath,
   treeSelection,
   searchResults,
+  searchPending,
+  searchError,
   query,
   onOpenMatch,
   onSelectNote,
@@ -235,7 +240,7 @@ export default function FileTree({
     if (!showAllMatches) return new Map<string, ReturnType<typeof searchResultContextRanges>>()
     return new Map(searchResults.flatMap(result => {
       const note = notesByPath.get(result.path)
-      return note?.content ? [[result.path, searchResultContextRanges(note, query, showSearchContext ? 1 : 0)] as const] : []
+      return note?.content ? [[result.path, searchResultContextRanges(note, query, showSearchContext ? 1 : 0, result.sourceMatches ?? (result.sourceMatch ? [result.sourceMatch] : undefined))] as const] : []
     }))
   }, [notesByPath, query, searchResults, showAllMatches, showSearchContext])
 
@@ -739,6 +744,7 @@ export default function FileTree({
               role="treeitem"
               draggable
               key={note.path}
+              data-note-preview-path={note.path}
               className={`tree-row tree-note ${
                 isSelected || isTreeSelected ? 'is-selected' : ''
               }`}
@@ -961,11 +967,15 @@ export default function FileTree({
             <label><input type="checkbox" checked={showAllMatches} onChange={event => setShowAllMatches(event.target.checked)} />一致箇所を表示</label>
             {showAllMatches && <label><input type="checkbox" checked={showSearchContext} onChange={event => setShowSearchContext(event.target.checked)} />前後の行も表示</label>}
           </div>
-          <header className="search-results-summary" role="status" aria-live="polite">
-            <span>検索結果</span>{' '}
-            <strong>{searchResults.length}件</strong>
+          <header className="search-results-summary">
+            {searchError ? <span role="alert">{searchError}</span> : <span role="status">
+              {searchPending ? '検索中…' : <>
+                <span>検索結果</span>{' '}
+                <strong>{searchResults.length}件</strong>
+              </>}
+            </span>}
           </header>
-          {searchResults.length === 0 ? (
+          {searchError || searchPending ? null : searchResults.length === 0 ? (
             <div className="sidebar-empty">
               「{query}」は見つかりませんでした。
             </div>
@@ -984,6 +994,7 @@ export default function FileTree({
                     <button
                       type="button"
                       className="search-result"
+                      data-note-preview-path={note?.path}
                       onClick={() => onSelectNote(result.path)}
                       onContextMenu={(event) =>
                         openContextMenu(event, { kind: 'note', path: result.path })
@@ -1001,7 +1012,7 @@ export default function FileTree({
                         </span>
                       ) : null}
                       <small className="search-result-excerpt">
-                        {highlightSearchExcerpt(result.excerpt, query)}
+                        {result.sourceMatch ? result.excerpt : highlightSearchExcerpt(result.excerpt, query)}
                       </small>
                       <span className="search-result-path">{result.path}</span>
                       {age ? (

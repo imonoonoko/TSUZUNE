@@ -78,6 +78,8 @@ export interface VaultSnapshot {
   pathAliases?: Record<string, string>
 }
 
+export type StartupSnapshot = VaultSnapshot | { encoding: 'gzip-base64'; data: string }
+
 export interface SaveNoteInput {
   path: string
   content: string
@@ -356,6 +358,7 @@ export interface TsuzuneApi {
   applyPropertyChanges(input: import('./property-changes').PropertyApplyInput): Promise<Result<import('./property-changes').PropertyApplyResult>>
   chooseVault(): Promise<Result<VaultSnapshot | null>>
   openLastVault(): Promise<Result<VaultSnapshot | null>>
+  openLastVaultStartup?(): Promise<Result<StartupSnapshot | null>>
   getSettings(): Promise<Result<AppSettings>>
   getWorkspaces(expectedVaultPath: string): Promise<Result<WorkspaceCollection>>
   saveWorkspace(

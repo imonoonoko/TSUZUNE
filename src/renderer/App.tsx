@@ -35,7 +35,8 @@ import {
 } from '../core/paths'
 import type { CopyPathFormat } from '../core/paths'
 import { compilePathAliases, resolvePathAlias } from '../core/path-aliases'
-import { searchRendererRanked } from '../core/search'
+import { useNoteSearch } from './hooks/useNoteSearch'
+import NoteHoverPreview from './components/NoteHoverPreview'
 import { getNoteFreshness } from '../core/freshness'
 import { parseBaseProfile, basePropertyReferences } from '../core/base-profile'
 import { evaluateBaseInWorker } from './base-worker-client'
@@ -71,6 +72,7 @@ import type {
   GraphViewStates,
   NoteDocument,
   ObsidianPluginCandidate,
+  Result,
   VaultAttachment,
   VaultChangeEvent,
   VaultSnapshot
@@ -239,6 +241,23 @@ function restoredLastNote(
     )
   } catch {
     return null
+  }
+}
+
+async function openStartupVault(isDisposed: () => boolean): Promise<Result<VaultSnapshot | null>> {
+  const api = window.tsuzune
+  if (!api.openLastVaultStartup || typeof DecompressionStream === 'undefined') return api.openLastVault()
+  const opened = await api.openLastVaultStartup()
+  if (!opened.ok) return opened
+  if (!opened.value || !('encoding' in opened.value)) return { ok: true, value: opened.value }
+
+  try {
+    const bytes = Uint8Array.from(atob(opened.value.data), character => character.charCodeAt(0))
+    const stream = new Response(bytes).body!
+    const decoded = stream.pipeThrough(new DecompressionStream('gzip'))
+    return { ok: true, value: await new Response(decoded).json() as VaultSnapshot }
+  } catch {
+    return isDisposed() ? { ok: true, value: null } : api.getSnapshot()
   }
 }
 
@@ -1585,9 +1604,10 @@ export default function App(): React.JSX.Element {
     const initialize = async (): Promise<void> => {
       const [settingsResult, vaultResult, updateResult] = await Promise.all([
         window.tsuzune.getSettings(),
-        window.tsuzune.openLastVault(),
+        openStartupVault(() => disposed),
         window.tsuzune.getUpdateStatus()
       ])
+      if (disposed) return
       const moveRecoveryResult = await window.tsuzune.getMoveRecovery()
 
       if (disposed) {
@@ -1795,9 +1815,11 @@ export default function App(): React.JSX.Element {
     () => normalDiscoveryNotes.filter((note) => !userExcludedMatcher(note.path)),
     [normalDiscoveryNotes, userExcludedMatcher]
   )
+  const activeWorkspaceTab = workspaceTabs.find((tab) => tab.id === activeTabId) ?? null
+  const showingPropertyInventory = activeWorkspaceTab?.kind === 'global-properties'
   const propertyInventory = useMemo(
-    () => buildPropertyInventory(searchNotes),
-    [searchNotes]
+    () => showingPropertyInventory ? buildPropertyInventory(searchNotes) : null,
+    [searchNotes, showingPropertyInventory]
   )
   const pathAliases = useMemo(
     () => compilePathAliases(snapshot?.pathAliases ?? {}),
@@ -1878,10 +1900,7 @@ export default function App(): React.JSX.Element {
       target?.focus()
     }
   }, [viewMode])
-  const searchResults = useMemo(
-    () => searchRendererRanked(searchNotes, query),
-    [query, searchNotes]
-  )
+  const search = useNoteSearch(searchNotes, leftSidebarOpen && leftSidebarView === 'search' && !searchComposing ? query : '')
   const selectedNote = useMemo(
     () =>
       selectedPath
@@ -4339,7 +4358,6 @@ export default function App(): React.JSX.Element {
       onKeyDown={handleWorkspaceTabKeyDown}
     />
   )
-  const activeWorkspaceTab = workspaceTabs.find((tab) => tab.id === activeTabId) ?? null
   const activeBasePath = activeWorkspaceTab?.kind === 'base' ? activeWorkspaceTab.path : null
   const activeBaseState: BaseTableState | null = activeBasePath
     ? baseState?.path === activeBasePath ? baseState : { status: 'loading', path: activeBasePath }
@@ -4531,6 +4549,9 @@ export default function App(): React.JSX.Element {
   }
 
   return (
+    <NoteHoverPreview notes={searchNotes} aliases={pathAliases}
+      scope={JSON.stringify([snapshot?.rootPath, currentWorkspace.activePaneId, selectedPath, viewMode,
+        leftSidebarView, leftSidebarOpen, rightSidebarView, rightSidebarOpen, query, modalOpen])}>
     <div className={`app-shell${busy ? ' is-busy' : ''}`} aria-busy={busy}>
       {busy && (
         <div className="operation-overlay" role="status" aria-live="polite">
@@ -4856,6 +4877,7 @@ export default function App(): React.JSX.Element {
                     ref={searchInputRef}
                     aria-keyshortcuts={shortcutAria('search')}
                     aria-describedby="vault-search-description vault-search-help"
+                    aria-invalid={Boolean(search.error)}
                     value={query}
                     onCompositionStart={() => setSearchComposing(true)}
                     onCompositionEnd={() => setSearchComposing(false)}
@@ -4930,8 +4952,10 @@ export default function App(): React.JSX.Element {
                 snapshot={snapshot}
                 selectedNotePath={selectedPath}
                 treeSelection={treeSelection}
-                searchResults={searchResults}
-                query={leftSidebarView === 'search' ? query : ''}
+                searchResults={search.results}
+                searchPending={search.pending}
+                searchError={search.error}
+                query={leftSidebarView === 'search' && !searchComposing ? query : ''}
                 onSelectNote={(path) => void openNote(path)}
                 onOpenMatch={(path, source, from, to) => void openSearchMatch(path, source, from, to)}
                 onSelectEntry={setTreeSelection}
@@ -5104,7 +5128,7 @@ export default function App(): React.JSX.Element {
                   onStopEvaluation={() => baseEvaluationRef.current?.abort()}
                 />
               </>
-            ) : activeWorkspaceTab?.kind === 'global-properties' ? (
+            ) : propertyInventory ? (
               <>
 
                 <PropertyInventoryView
@@ -6417,5 +6441,6 @@ export default function App(): React.JSX.Element {
         </div>
       )}
     </div>
+    </NoteHoverPreview>
   )
 }

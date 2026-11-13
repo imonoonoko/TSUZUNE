@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react'
+import { gzipSync } from 'node:zlib'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
@@ -679,6 +680,30 @@ describe('App Bases', () => {
 })
 
 describe('App data-loss guards', () => {
+  it('opens the compressed startup snapshot and restores the previous note', async () => {
+    const packed = gzipSync(JSON.stringify(snapshot)).toString('base64')
+    const startup = vi.fn(() => ok({ encoding: 'gzip-base64' as const, data: packed }))
+    Object.assign(api, { openLastVaultStartup: startup })
+    render(<App />)
+
+    await screen.findByText('Aの本文')
+    expect(startup).toHaveBeenCalledOnce()
+    expect(api.openLastVault).not.toHaveBeenCalled()
+    expect(api.getSnapshot).not.toHaveBeenCalled()
+    expect(api.getWorkspaces).toHaveBeenCalledWith(snapshot.rootPath)
+  })
+
+  it('recovers a plain snapshot from the already open Vault if gzip decoding fails', async () => {
+    const startup = vi.fn(() => ok({ encoding: 'gzip-base64' as const, data: 'invalid-base64!' }))
+    Object.assign(api, { openLastVaultStartup: startup })
+    render(<App />)
+
+    await screen.findByText('Aの本文')
+    expect(startup).toHaveBeenCalledOnce()
+    expect(api.getSnapshot).toHaveBeenCalledOnce()
+    expect(api.openLastVault).not.toHaveBeenCalled()
+  })
+
   it('opens the matching source range for editing from the search sidebar', async () => {
     const match = 'matching text'
     const target = { ...noteB, content: `A line before\n${match}\nA line after` }

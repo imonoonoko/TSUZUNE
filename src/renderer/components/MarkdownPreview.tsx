@@ -22,10 +22,11 @@ interface MarkdownPreviewProps {
   notes?: readonly NoteDocument[]
   pathAliases?: CompiledPathAliases
   onNavigate?: (target: NoteNavigationTarget) => void
+  editorLinkHover?: boolean
 }
 
 function NoteLink({
-  href, children, kind, wikiTarget, notePath, content, notes, pathAliases, onWikiLink, onNavigate
+  href, children, kind, wikiTarget, notePath, content, notes, pathAliases, onWikiLink, onNavigate, editorLinkHover
 }: {
   href: string
   children: React.ReactNode
@@ -37,23 +38,27 @@ function NoteLink({
   pathAliases?: CompiledPathAliases
   onWikiLink: (target: string) => void
   onNavigate?: (target: NoteNavigationTarget) => void
+  editorLinkHover?: boolean
 }): React.JSX.Element {
   const [showPreview, setShowPreview] = useState(false)
-  const target = resolveNoteNavigation(kind === 'wiki' ? wikiTarget ?? '' : href, kind, notePath, notes, content, pathAliases)
+  const target = useMemo(() => showPreview
+    ? resolveNoteNavigation(kind === 'wiki' ? wikiTarget ?? '' : href, kind, notePath, notes, content, pathAliases)
+    : null, [showPreview, kind, wikiTarget, href, notePath, notes, content, pathAliases])
   const open = (): void => {
     setShowPreview(false)
-    if (target.status === 'resolved') {
-      if (onNavigate) onNavigate(target)
+    const navigation = target ?? resolveNoteNavigation(kind === 'wiki' ? wikiTarget ?? '' : href, kind, notePath, notes, content, pathAliases)
+    if (navigation.status === 'resolved') {
+      if (onNavigate) onNavigate(navigation)
       else if (kind === 'wiki' && wikiTarget) onWikiLink(wikiTarget)
-    } else if (kind === 'wiki' && wikiTarget && target.status === 'missing' && !target.fragment) {
+    } else if (kind === 'wiki' && wikiTarget && navigation.status === 'missing' && !navigation.fragment) {
       onWikiLink(wikiTarget)
     } else {
-      onNavigate?.(target)
+      onNavigate?.(navigation)
     }
   }
   return (
     <span className="note-link-preview-anchor"
-      onMouseEnter={() => setShowPreview(true)}
+      onMouseEnter={editorLinkHover ? undefined : () => setShowPreview(true)}
       onMouseLeave={() => setShowPreview(false)}
       onFocus={() => setShowPreview(true)}
       onBlur={(event) => {
@@ -66,8 +71,11 @@ function NoteLink({
         }
       }}>
       <a href={href} className={kind === 'wiki' ? 'wiki-link' : undefined}
+        data-editor-preview-href={editorLinkHover ? (kind === 'wiki' ? wikiTarget : href) : undefined}
+        data-editor-preview-kind={editorLinkHover ? kind : undefined}
+        data-editor-preview-source={editorLinkHover ? notePath : undefined}
         onClick={(event) => { event.preventDefault(); open() }}>{children}</a>
-      {showPreview ? (
+      {showPreview && target ? (
         <span className="note-link-preview" role="group" aria-label="リンク先プレビュー">
           <span>{target.status === 'resolved' ? target.path : target.reason}</span>
           <span>{notePreviewText(target, notePath, content, notes)}</span>
@@ -261,7 +269,7 @@ const previewComponents: Components = {
     )
   },
   a: ({ href, children }) => {
-    const { notePath, content, notes = [], pathAliases, onWikiLink, onNavigate } = useContext(PreviewContext)
+    const { notePath, content, notes = [], pathAliases, onWikiLink, onNavigate, editorLinkHover } = useContext(PreviewContext)
     if (href?.startsWith('#/wiki/')) {
       let target: string
       try { target = decodeURIComponent(href.slice('#/wiki/'.length)) }
@@ -269,7 +277,7 @@ const previewComponents: Components = {
       return (
         <NoteLink href={href} kind="wiki" wikiTarget={target} notePath={notePath}
           content={content} notes={notes} pathAliases={pathAliases}
-          onWikiLink={onWikiLink} onNavigate={onNavigate}>{children}</NoteLink>
+          onWikiLink={onWikiLink} onNavigate={onNavigate} editorLinkHover={editorLinkHover}>{children}</NoteLink>
       )
     }
 
@@ -290,7 +298,7 @@ const previewComponents: Components = {
     if (href && (href.startsWith('#') || /\.md(?:#|$)/i.test(href))) {
       return <NoteLink href={href} kind="markdown" notePath={notePath}
         content={content} notes={notes} pathAliases={pathAliases}
-        onWikiLink={onWikiLink} onNavigate={onNavigate}>{children}</NoteLink>
+        onWikiLink={onWikiLink} onNavigate={onNavigate} editorLinkHover={editorLinkHover}>{children}</NoteLink>
     }
 
     return <span className="inactive-link">{children}</span>
@@ -304,7 +312,8 @@ export default function MarkdownPreview({
   onWikiLink,
   notes = [],
   pathAliases,
-  onNavigate
+  onNavigate,
+  editorLinkHover
 }: MarkdownPreviewProps): React.JSX.Element {
   const frontmatter = parseFrontmatter(content)
   const hasValidFrontmatter =
@@ -318,7 +327,7 @@ export default function MarkdownPreview({
   const headings = extractMarkdownHeadings(content)
 
   return (
-    <PreviewContext.Provider value={{ content, notePath, attachments, onWikiLink, notes, pathAliases, onNavigate, headings }}>
+    <PreviewContext.Provider value={{ content, notePath, attachments, onWikiLink, notes, pathAliases, onNavigate, headings, editorLinkHover }}>
     <article className="markdown-preview" aria-label="Markdownプレビュー">
       {properties.length > 0 ? (
         <details className="markdown-properties" aria-label="プロパティ">

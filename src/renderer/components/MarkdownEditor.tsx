@@ -31,6 +31,8 @@ import type { NoteDocument, VaultAttachment } from '../../shared/types'
 import { MAX_PASTED_IMAGE_BYTES } from '../../shared/image-paste'
 import { livePreviewExtension, type LivePreviewContext } from './LivePreview'
 import PropertyValueFields from './PropertyValueFields'
+import { useEditorLinkPreview } from './NoteHoverPreview'
+import { attachEditorLinkHover } from '../editor-link-hover'
 import { MAX_WORKSPACE_EDITOR_FOLDS, type NoteEditorWorkspaceState } from '../../shared/workspace-state'
 
 export interface MarkdownEditorHandle {
@@ -110,13 +112,14 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   const composingRef = useRef(false)
   const readOnlyCompartmentRef = useRef(new Compartment())
   const livePreviewCompartmentRef = useRef(new Compartment())
+  const hoverPreview = useEditorLinkPreview()
   const livePreviewContextRef = useRef<LivePreviewContext>({
     notePath, attachments, notes, pathAliases, onNavigate, onWikiLink,
-    isComposing: () => composingRef.current
+    isComposing: () => composingRef.current, editorLinkHover: !!hoverPreview
   })
   livePreviewContextRef.current = {
     notePath, attachments, notes, pathAliases, onNavigate, onWikiLink,
-    isComposing: () => composingRef.current
+    isComposing: () => composingRef.current, editorLinkHover: !!hoverPreview
   }
   const orderedNotes = useMemo(
     () =>
@@ -336,8 +339,13 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   }, [livePreview])
 
   useEffect(() => {
+    const view = viewRef.current
+    if (view && hoverPreview) return attachEditorLinkHover(view, () => livePreviewContextRef.current, hoverPreview)
+  }, [hoverPreview])
+
+  useEffect(() => {
     if (livePreview) viewRef.current?.dispatch({})
-  }, [livePreview, notePath, attachments, notes, pathAliases])
+  }, [livePreview, notePath, attachments, notes, pathAliases, hoverPreview])
 
   useEffect(() => {
     const view = viewRef.current

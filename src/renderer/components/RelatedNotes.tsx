@@ -185,6 +185,7 @@ export default function RelatedNotes({
                 type="button"
                 className="related-link"
                 key={`resolved:${link.target}`}
+                data-note-preview-path={link.resolvedPath}
                 onClick={() => link.resolvedPath && onOpen(link.resolvedPath)}
               >
                 {link.alias ?? link.target}
@@ -248,6 +249,7 @@ export default function RelatedNotes({
                 type="button"
                 className="related-link"
                 key={note.path}
+                data-note-preview-path={note.path}
                 onClick={() => onOpen(note.path)}
               >
                 {note.name}

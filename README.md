@@ -19,6 +19,7 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 - **知識をつなぐ** — `[[Wiki link]]`、backlink、未解決link、ブックマーク、Local/Global Graph。
 - **すばやく開く** — `Ctrl+O`のQuick Switcherはタイトル・パス・別名からノートを探せます。`Ctrl+P`でCommand Paletteを開き、workspace tabで複数ノートを行き来できます。
 - **必要なノートを探す** — `Ctrl+Shift+F`で「内容を検索」を開き、AND、除外、`tag:`／`path:`／`file:`／`category:`／`topic:`、完全phraseで絞り込めます。既定では知識・情報源・受信箱・その他に分け、各グループ内は関連度順です。名前や更新日でも並べ替えられます。「一致箇所を表示」から前後の行を確認でき、「この一致へ移動」で該当箇所を編集できます。
+- **開く前に内容を見る** — ファイル一覧・検索結果・関連ノートにポインターを重ねると、ノートの内容を確認できます。ソースエディタやLive Previewのノートリンクは、`Ctrl`（macOSでは`⌘`）を押しながらポインターを重ねます。
 - **安全に整理する** — 一覧の右クリックから名前変更、移動、`.trash`への退避。衝突時は上書きしません。
 - **画面を広く使う** — 左右のsidebarを独立して閉じ、必要な側だけ再表示できます。
 - **古さに気づく** — 最終更新日時と任意の`review_after`から、再確認の目安を非破壊で表示。
@@ -81,7 +82,7 @@ link先、backlink、未作成・曖昧・無効linkを右panelで確認でき�
 
 ### 検索演算子を使う場合
 
-通常検索では、Obsidian Desktop 1.13.4との固定比較に基づく次の演算子を利用できます。
+デスクトップの「内容を検索」とQuick Switcherでは、次の演算子を利用できます。
 
 | 入力例 | 意味 |
 |---|---|
@@ -93,8 +94,15 @@ link先、backlink、未作成・曖昧・無効linkを右panelで確認でき�
 | `category:知識管理` | frontmatterの主カテゴリ完全一致で絞り込み |
 | `topic:"原典,追跡"` | frontmatterのtopic完全一致で絞り込み |
 | `"Project Alpha"` | 連続したphraseの完全一致 |
+| `(cat OR dog) -(paused OR draft)` | いずれかを含むノートを探し、除外条件をまとめる |
+| `content:needle` | 本文を検索する |
+| `line:(cat dog)` | 同じ行に両方があるノートを探す。段落や見出しのまとまりを指定する場合は `block:` や `section:` |
+| `task-todo:確認` | 未完了タスクを探す。完了済みは `task-done:`、両方を対象にする場合は `task:` |
+| `match-case:API` | 大文字小文字を区別する。区別しない範囲は `ignore-case:` |
+| `content:/c.t/` | 本文をJavaScriptの正規表現で検索する |
+| `[担当:田中] [優先度:>=3]` | frontmatterのプロパティの値で絞り込む |
 
-演算子名、tag、path、file、category、topic、通常語の大文字小文字は区別しません。空白で区切った条件はANDになります。一つの空白なし日本語自然文は文中の区切り候補をORとして順位付けします。`category:`と`topic:`はデスクトップ画面とMCP検索で同じ検索処理を使います。Graph検索は既存契約を維持します。
+通常語は大文字小文字を区別せず、空白で区切った条件はANDになります。一つの空白なし日本語自然文は文中の区切り候補をORとして順位付けします。MCP検索でも `category:` と `topic:` が使えます。
 
 ## Codex Desktopと連携する
 

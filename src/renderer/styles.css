@@ -7,6 +7,15 @@
   border: 1px solid var(--line-strong); border-radius: 8px;
   box-shadow: 0 6px 20px #0005; white-space: pre-wrap; font-size: 14px;
 }
+.note-link-preview.note-hover-preview {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  pointer-events: none;
+  max-height: min(180px, 80vh);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
 .base-cell-edit { margin-left: 8px; font-size: 12px; }
 .property-change-dialog { width: min(760px, 90vw); max-height: 85vh; overflow: auto; }
 .property-change-dialog fieldset { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }

@@ -1,14 +1,70 @@
 // @vitest-environment jsdom
 import React from 'react'
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { EditorView } from '@codemirror/view'
 import { redo, undo } from '@codemirror/commands'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import MarkdownEditor from '../src/renderer/components/MarkdownEditor'
 
+import NoteHoverPreview from '../src/renderer/components/NoteHoverPreview'
+import { compilePathAliases } from '../src/core/path-aliases'
+
 afterEach(cleanup)
 
 describe('Live Preview', () => {
+  it('shows a linked-note preview only on Ctrl-hover in the Markdown source editor', async () => {
+    const source = 'Intro\n\nRead [[Target]]'
+    const target = { path: 'Target.md', name: 'Target', content: '# Target\n\nPreview body', modifiedAt: 1, size: 22 }
+    const onChange = vi.fn()
+    const onNavigate = vi.fn()
+    const { container } = render(<NoteHoverPreview notes={[target]} aliases={compilePathAliases({})} scope="source-editor">
+      <MarkdownEditor value={source} onChange={onChange} notePath="Current.md" notes={[target]} onNavigate={onNavigate} />
+    </NoteHoverPreview>)
+    const editor = container.querySelector('.cm-editor') as HTMLElement
+    const view = EditorView.findFromDOM(editor)!
+    const offset = source.indexOf('Target')
+    const line = [...editor.querySelectorAll<HTMLElement>('.cm-line')].find(element => element.textContent?.includes('Target'))!
+    vi.spyOn(view, 'posAtCoords').mockReturnValue(offset)
+    vi.spyOn(view, 'coordsAtPos').mockReturnValue({ top: 10, bottom: 24, left: 20, right: 25, height: 14, width: 5, x: 20, y: 10, toJSON: () => ({}) })
+    fireEvent.pointerOver(line, { pointerType: 'mouse', ctrlKey: true, clientX: 22, clientY: 16 })
+    expect((await screen.findByRole('tooltip', { name: 'ノートプレビュー' })).textContent).toContain('Preview body')
+    expect(onNavigate).not.toHaveBeenCalled()
+    expect(view.state.doc.toString()).toBe(source)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('shows a linked-note preview only on Ctrl-hover and closes it when Ctrl is released without navigating or changing source', async () => {
+    const source = 'Intro\n\nRead [[Target]]'
+    const target = { path: 'Target.md', name: 'Target', content: '# Target\n\nPreview body', modifiedAt: 1, size: 22 }
+    const onChange = vi.fn()
+    const onNavigate = vi.fn()
+    const { container } = render(<NoteHoverPreview notes={[target]} aliases={compilePathAliases({})} scope="live-preview">
+      <MarkdownEditor value={source} onChange={onChange} livePreview notePath="Current.md" notes={[target]} onNavigate={onNavigate} />
+    </NoteHoverPreview>)
+    const editor = container.querySelector('.cm-editor') as HTMLElement
+    const view = EditorView.findFromDOM(editor)!
+    const link = await waitFor(() => {
+      const candidate = editor.querySelector<HTMLAnchorElement>('.ts-live-preview-block a[href="#/wiki/Target"]')
+      expect(candidate).toBeTruthy()
+      return candidate!
+    })
+    fireEvent.pointerOver(link, { pointerType: 'mouse' })
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 250)) })
+    expect(screen.queryByRole('tooltip', { name: 'ノートプレビュー' })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'リンク先プレビュー' })).toBeNull()
+    fireEvent.keyDown(document, { key: 'Control', ctrlKey: true })
+    expect((await screen.findByRole('tooltip', { name: 'ノートプレビュー' })).textContent).toContain('Preview body')
+    expect(onNavigate).not.toHaveBeenCalled()
+    expect(view.state.doc.toString()).toBe(source)
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.keyUp(document, { key: 'Control', ctrlKey: false })
+    await waitFor(() => expect(screen.queryByRole('tooltip', { name: 'ノートプレビュー' })).toBeNull())
+    expect(onNavigate).not.toHaveBeenCalled()
+    expect(view.state.doc.toString()).toBe(source)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+
   it('resolves reference links defined in another block without changing the document', async () => {
     const source = '# Heading\n\n[Target][ref]\n\n[ref]: Target.md'
     const onChange = vi.fn()

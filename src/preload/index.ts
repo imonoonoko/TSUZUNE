@@ -33,6 +33,7 @@ import type {
   TemplateSettings,
   VaultChangeEvent,
   VaultBookmark,
+  StartupSnapshot,
   VaultSnapshot
 } from '../shared/types'
 import type {
@@ -55,6 +56,7 @@ const api: TsuzuneApi = {
   applyPropertyChanges: (input) => invoke('properties:apply', input),
   chooseVault: () => invoke<VaultSnapshot | null>('vault:choose'),
   openLastVault: () => invoke<VaultSnapshot | null>('vault:openLast'),
+  openLastVaultStartup: () => invoke<StartupSnapshot | null>('vault:openLastStartup'),
   getSettings: () => invoke<AppSettings>('settings:get'),
   getWorkspaces: (expectedVaultPath: string) =>
     invoke<WorkspaceCollection>('workspaces:get', expectedVaultPath),

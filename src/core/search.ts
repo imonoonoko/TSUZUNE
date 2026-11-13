@@ -196,8 +196,16 @@ export function searchSourceExcerpt(content: string, rawQuery: string) {
   return {text:content.slice(start,end),start,end,match_start:index<0 ? 0 : offsets[index],kind:index<0 ? 'fallback_preview' as const : 'body_match' as const}
 }
 
+function normalizeSearchNote(note: NoteDocument): Pick<NoteDocument, 'name' | 'path' | 'content'> {
+  return { name: normalized(note.name), path: normalized(note.path), content: normalized(note.content) }
+}
+
+export function createRendererSearchIndex(notes: NoteDocument[]) {
+  return new Map(notes.map(note => [note, normalizeSearchNote(note)]))
+}
+
 function scoreTerm(note: NoteDocument, query: string): number {
-  return scoreNormalizedTerm({ name: normalized(note.name), path: normalized(note.path), content: normalized(note.content) }, normalized(query))
+  return scoreNormalizedTerm(normalizeSearchNote(note), normalized(query))
 }
 
 function scoreNormalizedTerm(note: Pick<NoteDocument, 'name' | 'path' | 'content'>, lowerQuery: string): number {
@@ -265,12 +273,12 @@ export function searchNotes(notes: NoteDocument[], rawQuery: string): SearchResu
     )
 }
 
-function matchesRendererClause(note: NoteDocument, clause: RendererSearchClause): boolean {
+function matchesRendererClause(note: NoteDocument, clause: RendererSearchClause, indexed?: ReturnType<typeof normalizeSearchNote>): boolean {
   const value = normalized(clause.value)
-  if (clause.kind === 'term') return clause.value !== '-' && scoreTerm(note, clause.value) > 0
-  if (clause.kind === 'path') return normalized(note.path).includes(value)
+  if (clause.kind === 'term') return clause.value !== '-' && scoreNormalizedTerm(indexed ?? normalizeSearchNote(note), value) > 0
+  if (clause.kind === 'path') return (indexed?.path ?? normalized(note.path)).includes(value)
   if (clause.kind === 'file') {
-    return normalized(note.path.split('/').at(-1) ?? note.name).includes(value)
+    return (indexed?.path ?? normalized(note.path)).split('/').at(-1)!.includes(value)
   }
 
   const attributes = parseFrontmatter(note.content).attributes
@@ -335,7 +343,7 @@ export function searchRendererNotes(notes: NoteDocument[], rawQuery: string): Se
     )
 }
 
-export function searchRendererRanked(notes: NoteDocument[], rawQuery: string): SearchResult[] {
+export function searchRendererRanked(notes: NoteDocument[], rawQuery: string, index?: ReturnType<typeof createRendererSearchIndex>): SearchResult[] {
   const clauses = parseRendererSearchQuery(rawQuery)
   if (clauses.length === 0) return []
 
@@ -352,9 +360,10 @@ export function searchRendererRanked(notes: NoteDocument[], rawQuery: string): S
 
   return notes
     .map((note): SearchResult | null => {
+      const indexed = index?.get(note)
       for (const clause of clauses) {
         if (!clause.negated && clause.kind === 'term') continue
-        const matches = matchesRendererClause(note, clause)
+        const matches = matchesRendererClause(note, clause, indexed)
         if (clause.negated ? matches : !matches) return null
       }
 
@@ -373,7 +382,7 @@ export function searchRendererRanked(notes: NoteDocument[], rawQuery: string): S
         }
       }
 
-      const lowerNote = { name: normalized(note.name), path: normalized(note.path), content: normalized(note.content) }
+      const lowerNote = indexed ?? normalizeSearchNote(note)
       let score = 0
       for (const group of groupTerms) {
         let groupScore = 0
@@ -469,14 +478,20 @@ export function searchSuggestionNotes(notes: NoteDocument[], query: string): Sea
 }
 
 /** Keep a jump target for each matching line, even when its surrounding lines overlap. */
-export function searchResultContextRanges(note: NoteDocument, query: string, contextLines = 0): {
+export function searchResultContextRanges(
+  note: NoteDocument, query: string, contextLines = 0,
+  matches?: readonly { match_start: number; match_end?: number; kind: string }[]
+): {
   text: string; matchStart: number; matchEnd: number
 }[] {
-  const terms = parseRendererSearchQuery(query)
+  const terms = matches ? [] : parseRendererSearchQuery(query)
     .filter(clause => clause.kind === 'term' && !clause.negated && clause.value !== '-')
     .flatMap(clause => clause.quoted || /\s/.test(clause.value) ? [normalized(clause.value)] : segmentJapaneseQuery(clause.value))
-  if (!terms.length) return []
-  const { body } = parseFrontmatter(note.content)
+  if (matches ? !matches.length : !terms.length) return []
+  const body = matches ? note.content : parseFrontmatter(note.content).body
+  const ordered = matches?.filter(match => match.kind === 'body_match')
+    .sort((a, b) => a.match_start - b.match_start || (b.match_end ?? b.match_start) - (a.match_end ?? a.match_start))
+  let matchIndex = 0
   const lines = body.split(/\r?\n/)
   const offsets: number[] = []
   let offset = note.content.length - body.length
@@ -485,6 +500,23 @@ export function searchResultContextRanges(note: NoteDocument, query: string, con
     offset += line.length + (note.content[offset + line.length] === '\r' ? 2 : 1)
   }
   return lines.flatMap((line, index) => {
+    const firstLine = Math.max(0, index - contextLines)
+    const context = (matchStart: number, matchEnd: number) => {
+      let endingLine = index
+      while (endingLine + 1 < lines.length && matchEnd > offsets[endingLine] + lines[endingLine].length) endingLine++
+      const lastLine = Math.min(lines.length - 1, endingLine + contextLines)
+      return {
+        text: note.content.slice(offsets[firstLine], offsets[lastLine] + lines[lastLine].length),
+        matchStart,
+        matchEnd
+      }
+    }
+    if (ordered) {
+      while (matchIndex < ordered.length && ordered[matchIndex].match_start < offsets[index]) matchIndex++
+      const match = ordered[matchIndex]
+      return match && match.match_start <= offsets[index] + line.length
+        ? [context(match.match_start, match.match_end ?? match.match_start)] : []
+    }
     const lower = normalized(line)
     let start = -1
     let length = 0
@@ -511,12 +543,6 @@ export function searchResultContextRanges(note: NoteDocument, query: string, con
       end = ends[end - 1]
       start = starts[start]
     }
-    const firstLine = Math.max(0, index - contextLines)
-    const lastLine = Math.min(lines.length - 1, index + contextLines)
-    return [{
-      text: note.content.slice(offsets[firstLine], offsets[lastLine] + lines[lastLine].length),
-      matchStart: offsets[index] + start,
-      matchEnd: offsets[index] + end
-    }]
+    return [context(offsets[index] + start, offsets[index] + end)]
   })
 }

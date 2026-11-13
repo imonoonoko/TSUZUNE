@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { searchSuggestionNotes } from '../../core/search'
+import { useNoteSearch } from '../hooks/useNoteSearch'
 import type { NoteDocument } from '../../shared/types'
 
 export interface QuickSwitcherDialogProps {
@@ -46,6 +46,8 @@ export default function QuickSwitcherDialog({
   const listRef = useRef<HTMLDivElement>(null)
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [composing, setComposing] = useState(false)
+  const search = useNoteSearch(notes, composing ? '' : query, true)
 
   const notesByPath = useMemo(() => {
     const result = new Map<string, NoteDocument>()
@@ -73,14 +75,14 @@ export default function QuickSwitcherDialog({
     }
 
     const seen = new Set<string>()
-    const rankedResults = searchSuggestionNotes(notes, trimmedQuery)
+    const rankedResults = search.results
       .flatMap((result) => {
         if (seen.has(result.path) || !notesByPath.has(result.path)) return []
         seen.add(result.path)
         return [result]
       })
     return moveDeprioritizedToEnd(rankedResults, deprioritizedPaths).slice(0, 50)
-  }, [deprioritizedPaths, notes, notesByPath, query, recentPaths])
+  }, [deprioritizedPaths, notesByPath, query, recentPaths, search.results])
 
   const activeResult = results[selectedIndex]
   const activeId = activeResult ? optionId(activeResult.path) : undefined
@@ -108,7 +110,7 @@ export default function QuickSwitcherDialog({
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter' && (event.nativeEvent.isComposing || event.keyCode === 229)) return
+    if (composing || event.nativeEvent.isComposing || event.keyCode === 229) return
     if (event.key === 'ArrowDown') {
       event.preventDefault()
       if (results.length > 0) setSelectedIndex((index) => Math.min(index + 1, results.length - 1))
@@ -130,6 +132,7 @@ export default function QuickSwitcherDialog({
       return
     }
     if (event.key === 'Enter') {
+      if (search.pending || search.error) return
       const trimmedQuery = query.trim()
       if (event.shiftKey && onCreate && trimmedQuery) {
         event.preventDefault()
@@ -149,6 +152,7 @@ export default function QuickSwitcherDialog({
   }
 
   const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (composing || event.nativeEvent.isComposing || event.keyCode === 229) return
     if (event.key === 'Escape') {
       event.preventDefault()
       onClose()
@@ -201,11 +205,14 @@ export default function QuickSwitcherDialog({
           aria-controls="quick-switcher-list"
           aria-expanded="true"
           aria-autocomplete="list"
+          aria-invalid={Boolean(search.error)}
           aria-activedescendant={activeId}
           onChange={(event) => {
             setQuery(event.target.value)
             setSelectedIndex(0)
           }}
+          onCompositionStart={() => setComposing(true)}
+          onCompositionEnd={() => setComposing(false)}
           onKeyDown={handleKeyDown}
         />
         <div
@@ -232,7 +239,10 @@ export default function QuickSwitcherDialog({
               </div>
             )
           })}
-          {results.length === 0 && query.trim() && (
+          {(search.error || search.pending) && <div className="quick-switcher-empty" role={search.error ? 'alert' : 'status'}>
+            {search.error || '検索中…'}
+          </div>}
+          {results.length === 0 && query.trim() && !search.error && !search.pending && !composing && (
             <div className="quick-switcher-empty" role="status">
               <p>該当するノートはありません</p>
               {onCreate && (
