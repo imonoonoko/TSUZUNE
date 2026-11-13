@@ -558,6 +558,40 @@ describe('FileTree direct manipulation', () => {
     onCreateDirectory: vi.fn()
   }
 
+  it('sorts search results and opens a match at its source offset', () => {
+    const source = '---\ntitle: needle\n---\n導入\nneedle の本文\n結び'
+    const localSnapshot: VaultSnapshot = {
+      ...snapshot,
+      notes: [
+        { ...snapshot.notes[0], path: 'Inbox/Zeta.md', name: 'Zeta', content: source },
+        { ...snapshot.notes[0], path: 'Inbox/Alpha.md', name: 'Alpha', content: source }
+      ]
+    }
+    const onOpenMatch = vi.fn()
+    render(
+      <FileTree
+        {...commonProps}
+        snapshot={localSnapshot}
+        searchResults={searchRendererRanked(localSnapshot.notes, 'needle')}
+        query="needle"
+        onOpenMatch={onOpenMatch}
+        onInlineRename={vi.fn()}
+        onDropEntry={vi.fn()}
+      />
+    )
+
+    fireEvent.change(screen.getByRole('combobox', { name: '検索結果の並び順' }), { target: { value: 'name-asc' } })
+    const resultButtons = screen.getAllByRole('button').filter(button => button.classList.contains('search-result'))
+    expect(resultButtons.map(button => button.textContent)).toEqual(expect.arrayContaining([
+      expect.stringContaining('Alpha'), expect.stringContaining('Zeta')
+    ]))
+    expect(resultButtons[0].textContent).toContain('Alpha')
+
+    fireEvent.click(screen.getByLabelText('一致箇所を表示'))
+    fireEvent.click(screen.getAllByRole('button', { name: 'この一致へ移動' })[0])
+    expect(onOpenMatch).toHaveBeenCalledWith('Inbox/Alpha.md', source, source.indexOf('needle', source.indexOf('---', 4)), expect.any(Number))
+  })
+
   it('moves a dragged entry into the dropped folder through the shared move path', () => {
     const onDropEntry = vi.fn()
     const { container } = render(

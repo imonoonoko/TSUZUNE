@@ -6,7 +6,7 @@ import {
   isPathInsideOrEqual,
   withoutMarkdownExtension
 } from '../../core/paths'
-import { parseRendererSearchQuery, segmentJapaneseQuery } from '../../core/search'
+import { orderSearchResults, parseRendererSearchQuery, searchResultContextRanges, segmentJapaneseQuery, type SearchResultOrder } from '../../core/search'
 import type { SearchResult, VaultSnapshot } from '../../shared/types'
 
 export interface TreeSelection {
@@ -19,6 +19,7 @@ interface FileTreeProps {
   treeSelection: TreeSelection | null
   searchResults: SearchResult[]
   query: string
+  onOpenMatch?: (path: string, source: string, from: number, to: number) => void
   onSelectNote: (path: string) => void
   onSelectEntry: (selection: TreeSelection) => void
   onRename: (selection: TreeSelection) => void
@@ -102,6 +103,7 @@ export default function FileTree({
   treeSelection,
   searchResults,
   query,
+  onOpenMatch,
   onSelectNote,
   onSelectEntry,
   onRename,
@@ -119,6 +121,10 @@ export default function FileTree({
   createDirectoryParent = null,
   onCreateDirectoryRequestHandled
 }: FileTreeProps): React.JSX.Element {
+  const [searchOrder, setSearchOrder] = useState<SearchResultOrder>('relevance')
+  const [showAllMatches, setShowAllMatches] = useState(false)
+  const [showSearchContext, setShowSearchContext] = useState(false)
+  const [contextLimits, setContextLimits] = useState<Record<string, number>>({})
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
   const [contextMenu, setContextMenu] = useState<FileTreeContextMenu | null>(null)
   const [draggedEntry, setDraggedEntry] = useState<TreeSelection | null>(null)
@@ -222,6 +228,16 @@ export default function FileTree({
       })
     )
   }, [snapshot.notes])
+
+  const notesByPath = useMemo(() => new Map(snapshot.notes.map(note => [note.path, note])), [snapshot.notes])
+
+  const contextsByPath = useMemo(() => {
+    if (!showAllMatches) return new Map<string, ReturnType<typeof searchResultContextRanges>>()
+    return new Map(searchResults.flatMap(result => {
+      const note = notesByPath.get(result.path)
+      return note?.content ? [[result.path, searchResultContextRanges(note, query, showSearchContext ? 1 : 0)] as const] : []
+    }))
+  }, [notesByPath, query, searchResults, showAllMatches, showSearchContext])
 
   const notesByDirectory = useMemo(() => {
     const result = new Map<string, typeof snapshot.notes>()
@@ -920,13 +936,31 @@ export default function FileTree({
           !path.startsWith('01_受信箱/')
       }
     ]
-    const groupedSearchResults = searchGroups
-      .map((group) => ({ ...group, results: searchResults.filter((result) => group.matches(result.path)) }))
-      .filter((group) => group.results.length > 0)
+    const groupedSearchResults = searchOrder === 'relevance'
+      ? searchGroups
+          .map((group) => ({ ...group, results: searchResults.filter((result) => group.matches(result.path)) }))
+          .filter((group) => group.results.length > 0)
+      : [{ key: 'all', label: 'すべての検索結果', results: orderSearchResults(searchResults, searchOrder) }]
 
     return (
       <>
         <div className="search-results" aria-label="検索結果">
+          <div className="search-result-options">
+            <label>並び順
+              <select aria-label="検索結果の並び順" value={searchOrder} onChange={event => {
+                const order = event.target.value as SearchResultOrder
+                setSearchOrder(order)
+              }}>
+                <option value="relevance">関連度順</option>
+                <option value="name-asc">名前（昇順）</option>
+                <option value="name-desc">名前（降順）</option>
+                <option value="modified-desc">更新日（新しい順）</option>
+                <option value="modified-asc">更新日（古い順）</option>
+              </select>
+            </label>
+            <label><input type="checkbox" checked={showAllMatches} onChange={event => setShowAllMatches(event.target.checked)} />一致箇所を表示</label>
+            {showAllMatches && <label><input type="checkbox" checked={showSearchContext} onChange={event => setShowSearchContext(event.target.checked)} />前後の行も表示</label>}
+          </div>
           <header className="search-results-summary" role="status" aria-live="polite">
             <span>検索結果</span>{' '}
             <strong>{searchResults.length}件</strong>
@@ -938,14 +972,18 @@ export default function FileTree({
           ) : (
             groupedSearchResults.map((group) => (
               <section className="search-result-group" key={group.key} aria-label={group.label}>
-                <h2 className="search-result-group-heading">{group.label}</h2>
+                {searchOrder === 'relevance' && <h2 className="search-result-group-heading">{group.label}</h2>}
                 {group.results.map((result) => {
                   const age = noteAges.get(result.path)
+                  const note = notesByPath.get(result.path)
+                  const allContexts = contextsByPath.get(result.path) ?? []
+                  const contextLimit = contextLimits[result.path] ?? 20
+                  const contexts = allContexts.slice(0, contextLimit)
                   return (
+                    <div key={result.path}>
                     <button
                       type="button"
                       className="search-result"
-                      key={result.path}
                       onClick={() => onSelectNote(result.path)}
                       onContextMenu={(event) =>
                         openContextMenu(event, { kind: 'note', path: result.path })
@@ -972,6 +1010,14 @@ export default function FileTree({
                         </small>
                       ) : null}
                     </button>
+                    {contexts.map(context => <div className="search-result-context" key={context.matchStart}>
+                      <pre>{context.text}</pre>
+                      {onOpenMatch && note && <button type="button" onClick={() =>
+                        onOpenMatch(result.path, note.content, context.matchStart, context.matchEnd)
+                      }>この一致へ移動</button>}
+                    </div>)}
+                    {allContexts.length > contexts.length && <button type="button" onClick={() => setContextLimits(current => ({ ...current, [result.path]: contextLimit + 20 }))}>さらに20件の一致を表示</button>}
+                    </div>
                   )
                 })}
               </section>

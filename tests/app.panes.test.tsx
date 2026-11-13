@@ -11,13 +11,14 @@ import { DEFAULT_GRAPH_VIEW_STATES } from '../src/shared/graph-view-state'
 import { migrateWorkspaceSnapshotV1, projectWorkspaceSnapshotV2, type WorkspaceSnapshotV2 } from '../src/shared/workspace-state'
 import { splitWorkspacePane } from '../src/shared/pane-layout'
 import App from '../src/renderer/App'
+import type { MarkdownEditorHandle } from '../src/renderer/components/MarkdownEditor'
 
 vi.mock('../src/renderer/components/MarkdownEditor', async () => {
   const ReactApi = await import('react')
   return { default: ReactApi.forwardRef(function MockEditor({ value, onChange, readOnly, onCompositionChange }: {
     value: string; onChange: (value: string) => void; readOnly?: boolean; onCompositionChange?: (value: boolean) => void
-  }, ref: React.ForwardedRef<{ scrollToOffset: (offset: number) => void }>) {
-    ReactApi.useImperativeHandle(ref, () => ({ scrollToOffset() {} }), [])
+  }, ref: React.ForwardedRef<MarkdownEditorHandle>) {
+    ReactApi.useImperativeHandle(ref, () => ({ getWorkspaceState: () => null, selectSourceRange: () => false, scrollToOffset() {} }), [])
     return <textarea aria-label="Markdown編集欄" value={value} readOnly={readOnly}
       onChange={readOnly ? undefined : event => onChange(event.target.value)}
       onCompositionStart={() => onCompositionChange?.(true)} onCompositionEnd={() => onCompositionChange?.(false)} />

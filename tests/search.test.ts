@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { searchNotes, searchRendererRanked, segmentJapaneseQuery } from '../src/core/search'
+import { orderSearchResults, searchNotes, searchRendererRanked, searchResultContextRanges, searchSuggestionNotes, segmentJapaneseQuery } from '../src/core/search'
 import type { NoteDocument } from '../src/shared/types'
 
 function note(
@@ -249,5 +249,42 @@ describe('ranked note search', () => {
       { path: 'cases/b.md', name: 'b', modifiedAt: 2, score: 10 },
       { path: 'cases/old.md', name: 'old', modifiedAt: 1, score: 10 }
     ])
+  })
+})
+
+describe('search navigation and result presentation', () => {
+  it('ranks a title and alias ahead of body matches in the quick switcher', () => {
+    const candidates = [
+      note('memo.md', 'A Note with a phrase.'),
+      note('Coffee.md', 'Recipe.'),
+      note('Cafe.md', 'Recipe.')
+    ]
+    candidates[0].content = 'Coffee appears in the body.'
+    candidates[2].content = '---\naliases: [coffee shop]\n---\nRecipe.'
+    expect(searchSuggestionNotes(candidates, 'coffee').map(result => result.path)).toEqual([
+      'Coffee.md', 'Cafe.md', 'memo.md'
+    ])
+  })
+
+  it('sorts search results by title while retaining stable path ties', () => {
+    const results = [
+      { path: 'z/a.md', name: '同名', modifiedAt: 1 },
+      { path: 'a/a.md', name: '同名', modifiedAt: 3 },
+      { path: 'c/b.md', name: '別名', modifiedAt: 2 }
+    ]
+    expect(orderSearchResults(results, 'name-asc').map(result => result.path)).toEqual(['a/a.md', 'z/a.md', 'c/b.md'])
+  })
+
+  it('shows body excerpts and context ranges without YAML frontmatter', () => {
+    const candidate = note('memo.md', '---\ntitle: needle\n---\n前置き\nneedle の本文\n後置き')
+    expect(searchRendererRanked([candidate], 'needle')[0].excerpt).toBe('前置き needle の本文 後置き')
+    expect(searchResultContextRanges(candidate, 'needle', 0)[0]).toMatchObject({ text: 'needle の本文' })
+  })
+
+  it('keeps a source jump for each matching line with CRLF and case expansion', () => {
+    const content = 'İ needle\r\nAnother needle'
+    const contexts = searchResultContextRanges(note('memo.md', content), 'needle', 1)
+    expect(contexts.map(match => content.slice(match.matchStart, match.matchEnd))).toEqual(['needle', 'needle'])
+    expect(contexts.map(match => match.matchStart)).toEqual([2, 18])
   })
 })

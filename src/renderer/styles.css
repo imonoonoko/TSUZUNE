@@ -1316,6 +1316,32 @@ button.daily-calendar-heatmap-cell:focus-visible {
   -webkit-line-clamp: 2;
 }
 
+.search-result-options,
+.search-result-context {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-quiet);
+  font-size: 12px;
+}
+
+.search-result-options label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.search-result-context pre {
+  margin: 0;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.search-result-context button {
+  justify-self: start;
+}
+
 .search-results-summary {
   position: sticky;
   top: 0;

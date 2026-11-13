@@ -9,6 +9,7 @@ import {
 import { basicSetup, EditorView } from 'codemirror'
 import { markdown } from '@codemirror/lang-markdown'
 import { Compartment, EditorState } from '@codemirror/state'
+import { foldedRanges, foldEffect, foldable, unfoldEffect } from '@codemirror/language'
 import {
   formatMarkdownSelection,
   insertWikiLink,
@@ -30,9 +31,12 @@ import type { NoteDocument, VaultAttachment } from '../../shared/types'
 import { MAX_PASTED_IMAGE_BYTES } from '../../shared/image-paste'
 import { livePreviewExtension, type LivePreviewContext } from './LivePreview'
 import PropertyValueFields from './PropertyValueFields'
+import { MAX_WORKSPACE_EDITOR_FOLDS, type NoteEditorWorkspaceState } from '../../shared/workspace-state'
 
 export interface MarkdownEditorHandle {
   scrollToOffset: (offset: number) => void
+  selectSourceRange: (source: string, from: number, to: number) => boolean
+  getWorkspaceState: () => NoteEditorWorkspaceState | null
 }
 
 interface MarkdownEditorProps {
@@ -55,6 +59,18 @@ interface MarkdownEditorProps {
   pathAliases?: CompiledPathAliases
   onNavigate?: (target: NoteNavigationTarget) => void
   onWikiLink?: (target: string) => void
+  workspaceState?: NoteEditorWorkspaceState
+  onWorkspaceStateChange?: (state: NoteEditorWorkspaceState) => void
+}
+
+function readEditorWorkspaceState(view: EditorView): NoteEditorWorkspaceState {
+  const { anchor, head } = view.state.selection.main
+  const folds: Array<{ from: number; to: number }> = []
+  foldedRanges(view.state).between(0, view.state.doc.length, (from, to) => {
+    folds.push({ from, to })
+    if (folds.length >= MAX_WORKSPACE_EDITOR_FOLDS) return false
+  })
+  return { anchor, head, folds }
 }
 
 const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(function MarkdownEditor({
@@ -76,12 +92,15 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   attachments = [],
   pathAliases,
   onNavigate,
-  onWikiLink
+  onWikiLink,
+  workspaceState,
+  onWorkspaceStateChange
 }: MarkdownEditorProps, ref): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
   const onCompositionChangeRef = useRef(onCompositionChange)
+  const onWorkspaceStateChangeRef = useRef(onWorkspaceStateChange)
   const onPasteImageRef = useRef(onPasteImage)
   onPasteImageRef.current = onPasteImage
   const pendingPastesRef = useRef(new Set<{ from: number; to: number; invalid: boolean }>())
@@ -139,8 +158,31 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
 
   onChangeRef.current = onChange
   onCompositionChangeRef.current = onCompositionChange
+  onWorkspaceStateChangeRef.current = onWorkspaceStateChange
 
   useImperativeHandle(ref, () => ({
+    selectSourceRange: (source, from, to) => {
+      const view = viewRef.current
+      const normalize = (text: string): string => text.replace(/\r\n?/g, '\n')
+      if (!view || composingRef.current || !Number.isSafeInteger(from) || !Number.isSafeInteger(to) ||
+        from < 0 || to < from || to > source.length || view.state.doc.toString() !== normalize(source)) return false
+      const anchor = normalize(source.slice(0, from)).length
+      const head = normalize(source.slice(0, to)).length
+      const effects: ReturnType<typeof unfoldEffect.of>[] = []
+      foldedRanges(view.state).between(Math.min(anchor, head), Math.max(anchor, head), (foldFrom, foldTo) => {
+        const containsTarget = anchor === head
+          ? foldFrom <= anchor && foldTo >= anchor
+          : foldFrom < Math.max(anchor, head) && foldTo > Math.min(anchor, head)
+        if (containsTarget) effects.push(unfoldEffect.of({ from: foldFrom, to: foldTo }))
+      })
+      view.dispatch({
+        selection: { anchor, head },
+        effects: [...effects, EditorView.scrollIntoView(anchor, { y: 'center' })]
+      })
+      view.focus()
+      return true
+    },
+    getWorkspaceState: () => viewRef.current ? readEditorWorkspaceState(viewRef.current) : null,
     scrollToOffset: (offset) => {
       const view = viewRef.current
       if (!view) return
@@ -172,6 +214,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
         ]),
         livePreviewCompartmentRef.current.of([]),
         EditorView.domEventHandlers({
+          blur: (_event, view) => onWorkspaceStateChangeRef.current?.(readEditorWorkspaceState(view)),
           paste: (event, view) => {
             if (view.state.readOnly || composingRef.current || !onPasteImageRef.current) return false
             const images = Array.from(event.clipboardData?.files ?? []).filter(file => file.type.startsWith('image/'))
@@ -214,6 +257,10 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
           }
         }),
         EditorView.updateListener.of((update) => {
+          if (viewRef.current === update.view &&
+            update.transactions.some(transaction => transaction.effects.some(effect => effect.is(foldEffect) || effect.is(unfoldEffect)))) {
+            onWorkspaceStateChangeRef.current?.(readEditorWorkspaceState(update.view))
+          }
           if (update.docChanged) for (const pending of pendingPastesRef.current) {
             update.changes.iterChangedRanges((from, to) => {
               if (from < pending.to && to > pending.from) pending.invalid = true
@@ -254,6 +301,19 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
     view.dom.addEventListener('compositionstart', handleCompositionStart)
     view.dom.addEventListener('compositionend', handleCompositionEnd)
 
+    if (workspaceState) {
+      const clamp = (offset: number): number => Math.max(0, Math.min(offset, view.state.doc.length))
+      const effects = workspaceState.folds.flatMap(({ from, to }) => {
+        if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to) || from <= 0 || from >= to || to > view.state.doc.length) return []
+        const line = view.state.doc.lineAt(from - 1)
+        const currentRange = foldable(view.state, line.from, line.to)
+        return currentRange?.from === from && currentRange.to === to ? [foldEffect.of({ from, to })] : []
+      })
+      view.dispatch({
+        selection: { anchor: clamp(workspaceState.anchor), head: clamp(workspaceState.head) },
+        effects
+      })
+    }
     viewRef.current = view
     return () => {
       view.dom.removeEventListener('compositionstart', handleCompositionStart)

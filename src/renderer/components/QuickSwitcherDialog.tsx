@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { searchRendererRanked } from '../../core/search'
+import { searchSuggestionNotes } from '../../core/search'
 import type { NoteDocument } from '../../shared/types'
 
 export interface QuickSwitcherDialogProps {
@@ -73,7 +73,7 @@ export default function QuickSwitcherDialog({
     }
 
     const seen = new Set<string>()
-    const rankedResults = searchRendererRanked(notes, trimmedQuery)
+    const rankedResults = searchSuggestionNotes(notes, trimmedQuery)
       .flatMap((result) => {
         if (seen.has(result.path) || !notesByPath.has(result.path)) return []
         seen.add(result.path)
@@ -108,6 +108,7 @@ export default function QuickSwitcherDialog({
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' && (event.nativeEvent.isComposing || event.keyCode === 229)) return
     if (event.key === 'ArrowDown') {
       event.preventDefault()
       if (results.length > 0) setSelectedIndex((index) => Math.min(index + 1, results.length - 1))
@@ -128,9 +129,22 @@ export default function QuickSwitcherDialog({
       if (results.length > 0) setSelectedIndex(results.length - 1)
       return
     }
-    if (event.key === 'Enter' && activeResult) {
-      event.preventDefault()
-      openResult(activeResult, event.ctrlKey || event.metaKey)
+    if (event.key === 'Enter') {
+      const trimmedQuery = query.trim()
+      if (event.shiftKey && onCreate && trimmedQuery) {
+        event.preventDefault()
+        onCreate(trimmedQuery)
+        return
+      }
+      if (activeResult) {
+        event.preventDefault()
+        openResult(activeResult, event.ctrlKey || event.metaKey)
+        return
+      }
+      if (results.length === 0 && onCreate && trimmedQuery) {
+        event.preventDefault()
+        onCreate(trimmedQuery)
+      }
     }
   }
 

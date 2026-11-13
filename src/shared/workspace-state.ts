@@ -39,6 +39,7 @@ export type WorkspacePaneState = {
   activeIndex: number | null
   noteView: 'source' | 'live-preview' | 'preview' | 'local-graph'
   scroll: { top: number; left: number }
+  editorStates?: Record<string, NoteEditorWorkspaceState>
   localGraph: {
     depth: 1 | 2 | 3
     direction: 'both' | 'outgoing' | 'incoming'
@@ -46,6 +47,14 @@ export type WorkspacePaneState = {
     filters?: GraphFilterSettings
   }
 }
+
+export type NoteEditorWorkspaceState = {
+  anchor: number
+  head: number
+  folds: Array<{ from: number; to: number }>
+}
+
+export const MAX_WORKSPACE_EDITOR_FOLDS = 2_000
 
 // Flat fields are rebuilt from the active pane for legacy consumers.
 export type WorkspaceSnapshotV2 = WorkspaceSnapshotV1 & {
@@ -284,7 +293,7 @@ export function parseWorkspaceSnapshotV2(value: unknown): WorkspaceSnapshotV2 {
   const ids = new Set<string>()
   const panes: WorkspacePaneState[] = snapshot.panes.map((value) => {
     const pane = record(value, 'workspace pane')
-    exactKeys(pane, ['id', 'tabs', 'activeIndex', 'noteView', 'scroll', 'localGraph'], 'workspace pane')
+    exactKeys(pane, ['id', 'tabs', 'activeIndex', 'noteView', 'scroll', 'localGraph', ...('editorStates' in pane ? ['editorStates'] : [])], 'workspace pane')
     const id = paneId(pane.id)
     if (ids.has(id)) throw new Error('duplicate pane id.')
     ids.add(id)
@@ -303,9 +312,41 @@ export function parseWorkspaceSnapshotV2(value: unknown): WorkspaceSnapshotV2 {
       if (Object.values(values).some(value => typeof value !== 'boolean')) throw new Error('pane graph filters are invalid.')
       filters = parseGraphFilterSettings(values)
     }
+    let editorStates: Record<string, NoteEditorWorkspaceState> | undefined
+    if ('editorStates' in pane) {
+      const savedStates = record(pane.editorStates, 'editor states')
+      const entries = Object.entries(savedStates)
+      if (entries.length > MAX_WORKSPACE_TABS) throw new Error('editor states are invalid.')
+      editorStates = {}
+      for (const [path, value] of entries) {
+        const normalized = validateRelativePath(path)
+        if (!normalized.valid || !normalized.normalized || !normalized.normalized.toLocaleLowerCase().endsWith('.md')) {
+          throw new Error('editor state path is invalid.')
+        }
+        const state = record(value, 'editor state')
+        exactKeys(state, ['anchor', 'head', 'folds'], 'editor state')
+        const anchor = boundedNumber(state.anchor, 0, 1_000_000_000, 'editor anchor')
+        const head = boundedNumber(state.head, 0, 1_000_000_000, 'editor head')
+        if (!Number.isSafeInteger(anchor) || !Number.isSafeInteger(head) || !Array.isArray(state.folds) ||
+          state.folds.length > MAX_WORKSPACE_EDITOR_FOLDS) {
+          throw new Error('editor state is invalid.')
+        }
+        const folds = state.folds.map(value => {
+          const range = record(value, 'editor fold')
+          exactKeys(range, ['from', 'to'], 'editor fold')
+          const from = boundedNumber(range.from, 0, 1_000_000_000, 'editor fold start')
+          const to = boundedNumber(range.to, 0, 1_000_000_000, 'editor fold end')
+          if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to) || from >= to) throw new Error('editor fold is invalid.')
+          return { from, to }
+        })
+        if (normalized.normalized in editorStates) throw new Error('duplicate editor state path.')
+        editorStates[normalized.normalized] = { anchor, head, folds }
+      }
+    }
     return { id, tabs: validated.tabs, activeIndex: validated.activeIndex,
       noteView: oneOf(pane.noteView, ['source', 'live-preview', 'preview', 'local-graph'], 'pane note view'),
       scroll: { top: boundedNumber(scroll.top, 0, 1_000_000_000, 'scroll top'), left: boundedNumber(scroll.left, 0, 1_000_000_000, 'scroll left') },
+      ...(editorStates ? { editorStates } : {}),
       localGraph: { depth: depth as 1 | 2 | 3, direction: oneOf(graph.direction, ['both', 'outgoing', 'incoming'], 'local graph direction'),
         ...(filters ? { filters } : {}) } }
   })

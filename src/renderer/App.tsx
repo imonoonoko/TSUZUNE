@@ -130,8 +130,8 @@ import PropertyInventoryView from './components/PropertyInventoryView'
 import BasePathDialog from './components/BasePathDialog'
 import BaseTableView, { type BaseTableState } from './components/BaseTableView'
 import tsuzuneMark from './assets/tsuzune-app-icon.png'
-import type { WorkspaceCollection, WorkspaceSnapshotV1 } from '../shared/workspace-state'
-import { migrateWorkspaceSnapshotV1, projectWorkspaceSnapshotV2, type WorkspaceSnapshotV2 } from '../shared/workspace-state'
+import { MAX_WORKSPACE_TABS, migrateWorkspaceSnapshotV1, projectWorkspaceSnapshotV2,
+  type NoteEditorWorkspaceState, type WorkspaceCollection, type WorkspaceSnapshotV1, type WorkspaceSnapshotV2 } from '../shared/workspace-state'
 import { splitWorkspacePane, closeWorkspacePane, moveWorkspaceTab } from '../shared/pane-layout'
 import PaneLayout from './components/PaneLayout'
 import PaneAuxiliaryContent from './components/PaneAuxiliaryContent'
@@ -249,8 +249,12 @@ export default function App(): React.JSX.Element {
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const selectedPathRef = useRef<string | null>(null)
   const markdownEditorRef = useRef<MarkdownEditorHandle | null>(null)
+  const [searchMatchFocus, setSearchMatchFocus] = useState<{
+    path: string; source: string; from: number; to: number; paneId: string; generation: number
+  } | null>(null)
   const [workspaceTabs, setWorkspaceTabs] = useState<WorkspaceTab[]>([])
   const [paneWorkspace, setPaneWorkspace] = useState<WorkspaceSnapshotV2 | null>(null)
+  const [editorWorkspaceVersion, setEditorWorkspaceVersion] = useState(0)
   const heldDraftsRef = useRef(new Map<string, HeldDraft>())
   const [, refreshDraftViews] = useState(0)
   const [localGraphDepth, setLocalGraphDepth] = useState<1 | 2 | 3>(1)
@@ -281,7 +285,7 @@ export default function App(): React.JSX.Element {
   const baseEvaluationRef = useRef<AbortController | null>(null)
   const baseDocumentRef = useRef<import('../shared/types').BaseDocument | null>(null)
   const [baseReloadKey, setBaseReloadKey] = useState(0)
-  const workspaceSnapshotRef = useRef<WorkspaceSnapshotV1 | null>(null)
+  const workspaceSnapshotRef = useRef<WorkspaceSnapshotV2 | null>(null)
   const workspaceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const workspaceSavePromiseRef = useRef<Promise<boolean>>(Promise.resolve(true))
   const workspaceLastSavedKeyRef = useRef<string | null>(null)
@@ -620,6 +624,7 @@ export default function App(): React.JSX.Element {
     if (busyRef.current || editorComposingRef.current) {
       return false
     }
+    captureActiveEditorState()
     busyRef.current = true
     setBusy(true)
     if (document.activeElement instanceof HTMLElement) {
@@ -701,6 +706,7 @@ export default function App(): React.JSX.Element {
       return { ...pane, tabs, activeIndex: activeIndex ?? (tabs.length ? 0 : null) }
     }) })
     setPaneWorkspace(restored)
+    workspaceSnapshotRef.current = restored
     setLeftSidebarWidth(restored.left.width)
     setRightSidebarWidth(restored.right.width)
     const restoredPane = restored.panes.find(pane => pane.id === restored.activePaneId)!
@@ -786,6 +792,32 @@ export default function App(): React.JSX.Element {
   }, [workspaceTabs, activeTabId, selectedPath, viewMode, leftSidebarOpen, leftSidebarView, query, rightSidebarOpen, rightSidebarView,
     paneWorkspace, leftSidebarWidth, rightSidebarWidth, localGraphDepth, graphFilters])
   workspaceSnapshotRef.current = currentWorkspace
+  const activePane = currentWorkspace.panes.find(pane => pane.id === currentWorkspace.activePaneId)!
+
+  const savePaneEditorState = (paneId: string, path: string, state: NoteEditorWorkspaceState, generation: number): void => {
+    const workspace = workspaceSnapshotRef.current
+    const pane = workspace?.panes.find(item => item.id === paneId)
+    if (generation !== vaultGenerationRef.current || !workspace || !pane) return
+    if (JSON.stringify(pane.editorStates?.[path]) === JSON.stringify(state)) return
+    const entries = Object.entries(pane.editorStates ?? {}).filter(([key]) => key !== path)
+    entries.push([path, state])
+    const editorStates = Object.fromEntries(entries.slice(-MAX_WORKSPACE_TABS))
+    const next = { ...workspace, panes: workspace.panes.map(item => item.id === paneId ? { ...item, editorStates } : item) }
+    workspaceSnapshotRef.current = next
+    setPaneWorkspace(next)
+  }
+
+  const captureActiveEditorState = (): void => {
+    const path = selectedPathRef.current
+    const paneId = workspaceSnapshotRef.current?.activePaneId
+    const state = markdownEditorRef.current?.getWorkspaceState()
+    if (path && paneId && state) savePaneEditorState(paneId, path, state, vaultGenerationRef.current)
+  }
+
+  const changeNoteView = (mode: typeof viewMode): void => {
+    if (mode !== viewMode) captureActiveEditorState()
+    setViewMode(mode)
+  }
 
   const clearWorkspaceTimer = (): void => {
     if (workspaceTimerRef.current) clearTimeout(workspaceTimerRef.current)
@@ -877,6 +909,7 @@ export default function App(): React.JSX.Element {
         return
       }
       if (!workspaceRequestIsCurrent(generation, rootPath)) return
+      captureActiveEditorState()
       const saved = workspaceSnapshotRef.current
       if (!saved) return
       const result = await window.tsuzune.saveWorkspace(
@@ -920,6 +953,7 @@ export default function App(): React.JSX.Element {
       if (!workspaceRequestIsCurrent(generation, rootPath)) return
       const latest = snapshotRef.current
       if (!latest) return
+      setEditorWorkspaceVersion(version => version + 1)
       const missing = applyWorkspaceSnapshot(saved, latest)
       setWorkspaceDialogMode(null)
       setMessage(
@@ -1060,6 +1094,7 @@ export default function App(): React.JSX.Element {
         return
       }
       await workspaceSavePromiseRef.current
+      captureActiveEditorState()
       const saved = await checkpointWorkspace()
       window.tsuzune.confirmClose(saved || window.confirm('前回の配置を保存できません。配置を保存せず終了しますか？'))
     } finally { finishOperation() }
@@ -1347,10 +1382,10 @@ export default function App(): React.JSX.Element {
     )
   }
 
-  const openNote = async (path: string): Promise<boolean> => {
+  const openNote = async (path: string, reopen = false): Promise<boolean> => {
     setDailyViewOpen(false)
     setPendingCalendarCommand(null)
-    if (path === selectedPathRef.current || !beginOperation()) {
+    if ((!reopen && path === selectedPathRef.current) || !beginOperation()) {
       return false
     }
 
@@ -1382,6 +1417,44 @@ export default function App(): React.JSX.Element {
       finishOperation()
     }
   }
+
+  const openSearchMatch = async (path: string, source: string, from: number, to: number): Promise<void> => {
+    if (busyRef.current || editorComposingRef.current) return
+    const generation = vaultGenerationRef.current
+    const owner = editorOwner(path)
+    if (owner && owner !== workspaceSnapshotRef.current?.activePaneId) {
+      activatePane(owner)
+    } else {
+      const activeTab = workspaceTabs.find(tab => tab.id === activeTabId)
+      if (activeTab?.kind !== 'note' || activeTab.path !== path) {
+        const existing = workspaceTabs.find(tab => tab.kind === 'note' && tab.path === path)
+        const opened = existing ? await loadWorkspaceTab(existing) : await openNote(path, true)
+        if (!opened) return
+      }
+    }
+    if (generation !== vaultGenerationRef.current || path !== selectedPathRef.current) return
+    const paneId = workspaceSnapshotRef.current?.activePaneId
+    if (!paneId) return
+    if (source !== contentRef.current) {
+      setMessage('元ノートが変更されています。検索し直してください。')
+      return
+    }
+    setDailyViewOpen(false)
+    setPendingCalendarCommand(null)
+    setViewMode('edit')
+    setSearchMatchFocus({ path, source, from, to, paneId, generation })
+  }
+
+  useEffect(() => {
+    if (!searchMatchFocus || busy) return
+    setSearchMatchFocus(null)
+    const { path, source, from, to, paneId, generation } = searchMatchFocus
+    if (generation !== vaultGenerationRef.current || path !== selectedPathRef.current ||
+      paneId !== workspaceSnapshotRef.current?.activePaneId || viewMode !== 'edit') return
+    if (!markdownEditorRef.current?.selectSourceRange(source, from, to)) {
+      setMessage('一致箇所を開けませんでした。検索し直してください。')
+    }
+  }, [searchMatchFocus, busy, viewMode])
 
   const handleExternalChanges = async (
     events: VaultChangeEvent[]
@@ -3012,6 +3085,7 @@ export default function App(): React.JSX.Element {
   }
 
   const openGlobalGraphWorkspace = (): void => {
+    captureActiveEditorState()
     closeDailyOverview()
     const existing = workspaceTabs.find((tab) => tab.kind === 'global-graph')
     if (existing) {
@@ -4209,20 +4283,20 @@ export default function App(): React.JSX.Element {
       case 'edit-mode':
         run(() => {
           closeDailyOverview()
-          setViewMode('edit')
+          changeNoteView('edit')
         })
         return
       case 'preview-mode':
         run(() => {
           closeDailyOverview()
-          setViewMode('preview')
+          changeNoteView('preview')
         })
         return
       case 'local-graph':
         run(() => {
           closeDailyOverview()
           setGraphScope('local')
-          setViewMode('graph')
+          changeNoteView('graph')
         })
         return
       case 'vault-graph':
@@ -4368,9 +4442,11 @@ export default function App(): React.JSX.Element {
   const activatePane = (id: string, index?: number): void => {
     if (busyRef.current || editorComposingRef.current || !snapshotRef.current) return
     if (id === currentWorkspace.activePaneId && index === undefined) return
+    captureActiveEditorState()
     holdCurrentDraft()
-    const next = projectWorkspaceSnapshotV2({ ...currentWorkspace, activePaneId: id,
-      panes: currentWorkspace.panes.map(pane => pane.id === id && index !== undefined ? { ...pane, activeIndex: index } : pane) })
+    const workspace = workspaceSnapshotRef.current ?? currentWorkspace
+    const next = projectWorkspaceSnapshotV2({ ...workspace, activePaneId: id,
+      panes: workspace.panes.map(pane => pane.id === id && index !== undefined ? { ...pane, activeIndex: index } : pane) })
     applyWorkspaceSnapshot(next, snapshotRef.current)
     if (heldDraftsRef.current.size) scheduleSave()
   }
@@ -4378,11 +4454,12 @@ export default function App(): React.JSX.Element {
     if (!snapshotRef.current || !beginOperation()) return
     try {
       if (!(await flushSave())) return
-      const source = currentWorkspace.panes.find(pane => pane.id === sourceId)
+      const workspace = workspaceSnapshotRef.current ?? currentWorkspace
+      const source = workspace.panes.find(pane => pane.id === sourceId)
       if (!source) return
-      const next = action === 'close' ? closeWorkspacePane(currentWorkspace, sourceId)
-        : action === 'move' ? moveWorkspaceTab(currentWorkspace, sourceId, source.activeIndex ?? 0, target!)
-          : splitWorkspacePane(currentWorkspace, sourceId, action)
+      const next = action === 'close' ? closeWorkspacePane(workspace, sourceId)
+        : action === 'move' ? moveWorkspaceTab(workspace, sourceId, source.activeIndex ?? 0, target!)
+          : splitWorkspacePane(workspace, sourceId, action)
       applyWorkspaceSnapshot(next, snapshotRef.current)
     } catch (error) { setMessage(error instanceof Error ? error.message : 'ペイン操作に失敗しました。') }
     finally { finishOperation() }
@@ -4391,7 +4468,8 @@ export default function App(): React.JSX.Element {
     if (!snapshotRef.current || !beginOperation()) return
     try {
       if (!(await flushSave())) return
-      const next = projectWorkspaceSnapshotV2({ ...currentWorkspace, panes: currentWorkspace.panes.map(pane => {
+      const workspace = workspaceSnapshotRef.current ?? currentWorkspace
+      const next = projectWorkspaceSnapshotV2({ ...workspace, panes: workspace.panes.map(pane => {
         if (pane.id !== paneId) return pane
         const tabs = pane.tabs.filter((_, tabIndex) => tabIndex !== index)
         const activeIndex = !tabs.length ? null : Math.max(0, (pane.activeIndex ?? 0) - (index < (pane.activeIndex ?? 0) ? 1 : 0))
@@ -4413,6 +4491,7 @@ export default function App(): React.JSX.Element {
     refreshDraftViews(version => version + 1)
     scheduleSave()
   }
+  const editorGeneration = vaultGenerationRef.current
   const renderInactivePane = (id: string): React.ReactNode => {
     const pane = currentWorkspace.panes.find(item => item.id === id)!
     const tab = pane.tabs[pane.activeIndex ?? -1]
@@ -4421,7 +4500,9 @@ export default function App(): React.JSX.Element {
     const editable = !!note && (pane.noteView === 'source' || pane.noteView === 'live-preview') && editorOwner(note.path) === id
     return <>
       {note ? <>{!editable && (pane.noteView === 'source' || pane.noteView === 'live-preview') && <p role="status">このノートの編集は別ペインで行えます。</p>}
-        {editable ? <MarkdownEditor value={draftFor(note.path)} onChange={value => changeHeldDraft(note.path, value)}
+        {editable ? <MarkdownEditor key={`${editorGeneration}:${editorWorkspaceVersion}:${note.path}`} value={draftFor(note.path)} onChange={value => changeHeldDraft(note.path, value)}
+          workspaceState={pane.editorStates?.[note.path]}
+          onWorkspaceStateChange={state => savePaneEditorState(id, note.path, state, editorGeneration)}
           declaredTypes={propertyTypes} readOnly={busy} notes={savedNotes} notePath={note.path} livePreview={pane.noteView === 'live-preview'}
           attachments={snapshot?.attachments ?? []} pathAliases={pathAliases} onNavigate={target => { activatePane(id); void handleNoteNavigation(target) }}
           onWikiLink={target => { activatePane(id); handleWikiLink(target) }} onCompositionChange={composing => { editorComposingRef.current = composing }} />
@@ -4852,6 +4933,7 @@ export default function App(): React.JSX.Element {
                 searchResults={searchResults}
                 query={leftSidebarView === 'search' ? query : ''}
                 onSelectNote={(path) => void openNote(path)}
+                onOpenMatch={(path, source, from, to) => void openSearchMatch(path, source, from, to)}
                 onSelectEntry={setTreeSelection}
                 onRename={openRename}
                 onMove={setMovePath}
@@ -4934,8 +5016,11 @@ export default function App(): React.JSX.Element {
                 ...currentWorkspace.panes.flatMap((pane, index) => pane.id === id ? [] : [{ label: `タブをペイン ${index + 1}へ移す`, disabled: busy || currentWorkspace.panes.find(pane => pane.id === id)?.activeIndex === null, onSelect: () => void changePaneLayout('move', pane.id, id) }])
               ]} />}
               getScroll={id => currentWorkspace.panes.find(pane => pane.id === id)?.scroll}
-              onPaneScroll={(id, scroll) => setPaneWorkspace(projectWorkspaceSnapshotV2({ ...currentWorkspace, panes: currentWorkspace.panes.map(pane => pane.id === id ? { ...pane, scroll } : pane) }))}
-              onActivePaneChange={activatePane} onLayoutChange={layout => setPaneWorkspace({ ...currentWorkspace, layout })}
+              onPaneScroll={(id, scroll) => setPaneWorkspace(previous => {
+                const workspace = previous ?? currentWorkspace
+                return { ...workspace, panes: workspace.panes.map(pane => pane.id === id ? { ...pane, scroll } : pane) }
+              })}
+              onActivePaneChange={activatePane} onLayoutChange={layout => setPaneWorkspace(previous => ({ ...(previous ?? currentWorkspace), layout }))}
               renderPane={id => id !== currentWorkspace.activePaneId ? renderInactivePane(id) : <>
             {dailyViewOpen ? (
               <DailyProfile
@@ -5184,18 +5269,18 @@ export default function App(): React.JSX.Element {
                         type="button"
                         className={viewMode === 'edit' ? 'is-active' : ''}
                         aria-pressed={viewMode === 'edit'}
-                        onClick={() => setViewMode('edit')}
+                        onClick={() => changeNoteView('edit')}
                       >
                         <Icon name="edit" />
                         {structuredCapture ? 'Markdownソース' : '編集'}
                       </button>
                       <button type="button" className={viewMode === 'live-preview' ? 'is-active' : ''}
-                        aria-pressed={viewMode === 'live-preview'} onClick={() => setViewMode('live-preview')}>Live Preview</button>
+                        aria-pressed={viewMode === 'live-preview'} onClick={() => changeNoteView('live-preview')}>Live Preview</button>
                       <button
                         type="button"
                         className={viewMode === 'preview' ? 'is-active' : ''}
                         aria-pressed={viewMode === 'preview'}
-                        onClick={() => setViewMode('preview')}
+                        onClick={() => changeNoteView('preview')}
                       >
                         <Icon name="preview" />
                         プレビュー
@@ -5203,7 +5288,7 @@ export default function App(): React.JSX.Element {
                     </div>
                     <button type="button" className="note-context-action compact-graph-action" title="ローカルグラフ"
                       aria-label="ローカルグラフ" aria-pressed={viewMode === 'graph' && graphScope === 'local'}
-                      onClick={() => { setGraphScope('local'); setViewMode('graph') }}>
+                      onClick={() => { setGraphScope('local'); changeNoteView('graph') }}>
                       <Icon name="graph" />
                     </button>
                     </div>
@@ -5223,8 +5308,10 @@ export default function App(): React.JSX.Element {
                     onWikiLink={handleWikiLink}
                     declaredTypes={propertyTypes}
                     onCompositionChange={(composing) => { editorComposingRef.current = composing }}
-                    key={selectedPath}
+                    key={`${editorGeneration}:${editorWorkspaceVersion}:${selectedPath}`}
                     ref={markdownEditorRef}
+                    workspaceState={activePane.editorStates?.[selectedPath]}
+                    onWorkspaceStateChange={state => savePaneEditorState(activePane.id, selectedPath, state, editorGeneration)}
                     value={content}
                     onChange={handleContentChange}
                     readOnly={busy}

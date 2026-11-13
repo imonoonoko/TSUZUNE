@@ -12,6 +12,7 @@ import { DEFAULT_GRAPH_VIEW_STATES } from '../src/shared/graph-view-state'
 import { DEFAULT_HOTKEYS, type HotkeySettings } from '../src/shared/hotkeys'
 import { transformProperty } from '../src/core/property-changes'
 import App from '../src/renderer/App'
+import type { MarkdownEditorHandle } from '../src/renderer/components/MarkdownEditor'
 
 vi.mock('../src/renderer/base-worker-client', async () => {
   const core = await import('../src/core/base-evaluator')
@@ -35,9 +36,9 @@ const snapshot = (): VaultSnapshot => ({ rootPath: 'C:\\Vault', rootName: 'Vault
 
 vi.mock('../src/renderer/components/MarkdownEditor', async () => {
   const ReactApi = await import('react')
-  return { default: ReactApi.forwardRef(function MockMarkdownEditor({ value, onChange, onCompositionChange, readOnly }: { value: string; onChange: (value: string) => void; onCompositionChange?: (composing: boolean) => void; readOnly?: boolean }, ref: React.ForwardedRef<{ scrollToOffset: (offset: number) => void }>) {
+  return { default: ReactApi.forwardRef(function MockMarkdownEditor({ value, onChange, onCompositionChange, readOnly }: { value: string; onChange: (value: string) => void; onCompositionChange?: (composing: boolean) => void; readOnly?: boolean }, ref: React.ForwardedRef<MarkdownEditorHandle>) {
     const input = ReactApi.useRef<HTMLTextAreaElement | null>(null)
-    ReactApi.useImperativeHandle(ref, () => ({ scrollToOffset: (offset) => { input.current?.setSelectionRange(offset, offset); input.current?.focus() } }), [])
+    ReactApi.useImperativeHandle(ref, () => ({ getWorkspaceState: () => null, selectSourceRange: () => false, scrollToOffset: (offset) => { input.current?.setSelectionRange(offset, offset); input.current?.focus() } }), [])
     return ReactApi.createElement('textarea', { ref: input, 'aria-label': 'Markdown編集欄', value, readOnly, onCompositionStart: () => onCompositionChange?.(true), onCompositionEnd: () => onCompositionChange?.(false), onChange: readOnly ? undefined : (event: React.ChangeEvent<HTMLTextAreaElement>) => onChange(event.target.value) })
   }) }
 })

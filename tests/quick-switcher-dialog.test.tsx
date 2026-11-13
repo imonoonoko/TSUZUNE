@@ -171,6 +171,44 @@ describe('QuickSwitcherDialog', () => {
     ).toEqual(['Inbox'])
   })
 
+  it('ranks exact titles above aliases and keeps body matches available', () => {
+    const alias = { ...note('notes/Cafe.md', 'Cafe'), content: '---\naliases: [coffee]\n---\nA drink.' }
+    const body = { ...note('notes/Body.md', 'Body'), content: 'Coffee is mentioned here.' }
+    render(
+      <QuickSwitcherDialog
+        notes={[body, alias, note('notes/Coffee.md', 'Coffee')]}
+        recentPaths={[]}
+        onOpen={vi.fn()}
+        onOpenInNewTab={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'coffee' } })
+    expect(screen.getAllByRole('option').map(item => item.textContent)).toEqual([
+      'Coffeenotes/Coffee.md', 'Cafenotes/Cafe.md', 'Bodynotes/Body.md'
+    ])
+  })
+
+  it('does not handle Enter while the IME is composing', () => {
+    const onOpen = vi.fn()
+    const onCreate = vi.fn()
+    render(
+      <QuickSwitcherDialog
+        notes={[note('one.md', 'One')]}
+        recentPaths={[]}
+        onOpen={onOpen}
+        onOpenInNewTab={vi.fn()}
+        onClose={vi.fn()}
+        onCreate={onCreate}
+      />
+    )
+    const input = screen.getByRole('combobox')
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true })
+    expect(onOpen).not.toHaveBeenCalled()
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
   it('supports navigation, opening, new-tab opening, and escape', () => {
     const onOpen = vi.fn()
     const onOpenInNewTab = vi.fn()

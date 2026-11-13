@@ -4,11 +4,72 @@ import React, { createRef } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EditorView } from '@codemirror/view'
+import { foldEffect, foldedRanges } from '@codemirror/language'
 import MarkdownEditor, { type MarkdownEditorHandle } from '../src/renderer/components/MarkdownEditor'
 
 afterEach(cleanup)
 
 describe('MarkdownEditor navigation', () => {
+  it('restores a saved caret, selection, and folded range without changing text', () => {
+    const source = '- Parent\n  - Child\nAfter'
+    const parentEnd = source.indexOf('\n')
+    const subtreeEnd = source.length
+    const onChange = vi.fn()
+    const onWorkspaceStateChange = vi.fn()
+    const { container } = render(<MarkdownEditor value={source} onChange={onChange}
+      workspaceState={{ anchor: 2, head: 7, folds: [{ from: parentEnd, to: subtreeEnd }] }}
+      onWorkspaceStateChange={onWorkspaceStateChange} />)
+    const view = EditorView.findFromDOM(container.querySelector('.cm-editor') as HTMLElement)!
+
+    expect(view.state.doc.toString()).toBe(source)
+    expect(view.state.selection.main).toMatchObject({ anchor: 2, head: 7 })
+    expect(foldedRanges(view.state).size).toBeGreaterThan(0)
+    expect(onChange).not.toHaveBeenCalled()
+    expect(onWorkspaceStateChange).not.toHaveBeenCalled()
+    view.dispatch({ selection: { anchor: 1, head: 4 } })
+    fireEvent.blur(view.contentDOM)
+    expect(onWorkspaceStateChange).toHaveBeenLastCalledWith({
+      anchor: 1, head: 4, folds: [{ from: parentEnd, to: subtreeEnd }]
+    })
+  })
+
+  it('lets an explicit search jump replace the restored editor selection', () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const source = 'First match. Another match.'
+    const { container } = render(<MarkdownEditor ref={ref} value={source} onChange={vi.fn()}
+      workspaceState={{ anchor: 1, head: 3, folds: [] }} />)
+    const view = EditorView.findFromDOM(container.querySelector('.cm-editor') as HTMLElement)!
+    const from = source.indexOf('Another'), to = from + 'Another'.length
+
+    expect(ref.current?.selectSourceRange(source, from, to)).toBe(true)
+    expect(view.state.selection.main).toMatchObject({ anchor: from, head: to })
+  })
+
+  it('rejects stale source offsets for an explicit search jump', () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const { container } = render(<MarkdownEditor ref={ref} value="changed source" onChange={vi.fn()} />)
+    const view = EditorView.findFromDOM(container.querySelector('.cm-editor') as HTMLElement)!
+    expect(ref.current?.selectSourceRange('older source', 0, 5)).toBe(false)
+    expect(view.state.selection.main.from).toBe(0)
+  })
+
+  it('maps CRLF search offsets and opens a folded match range', () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const source = '- Parent\r\n  - Find this\r\nAfter'
+    const from = source.indexOf('Find'), to = from + 'Find this'.length
+    const { container } = render(<MarkdownEditor ref={ref} value={source} onChange={vi.fn()}
+      workspaceState={{ anchor: 1, head: 1, folds: [{ from: source.indexOf('\r'), to: source.indexOf('\r\nAfter') }] }} />)
+    const view = EditorView.findFromDOM(container.querySelector('.cm-editor') as HTMLElement)!
+    const normalizedFrom = source.slice(0, from).replace(/\r\n/g, '\n').length
+    const normalizedTo = source.slice(0, to).replace(/\r\n/g, '\n').length
+
+    view.dispatch({ effects: foldEffect.of({ from: 0, to: view.state.doc.line(3).to }) })
+    expect(foldedRanges(view.state).size).toBeGreaterThan(0)
+    expect(ref.current?.selectSourceRange(source, from, to)).toBe(true)
+    expect(view.state.selection.main).toMatchObject({ anchor: normalizedFrom, head: normalizedTo })
+    expect(foldedRanges(view.state).size).toBe(0)
+  })
+
   it('keeps composition active until the real editor delivers the final document change', async () => {
     const events: string[] = []
     const onChange = vi.fn((next: string) => events.push(`change:${next}`))
