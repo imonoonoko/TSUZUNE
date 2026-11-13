@@ -13,6 +13,8 @@ import {
   validateRelativePath
 } from '../../core/paths'
 import type { NoteDocument, VaultAttachment } from '../../shared/types'
+import { noteEmbedMarkup } from '../note-embed-markup'
+import VaultEmbed, { type VaultEmbedContext } from './VaultEmbed'
 
 interface MarkdownPreviewProps {
   content: string
@@ -23,6 +25,10 @@ interface MarkdownPreviewProps {
   pathAliases?: CompiledPathAliases
   onNavigate?: (target: NoteNavigationTarget) => void
   editorLinkHover?: boolean
+  embedContext?: VaultEmbedContext
+  sourceContent?: string
+  headingPrefix?: string
+  localImagesOnly?: boolean
 }
 
 function NoteLink({
@@ -240,14 +246,25 @@ function useHeadingProps(
     node: { position?: { start?: { line?: number } } } | undefined,
     level: number
   ): { id?: string; tabIndex?: number } {
-    const { headings } = useContext(PreviewContext)
+    const { headings, headingPrefix = '' } = useContext(PreviewContext)
     const heading = headings.find(
       (candidate) => candidate.previewLine === node?.position?.start?.line && candidate.level === level
     )
-    return heading ? { id: heading.id, tabIndex: -1 } : {}
+    return heading ? { id: `${headingPrefix}${heading.id}`, tabIndex: -1 } : {}
+}
+
+function EmbedMarkup({ target, label, budget }: { target: string; label: string; budget: number }): React.JSX.Element {
+  const props = useContext(PreviewContext)
+  const { notePath, sourceContent, content, onWikiLink, onNavigate, pathAliases, notes = [], attachments, embedContext } = props
+  return <VaultEmbed target={target} label={label} hostPath={notePath} hostContent={sourceContent ?? content}
+    context={{ vaultPath: '', notes, attachments, onNavigate, onWikiLink, pathAliases, ...embedContext, budget }} />
 }
 
 const previewComponents: Components = {
+  div: ({ node, children }) => typeof node?.properties['data-note-embed'] === 'string'
+    ? <EmbedMarkup target={node.properties['data-note-embed']} label={String(node.properties['data-embed-label'])}
+        budget={Number(node.properties['data-embed-budget'])} />
+    : <div>{children}</div>,
   h1: ({ node, children }) => <h1 {...useHeadingProps(node, 1)}>{children}</h1>,
   h2: ({ node, children }) => <h2 {...useHeadingProps(node, 2)}>{children}</h2>,
   h3: ({ node, children }) => <h3 {...useHeadingProps(node, 3)}>{children}</h3>,
@@ -255,7 +272,8 @@ const previewComponents: Components = {
   h5: ({ node, children }) => <h5 {...useHeadingProps(node, 5)}>{children}</h5>,
   h6: ({ node, children }) => <h6 {...useHeadingProps(node, 6)}>{children}</h6>,
   img: ({ src, alt, title }) => {
-    const { notePath, attachments } = useContext(PreviewContext)
+    const { notePath, attachments, localImagesOnly } = useContext(PreviewContext)
+    if (localImagesOnly && src && /^https?:\/\//i.test(src)) return <span>{alt}</span>
     return src && /^https?:\/\//i.test(src) ? (
       <img src={src} alt={alt ?? ''} title={title} />
     ) : (
@@ -313,7 +331,7 @@ export default function MarkdownPreview({
   notes = [],
   pathAliases,
   onNavigate,
-  editorLinkHover
+  editorLinkHover, embedContext, sourceContent, headingPrefix, localImagesOnly
 }: MarkdownPreviewProps): React.JSX.Element {
   const frontmatter = parseFrontmatter(content)
   const hasValidFrontmatter =
@@ -327,7 +345,7 @@ export default function MarkdownPreview({
   const headings = extractMarkdownHeadings(content)
 
   return (
-    <PreviewContext.Provider value={{ content, notePath, attachments, onWikiLink, notes, pathAliases, onNavigate, headings, editorLinkHover }}>
+    <PreviewContext.Provider value={{ content, notePath, attachments, onWikiLink, notes, pathAliases, onNavigate, headings, editorLinkHover, embedContext, sourceContent, headingPrefix, localImagesOnly }}>
     <article className="markdown-preview" aria-label="Markdownプレビュー">
       {properties.length > 0 ? (
         <details className="markdown-properties" aria-label="プロパティ">
@@ -349,6 +367,7 @@ export default function MarkdownPreview({
       ) : null}
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[[noteEmbedMarkup, { budget: embedContext?.budget }]]}
         components={previewComponents}
       >
         {transformed}

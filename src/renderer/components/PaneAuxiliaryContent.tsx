@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { NoteDocument, VaultAttachment, BaseDocument } from '../../shared/types'
 import type { SavedWorkspaceTab, WorkspaceScope } from '../../shared/workspace-state'
 import type { PropertyChangeOperation, PropertyDeclaredType } from '../../shared/property-changes'
+import type { KanbanFolderMoveState } from '../../core/base-kanban'
 import type { CompiledPathAliases } from '../../core/path-aliases'
 import { buildWikiGraph, getVaultWikiGraph } from '../../core/graph'
 import { buildPropertyInventory } from '../../core/property-inventory'
@@ -24,6 +25,7 @@ export interface PaneAuxiliaryContentProps {
   onOpenNote?: (path: string) => void
   onEditCell?: (path: string, property: string) => void
   onMoveBaseCard?: (path: string, operation: Extract<PropertyChangeOperation, { kind: 'set' }>) => void
+  onMoveBaseFile?: (state: Extract<BaseTableState, { status: 'ready' }> & KanbanFolderMoveState, path: string, directory: string) => void
   onDeclare?: (name: string, type: PropertyDeclaredType | null) => Promise<void>
   onNavigateParent?: () => void
   editingDisabled?: boolean
@@ -58,7 +60,7 @@ export default function PaneAuxiliaryContent(props: PaneAuxiliaryContentProps): 
   return <p role="status">ノートの表示を選択してください。</p>
 }
 
-function AuxiliaryBase({ path, notes, scope, declaredTypes, onOpenNote = () => undefined, onEditCell, onMoveBaseCard, editingDisabled }: PaneAuxiliaryContentProps & { path: string }): React.JSX.Element {
+function AuxiliaryBase({ path, notes, scope, declaredTypes, onOpenNote = () => undefined, onEditCell, onMoveBaseCard, onMoveBaseFile, editingDisabled }: PaneAuxiliaryContentProps & { path: string }): React.JSX.Element {
   const [state, setState] = useState<BaseTableState>({ status: 'loading', path })
   const [index, setIndex] = useState(0)
   const [reload, setReload] = useState(0)
@@ -90,7 +92,7 @@ function AuxiliaryBase({ path, notes, scope, declaredTypes, onOpenNote = () => u
         const resultEvaluation = await evaluateBaseInWorker(parsed.profile, notes, index, { propertyTypes: declaredTypes, signal: controller.signal,
           thisFile: { ...result.value, name: basenameRelative(path), size: new TextEncoder().encode(result.value.content).length } })
         if (active()) setState({ status: 'ready', path, profile: parsed.profile, evaluation: resultEvaluation, content: result.value.content,
-          modifiedAt: result.value.modifiedAt, notes, declaredTypes, viewIndex: index })
+          modifiedAt: result.value.modifiedAt, notes, declaredTypes, viewIndex: index, revision: result.value.revision })
       } catch (error) { if (generation.current === current) setState({ status: 'error', path, message: error instanceof Error ? error.message : 'Baseを読み込めませんでした。' }) }
       finally { if (generation.current === current) setEvaluating(false) }
     })()
@@ -131,7 +133,7 @@ function AuxiliaryBase({ path, notes, scope, declaredTypes, onOpenNote = () => u
     } catch (error) { if (generation.current === current) setMessage(error instanceof Error ? error.message : '設定を保存できませんでした。') }
     finally { if (generation.current === current) setSaving(false) }
   }
-  return <><BaseTableView state={state} onReload={() => setReload(value => value + 1)} onOpenNote={onOpenNote} onEditCell={onEditCell} onMoveCard={onMoveBaseCard}
+  return <><BaseTableView state={state} onReload={() => setReload(value => value + 1)} onOpenNote={onOpenNote} onEditCell={onEditCell} onMoveCard={onMoveBaseCard} onMoveFile={onMoveBaseFile}
     editingDisabled={editingDisabled || saving || !scope} onSelectView={setIndex} onPreviewProfile={preview} onSaveProfile={source => { void save(source) }}
     evaluating={evaluating} onStopEvaluation={() => evaluation.current?.abort()} onResolveImage={async path => { const result = await window.tsuzune.readVaultImage(path); return result.ok ? result.value : null }} />
     {message && <p role="alert">{message}</p>}</>

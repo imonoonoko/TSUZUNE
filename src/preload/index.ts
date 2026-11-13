@@ -85,7 +85,9 @@ const api: TsuzuneApi = {
     invoke<CalendarPluginRuntimeStatus>('calendarPlugin:status'),
   getSnapshot: () => invoke<VaultSnapshot>('vault:snapshot'),
   readNote: (path: string) => invoke<NoteDocument>('vault:readNote', path),
-  readBase: (path: string) => invoke<BaseDocument>('vault:readBase', path),
+  readBase: (path, expectedVaultPath) => expectedVaultPath === undefined
+    ? invoke<BaseDocument>('vault:readBase', path)
+    : invoke<BaseDocument>('vault:readBase', path, expectedVaultPath),
   createBase: (path, expectedVaultPath) => invoke('vault:createBase', path, expectedVaultPath),
   listBases: (expectedVaultPath: string) =>
     invoke<string[]>('vault:listBases', expectedVaultPath),
@@ -93,6 +95,9 @@ const api: TsuzuneApi = {
   readCanvas: (path, expectedVaultPath) => invoke('canvas:read', path, expectedVaultPath),
   createCanvas: input => invoke('canvas:create', input),
   saveCanvas: input => invoke('canvas:save', input),
+  exportCanvasPng: input => invoke('canvas:exportPng', input),
+  previewKanbanFolderMove: input => invoke('kanban:folderMovePreview', input),
+  applyKanbanFolderMove: input => invoke('kanban:folderMoveApply', input),
   readImportSource: (request, files) => invoke('importer:readSource', request, files.map(file => ({
     path: webUtils.getPathForFile(file),
     relativePath: file.webkitRelativePath || file.name

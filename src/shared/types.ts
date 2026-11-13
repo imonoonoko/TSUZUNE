@@ -379,13 +379,16 @@ export interface TsuzuneApi {
   getCalendarPluginStatus(): Promise<Result<CalendarPluginRuntimeStatus>>
   getSnapshot(): Promise<Result<VaultSnapshot>>
   readNote(path: string): Promise<Result<NoteDocument>>
-  readBase(path: string): Promise<Result<BaseDocument>>
+  readBase(path: string, expectedVaultPath?: string): Promise<Result<BaseDocument>>
   createBase(path: string, expectedVaultPath: string): Promise<Result<BaseDocument>>
   listBases(expectedVaultPath: string): Promise<Result<string[]>>
   listCanvases(expectedVaultPath: string): Promise<Result<string[]>>
   readCanvas(path: string, expectedVaultPath: string): Promise<Result<import('./canvas').CanvasDocument>>
   createCanvas(input: import('./canvas').CanvasCreateInput): Promise<Result<import('./canvas').CanvasDocument>>
   saveCanvas(input: import('./canvas').CanvasSaveInput): Promise<Result<import('./canvas').CanvasDocument>>
+  exportCanvasPng(input: import('./canvas-png').CanvasPngExportOptions): Promise<Result<import('./canvas-png').CanvasPngExportResult>>
+  previewKanbanFolderMove(input: import('./kanban-folder-move').KanbanFolderMoveInput): Promise<Result<import('./kanban-folder-move').KanbanFolderMovePreview>>
+  applyKanbanFolderMove(input: import('./kanban-folder-move').KanbanFolderMoveApplyInput): Promise<Result<{ oldPath: string; path: string }>>
   readImportSource(request: import('./importer').ImportReadRequest, files: File[]): Promise<Result<import('./importer').ImportSource>>
   previewImport(input: import('./importer').ImportPreviewInput): Promise<Result<import('./importer').ImportPreview>>
   applyImport(input: { scope: import('./property-changes').PropertyChangeScope; planId: string }): Promise<Result<import('./importer').ImportApplyResult>>

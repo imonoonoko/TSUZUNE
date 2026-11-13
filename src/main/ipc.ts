@@ -56,6 +56,10 @@ import { packStartupSnapshot } from './startup-snapshot'
 import { WorkspaceService } from './workspaces'
 import type { WorkspaceScope, WorkspaceSnapshotV1 } from '../shared/workspace-state'
 import { EntryMoveCoordinator } from './entry-move'
+import { CanvasPngExportService } from './canvas-png'
+import { KanbanFolderMoveService } from './kanban-folder-move'
+import type { CanvasPngExportOptions } from '../shared/canvas-png'
+import type { KanbanFolderMoveApplyInput, KanbanFolderMoveInput } from '../shared/kanban-folder-move'
 import { VaultWatcher } from './watcher'
 import type { GoogleConnectionService } from './google-connection'
 import { listObsidianPluginCandidates } from './obsidian-plugins'
@@ -255,6 +259,12 @@ export function registerIpc(
     entryMoveOverride ?? new EntryMoveCoordinator({ vault, drive: google.driveSync })
   const workspaces = new WorkspaceService(vault)
   const propertyTypes = new PropertyTypeSettingsService(vault)
+  const canvasPng = new CanvasPngExportService(getWindow)
+  const kanbanFolderMoves = new KanbanFolderMoveService(vault, entryMove,
+    async () => (await readSettings()).userIgnoreFilters, scope => propertyTypes.get(scope))
+  registerConcurrentTrusted('canvas:exportPng', (input: CanvasPngExportOptions) => canvasPng.export(input))
+  registerTrusted('kanban:folderMovePreview', (input: KanbanFolderMoveInput) => kanbanFolderMoves.preview(input))
+  registerTrusted('kanban:folderMoveApply', (input: KanbanFolderMoveApplyInput) => runGoogleInOrder(() => kanbanFolderMoves.apply(input)))
   const propertyChanges = new PropertyChangesService(vault, async () => (await readSettings()).userIgnoreFilters)
   const humanChanges = new HumanChangesService(vault, async () => (await readSettings()).userIgnoreFilters)
   const importer = new ImporterService(vault, async () => (await readSettings()).userIgnoreFilters)
@@ -384,7 +394,20 @@ export function registerIpc(
   })
   registerTrusted('vault:snapshot', () => vault.scan())
   registerTrusted('vault:readNote', (path: string) => vault.readNote(path))
-  registerTrusted('vault:readBase', (path: string) => vault.readBase(path))
+  registerTrusted('vault:readBase', async (path: string, expectedVaultPath?: string) => {
+    const root = vault.getRootPath()
+    const revision = vault.getRootRevision()
+    const assertScope = (): void => {
+      if (expectedVaultPath !== undefined && (!root || root !== expectedVaultPath ||
+        vault.getRootPath() !== root || vault.getRootRevision() !== revision)) {
+        throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+      }
+    }
+    assertScope()
+    const document = await vault.readBase(path)
+    assertScope()
+    return document
+  })
   registerTrusted('vault:createBase', (path: string, expectedVaultPath: string) => {
     const revision = vault.getRootRevision()
     return runGoogleInOrder(() => {

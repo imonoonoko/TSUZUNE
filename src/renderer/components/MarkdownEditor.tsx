@@ -30,6 +30,7 @@ import type { PropertyDeclaredType, PropertyValue } from '../../shared/property-
 import type { NoteDocument, VaultAttachment } from '../../shared/types'
 import { MAX_PASTED_IMAGE_BYTES } from '../../shared/image-paste'
 import { livePreviewExtension, type LivePreviewContext } from './LivePreview'
+import type { VaultEmbedContext } from './VaultEmbed'
 import PropertyValueFields from './PropertyValueFields'
 import { useEditorLinkPreview } from './NoteHoverPreview'
 import { attachEditorLinkHover } from '../editor-link-hover'
@@ -63,6 +64,7 @@ interface MarkdownEditorProps {
   onWikiLink?: (target: string) => void
   workspaceState?: NoteEditorWorkspaceState
   onWorkspaceStateChange?: (state: NoteEditorWorkspaceState) => void
+  embedContext?: VaultEmbedContext
 }
 
 function readEditorWorkspaceState(view: EditorView): NoteEditorWorkspaceState {
@@ -96,7 +98,8 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   onNavigate,
   onWikiLink,
   workspaceState,
-  onWorkspaceStateChange
+  onWorkspaceStateChange,
+  embedContext
 }: MarkdownEditorProps, ref): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -113,12 +116,15 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   const readOnlyCompartmentRef = useRef(new Compartment())
   const livePreviewCompartmentRef = useRef(new Compartment())
   const hoverPreview = useEditorLinkPreview()
+  const embedAncestorsKey = JSON.stringify(embedContext?.ancestors ?? [])
   const livePreviewContextRef = useRef<LivePreviewContext>({
     notePath, attachments, notes, pathAliases, onNavigate, onWikiLink,
+    embedContext,
     isComposing: () => composingRef.current, editorLinkHover: !!hoverPreview
   })
   livePreviewContextRef.current = {
     notePath, attachments, notes, pathAliases, onNavigate, onWikiLink,
+    embedContext,
     isComposing: () => composingRef.current, editorLinkHover: !!hoverPreview
   }
   const orderedNotes = useMemo(
@@ -345,7 +351,10 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
 
   useEffect(() => {
     if (livePreview) viewRef.current?.dispatch({})
-  }, [livePreview, notePath, attachments, notes, pathAliases, hoverPreview])
+  }, [livePreview, notePath, attachments, notes, pathAliases, hoverPreview,
+    embedContext?.vaultPath, embedContext?.scopeRevision, embedContext?.documentRevision, embedContext?.notes,
+    embedContext?.attachments, embedContext?.pathAliases, embedContext?.declaredTypes,
+    embedAncestorsKey, embedContext?.budget])
 
   useEffect(() => {
     const view = viewRef.current

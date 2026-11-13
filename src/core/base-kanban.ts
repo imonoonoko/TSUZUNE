@@ -2,6 +2,8 @@ import { inspectFrontmatterProperty } from './frontmatter'
 import { readPropertyAsDeclared, transformProperty } from './property-changes'
 import { isAiImmutablePath } from '../shared/ai-write-policy'
 import { parseDeclaredPropertyTypes, type PropertyChangeOperation } from '../shared/property-changes'
+import { dirnameRelative, validateRelativePath } from './paths'
+import { baseValueEqual } from './base-expression'
 import type { NoteDocument } from '../shared/types'
 import type { BaseEvaluation } from './base-evaluator'
 import type { BaseProfile } from './base-profile'
@@ -13,6 +15,46 @@ export interface KanbanMoveState {
   notes?: NoteDocument[]
   declaredTypes?: Record<string, string>
   viewIndex?: number
+}
+
+export type KanbanFolderMoveState = KanbanMoveState & { revision?: string }
+
+export interface KanbanFolderMoveIndex {
+  state: KanbanFolderMoveState
+  sourcePaths: Set<string>
+  targetDirectories: Map<number, string>
+  destinationDirectories: Set<string>
+}
+
+/** Validate the saved snapshot once so card and destination checks stay constant time. */
+export function createKanbanFolderMoveIndex(state: KanbanFolderMoveState): KanbanFolderMoveIndex | null {
+  if (!state.revision || !state.notes || state.notes.length > 10000) return null
+  const view = (state.profile.views ?? [state.profile.view])[state.viewIndex ?? state.evaluation.viewIndex ?? 0] ?? state.profile.view
+  if (view.type !== 'kanban' || view.groupBy?.property !== 'file.folder') return null
+  const sourcePaths = new Set(state.notes.filter(note => !isAiImmutablePath(note.path) && !note.path.split('/').some(part => part.startsWith('.'))).map(note => note.path))
+  const targetDirectories = new Map<number, string>()
+  state.evaluation.groups?.forEach((target, index) => {
+    if (!target.rows.length || view.groupBy?.hidden?.some(key => baseValueEqual(key, target.key))) return
+    const directory = target.key === null ? '' : target.key
+    if (typeof directory !== 'string' || (directory !== '' && (!validateRelativePath(directory).valid || isAiImmutablePath(directory) || directory.split('/').some(part => part.startsWith('.'))))) return
+    if (!target.rows.every(row => dirnameRelative(row.path) === directory)) return
+    targetDirectories.set(index, directory)
+  })
+  return { state, sourcePaths, targetDirectories, destinationDirectories: new Set(targetDirectories.values()) }
+}
+
+export function canMoveKanbanFolderPath(index: KanbanFolderMoveIndex | null, path: string): boolean {
+  if (!index?.sourcePaths.has(path) || index.destinationDirectories.size === 0) return false
+  if (index.destinationDirectories.size > 1) return true
+  return !index.destinationDirectories.has(dirnameRelative(path))
+}
+
+/** Return a safe destination for a populated folder column in a saved Kanban snapshot. */
+export function kanbanFolderMove(state: KanbanFolderMoveState, path: string, destination: number, index = createKanbanFolderMoveIndex(state)): string | null {
+  if (!index || index.state !== state || !index.sourcePaths.has(path)) return null
+  const directory = index.targetDirectories.get(destination)
+  if (directory === undefined || dirnameRelative(path) === directory) return null
+  return directory
 }
 
 /** Create a revision-previewable typed Property set for a drop onto a populated Kanban column. */

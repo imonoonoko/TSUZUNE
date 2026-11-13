@@ -105,9 +105,12 @@ import HumanNoteCaptureDialog, {
 import Icon from './components/Icon'
 import MarkdownEditor, { type MarkdownEditorHandle } from './components/MarkdownEditor'
 import MarkdownPreview from './components/MarkdownPreview'
+import { canvasEmbedContent, type VaultEmbedContext } from './components/VaultEmbed'
 import PaneActionsMenu from './components/PaneActionsMenu'
 import BookmarkDialog from './components/BookmarkDialog'
 import MoveDialog from './components/MoveDialog'
+import KanbanFolderMoveDialog from './components/KanbanFolderMoveDialog'
+import type { KanbanFolderMoveInput } from '../shared/kanban-folder-move'
 import QuickNoteCreateDialog from './components/QuickNoteCreateDialog'
 import QuickSwitcherDialog from './components/QuickSwitcherDialog'
 import CommandPaletteDialog, {
@@ -409,6 +412,7 @@ export default function App(): React.JSX.Element {
   })
   const [conflict, setConflict] = useState<ConflictState | null>(null)
   const conflictRef = useRef<ConflictState | null>(null)
+  const [folderMoveRequest, setFolderMoveRequest] = useState<KanbanFolderMoveInput | null>(null)
   const [movePath, setMovePath] = useState<string | null>(null)
   const [createDirectoryParent, setCreateDirectoryParent] = useState<string | null>(null)
   const [renameRequest, setRenameRequest] = useState<{
@@ -448,6 +452,7 @@ export default function App(): React.JSX.Element {
     settingsDialogOpen ||
     googleDialogOpen ||
     Boolean(movePath) ||
+    Boolean(folderMoveRequest) ||
     Boolean(renameRequest) ||
     Boolean(bookmarkPath) ||
     Boolean(captureKind) ||
@@ -2860,6 +2865,62 @@ export default function App(): React.JSX.Element {
     return scope
   }
 
+  const openKanbanFolderMove = async (state: Extract<BaseTableState, { status: 'ready' }>, sourcePath: string, destinationDirectory: string): Promise<void> => {
+    if (busyRef.current || modalOpen) return
+    try {
+      const scope = ensurePropertyOperation()
+      const source = state.notes?.find(note => note.path === sourcePath)
+      if (!source || !state.revision) throw new Error('保存済みのBaseを再読み込みしてください。')
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(source.content))
+      const current = ensurePropertyOperation()
+      if (busyRef.current || current.rootPath !== scope.rootPath || current.rootRevision !== scope.rootRevision) return
+      setFolderMoveRequest({ scope, basePath: state.path, expectedBaseRevision: state.revision, viewIndex: state.viewIndex ?? state.evaluation.viewIndex ?? 0,
+        sourcePath, expectedSourceRevision: Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join(''), destinationDirectory })
+    } catch (error) { setMessage(error instanceof Error ? error.message : '移動を開始できませんでした。') }
+  }
+  const checkKanbanMoveScope = (request: KanbanFolderMoveInput): void => {
+    const scope = ensurePropertyOperation()
+    if (scope.rootPath !== request.scope.rootPath || scope.rootRevision !== request.scope.rootRevision) throw new Error('Vaultが切り替わりました。')
+  }
+  const previewKanbanFolderMove = async () => {
+    const request = folderMoveRequest
+    if (!request) throw new Error('移動先を選び直してください。')
+    checkKanbanMoveScope(request)
+    if (!beginOperation()) throw new Error('処理中です。')
+    try {
+      const result = await window.tsuzune.previewKanbanFolderMove(request)
+      if (!result.ok) throw new Error(errorMessage(result.error))
+      checkKanbanMoveScope(request)
+      return result.value
+    } finally { finishOperation() }
+  }
+  const applyKanbanFolderMove = async (expectedFingerprint: string): Promise<void> => {
+    const request = folderMoveRequest
+    if (!request) throw new Error('移動先を選び直してください。')
+    checkKanbanMoveScope(request)
+    if (!beginOperation()) throw new Error('処理中です。')
+    const generation = vaultGenerationRef.current
+    try {
+      if (!(await canvas.flush())) throw new Error('編集中のCanvasを保存できなかったため、移動を中止しました。')
+      const result = await window.tsuzune.applyKanbanFolderMove({ ...request, expectedFingerprint })
+      if (!result.ok) throw new Error(errorMessage(result.error))
+      setFolderMoveRequest(null)
+      setBaseReloadKey(key => key + 1)
+      const next = await refreshSnapshot(generation)
+      if (generation !== vaultGenerationRef.current || !next) return
+      const from = request.sourcePath, to = result.value.path
+      heldDraftsRef.current.delete(from)
+      const workspace = workspaceSnapshotRef.current ?? currentWorkspace
+      const mapped = projectWorkspaceSnapshotV2({ ...workspace, panes: workspace.panes.map(pane => ({ ...pane,
+        tabs: pane.tabs.map(tab => 'path' in tab && tab.path === from ? { ...tab, path: to } : tab) })) })
+      applyWorkspaceSnapshot(mapped, next)
+      setTreeSelection(selection => selection?.path === from ? { ...selection, path: to } : selection)
+      const selected = next.notes.find(note => note.path === selectedPathRef.current)
+      if (selected && !dirtyRef.current) loadNoteState(selected)
+      setMessage(`${from} を ${to} へ移動しました。`)
+    } finally { finishOperation() }
+  }
+
   const previewProperties = async (operation: PropertyChangeOperation, paths: string[]): Promise<PropertyPreviewResult & { baseReferences?: string[] }> => {
     const scope = ensurePropertyOperation()
     if (!beginOperation()) throw new Error('処理中です。完了後に再試行してください。')
@@ -4533,7 +4594,7 @@ export default function App(): React.JSX.Element {
           { propertyTypes, signal: controller.signal, thisFile: { ...result.value, name: basenameRelative(path), size: new TextEncoder().encode(result.value.content).length } })
         if (!isCurrent()) return
         setBaseState({ status: 'ready', path, profile: parsed.profile, evaluation, content: result.value.content,
-          modifiedAt: result.value.modifiedAt, notes: searchNotes, declaredTypes: propertyTypes, viewIndex: baseViewIndex })
+          modifiedAt: result.value.modifiedAt, revision: result.value.revision, notes: searchNotes, declaredTypes: propertyTypes, viewIndex: baseViewIndex })
       } catch (error) {
         if (isCurrent()) setBaseState({
           status: 'error', path,
@@ -4650,10 +4711,35 @@ export default function App(): React.JSX.Element {
     scheduleSave()
   }
   const editorGeneration = vaultGenerationRef.current
+  const canvasOpen = currentWorkspace.panes.some(pane => pane.tabs[pane.activeIndex ?? -1]?.kind === 'canvas')
+  const [canvasAssetFiles, setCanvasAssetFiles] = useState<{ root: string; paths: string[] } | null>(null)
+  const canvasAttachments = useMemo(() => (snapshot?.attachments ?? []).filter(item => !userExcludedMatcher(item.path)),
+    [snapshot?.attachments, userExcludedMatcher])
+  useEffect(() => {
+    if (!snapshot || !canvasOpen) return
+    let current = true
+    const root = snapshot.rootPath
+    void Promise.allSettled([window.tsuzune.listCanvases(root), window.tsuzune.listBases(root)]).then(results => {
+      if (current) setCanvasAssetFiles({ root, paths: results.flatMap(result =>
+        result.status === 'fulfilled' && result.value.ok ? result.value.value : []) })
+    })
+    return () => { current = false }
+  }, [snapshot, canvasOpen, baseReloadKey, userExcludedMatcher])
+
+  const embedContext = (paneId?: string): VaultEmbedContext => {
+    const activate = (): void => { if (paneId) activatePane(paneId) }
+    return {
+      vaultPath: snapshot?.rootPath ?? '', notes: searchNotes, attachments: canvasAttachments,
+      pathAliases, declaredTypes: propertyTypes, scopeRevision: `${editorGeneration}:${baseReloadKey}`, documentRevision: snapshot ?? undefined,
+      onOpenCanvas: file => { activate(); void openCanvasPath(file, false) },
+      onOpenBase: file => { activate(); void openBasePath(file, 'manual') },
+      onNavigate: target => { activate(); void handleNoteNavigation(target) }
+    }
+  }
   const canvasNoteByPath = new Map(searchNotes.map(note => [note.path, note]))
-  const canvasAttachmentByPath = new Map((snapshot?.attachments ?? [])
-    .filter(item => !userExcludedMatcher(item.path)).map(item => [item.path, item]))
-  const canvasFilePaths = [...canvasNoteByPath.keys(), ...canvasAttachmentByPath.keys()]
+  const canvasAttachmentByPath = new Map(canvasAttachments.map(item => [item.path, item]))
+  const structuredPaths = canvasAssetFiles?.root === snapshot?.rootPath ? canvasAssetFiles?.paths ?? [] : []
+  const canvasFilePaths = [...canvasNoteByPath.keys(), ...canvasAttachmentByPath.keys(), ...structuredPaths]
   const renderCanvasPanel = (path: string, paneId?: string): React.ReactNode => {
     if (userExcludedMatcher(path)) return <p role="status">このファイルは表示対象から除外されています。</p>
     const draft = canvas.get(path)
@@ -4665,20 +4751,21 @@ export default function App(): React.JSX.Element {
     }
     return <section className="canvas-document" aria-label={path}>
       <CanvasView key={path} data={draft.data} disabled={busy || draft.status === 'saving'}
-        status={draft.status} filePaths={canvasFilePaths}
+        status={draft.status} filePaths={canvasFilePaths.filter(file => file !== path)}
+        {...canvasEmbedContent(draft.data, path, embedContext(paneId))}
         onChange={data => canvas.change(path, data)} onSave={() => void canvas.save(path)}
-        renderFile={file => {
-          const note = canvasNoteByPath.get(file)
-          if (note) {
-            const excerpt = note.content.replace(/^\uFEFF?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '').trim()
-            return excerpt && <div className="canvas-note-excerpt">{excerpt.slice(0, 800)}</div>
-          }
-          const attachment = canvasAttachmentByPath.get(file)
-          return attachment && /\.(png|jpe?g|gif|bmp|svg|webp|avif)$/i.test(attachment.path)
-            ? <AttachmentPreview attachment={attachment} onOpenExternally={() => void window.tsuzune.openVaultFile(file)} />
-            : null
+        onExportPng={async png => {
+          const result = await window.tsuzune.exportCanvasPng({ suggestedName: basenameRelative(path).replace(/\.canvas$/i, '.png'), png })
+          if (!result.ok) throw new Error(errorMessage(result.error))
+          return result.value
         }}
         onOpenFile={file => {
+          if (structuredPaths.includes(file)) {
+            const open = embedContext(paneId)
+            if (/\.canvas$/i.test(file)) open.onOpenCanvas?.(file)
+            else open.onOpenBase?.(file)
+            return
+          }
           if (!canvasNoteByPath.has(file) && !canvasAttachmentByPath.has(file)) return
           if (paneId) activatePane(paneId)
           void openVaultEntryInNewTab(file, canvasNoteByPath.has(file) ? 'note' : 'attachment')
@@ -4705,19 +4792,20 @@ export default function App(): React.JSX.Element {
           workspaceState={pane.editorStates?.[note.path]}
           onWorkspaceStateChange={state => savePaneEditorState(id, note.path, state, editorGeneration)}
           declaredTypes={propertyTypes} readOnly={busy} notes={savedNotes} notePath={note.path} livePreview={pane.noteView === 'live-preview'}
-          attachments={snapshot?.attachments ?? []} pathAliases={pathAliases} onNavigate={target => { activatePane(id); void handleNoteNavigation(target) }}
+          attachments={snapshot?.attachments ?? []} pathAliases={pathAliases} embedContext={embedContext(id)} onNavigate={target => { activatePane(id); void handleNoteNavigation(target) }}
           onWikiLink={target => { activatePane(id); handleWikiLink(target) }} onCompositionChange={composing => { editorComposingRef.current = composing }} />
           : pane.noteView === 'local-graph' ? <WikiGraphView graph={getLocalWikiGraph(buildWikiGraph(normalDiscoveryNotes, { pathAliases }), note.path,
             { ...(pane.localGraph.filters ?? graphFilters), depth: pane.localGraph.depth })} notes={normalDiscoveryNotes} currentPath={note.path} scope="local"
             includeOrphans={graphFilters.showOrphans} onOpen={path => { activatePane(id); void openNote(path) }} onScopeChange={() => {}} onIncludeOrphansChange={() => {}} />
           : <MarkdownPreview content={draftFor(note.path)} notePath={note.path} attachments={snapshot?.attachments ?? []} notes={savedNotes}
-            pathAliases={pathAliases} onWikiLink={target => { activatePane(id); handleWikiLink(target) }}
+            pathAliases={pathAliases} embedContext={embedContext(id)} onWikiLink={target => { activatePane(id); handleWikiLink(target) }}
             onNavigate={target => { activatePane(id); void handleNoteNavigation(target) }} />}</>
         : tab?.kind === 'canvas' ? renderCanvasPanel(tab.path, id)
         : tab ? <PaneAuxiliaryContent tab={tab} notes={normalDiscoveryNotes} attachments={snapshot?.attachments ?? []} pathAliases={pathAliases}
           scope={workspaceCollection?.scope ?? null} declaredTypes={propertyTypes} userExcluded={userExcludedMatcher}
           editingDisabled={busy || dirtyRef.current || [...heldDraftsRef.current.values()].some(draft => draft.status !== 'saved')}
           onOpenNote={path => { activatePane(id); void openNote(path) }} onEditCell={(path, property) => { activatePane(id); openPropertyChange(property, path) }}
+          onMoveBaseFile={(state, path, directory) => { activatePane(id); void openKanbanFolderMove(state, path, directory) }}
           onMoveBaseCard={(path, operation) => { activatePane(id); openPropertyChange(operation.property, path, operation.value) }}
           onDeclare={declareProperty} />
         : <p>タブを開いてください。</p>}
@@ -5327,6 +5415,7 @@ export default function App(): React.JSX.Element {
                   onReload={() => setBaseReloadKey((key) => key + 1)}
                   onOpenNote={(path) => void openNote(path)}
                   onEditCell={(path, property) => openPropertyChange(property, path)}
+                  onMoveFile={(state, path, directory) => void openKanbanFolderMove(state, path, directory)}
                   onMoveCard={(path, operation) => openPropertyChange(operation.property, path, operation.value)}
                   editingDisabled={busy || !propertyTypesReady || saveStatus !== 'saved' || conflict !== null}
                   onSelectView={setBaseViewIndex}
@@ -5534,6 +5623,7 @@ export default function App(): React.JSX.Element {
                 {(viewMode === 'edit' || viewMode === 'live-preview') && editorOwner(selectedPath) === currentWorkspace.activePaneId ? (
                   <MarkdownEditor
                     livePreview={viewMode === 'live-preview'}
+                    embedContext={embedContext()}
                     notePath={selectedPath}
                     attachments={snapshot.attachments ?? []}
                     pathAliases={pathAliases}
@@ -5565,6 +5655,7 @@ export default function App(): React.JSX.Element {
                   />
                 ) : viewMode === 'preview' || viewMode === 'edit' || viewMode === 'live-preview' ? (
                   <MarkdownPreview
+                    embedContext={embedContext()}
                     content={content}
                     notePath={selectedPath}
                     attachments={snapshot.attachments ?? []}
@@ -5828,6 +5919,9 @@ export default function App(): React.JSX.Element {
         />
       )}
 
+      {folderMoveRequest && <KanbanFolderMoveDialog source={folderMoveRequest.sourcePath}
+        destination={joinRelative(folderMoveRequest.destinationDirectory, basenameRelative(folderMoveRequest.sourcePath))}
+        onPreview={previewKanbanFolderMove} onApply={applyKanbanFolderMove} onCancel={() => setFolderMoveRequest(null)} />}
       {movePath && snapshot && (
         <MoveDialog
           notePath={movePath}

@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react'
 import { parseBaseProfile, updateBaseProfileSource, type BaseFilter, type BaseProfile, type BaseTableView } from '../../core/base-profile'
 import { BASE_STANDARD_SUMMARIES } from '../../core/base-evaluator'
-type Props = { content: string; profile: BaseProfile; selectedView: number; onPreview: (content: string, viewIndex: number) => void | Promise<boolean | void>; onSave: (content: string) => void; onClose: () => void; disabled?: boolean }
-export default function BaseSettingsPanel({ content, profile, selectedView, onPreview, onSave, onClose, disabled }: Props): React.JSX.Element {
+import { baseValueEqual, baseValueText, type BaseValue } from '../../core/base-expression'
+type Props = { content: string; profile: BaseProfile; selectedView: number; groupValues?: BaseValue[]; groupValuesViewIndex?: number; groupValuesProperty?: string; onPreview: (content: string, viewIndex: number) => void | Promise<boolean | void>; onSave: (content: string) => void; onClose: () => void; disabled?: boolean }
+export default function BaseSettingsPanel({ content, profile, selectedView, groupValues = [], groupValuesViewIndex = selectedView, groupValuesProperty, onPreview, onSave, onClose, disabled }: Props): React.JSX.Element {
   const [original] = useState(content)
   const [draft, setDraft] = useState(profile)
   const [index, setIndex] = useState(selectedView)
@@ -13,6 +14,7 @@ export default function BaseSettingsPanel({ content, profile, selectedView, onPr
   const [newColumn, setNewColumn] = useState('')
   const revision = useRef(0)
   const views = draft.views ?? [draft.view]; const view = views[index] ?? views[0]
+  const groupOrderValues = (view.groupOrder ?? view.groupBy?.order ?? groupValues).filter(value => !view.groupBy?.hidden?.some(hidden => baseValueEqual(hidden, value)))
   const change = (next: BaseProfile): void => { revision.current++; setDraft(next); setPreviewSource(null); setError(''); setAdvanced(null) }
   const updateView = (next: Partial<BaseTableView>): void => { const changed = [...views]; changed[index] = { ...view, ...next }; change({ ...draft, views: changed, view: changed[0] }) }
   const source = (): string => {
@@ -58,6 +60,7 @@ export default function BaseSettingsPanel({ content, profile, selectedView, onPr
     </div>)}<button type="button" onClick={() => updateView({ sorts: [...(view.sorts ?? (view.sort ? [view.sort] : [])), { property: 'file.name', direction: 'ASC' }] })}>ソート追加</button></fieldset>
     <label>グループProperty<input value={view.groupBy?.property ?? ''} onChange={(event) => updateView({ groupBy: event.target.value ? { property: event.target.value, direction: view.groupBy?.direction ?? 'ASC' } : undefined })} /></label>
     <label>グループ順<select value={view.groupBy?.direction ?? 'ASC'} onChange={(event) => view.groupBy && updateView({ groupBy: { ...view.groupBy, direction: event.target.value as 'ASC' | 'DESC' } })}><option>ASC</option><option>DESC</option></select></label>
+    {view.type === 'kanban' && view.groupBy?.property === groupValuesProperty && index === groupValuesViewIndex && groupOrderValues.length > 1 && <fieldset><legend>Kanban列の順序</legend>{groupOrderValues.map((value, at, all) => <div key={`${baseValueText(value)}:${at}`}><span>{baseValueText(value) || '（空）'}</span><button type="button" disabled={at === 0} aria-label={`${baseValueText(value) || '空'}列を上へ`} onClick={() => { const next = [...all]; [next[at - 1], next[at]] = [next[at], next[at - 1]]; view.groupOrder ? updateView({ groupOrder: [...next, ...(view.groupOrder ?? []).filter(key => view.groupBy?.hidden?.some(hidden => baseValueEqual(hidden, key)))] }) : view.groupBy && updateView({ groupBy: { ...view.groupBy, order: next } }) }}>↑</button><button type="button" disabled={at === all.length - 1} aria-label={`${baseValueText(value) || '空'}列を下へ`} onClick={() => { const next = [...all]; [next[at + 1], next[at]] = [next[at], next[at + 1]]; view.groupOrder ? updateView({ groupOrder: [...next, ...(view.groupOrder ?? []).filter(key => view.groupBy?.hidden?.some(hidden => baseValueEqual(hidden, key)))] }) : view.groupBy && updateView({ groupBy: { ...view.groupBy, order: next } }) }}>↓</button></div>)}</fieldset>}
     <label>最大行数<input type="number" min="0" value={view.limit ?? ''} onChange={(event) => updateView({ limit: event.target.value === '' ? undefined : Number(event.target.value) })} /></label>
     <fieldset><legend>列の集計（全体と各グループ）</legend>{view.order.map((property) => <label key={property}>{property}<select aria-label={`${property}の集計`} value={view.summaries?.[property] ?? ''} onChange={(event) => { const summaries = { ...view.summaries }; if (event.target.value) summaries[property] = event.target.value; else delete summaries[property]; updateView({ summaries }) }}><option value="">なし</option>{[...BASE_STANDARD_SUMMARIES, ...Object.keys(draft.summaries ?? {})].map((name) => <option key={name}>{name}</option>)}</select></label>)}</fieldset>
     <NamedExpressions title="独自集計（values を使う式）" values={draft.summaries ?? {}} onChange={(summaries) => change({ ...draft, summaries })} />

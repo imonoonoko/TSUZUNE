@@ -9,6 +9,7 @@ import { resolveNoteNavigation, type NoteNavigationTarget } from '../../core/not
 import type { CompiledPathAliases } from '../../core/path-aliases'
 import type { NoteDocument, VaultAttachment } from '../../shared/types'
 import MarkdownPreview from './MarkdownPreview'
+import type { VaultEmbedContext } from './VaultEmbed'
 
 export interface LivePreviewContext {
   notePath: string
@@ -17,6 +18,7 @@ export interface LivePreviewContext {
   pathAliases?: CompiledPathAliases
   onNavigate?: (target: NoteNavigationTarget) => void
   onWikiLink?: (target: string) => void
+  embedContext?: VaultEmbedContext
   isComposing: () => boolean
   editorLinkHover?: boolean
 }
@@ -97,11 +99,13 @@ class PreviewWidget extends WidgetType {
       view.focus()
     }
     host.addEventListener('pointerdown', event => {
+      if (event.target instanceof Element && event.target.closest('.note-embed')) return
       if (!event.ctrlKey && !event.metaKey) reveal()
     }, true)
     host.addEventListener('click', event => {
       const anchor = event.target instanceof Element ? event.target.closest('a') : null
       if (!anchor) return
+      if (anchor.closest('.note-embed')) return
       event.preventDefault()
       event.stopPropagation()
       if (!event.ctrlKey && !event.metaKey && event.detail !== 0) { reveal(); return }
@@ -120,12 +124,13 @@ class PreviewWidget extends WidgetType {
       else if (wiki) ctx.onWikiLink?.(targetHref)
     }, true)
     this.root = createRoot(host)
-    const ctx = this.context()
     queueMicrotask(() => {
       if (this.destroyed || !this.root) return
+      const ctx = this.context()
       flushSync(() => this.root?.render(
         <MarkdownPreview content={this.block.markdown} notePath={ctx.notePath} attachments={ctx.attachments}
-          notes={ctx.notes} pathAliases={ctx.pathAliases} onNavigate={() => {}} onWikiLink={() => {}} editorLinkHover={ctx.editorLinkHover} />
+          sourceContent={view.state.doc.toString()} notes={ctx.notes} pathAliases={ctx.pathAliases}
+          embedContext={ctx.embedContext} onNavigate={() => {}} onWikiLink={() => {}} editorLinkHover={ctx.editorLinkHover} />
       ))
       host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach(input => { input.disabled = true })
       view.requestMeasure()

@@ -108,4 +108,48 @@ describe('Base table and configuration controls', () => {
     rerender(<BaseTableView state={state} onReload={vi.fn()} onOpenNote={vi.fn()} onMoveCard={callback} editingDisabled />)
     expect((container.querySelector('.base-card') as HTMLElement).draggable).toBe(false)
   })
+  it('routes a folder-card drop only through the saved Base move callback and offers a keyboard target selector', () => {
+    const parsed = parseBaseProfile('views:\n - {type: kanban, name: Folders, order: [file.name], groupBy: {property: file.folder}}\n')
+    if (!parsed.ok) throw new Error(parsed.diagnostics[0].message)
+    const notes = [{ ...note, path: 'A.md', name: 'A.md' }, { ...note, path: 'folder/B.md', name: 'B.md' }]
+    const callback = vi.fn()
+    const state = { status: 'ready' as const, path: 'Folders.base', revision: 'rev-1', profile: parsed.profile, evaluation: evaluateBase(parsed.profile, notes), notes, viewIndex: 0 }
+    const { container } = render(<BaseTableView state={state} onReload={vi.fn()} onOpenNote={vi.fn()} onMoveFile={callback} />)
+    const card = [...container.querySelectorAll('.base-kanban-column .base-card')].find(item => item.textContent?.includes('B.md')) as HTMLElement
+    const dataTransfer = { effectAllowed: 'none', types: ['application/x-tsuzune-kanban-file'], setData: vi.fn(), getData: vi.fn(() => 'folder/B.md') }
+    const drag = new Event('dragstart', { bubbles: true, cancelable: true }); Object.defineProperty(drag, 'dataTransfer', { value: dataTransfer }); card.dispatchEvent(drag)
+    const target = [...container.querySelectorAll('.base-kanban-column')].find(section => section.textContent?.includes('ルート')) ?? container.querySelectorAll('.base-kanban-column')[1]
+    const drop = new Event('drop', { bubbles: true, cancelable: true }); Object.defineProperty(drop, 'dataTransfer', { value: dataTransfer }); target.dispatchEvent(drop)
+    expect(dataTransfer.setData).toHaveBeenCalledWith('application/x-tsuzune-kanban-file', 'folder/B.md')
+    expect(callback).toHaveBeenCalledWith(state, 'folder/B.md', '')
+    callback.mockClear()
+    const selector = screen.getByRole('combobox', { name: 'folderへファイルを移動' })
+    fireEvent.focus(selector)
+    fireEvent.change(selector, { target: { value: 'A.md' } })
+    expect(callback).toHaveBeenCalledWith(state, 'A.md', 'folder')
+  })
+  it('hides hidden Kanban groups and excludes their notes from per-column file selectors', () => {
+    const parsed = parseBaseProfile('views:\n - {type: kanban, name: Folders, order: [file.name], groupBy: {property: file.folder, hidden: [folder]}}\n')
+    if (!parsed.ok) throw new Error(parsed.diagnostics[0].message)
+    const notes = [{ ...note, path: 'A.md', name: 'A.md' }, { ...note, path: 'folder/B.md', name: 'B.md' }, { ...note, path: 'other/C.md', name: 'C.md' }]
+    const state = { status: 'ready' as const, path: 'Folders.base', revision: 'rev-1', profile: parsed.profile, evaluation: evaluateBase(parsed.profile, notes), notes, viewIndex: 0 }
+    const { container } = render(<BaseTableView state={state} onReload={vi.fn()} onOpenNote={vi.fn()} onMoveFile={vi.fn()} />)
+    expect(container.querySelectorAll('.base-kanban-column')).toHaveLength(2)
+    const selector = container.querySelector('.base-kanban-column select') as HTMLSelectElement
+    fireEvent.focus(selector)
+    const options = [...selector.querySelectorAll('option')].map(option => option.textContent)
+    expect(options).not.toContain('folder/B.md')
+  })
+  it('lets keyboard controls reorder Kanban columns in a previewable YAML draft', async () => {
+    const parsed = parseBaseProfile('views:\n - {type: kanban, name: Board, order: [file.name], groupBy: {property: status, hidden: [secret]}, groupOrder: [open, secret, done]}\n')
+    if (!parsed.ok) throw new Error(parsed.diagnostics[0].message)
+    const preview = vi.fn().mockResolvedValue(true)
+    render(<BaseSettingsPanel content={'views:\n - {type: kanban, name: Board, order: [file.name], groupBy: {property: status, hidden: [secret]}, groupOrder: [open, secret, done]}\n'} profile={parsed.profile} selectedView={0} groupValues={['open', 'secret', 'done']} groupValuesProperty="status" onPreview={preview} onSave={vi.fn()} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'done列を上へ' }))
+    fireEvent.click(screen.getByRole('button', { name: '下書きをプレビュー' }))
+    await waitFor(() => expect(preview).toHaveBeenCalled())
+    expect(preview.mock.calls[0][0]).toContain('groupOrder')
+    expect(preview.mock.calls[0][0].indexOf('done')).toBeLessThan(preview.mock.calls[0][0].indexOf('open'))
+    expect(preview.mock.calls[0][0]).toContain('secret')
+  })
 })

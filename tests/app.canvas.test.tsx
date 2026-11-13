@@ -38,7 +38,7 @@ beforeEach(() => {
     getUpdateStatus: vi.fn(() => ok({ phase: 'idle', currentVersion: '0.5.0', availableVersion: null, downloadPercent: null, message: null })),
     onVaultChanged: vi.fn(() => () => undefined), onUpdateStatus: vi.fn(() => () => undefined),
     onRequestClose: vi.fn(callback => { requestClose = callback; return () => undefined }), confirmClose: vi.fn(),
-    listCanvases: vi.fn(() => ok(['Board.canvas'])), readCanvas: vi.fn(() => ok({ ...board })),
+    listCanvases: vi.fn(() => ok(['Board.canvas'])), listBases: vi.fn(() => ok([])), readCanvas: vi.fn(() => ok({ ...board })),
     createCanvas: vi.fn(input => ok({ ...board, path: input.path, content: input.content })),
     saveCanvas: vi.fn(input => ok({ ...board, content: input.content, revision: 'b'.repeat(64) })),
     readNote: vi.fn(() => ok(snapshot.notes[0])),

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { evaluateBase } from '../src/core/base-evaluator'
 import { parseBaseProfile } from '../src/core/base-profile'
 import type { NoteDocument } from '../src/shared/types'
-import { kanbanMove, type KanbanMoveState } from '../src/core/base-kanban'
+import { kanbanFolderMove, kanbanMove, type KanbanMoveState } from '../src/core/base-kanban'
 
 function state(notes: NoteDocument[], declaredTypes: Record<string, string> = {}): KanbanMoveState {
   const parsed = parseBaseProfile(`views:\n - type: kanban\n   name: Status\n   order: [file.name]\n   groupBy: {property: status, direction: DESC}\n`)
@@ -33,5 +33,27 @@ describe('Kanban typed card moves', () => {
     const notes = [note('A.md', 'open'), note('B.md', 'done')]
     const fileGroup: KanbanMoveState = { status: 'ready', profile: parsed.profile, evaluation: evaluateBase(parsed.profile, notes), notes, viewIndex: 0 }
     expect(kanbanMove(fileGroup, 'A.md', 1)).toBeNull()
+  })
+})
+
+describe('Kanban folder moves', () => {
+  const folderState = (notes: NoteDocument[]) => {
+    const parsed = parseBaseProfile('views:\n - {type: kanban, order: [file.name], groupBy: {property: file.folder}}\n')
+    if (!parsed.ok) throw new Error(parsed.diagnostics[0].message)
+    return { status: 'ready' as const, revision: 'rev-1', profile: parsed.profile, evaluation: evaluateBase(parsed.profile, notes), notes, viewIndex: 0 }
+  }
+  it('returns the target directory for a populated valid folder group, including root', () => {
+    const state = folderState([note('folder/A.md', 'x'), note('B.md', 'x'), note('other/C.md', 'x')])
+    expect(state.evaluation.groups?.map(group => group.key)).toEqual(['folder', 'other', null])
+    expect(kanbanFolderMove(state, 'other/C.md', 2)).toBe('')
+    expect(kanbanFolderMove(state, 'B.md', 0)).toBe('folder')
+  })
+  it('rejects missing revisions, hidden or immutable paths, and invalid target groups', () => {
+    const state = folderState([note('folder/A.md', 'x'), note('B.md', 'x')])
+    expect(kanbanFolderMove({ ...state, revision: undefined }, 'B.md', 0)).toBeNull()
+    expect(kanbanFolderMove(state, '.private/B.md', 0)).toBeNull()
+    expect(kanbanFolderMove(state, 'missing.md', 0)).toBeNull()
+    expect(kanbanFolderMove(state, 'B.md', 2)).toBeNull()
+    expect(kanbanFolderMove(state, 'folder/A.md', 0)).toBeNull()
   })
 })

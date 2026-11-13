@@ -13,6 +13,7 @@ import {
   isAuditHistoryPath,
   isAiImmutablePath,
 } from "../shared/ai-write-policy";
+import { createExcludedFileMatcher } from '../shared/excluded-files';
 import type { NoteDocument } from "../shared/types";
 import { VaultService } from "./vault";
 
@@ -46,6 +47,8 @@ export interface EntryMoveApplyInput {
   expected_fingerprint: string;
   actor: EntryMoveActor;
 }
+
+interface EntryMoveLinkPolicy { excludedLinkSources: readonly string[] }
 
 export interface EntryMoveResult {
   old_path: string;
@@ -276,11 +279,12 @@ export class EntryMoveCoordinator {
     rawSource: string,
     rawDestination: string,
     actor: EntryMoveActor,
+    linkPolicy?: EntryMoveLinkPolicy,
   ): Promise<EntryMovePlan> {
-    return (await this.inspect(rawSource, rawDestination, actor)).plan;
+    return (await this.inspect(rawSource, rawDestination, actor, linkPolicy)).plan;
   }
 
-  private async inspect(rawSource: string, rawDestination: string, actor: EntryMoveActor) {
+  private async inspect(rawSource: string, rawDestination: string, actor: EntryMoveActor, linkPolicy?: EntryMoveLinkPolicy) {
     const source = normalizeMarkdownPath(rawSource, "移動元");
     const destination = normalizeMarkdownPath(rawDestination, "移動先");
     const rootPath = this.dependencies.vault.getRootPath();
@@ -351,8 +355,9 @@ export class EntryMoveCoordinator {
     const linkUpdates: NonNullable<EntryMoveJournal['link_updates']> = [];
     if (actor === "human") {
       const index = buildWikiLinkIndex(snapshot.notes, aliases);
+      const excluded = createExcludedFileMatcher(linkPolicy?.excludedLinkSources ?? []);
       for (const note of snapshot.notes) {
-        if (isLinkUpdateProtected(note.path) || (note.path === sourceNote.path && isLinkUpdateProtected(destination))) continue;
+        if (isLinkUpdateProtected(note.path) || excluded(note.path) || (note.path === sourceNote.path && isLinkUpdateProtected(destination))) continue;
         const after = rewriteMovedLinks(note, index, sourceNote.path, destination);
         if (after === note.content) continue;
         const bytes = await readFile(await this.dependencies.vault.resolveFileForOpen(note.path));
@@ -372,6 +377,7 @@ export class EntryMoveCoordinator {
       protection_policy: "fixed-source-history-v1",
       collision_policy: "fail",
       ...(actor === "human" ? { link_updates: linkUpdates } : {}),
+      ...(linkPolicy ? { excluded_link_sources: linkPolicy.excludedLinkSources } : {}),
     };
     const fingerprint = sha256([JSON.stringify(manifest)]);
 
@@ -400,11 +406,12 @@ export class EntryMoveCoordinator {
     return { plan, linkUpdates };
   }
 
-  async apply(input: EntryMoveApplyInput): Promise<EntryMoveResult> {
+  async apply(input: EntryMoveApplyInput, linkPolicy?: EntryMoveLinkPolicy): Promise<EntryMoveResult> {
     const { plan, linkUpdates } = await this.inspect(
       input.source,
       input.destination,
       input.actor,
+      linkPolicy,
     );
     if (plan.fingerprint !== input.expected_fingerprint) {
       throw new Error(

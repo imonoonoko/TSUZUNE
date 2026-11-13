@@ -70,6 +70,22 @@ describe('HumanChangesService Bases writes', () => {
     await expect(service.applyBase({ ...base, expectedRevision: hash(content), content: transform(content) })).rejects.toMatchObject(error('INVALID_PATH'))
     expect(await readFile(join(root, base.path), 'utf8')).toBe(content)
   })
+  it.each([
+    ['groupBy.order', '    groupBy: {property: file.folder, order: [A, B], custom: keep}\r\n'],
+    ['groupOrder', '    groupBy: {property: file.folder, custom: keep}\r\n    groupOrder: [A, B]\r\n']
+  ])('previews and saves Kanban %s without allowing changes to unknown group settings', async (_setting, configuration) => {
+    const { root, service, base } = await fixture()
+    const content = baseContent.replace('type: table', 'type: kanban') + configuration
+    await writeFile(join(root, base.path), content)
+    const input = { ...base, expectedRevision: hash(content), content: content.replace('[A, B]', '[B, A]') }
+
+    await expect(service.previewBase({ ...input, content: input.content.replace('custom: keep', 'custom: changed') }))
+      .rejects.toMatchObject(error('INVALID_PATH'))
+    expect(await service.previewBase(input)).toMatchObject({ changed: true, before: content, after: input.content })
+    expect(await readFile(join(root, base.path), 'utf8')).toBe(content)
+    await service.applyBase(input)
+    expect(await readFile(join(root, base.path), 'utf8')).toBe(input.content)
+  })
   it('allows supported edits and semantic key reorder while preserving nested extensions', async () => {
     const { root, service, base } = await fixture()
     const content = baseContent + '    extension: {enabled: true, color: blue}\r\nproperties: {status: {displayName: Status, custom: {color: blue, enabled: true}}}\r\n'
