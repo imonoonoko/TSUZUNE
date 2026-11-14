@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildNoteCreationPath,
+  buildAttachmentLinkIndex,
   extractWikiLinks,
   getBacklinks,
   getOutgoingLinks,
   resolveWikiLink,
+  resolveIndexedAttachmentLink,
   transformWikiLinksForPreview
 } from '../src/core/links'
 import { compilePathAliases } from '../src/core/path-aliases'
-import type { NoteDocument } from '../src/shared/types'
+import type { NoteDocument, VaultAttachment } from '../src/shared/types'
 
 function note(path: string, content = ''): NoteDocument {
   const fileName = path.split('/').at(-1) ?? path
@@ -175,5 +177,20 @@ describe('Wiki link resolution', () => {
     expect(
       getOutgoingLinks('![[attachments/diagram.svg]]', [note('Home.md')])
     ).toEqual([])
+  })
+
+  it('resolves attachment links by exact path or unique basename and rejects ambiguity', () => {
+    const attachments: VaultAttachment[] = [
+      { path: 'assets/diagram.svg', name: 'diagram.svg', modifiedAt: 1, createdAt: null, size: 1 },
+      { path: 'media/clip.webm', name: 'clip.webm', modifiedAt: 1, createdAt: null, size: 1 },
+      { path: 'other/diagram.svg', name: 'diagram.svg', modifiedAt: 1, createdAt: null, size: 1 }
+    ]
+    const index = buildAttachmentLinkIndex(attachments)
+
+    expect(resolveIndexedAttachmentLink('ASSETS\\diagram.svg#view', index)).toEqual({ status: 'resolved', path: 'assets/diagram.svg' })
+    expect(resolveIndexedAttachmentLink('clip.webm', index)).toEqual({ status: 'resolved', path: 'media/clip.webm' })
+    expect(resolveIndexedAttachmentLink('diagram.svg', index)).toEqual({ status: 'ambiguous' })
+    expect(resolveIndexedAttachmentLink('../outside.svg', index)).toEqual({ status: 'invalid' })
+    expect(resolveIndexedAttachmentLink('missing.svg', index)).toEqual({ status: 'missing', path: 'missing.svg' })
   })
 })

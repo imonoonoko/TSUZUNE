@@ -13,7 +13,7 @@ export type WorkspaceSnapshotV1 = {
   activeIndex: number | null
   noteView: 'edit' | 'preview' | 'local-graph'
   left: { open: boolean; view: 'files' | 'search' | 'bookmarks'; query: string }
-  right: { open: boolean; view: 'outline' | 'links' | 'backlinks' | 'temporal' }
+  right: { open: boolean; view: 'outline' | 'links' | 'backlinks' | 'temporal' | 'footnotes' }
 }
 
 export type VaultWorkspacesV1 = {
@@ -217,7 +217,7 @@ export function parseWorkspaceSnapshotV1(value: unknown): WorkspaceSnapshotV1 {
     },
     right: {
       open: right.open,
-      view: oneOf(right.view, ['outline', 'links', 'backlinks', 'temporal'], 'right view')
+      view: oneOf(right.view, ['outline', 'links', 'backlinks', 'temporal', 'footnotes'], 'right view')
     }
   }
 }

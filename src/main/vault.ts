@@ -29,6 +29,8 @@ import { createServer } from 'node:net'
 import { isCanvasPath, parseCanvas, parseCanvasInput } from '../core/canvas'
 import { MAX_CANVAS_BYTES, type CanvasCreateInput, type CanvasSaveInput, type CanvasDocument, type CanvasScope } from '../shared/canvas'
 import { isSupportedAttachmentPath } from '../shared/attachments'
+import { isVersionedNotePath, type NoteHistory, type NoteVersion, type ReadNoteVersionInput, type RestoreNoteVersionInput } from '../shared/note-history'
+import type { WorkspaceScope } from '../shared/workspace-state'
 import { MAX_PASTED_IMAGE_BYTES, type PasteImageInput } from '../shared/image-paste'
 import { isAuditHistoryPath } from '../shared/ai-write-policy'
 import { createExcludedFileMatcher } from '../shared/excluded-files'
@@ -1034,6 +1036,19 @@ export class VaultService {
     }
   }
 
+  /** Internal journal recovery endpoint; never exposed through renderer or MCP. */
+  async resolveComposerTrash(operationId: string, sourcePath: string): Promise<string> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(operationId)) throw new Error('Invalid compose operation id.')
+    this.absolutePath(sourcePath)
+    const root = this.requireRoot(), revision = this.rootRevision
+    const absolute = join(root, '.trash', `onoko-op-${operationId}`, ...sourcePath.split('/'))
+    await this.assertNoSymlinkTraversal(absolute)
+    const info = await lstat(absolute)
+    if (!info.isFile()) throw new Error('Compose trash is not a regular file.')
+    if (this.rootPath !== root || this.rootRevision !== revision) throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+    return absolute
+  }
+
   async readNote(relativePath: string): Promise<NoteDocument> {
     if (!isMarkdownFile(relativePath)) {
       throw new VaultError({
@@ -1503,7 +1518,137 @@ export class VaultService {
     }
   }
 
-  async saveNote(input: SaveNoteInput): Promise<SaveNoteOutput> {
+  async createComposerNote(input: { path: string; content: string }, assertScope: () => Promise<unknown>): Promise<void> {
+    const root = this.requireRoot(), revision = this.rootRevision
+    if (!isVersionedNotePath(input.path)) {
+      throw new VaultError({ code: 'INVALID_PATH', message: '通常のMarkdownノートを指定してください。' })
+    }
+    const absolute = this.absolutePath(input.path)
+    await this.assertNoSymlinkTraversal(absolute, true)
+    const temporary = join(dirname(absolute), `.tsuzune-composer-${randomUUID()}.tmp`)
+    try {
+      const handle = await open(temporary, 'wx')
+      try { await handle.writeFile(input.content, 'utf8'); await handle.sync() } finally { await handle.close() }
+      await assertScope()
+      await this.assertNoSymlinkTraversal(absolute, true)
+      if (!this.isCurrentRoot(root, revision)) {
+        throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+      }
+      await link(temporary, absolute)
+    } finally { await rm(temporary, { force: true }).catch(() => undefined) }
+  }
+
+  async saveNoteWithHistory(input: SaveNoteInput): Promise<SaveNoteOutput> {
+    return this.saveNote(input, typeof input?.path === 'string' && isVersionedNotePath(input.path))
+  }
+
+  private assertHistoryScope(scope: WorkspaceScope): void {
+    if (!scope || scope.rootPath !== this.requireRoot() || scope.rootRevision !== this.rootRevision) {
+      throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。版履歴を開き直してください。' })
+    }
+  }
+
+  async getNoteHistory(path: string, expectedRoot: string): Promise<NoteHistory> {
+    const scope = { rootPath: this.requireRoot(), rootRevision: this.rootRevision }
+    if (expectedRoot !== scope.rootPath) throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+    const versions = await this.listNoteVersions(path)
+    this.assertHistoryScope(scope)
+    const note = await this.readNote(path)
+    this.assertHistoryScope(scope)
+    return { scope, path: note.path, content: note.content, modifiedAt: note.modifiedAt, versions }
+  }
+
+  async getNoteVersion(input: ReadNoteVersionInput): Promise<{ content: string }> {
+    this.assertHistoryScope(input?.scope)
+    const version = await this.readNoteVersion(input.path, input.id)
+    this.assertHistoryScope(input.scope)
+    return version
+  }
+
+  async restoreNoteVersion(input: RestoreNoteVersionInput): Promise<NoteDocument> {
+    this.assertHistoryScope(input?.scope)
+    if (typeof input.expectedContent !== 'string' || !Number.isFinite(input.expectedModifiedAt)) {
+      throw new VaultError({ code: 'INVALID_PATH', message: '比較した現在の本文と更新日時が必要です。' })
+    }
+    const version = await this.getNoteVersion(input)
+    this.assertHistoryScope(input.scope)
+    const saved = await this.saveNoteWithHistory({ path: input.path, content: version.content,
+      expectedContent: input.expectedContent, expectedModifiedAt: input.expectedModifiedAt })
+    this.assertHistoryScope(input.scope)
+    return { ...saved, name: withoutMarkdownExtension(basenameRelative(saved.path)), content: version.content }
+  }
+
+  private noteHistoryDirectory(path: string): string {
+    if (typeof path !== 'string' || !isVersionedNotePath(path)) {
+      throw new VaultError({ code: 'INVALID_PATH', message: '通常のMarkdownノートだけが版履歴の対象です。' })
+    }
+    const normalized = this.relativePath(this.absolutePath(path))
+    const key = createHash('sha256').update(normalized.toLowerCase()).digest('hex')
+    return join(this.requireRoot(), '.tsuzune', 'note-history', key)
+  }
+
+  async listNoteVersions(path: string): Promise<NoteVersion[]> {
+    const root = this.requireRoot(), generation = this.rootRevision
+    const directory = this.noteHistoryDirectory(path)
+    try {
+      await this.assertNoSymlinkTraversal(directory)
+      const entries = await readdir(directory, { withFileTypes: true })
+      const versions: NoteVersion[] = []
+      for (const entry of entries) {
+        if (!entry.isFile() || !/^\d{13}-[a-f0-9-]{36}-[a-f0-9]{64}\.md$/.test(entry.name)) continue
+        const info = await lstat(join(directory, entry.name))
+        if (info.isFile() && !info.isSymbolicLink()) versions.push({ id: entry.name, savedAt: Number(entry.name.slice(0, 13)), size: info.size })
+      }
+      if (!this.isCurrentRoot(root, generation)) throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+      return versions.sort((a, b) => b.savedAt - a.savedAt || b.id.localeCompare(a.id))
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+      throw fromNodeError(error, 'UNKNOWN', '版履歴を読み込めませんでした。')
+    }
+  }
+
+  async readNoteVersion(path: string, id: string): Promise<{ content: string }> {
+    const root = this.requireRoot(), generation = this.rootRevision
+    const directory = this.noteHistoryDirectory(path)
+    if (typeof id !== 'string' || !/^\d{13}-[a-f0-9-]{36}-[a-f0-9]{64}\.md$/.test(id)) {
+      throw new VaultError({ code: 'INVALID_PATH', message: '有効な版を選択してください。' })
+    }
+    const absolute = join(directory, id)
+    await this.assertNoSymlinkTraversal(absolute)
+    if (!(await lstat(absolute)).isFile()) throw new VaultError({ code: 'INVALID_PATH', message: '版履歴ファイルが不正です。' })
+    const bytes = await readFile(absolute)
+    if (createHash('sha256').update(bytes).digest('hex') !== id.slice(-67, -3)) {
+      throw new VaultError({ code: 'FILE_CHANGED', message: 'この版の内容が変更または破損しています。復元できません。' })
+    }
+    if (!this.isCurrentRoot(root, generation)) throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+    return { content: bytes.toString('utf8') }
+  }
+
+  private async captureNoteVersion(path: string, content: string, root: string, generation: number): Promise<void> {
+    this.assertHistoryScope({ rootPath: root, rootRevision: generation })
+    const directory = this.noteHistoryDirectory(path)
+    await this.assertNoSymlinkTraversal(directory, true)
+    await mkdir(directory, { recursive: true })
+    await this.assertNoSymlinkTraversal(directory)
+    this.assertHistoryScope({ rootPath: root, rootRevision: generation })
+    const digest = createHash('sha256').update(content).digest('hex')
+    const id = `${Date.now()}-${randomUUID()}-${digest}.md`
+    const temporary = join(directory, `.${randomUUID()}.tmp`)
+    try {
+      const handle = await open(temporary, 'wx')
+      try { await handle.writeFile(content, 'utf8'); await handle.sync() } finally { await handle.close() }
+      await this.assertNoSymlinkTraversal(directory)
+      if (!this.isCurrentRoot(root, generation)) throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。保存を停止しました。' })
+      // The UUID gives each version its own path on filesystems without hard links.
+      await rename(temporary, join(directory, id))
+      // The original path makes raw Markdown snapshots identifiable without the app.
+      await writeFile(join(directory, 'note-path.txt'), path, { encoding: 'utf8', flag: 'wx' }).catch(error => {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+      })
+    } finally { await rm(temporary, { force: true }).catch(() => undefined) }
+  }
+
+  async saveNote(input: SaveNoteInput, recordHistory = false): Promise<SaveNoteOutput> {
     if (!isMarkdownFile(input.path)) {
       throw new VaultError({
         code: 'INVALID_PATH',
@@ -1537,6 +1682,11 @@ export class VaultService {
         })
       }
 
+      if (recordHistory && initialContent === input.content) {
+        this.assertHistoryScope({ rootPath: root, rootRevision: revision })
+        return { path: input.path, modifiedAt: currentInfo.mtimeMs, size: currentInfo.size }
+      }
+
       await this.updateCreationTimes(root, revision, (current) => {
         const timestamp = current[normalizedPath] ?? validBirthtime(currentInfo.birthtimeMs)
         return validCreationTime(timestamp)
@@ -1554,7 +1704,8 @@ export class VaultService {
           encoding: 'utf8',
           flag: 'wx'
         })
-        if (!input.force) {
+        if (recordHistory) await this.captureNoteVersion(normalizedPath, initialContent, root, revision)
+        if (!input.force || recordHistory) {
           await this.assertNoSymlinkTraversal(absolute)
           const latestInfo = await stat(absolute)
           if (
@@ -1569,9 +1720,9 @@ export class VaultService {
               currentModifiedAt: latestInfo.mtimeMs
             })
           }
-          if (input.expectedContent !== undefined) {
+          if (recordHistory || input.expectedContent !== undefined) {
             const latestContent = await readFile(absolute, 'utf8')
-            if (latestContent !== input.expectedContent) {
+            if (latestContent !== (recordHistory ? initialContent : input.expectedContent)) {
               throw new VaultError({
                 code: 'FILE_CHANGED',
                 message: '保存中に、このノートが別のアプリで変更されました。',
@@ -2129,7 +2280,7 @@ export class VaultService {
   }
 
   resolveMarkdownRenameDestination(input: RenameEntryInput): string {
-    const newName = withMarkdownExtension(input.newName.trim())
+    const newName = isSupportedAttachmentPath(input.path) ? input.newName.trim() : withMarkdownExtension(input.newName.trim())
     const validation = validateEntryName(newName)
     if (!validation.valid) {
       throw new VaultError({

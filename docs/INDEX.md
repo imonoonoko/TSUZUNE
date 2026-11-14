@@ -11,6 +11,13 @@
 - [Working Agreement](../AGENTS.md) — 開発と本番dogfoodの運用規約。
 - [Browser Clipper](browser-clipper.md) — Chrome／EdgeからWebページとYouTubeを`01_受信箱`へ受け取る方法、出典情報、安全境界。
 
+## ノートの編集
+
+- [版履歴](note-history.md) — 保存前の本文、差分、復元。
+- [ノートの抽出・統合](note-composer.md) — 選択範囲の抽出、全体統合、参照更新。
+- [Markdown表の編集](markdown-tables.md) — 挿入とセル編集。
+- [脚注](footnotes.md) — 参照・定義への移動と定義編集。
+
 ## 現在の開発
 
 - [改善・未達成項目 実行台帳](reports/tsuzune-improvement-ledger-2026-08-23.md) — する／しない／条件成立時だけを確定した判断索引。現在のPrimary／Nextは[PLAN.mdのCurrent Decision](../PLAN.md#current-decision)を正本とし、ここでは可変状態を複製しない。

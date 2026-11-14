@@ -47,6 +47,10 @@ import { parseHotkeySettings } from '../shared/hotkeys'
 import { PropertyTypeSettingsService } from './property-type-settings'
 import { PropertyChangesService } from './property-changes'
 import { HumanChangesService } from './human-changes'
+import { NoteComposerService } from './note-composer'
+import type { NoteComposeApplyInput, NoteComposeInput } from '../shared/note-composer'
+import type { ReadNoteVersionInput, RestoreNoteVersionInput } from '../shared/note-history'
+import { isSupportedAttachmentPath } from '../shared/attachments'
 import { ImporterService } from './importer'
 import type { CanvasCreateInput, CanvasSaveInput } from '../shared/canvas'
 import type { ImportPreviewInput, ImportReadRequest, ImportSelectedFile } from '../shared/importer'
@@ -272,6 +276,16 @@ export function registerIpc(
   registerTrusted('kanban:folderMovePreview', (input: KanbanFolderMoveInput) => kanbanFolderMoves.preview(input))
   registerTrusted('kanban:folderMoveApply', (input: KanbanFolderMoveApplyInput) => runGoogleInOrder(() => kanbanFolderMoves.apply(input)))
   const propertyChanges = new PropertyChangesService(vault, async () => (await readSettings()).userIgnoreFilters)
+  const noteComposer = new NoteComposerService(vault, async () => (await readSettings()).userIgnoreFilters, undefined, async () => {
+    const settings = await readSettings()
+    return { directory: settings.templateDirectory, includeBuiltIns: settings.showBuiltInTemplates }
+  })
+  registerTrusted('note:composePreview', (input: NoteComposeInput) => noteComposer.preview(input))
+  registerTrusted('note:composeApply', (input: NoteComposeApplyInput) => runGoogleInOrder(async () => {
+    const result = await noteComposer.apply(input)
+    google.autoSync?.notifyLocalChange()
+    return result
+  }))
   const humanChanges = new HumanChangesService(vault, async () => (await readSettings()).userIgnoreFilters)
   const importer = new ImporterService(vault, async () => (await readSettings()).userIgnoreFilters)
   const importFailure = (error: unknown): never => {
@@ -335,6 +349,7 @@ export function registerIpc(
       await watcher.stop()
       await vault.setRootPath(rootPath)
       await entryMove.recover()
+      await noteComposer.recover()
       const snapshot = await vault.scan()
       await watcher.start(rootPath)
       settingsAttempted = true
@@ -380,9 +395,14 @@ export function registerIpc(
     try {
       await vault.setRootPath(settings.lastVaultPath)
       await entryMove.recover()
+      await noteComposer.recover()
       await watcher.start(settings.lastVaultPath)
       return await vault.scan()
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('RECOVERY_REQUIRED')) {
+        await watcher.stop().catch(() => undefined)
+        throw error
+      }
       vault.clearRootPath()
       await watcher.stop()
       await updateSettings({
@@ -511,7 +531,7 @@ export function registerIpc(
   )
 
   registerTrusted('note:save', async (input: SaveNoteInput) => {
-    const saved = await vault.saveNote(input)
+    const saved = await vault.saveNoteWithHistory(input)
     watcher.expectOwnWrite(
       input.path,
       input.content,
@@ -520,6 +540,15 @@ export function registerIpc(
     )
     google.autoSync?.notifyLocalChange()
     return saved
+  })
+
+  registerTrusted('note:history', (path: string, expectedRoot: string) => vault.getNoteHistory(path, expectedRoot))
+  registerTrusted('note:version', (input: ReadNoteVersionInput) => vault.getNoteVersion(input))
+  registerTrusted('note:restoreVersion', async (input: RestoreNoteVersionInput) => {
+    const restored = await vault.restoreNoteVersion(input)
+    watcher.expectOwnWrite(restored.path, restored.content, restored.modifiedAt, restored.size)
+    google.autoSync?.notifyLocalChange()
+    return restored
   })
 
   registerTrusted('entry:createNote', async (input: CreateNoteInput) => {
@@ -570,7 +599,7 @@ export function registerIpc(
   })
 
   registerTrusted('entry:rename', async (input: RenameEntryInput) => {
-    if (input.path.toLocaleLowerCase().endsWith('.md')) {
+    if (input.path.toLocaleLowerCase().endsWith('.md') || isSupportedAttachmentPath(input.path)) {
       const destination = vault.resolveMarkdownRenameDestination(input)
       const plan = await entryMove.preflight(input.path, destination, 'human')
       const moved = await runGoogleInOrder(() =>

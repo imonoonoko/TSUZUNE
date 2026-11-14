@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { access, mkdir, open, readFile, rename, rm } from "node:fs/promises";
+import { access, mkdir, open, readFile, rename, rm, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { buildWikiLinkIndex, findLinkImpact, getBacklinks } from "../core/links";
 import { compilePathAliases } from "../core/path-aliases";
@@ -13,9 +13,10 @@ import {
   isAuditHistoryPath,
   isAiImmutablePath,
 } from "../shared/ai-write-policy";
-import { createExcludedFileMatcher } from '../shared/excluded-files';
 import type { NoteDocument } from "../shared/types";
+import { createExcludedFileMatcher } from "../shared/excluded-files";
 import { VaultService } from "./vault";
+import { isSupportedAttachmentPath } from '../shared/attachments';
 
 export type EntryMoveActor = "human" | "ai";
 export type EntryMoveJournalStage = "prepared" | "filesystem" | "links" | "ledger";
@@ -25,13 +26,13 @@ export type EntryMoveRecoveryStatus =
   | { status: "recovery-required"; source: string; destination: string };
 
 export interface EntryMovePlan {
-  source_type: "markdown";
+  source_type: "markdown" | "attachment";
   source: string;
   destination: string;
   fingerprint: string;
   source_revision: string;
   content_revision: string;
-  counts: { markdown: 1; directories: 0; attachments: 0 };
+  counts: { markdown: number; directories: 0; attachments: number };
   mappings: Array<{ old_path: string; new_path: string }>;
   mapping_truncated: false;
   collision: false;
@@ -48,7 +49,10 @@ export interface EntryMoveApplyInput {
   actor: EntryMoveActor;
 }
 
-interface EntryMoveLinkPolicy { excludedLinkSources: readonly string[] }
+/** Optional caller policy; generic entry movement keeps its existing link scope. */
+export interface EntryMoveLinkPolicy {
+  excludedLinkSources: readonly string[];
+}
 
 export interface EntryMoveResult {
   old_path: string;
@@ -133,6 +137,13 @@ function normalizeMarkdownPath(raw: string, label: string): string {
   return validation.normalized;
 }
 
+function normalizeMovePath(raw: string, label: string, actor: EntryMoveActor): string {
+  if (actor === 'ai' || !isSupportedAttachmentPath(raw)) return normalizeMarkdownPath(raw, label);
+  const checked = validateRelativePath(raw.trim().replaceAll('\\', '/'));
+  if (!checked.valid || !checked.normalized) throw new Error(`${label}のパスが不正です。`);
+  return checked.normalized;
+}
+
 function recordsEqual(
   left: Record<string, string>,
   right: Record<string, string>,
@@ -176,6 +187,17 @@ export class EntryMoveCoordinator {
     return this.recoveryStatus;
   }
 
+  private async readEntry(path: string): Promise<NoteDocument> {
+    if (!isSupportedAttachmentPath(path)) return this.dependencies.vault.readNote(path);
+    const absolute = await this.dependencies.vault.resolveFileForOpen(path);
+    const before = await stat(absolute);
+    const bytes = await readFile(absolute);
+    const after = await stat(absolute);
+    if (before.mtimeMs !== after.mtimeMs || before.size !== after.size) throw new Error('添付ファイルが読み込み中に変わりました。');
+    // Hash raw bytes; binary files never pass through the Markdown save path.
+    return { path, name: path.split('/').at(-1)!, content: createHash('sha256').update(bytes).digest('hex'), modifiedAt: after.mtimeMs, createdAt: null, size: after.size };
+  }
+
   async recover(): Promise<EntryMoveRecoveryStatus> {
     const rootPath = this.dependencies.vault.getRootPath();
     if (!rootPath) return this.setRecoveryStatus({ status: "clean" });
@@ -194,15 +216,18 @@ export class EntryMoveCoordinator {
 
     try {
       const snapshot = await this.dependencies.vault.scan();
-      const source = snapshot.notes.find(
+      const entries = [...snapshot.notes, ...(snapshot.attachments ?? [])];
+      const sourceEntry = entries.find(
         (note) =>
           note.path.toLocaleLowerCase() === journal.source.toLocaleLowerCase(),
       );
-      const destination = snapshot.notes.find(
+      const destinationEntry = entries.find(
         (note) =>
           note.path.toLocaleLowerCase() ===
           journal.destination.toLocaleLowerCase(),
       );
+      const source = sourceEntry ? await this.readEntry(sourceEntry.path) : undefined;
+      const destination = destinationEntry ? await this.readEntry(destinationEntry.path) : undefined;
       const currentLedger = (
         await this.dependencies.drive.inspectLocalMoves([
           { oldPath: journal.source, path: journal.destination },
@@ -285,8 +310,10 @@ export class EntryMoveCoordinator {
   }
 
   private async inspect(rawSource: string, rawDestination: string, actor: EntryMoveActor, linkPolicy?: EntryMoveLinkPolicy) {
-    const source = normalizeMarkdownPath(rawSource, "移動元");
-    const destination = normalizeMarkdownPath(rawDestination, "移動先");
+    const source = normalizeMovePath(rawSource, "移動元", actor);
+    const destination = normalizeMovePath(rawDestination, "移動先", actor);
+    const attachment = isSupportedAttachmentPath(source);
+    if (attachment !== isSupportedAttachmentPath(destination)) throw new Error('移動先も対応する添付ファイルを指定してください。');
     const rootPath = this.dependencies.vault.getRootPath();
     if (rootPath) {
       try {
@@ -309,12 +336,13 @@ export class EntryMoveCoordinator {
     }
 
     const snapshot = await this.dependencies.vault.scan();
-    const sourceNote = snapshot.notes.find(
+    const sourceEntry = [...snapshot.notes, ...(snapshot.attachments ?? [])].find(
       (note) => note.path.toLocaleLowerCase() === source.toLocaleLowerCase(),
     );
-    if (!sourceNote) throw new Error(`移動元が見つかりません: ${source}`);
+    if (!sourceEntry) throw new Error(`移動元が見つかりません: ${source}`);
+    const sourceNote = await this.readEntry(sourceEntry.path);
     if (
-      snapshot.notes.some(
+      [...snapshot.notes, ...(snapshot.attachments ?? [])].some(
         (note) =>
           note.path.toLocaleLowerCase() === destination.toLocaleLowerCase(),
       )
@@ -358,7 +386,8 @@ export class EntryMoveCoordinator {
       const excluded = createExcludedFileMatcher(linkPolicy?.excludedLinkSources ?? []);
       for (const note of snapshot.notes) {
         if (isLinkUpdateProtected(note.path) || excluded(note.path) || (note.path === sourceNote.path && isLinkUpdateProtected(destination))) continue;
-        const after = rewriteMovedLinks(note, index, sourceNote.path, destination);
+        const after = rewriteMovedLinks(note, index, sourceNote.path, destination,
+          attachment ? { attachments: snapshot.attachments ?? [] } : {});
         if (after === note.content) continue;
         const bytes = await readFile(await this.dependencies.vault.resolveFileForOpen(note.path));
         if (bytes.toString('utf8') !== note.content) throw new Error('preflight中に参照元が変わりました。もう一度操作してください。');
@@ -382,13 +411,13 @@ export class EntryMoveCoordinator {
     const fingerprint = sha256([JSON.stringify(manifest)]);
 
     const plan: EntryMovePlan = {
-      source_type: "markdown",
+      source_type: attachment ? "attachment" : "markdown",
       source: sourceNote.path,
       destination,
       fingerprint,
       source_revision: sourceRevision,
       content_revision: sourceContentRevision,
-      counts: { markdown: 1, directories: 0, attachments: 0 },
+      counts: { markdown: attachment ? 0 : 1, directories: 0, attachments: attachment ? 1 : 0 },
       mappings: [{ old_path: sourceNote.path, new_path: destination }],
       mapping_truncated: false,
       collision: false,
@@ -436,7 +465,7 @@ export class EntryMoveCoordinator {
       }
     }
 
-    const sourceBefore = await this.dependencies.vault.readNote(plan.source);
+    const sourceBefore = await this.readEntry(plan.source);
     const expectedContentRevision = contentRevision(sourceBefore);
     if (
       noteRevision(rootPath, sourceBefore) !== plan.source_revision ||
@@ -477,7 +506,7 @@ export class EntryMoveCoordinator {
       await this.writeJournal(journalPath, journal);
       await this.dependencies.afterJournalStage?.("filesystem");
 
-      const movedNote = await this.dependencies.vault.readNote(
+      const movedNote = await this.readEntry(
         plan.destination,
       );
       if (contentRevision(movedNote) !== expectedContentRevision) {

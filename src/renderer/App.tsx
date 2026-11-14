@@ -48,6 +48,11 @@ import { createUserProfileMarkdown, parseUserProfile } from '../core/user-profil
 import { setFrontmatterProperty, inspectFrontmatterProperty } from '../core/frontmatter'
 import { readPropertyAsDeclared } from '../core/property-changes'
 import { isAiImmutablePath } from '../shared/ai-write-policy'
+import { isVersionedNotePath, type NoteHistory } from '../shared/note-history'
+import type { NoteComposeApplyInput, NoteComposeInput, NoteComposePreview } from '../shared/note-composer'
+import { isSupportedAttachmentPath } from '../shared/attachments'
+import NoteHistoryDialog from './components/NoteHistoryDialog'
+import NoteComposerDialog from './components/NoteComposerDialog'
 import {
   TEMPLATE_DIRECTORY,
   dailyTemplatePath,
@@ -452,7 +457,16 @@ export default function App(): React.JSX.Element {
   const [drivePreview, setDrivePreview] = useState<DriveSyncPreview | null>(null)
   const [driveVaults, setDriveVaults] = useState<DriveRemoteVault[]>([])
   const [selectedDriveVaultId, setSelectedDriveVaultId] = useState('')
-  const modalOpen =
+  const [noteHistory, setNoteHistory] = useState<NoteHistory | null>(null)
+  const historyContextRef = useRef<{ generation: number; version: number; focus: HTMLElement | null } | null>(null)
+  const [composerInput, setComposerInput] = useState<NoteComposeInput | null>(null)
+  const composerContextRef = useRef<{ generation: number; focus: HTMLElement | null } | null>(null)
+  const [footnoteEditing, setFootnoteEditing] = useState(false)
+  const [footnoteComposing, setFootnoteComposing] = useState(false)
+  const [pendingFootnoteFocus, setPendingFootnoteFocus] = useState<{ source: string; from: number; to: number; path: string; pane: string; generation: number } | null>(null)
+  const otherModalOpen =
+    Boolean(noteHistory) ||
+    Boolean(composerInput) ||
     Boolean(pdfExportSnapshot) ||
     Boolean(propertyRequest) ||
     quickSwitcherOpen ||
@@ -469,6 +483,7 @@ export default function App(): React.JSX.Element {
     Boolean(importScope) ||
     Boolean(canvasPicker) ||
     basePathDialogOpen
+  const modalOpen = otherModalOpen || footnoteEditing
   useEffect(() => {
     if (modalOpen || busy) return
     const opener = importOpenerRef.current
@@ -1947,6 +1962,132 @@ export default function App(): React.JSX.Element {
     } catch (error) { setMessage(error instanceof Error ? error.message : 'リンク化できませんでした。') }
     finally { finishOperation() }
   }
+  const closeNoteHistory = (): void => {
+    if (busyRef.current) return
+    const focus = historyContextRef.current?.focus
+    setNoteHistory(null)
+    historyContextRef.current = null
+    requestAnimationFrame(() => { if (focus?.isConnected) focus.focus() })
+  }
+
+  const closeNoteComposer = (): void => {
+    if (busyRef.current) return
+    const focus = composerContextRef.current?.focus
+    setComposerInput(null); composerContextRef.current = null
+    requestAnimationFrame(() => { if (focus?.isConnected) focus.focus() })
+  }
+
+  const openNoteComposer = async (extractOnly = false): Promise<void> => {
+    const path = selectedPathRef.current, scope = workspaceCollectionRef.current?.scope
+    const generation = vaultGenerationRef.current
+    const focus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const selected = viewMode === 'edit' || viewMode === 'live-preview' ? markdownEditorRef.current?.getSelection() : null
+    if (extractOnly && (!selected || selected.range.to <= selected.range.from)) return
+    if (!path || !scope || !/\.md$/i.test(path) || isAiImmutablePath(path) || userExcludedMatcher(path) || !beginOperation()) return
+    try {
+      if (!await flushSave()) return
+      if (generation !== vaultGenerationRef.current || path !== selectedPathRef.current || dirtyRef.current || conflictRef.current ||
+          captureDirtyRef.current || (selected && selected.source !== contentRef.current)) {
+        setMessage('現在の本文を保存・確認してから、もう一度開いてください。'); return
+      }
+      const range = selected && selected.range.to > selected.range.from ? selected.range : null
+      composerContextRef.current = { generation, focus }
+      setComposerInput({ scope, sourcePath: path, expectedSourceContent: contentRef.current,
+        mode: range ? 'extract' : 'merge', targetMode: range ? 'new' : 'existing',
+        targetPath: '', placement: 'append', ...(range ? { range } : {}) })
+    } catch (cause) { setMessage(cause instanceof Error ? cause.message : '抽出・統合を開けませんでした。') }
+    finally { finishOperation() }
+  }
+
+  const assertComposerContext = (input: NoteComposeInput): void => {
+    const scope = workspaceCollectionRef.current?.scope
+    if (!composerInput || !composerContextRef.current || composerContextRef.current.generation !== vaultGenerationRef.current ||
+        scope?.rootPath !== input.scope.rootPath || scope.rootRevision !== input.scope.rootRevision ||
+        selectedPathRef.current !== input.sourcePath || contentRef.current !== input.expectedSourceContent ||
+        dirtyRef.current || conflictRef.current || captureDirtyRef.current || editorComposingRef.current ||
+        [...heldDraftsRef.current.values()].some(draft => draft.status !== 'saved')) {
+      throw new Error('本文・Vault・保存状態が変わりました。閉じて現在の内容を確認し、もう一度開いてください。')
+    }
+  }
+
+  const previewNoteComposer = async (input: NoteComposeInput): Promise<NoteComposePreview> => {
+    assertComposerContext(input)
+    if (!beginOperation()) throw new Error('別の処理が完了してから再試行してください。')
+    try {
+      const result = await window.tsuzune.previewNoteCompose(input)
+      assertComposerContext(input)
+      if (!result.ok) throw new Error(errorMessage(result.error))
+      return result.value
+    } finally { finishOperation() }
+  }
+
+  const applyNoteComposer = async (request: NoteComposeApplyInput): Promise<void> => {
+    assertComposerContext(request.input)
+    if (!beginOperation()) throw new Error('別の処理が完了してから再試行してください。')
+    const generation = vaultGenerationRef.current
+    try {
+      const result = await window.tsuzune.applyNoteCompose(request)
+      if (!result.ok) throw new Error(errorMessage(result.error))
+      // The transaction has committed. Never offer Apply again because a later refresh failed.
+      setComposerInput(null); composerContextRef.current = null
+      for (const path of result.value.changedPaths) heldDraftsRef.current.delete(path)
+      const refreshed = await refreshSnapshot(generation)
+      if (generation !== vaultGenerationRef.current) return
+      if (refreshed) {
+        const nextWorkspace = projectWorkspaceSnapshotV2({ ...currentWorkspace, panes: currentWorkspace.panes.map(pane => ({
+          ...pane, tabs: pane.tabs.map((tab, index) =>
+            ('path' in tab && request.input.mode === 'merge' && tab.path === request.input.sourcePath) ||
+            (pane.id === currentWorkspace.activePaneId && index === pane.activeIndex)
+              ? { kind: 'note' as const, path: result.value.path } : tab)
+        })) })
+        applyWorkspaceSnapshot(nextWorkspace, refreshed)
+        setViewMode('preview')
+        setMessage(request.input.mode === 'extract' ? '選択範囲を抽出し、参照リンクを更新しました。' : 'ノートを統合し、統合元をごみ箱へ退避しました。')
+      } else setMessage('抽出・統合は保存されました。一覧を再読込して結果を確認してください。')
+    } finally { finishOperation() }
+  }
+
+  const openNoteHistory = async (): Promise<void> => {
+    const path = selectedPathRef.current, root = snapshotRef.current?.rootPath
+    const generation = vaultGenerationRef.current
+    const focus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    if (!path || !root || !isVersionedNotePath(path) || !beginOperation()) return
+    try {
+      if (!await flushSave() || conflictRef.current) return
+      const version = versionRef.current
+      const result = await window.tsuzune.getNoteHistory(path, root)
+      if (generation !== vaultGenerationRef.current || path !== selectedPathRef.current || dirtyRef.current || version !== versionRef.current) return
+      if (!result.ok) { setMessage(errorMessage(result.error)); return }
+      if (result.value.content !== contentRef.current || result.value.modifiedAt !== modifiedAtRef.current) {
+        setMessage('現在の本文が変更されています。ノートを読み直してから版履歴を開いてください。'); return
+      }
+      historyContextRef.current = { generation, version, focus }
+      setNoteHistory(result.value)
+    } catch (cause) { setMessage(cause instanceof Error ? cause.message : '版履歴を開けませんでした。') }
+    finally { finishOperation() }
+  }
+
+  const restoreNoteHistory = async (id: string): Promise<void> => {
+    const context = historyContextRef.current
+    if (!noteHistory || !context || context.generation !== vaultGenerationRef.current || context.version !== versionRef.current ||
+      selectedPathRef.current !== noteHistory.path || conflictRef.current || dirtyRef.current || contentRef.current !== noteHistory.content || modifiedAtRef.current !== noteHistory.modifiedAt) {
+      throw new Error('ノートが変更されています。版履歴を閉じて、現在の内容を確認してください。')
+    }
+    if (!beginOperation()) throw new Error('別の操作が完了してから再試行してください。')
+    try {
+      const result = await window.tsuzune.restoreNoteVersion({ scope: noteHistory.scope, path: noteHistory.path, id,
+        expectedContent: noteHistory.content, expectedModifiedAt: noteHistory.modifiedAt })
+      if (!result.ok) throw new Error(errorMessage(result.error))
+      if (context.generation !== vaultGenerationRef.current || selectedPathRef.current !== noteHistory.path) return
+      heldDraftsRef.current.delete(noteHistory.path)
+      updateSnapshotNote(result.value.path, result.value.content, result.value.modifiedAt, result.value.size)
+      loadNoteState(result.value, false)
+      setNoteHistory(null)
+      historyContextRef.current = null
+      requestAnimationFrame(() => { if (context.focus?.isConnected) context.focus.focus() })
+    } finally { finishOperation() }
+  }
+
   const headings = useMemo(
     () => selectedPath && viewMode !== 'graph' ? extractMarkdownHeadings(content) : [],
     [selectedPath, content, viewMode]
@@ -1960,6 +2101,37 @@ export default function App(): React.JSX.Element {
       target?.focus()
     }
   }, [viewMode])
+  const handleFootnoteApply = (source: string, from: number, replacement: string): string | null => {
+    if (!selectedPath || selectedPathRef.current !== selectedPath || source !== content || contentRef.current !== source ||
+      (activeWorkspaceTab !== null && activeWorkspaceTab.kind !== 'note') || (viewMode !== 'edit' && viewMode !== 'live-preview') ||
+      busyRef.current || savingRef.current || conflictRef.current || otherModalOpen || editorComposingRef.current ||
+      editorOwner(selectedPath) !== currentWorkspace.activePaneId) {
+      return '本文や編集状態が変更されています。保存・処理・競合の解決後に開き直してください。'
+    }
+    const editor = markdownEditorRef.current
+    return editor ? editor.editFootnote(source, from, replacement) : '本文を編集できません。'
+  }
+  const handleFootnoteSelect = (source: string, from: number, to: number): void => {
+    if (!selectedPath || selectedPathRef.current !== selectedPath || source !== contentRef.current || (activeWorkspaceTab !== null && activeWorkspaceTab.kind !== 'note') ||
+      busyRef.current || otherModalOpen || footnoteEditing || editorComposingRef.current ||
+      (editorOwner(selectedPath) !== undefined && editorOwner(selectedPath) !== currentWorkspace.activePaneId)) return
+    if (viewMode === 'edit' || viewMode === 'live-preview') markdownEditorRef.current?.selectSourceRange(source, from, to)
+    else if (viewMode === 'preview') {
+      setPendingFootnoteFocus({ source, from, to, path: selectedPath, pane: currentWorkspace.activePaneId, generation: vaultGenerationRef.current })
+      setViewMode('edit')
+    }
+  }
+  useEffect(() => {
+    if (!pendingFootnoteFocus || busy || viewMode !== 'edit') return
+    const frame = requestAnimationFrame(() => {
+      const { source, from, to, path, pane, generation } = pendingFootnoteFocus
+      if (generation === vaultGenerationRef.current && path === selectedPathRef.current && pane === currentWorkspace.activePaneId && source === contentRef.current) {
+        markdownEditorRef.current?.selectSourceRange(source, from, to)
+      }
+      setPendingFootnoteFocus(null)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [pendingFootnoteFocus, busy, viewMode, currentWorkspace.activePaneId])
   const search = useNoteSearch(searchNotes, leftSidebarOpen && leftSidebarView === 'search' && !searchComposing ? query : '')
   const selectedNote = useMemo(
     () =>
@@ -2059,6 +2231,11 @@ export default function App(): React.JSX.Element {
 
     vaultGenerationRef.current += 1
     vaultSwitchingRef.current = true
+    setNoteHistory(null)
+    historyContextRef.current = null
+    setComposerInput(null)
+    composerContextRef.current = null
+    setPendingFootnoteFocus(null)
     baseDialogSessionRef.current += 1
     baseDialogPreviousFocusRef.current = null
     setBasePathDialogOpen(false)
@@ -2526,7 +2703,7 @@ export default function App(): React.JSX.Element {
       return
     }
     const currentName =
-      selection.kind === 'note'
+      selection.kind === 'note' && !isSupportedAttachmentPath(selection.path)
         ? withoutMarkdownExtension(basenameRelative(selection.path))
         : basenameRelative(selection.path)
     setRenameError(null)
@@ -2542,8 +2719,9 @@ export default function App(): React.JSX.Element {
     if (!snapshot) {
       return 'Vaultを読み込めませんでした。'
     }
+    const isAttachment = selection.kind === 'note' && isSupportedAttachmentPath(selection.path)
     const currentName =
-      selection.kind === 'note'
+      selection.kind === 'note' && !isAttachment
         ? withoutMarkdownExtension(basenameRelative(selection.path))
         : basenameRelative(selection.path)
     const nextName = requestedName.trim()
@@ -2563,7 +2741,7 @@ export default function App(): React.JSX.Element {
       }
 
       const finalName =
-        selection.kind === 'note'
+        selection.kind === 'note' && !isAttachment
           ? withMarkdownExtension(nextName)
           : nextName
       const newPath = joinRelative(
@@ -2571,7 +2749,9 @@ export default function App(): React.JSX.Element {
         finalName
       )
       const changes = pathChangesForRename(selection, newPath)
-      if (!confirmLinkImpact(changes, selection.kind === 'note')) {
+      if (isAttachment) {
+        if (!window.confirm('添付ファイルを改名し、参照先を特定できるMarkdownリンクを更新します。続けますか？')) return null
+      } else if (!confirmLinkImpact(changes, selection.kind === 'note')) {
         return null
       }
 
@@ -2585,6 +2765,28 @@ export default function App(): React.JSX.Element {
 
       const previousSelectionPath = selection.path
       const next = await refreshSnapshot()
+      if (isAttachment) {
+        const remap = <T extends { kind: string; path?: string },>(tab: T): T =>
+          (tab.kind === 'attachment' || tab.kind === 'linked-view') && tab.path === previousSelectionPath
+            ? { ...tab, path: result.value.path } : tab
+        setWorkspaceTabs(tabs => tabs.map(remap))
+        setPaneWorkspace(workspace => workspace && {
+          ...workspace, panes: workspace.panes.map(pane => ({ ...pane, tabs: pane.tabs.map(remap) }))
+        })
+        setActiveAttachmentPath(path => path === previousSelectionPath ? result.value.path : path)
+        setActiveLinkedViewPath(path => path === previousSelectionPath ? result.value.path : path)
+        setTreeSelection(current => current?.path === previousSelectionPath ? { ...current, path: result.value.path } : current)
+        if (!next) setMessage('添付ファイルは改名されました。一覧を再読込して確認してください。')
+        const current = next?.notes.find(note => note.path === selectedPathRef.current)
+        if (current && !dirtyRef.current && current.content !== contentRef.current) {
+          const preservedAttachment = activeAttachmentPath === previousSelectionPath ? result.value.path : activeAttachmentPath
+          const preservedLinkedView = activeLinkedViewPath === previousSelectionPath ? result.value.path : activeLinkedViewPath
+          loadNoteState(current, false)
+          setActiveAttachmentPath(preservedAttachment)
+          setActiveLinkedViewPath(preservedLinkedView)
+        }
+        return null
+      }
       setTreeSelection({ kind: selection.kind, path: result.value.path })
 
       if (
@@ -3633,6 +3835,15 @@ export default function App(): React.JSX.Element {
       if (command === 'search') {
         event.preventDefault()
         focusVaultSearch()
+        return
+      }
+      if (command === 'extract-note') {
+        if (!(event.target instanceof HTMLElement) ||
+            !event.target.closest('.workspace-pane.is-active .markdown-editor')) return
+        const selection = markdownEditorRef.current?.getSelection()
+        if (!selection || selection.range.to <= selection.range.from) return
+        event.preventDefault()
+        void openNoteComposer(true)
         return
       }
       if (command === 'save') {
@@ -5538,6 +5749,7 @@ export default function App(): React.JSX.Element {
                   }
                   onSearchTag={searchGraphTag}
                   onMove={setMovePath}
+                  onRenameAttachment={path => openRename({ kind: 'note', path })}
                   bookmarkedPaths={bookmarkedPaths}
                   onBookmark={setBookmarkPath}
                   onCopyPath={copyGraphNodePath}
@@ -5557,6 +5769,8 @@ export default function App(): React.JSX.Element {
                       <strong>{activeAttachment.name}</strong>
                       <span>{activeAttachment.path}</span>
                     </div>
+                    <button type="button" disabled={busy || !isSupportedAttachmentPath(activeAttachment.path)}
+                      onClick={() => openRename({ kind: 'note', path: activeAttachment.path })}>名前を変更</button>
                   </header>
                 </div>
                 <AttachmentPreview
@@ -5601,6 +5815,11 @@ export default function App(): React.JSX.Element {
                         内容を編集
                       </button>
                     )}
+                    {!isAiImmutablePath(selectedPath) && !userExcludedMatcher(selectedPath) &&
+                      <button type="button" disabled={busy} aria-keyshortcuts={shortcutAria('extract-note')}
+                        title={shortcutText('extract-note')} onClick={() => void openNoteComposer()}>抽出・統合</button>}
+                    {isVersionedNotePath(selectedPath) &&
+                      <button type="button" disabled={busy} onClick={() => void openNoteHistory()}>版履歴</button>}
                     <button ref={pdfExportOpener} type="button" disabled={busy} onClick={() => setPdfExportSnapshot({
                       content, notePath: selectedPath, attachments: snapshot.attachments ?? [], notes: savedNotes, pathAliases
                     })}>PDF書き出し</button>
@@ -5652,7 +5871,10 @@ export default function App(): React.JSX.Element {
                     onNavigate={(target) => void handleNoteNavigation(target)}
                     onWikiLink={handleWikiLink}
                     declaredTypes={propertyTypes}
-                    onCompositionChange={(composing) => { editorComposingRef.current = composing }}
+                    onCompositionChange={composing => {
+                      editorComposingRef.current = composing
+                      setFootnoteComposing(composing)
+                    }}
                     key={`${editorGeneration}:${editorWorkspaceVersion}:${selectedPath}`}
                     ref={markdownEditorRef}
                     workspaceState={activePane.editorStates?.[selectedPath]}
@@ -5726,6 +5948,7 @@ export default function App(): React.JSX.Element {
                     }
                     onSearchTag={searchGraphTag}
                     onMove={setMovePath}
+                    onRenameAttachment={path => openRename({ kind: 'note', path })}
                     bookmarkedPaths={bookmarkedPaths}
                     onBookmark={setBookmarkPath}
                     onCopyPath={copyGraphNodePath}
@@ -5796,6 +6019,16 @@ export default function App(): React.JSX.Element {
                   selectedNoteName={selectedNote?.name}
                   headings={headings}
                   onHeadingSelect={handleHeadingSelect}
+                  footnoteSource={!activeWorkspaceTab || activeWorkspaceTab.kind === 'note' ? content : ''}
+                  footnoteDocumentKey={JSON.stringify([snapshot.rootPath, vaultGenerationRef.current, selectedPath, currentWorkspace.activePaneId, viewMode])}
+                  footnoteDisabledReason={viewMode !== 'edit' && viewMode !== 'live-preview'
+                    ? '編集またはLive Previewで脚注を編集できます。'
+                    : busy || saveStatus === 'saving' || conflict !== null || otherModalOpen || footnoteComposing ||
+                      editorOwner(selectedPath) !== currentWorkspace.activePaneId
+                      ? '保存・処理・競合や別の編集の解決後に脚注を編集できます。' : undefined}
+                  onFootnoteSelect={handleFootnoteSelect}
+                  onFootnoteApply={handleFootnoteApply}
+                  onFootnoteEditingChange={setFootnoteEditing}
                   temporal={
                     selectedNote ? (
                       <TemporalDetails
@@ -5862,6 +6095,13 @@ export default function App(): React.JSX.Element {
           onClose={closeCommandPalette}
         />
       )}
+
+      {noteHistory && <NoteHistoryDialog history={noteHistory} onClose={closeNoteHistory} onRestore={restoreNoteHistory} />}
+
+      {composerInput && <NoteComposerDialog initial={composerInput}
+        paths={searchNotes.filter(note => !isAiImmutablePath(note.path) && !userExcludedMatcher(note.path) &&
+          !note.path.split('/').some(part => part.startsWith('.'))).map(note => note.path)}
+        templates={templates} onClose={closeNoteComposer} onPreview={previewNoteComposer} onApply={applyNoteComposer} />}
 
       {pdfExportSnapshot && <PdfExportDialog snapshot={pdfExportSnapshot} onClose={closePdfExport}
         onSaved={path => { closePdfExport(); setMessage(`PDFを保存しました: ${path}`) }} />}
@@ -5965,7 +6205,8 @@ export default function App(): React.JSX.Element {
       {renameRequest && (
         <RenameDialog
           entryPath={renameRequest.selection.path}
-          entryKind={renameRequest.selection.kind}
+          entryKind={renameRequest.selection.kind === 'note' && isSupportedAttachmentPath(renameRequest.selection.path)
+            ? 'attachment' : renameRequest.selection.kind}
           currentName={renameRequest.currentName}
           error={renameError}
           busy={busy}

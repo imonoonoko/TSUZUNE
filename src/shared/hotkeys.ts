@@ -3,6 +3,7 @@ export type HotkeyCommandId =
   | 'command-palette'
   | 'search'
   | 'save'
+  | 'extract-note'
   | 'next-tab'
   | 'previous-tab'
   | 'close-tab'
@@ -24,6 +25,7 @@ export const HOTKEY_COMMANDS: { id: HotkeyCommandId; label: string }[] = [
   { id: 'command-palette', label: 'コマンドパレット' },
   { id: 'search', label: '検索' },
   { id: 'save', label: '保存' },
+  { id: 'extract-note', label: 'ノート抽出を開く' },
   { id: 'next-tab', label: '次のタブ' },
   { id: 'previous-tab', label: '前のタブ' },
   { id: 'close-tab', label: 'タブを閉じる' },
@@ -43,6 +45,7 @@ export const DEFAULT_HOTKEYS: HotkeySettings = [
   binding('search', 'f', { ctrl: true, shift: true }),
   binding('search', 'f', { meta: true, shift: true }),
   binding('save', 's', { ctrl: true }),
+  binding('extract-note', 'e', { ctrl: true, shift: true }),
   binding('next-tab', 'Tab', { ctrl: true }),
   binding('previous-tab', 'Tab', { ctrl: true, shift: true }),
   binding('close-tab', 'w', { ctrl: true }),

@@ -401,7 +401,12 @@ export interface TsuzuneApi {
   revealVaultFile(path: string): Promise<Result<null>>
   openVaultFileWindow(path: string): Promise<Result<null>>
   copyText(text: string): Promise<Result<null>>
+  previewNoteCompose(input: import('./note-composer').NoteComposeInput): Promise<Result<import('./note-composer').NoteComposePreview>>
+  applyNoteCompose(input: import('./note-composer').NoteComposeApplyInput): Promise<Result<import('./note-composer').NoteComposeResult>>
   saveNote(input: SaveNoteInput): Promise<Result<SaveNoteOutput>>
+  getNoteHistory(path: string, expectedRoot: string): Promise<Result<import('./note-history').NoteHistory>>
+  getNoteVersion(input: import('./note-history').ReadNoteVersionInput): Promise<Result<{ content: string }>>
+  restoreNoteVersion(input: import('./note-history').RestoreNoteVersionInput): Promise<Result<NoteDocument>>
   createNote(input: CreateNoteInput): Promise<Result<EntryOperationOutput>>
   importAttachments(
     destinationDirectory: string

@@ -181,7 +181,8 @@ OAuth build、credential保存、update/releaseの運用は[Windows Production G
 
 - 保存前に更新時刻を照合し、外部変更との競合を通知します。
 - 保存は同じfolder内の一時fileを経由します。
-- renameとmoveは既存項目を上書きしません。
+- renameとmoveは既存項目を上書きしません。添付の改名では、参照先が一意に解決できるMarkdownリンク・埋め込みを更新します。
+- ノートの[版履歴](docs/note-history.md)と[抽出・統合](docs/note-composer.md)はVault内のローカルファイルとして扱います。
 - deleteはVault内`.trash`へ退避します。
 - dot folderとsymbolic linkはVault一覧から除外します。
 - cache、index、GraphはMarkdownと添付から再構築可能に保ちます。

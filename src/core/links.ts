@@ -1,7 +1,8 @@
 import type {
   NoteDocument,
   ResolvedWikiLink,
-  WikiLinkOccurrence
+  WikiLinkOccurrence,
+  VaultAttachment
 } from '../shared/types'
 import {
   basenameRelative,
@@ -400,6 +401,61 @@ export function resolveIndexedWikiLink(
   }
 
   return { status: 'missing', path: intendedPath, candidates: [] }
+}
+
+interface AttachmentLinkIndex {
+  exactPaths: Map<string, string>
+  uniqueBasenames: Map<string, string | null>
+}
+
+export type IndexedAttachmentLinkResolution =
+  | { status: 'resolved'; path: string }
+  | { status: 'missing'; path: string }
+  | { status: 'ambiguous' }
+  | { status: 'invalid' }
+
+export function buildAttachmentLinkIndex(
+  attachments: readonly VaultAttachment[]
+): AttachmentLinkIndex {
+  const exactPaths = new Map<string, string>()
+  const uniqueBasenames = new Map<string, string | null>()
+
+  for (const attachment of attachments) {
+    exactPaths.set(attachment.path.toLocaleLowerCase(), attachment.path)
+    const basename = basenameRelative(attachment.path).toLocaleLowerCase()
+    uniqueBasenames.set(
+      basename,
+      uniqueBasenames.has(basename) ? null : attachment.path
+    )
+  }
+  return { exactPaths, uniqueBasenames }
+}
+
+export function resolveIndexedAttachmentLink(
+  target: string,
+  index: AttachmentLinkIndex
+): IndexedAttachmentLinkResolution {
+  const attachmentTarget = target.trim().split('#', 1)[0].replaceAll('\\', '/')
+  const validation = validateRelativePath(attachmentTarget)
+  if (!validation.valid || !validation.normalized) {
+    return { status: 'invalid' }
+  }
+
+  const normalized = validation.normalized
+  if (normalized.includes('/')) {
+    const resolvedPath = index.exactPaths.get(normalized.toLocaleLowerCase())
+    return resolvedPath
+      ? { status: 'resolved', path: resolvedPath }
+      : { status: 'missing', path: normalized }
+  }
+
+  const candidate = index.uniqueBasenames.get(normalized.toLocaleLowerCase())
+  if (candidate === null) {
+    return { status: 'ambiguous' }
+  }
+  return candidate
+    ? { status: 'resolved', path: candidate }
+    : { status: 'missing', path: normalized }
 }
 
 function resolvedWikiLink(

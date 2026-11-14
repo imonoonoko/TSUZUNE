@@ -177,7 +177,7 @@ export class PropertyChangesService {
           result.unchanged.push(item.path)
           continue
         }
-        await this.vault.saveNote({
+        await this.vault.saveNoteWithHistory({
           path: item.path,
           content: item.markdown,
           expectedModifiedAt: item.note.modifiedAt,

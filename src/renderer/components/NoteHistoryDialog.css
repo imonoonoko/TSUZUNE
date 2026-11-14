@@ -1,0 +1,7 @@
+:root .note-history-dialog { width: min(1080px, 94vw); max-width: 1080px; max-height: 90vh; overflow: auto; }
+.note-history-path { overflow-wrap: anywhere; }
+.note-history-dialog select { width: 100%; margin-top: 6px; }
+.note-history-content { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.note-history-content label { min-width: 0; }
+.note-history-content textarea { display: block; box-sizing: border-box; width: 100%; min-height: 280px; height: 40vh; resize: vertical; margin-top: 6px; white-space: pre; font-family: var(--font-mono, monospace); font-size: 13px; line-height: 1.6; }
+@media (max-width: 720px) { .note-history-content { grid-template-columns: 1fr; } .note-history-content textarea { height: 25vh; min-height: 140px; } }

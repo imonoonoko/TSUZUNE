@@ -4137,6 +4137,55 @@ describe('App data-loss guards', () => {
     })
   })
 
+  it.each([true, false])('renames a graph image through the file dialog when reference confirmation is %s', async approved => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(approved)
+    const attachment = { path: 'assets/diagram.png', name: 'diagram.png', modifiedAt: 500, createdAt: 400, size: 10 }
+    const initialSnapshot: VaultSnapshot = {
+      ...snapshot,
+      directories: ['', 'assets'],
+      notes: [{ ...noteA, content: '![[assets/diagram.png]]' }, noteB, noteC],
+      attachments: [attachment]
+    }
+    const renamedPath = 'assets/renamed.png'
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok(initialSnapshot))
+    vi.mocked(api.getSnapshot).mockResolvedValue(await ok({
+      ...initialSnapshot,
+      notes: [{ ...noteA, content: '![[assets/renamed.png]]' }, noteB, noteC],
+      attachments: [{ ...attachment, path: renamedPath, name: 'renamed.png' }]
+    }))
+    vi.mocked(api.renameEntry).mockResolvedValue(await ok({ path: renamedPath }))
+
+    render(<App />)
+    fireEvent.click((await screen.findAllByRole('button', { name: 'グラフビュー' }))[0])
+    fireEvent.click(screen.getByRole('button', { name: 'フィルタを開く' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: '添付書類' }))
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'diagram.png（添付書類）を開く' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '新規タブに開く' }))
+    await screen.findByRole('tab', { name: 'diagram.png' })
+    fireEvent.click(screen.getByRole('tab', { name: 'グラフビュー' }))
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'diagram.png（添付書類）を開く' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '名前変更…' }))
+    const dialog = screen.getByRole('dialog', { name: '添付ファイルの名前を変更' })
+    expect((within(dialog).getByRole('textbox', { name: '新しい名前' }) as HTMLInputElement).value).toBe('diagram.png')
+    fireEvent.change(within(dialog).getByRole('textbox', { name: '新しい名前' }), { target: { value: 'renamed.png' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: '名前変更', exact: true }))
+
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1))
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Markdownリンクを更新'))
+    if (approved) {
+      await waitFor(() => expect(api.renameEntry).toHaveBeenCalledWith({ path: attachment.path, newName: 'renamed.png' }))
+      await screen.findByRole('button', { name: 'renamed.png（添付書類）を開く' })
+    } else {
+      expect(api.renameEntry).not.toHaveBeenCalled()
+      expect(api.getSnapshot).not.toHaveBeenCalled()
+    }
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '添付ファイルの名前を変更' })).toBeNull())
+    expect(screen.getByRole('tab', { name: 'グラフビュー' }).getAttribute('aria-selected')).toBe('true')
+    vi.mocked(api.readVaultImage).mockClear()
+    fireEvent.click(screen.getByRole('tab', { name: approved ? 'renamed.png' : 'diagram.png' }))
+    await waitFor(() => expect(api.readVaultImage).toHaveBeenCalledWith(approved ? renamedPath : attachment.path))
+  })
+
   it('moves a file-backed graph node to trash from its context menu', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     vi.mocked(api.openLastVault).mockResolvedValue({

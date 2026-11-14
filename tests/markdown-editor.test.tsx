@@ -4,6 +4,7 @@ import React, { createRef } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EditorView } from '@codemirror/view'
+import { redo, undo } from '@codemirror/commands'
 import { foldEffect, foldedRanges } from '@codemirror/language'
 import MarkdownEditor, { type MarkdownEditorHandle } from '../src/renderer/components/MarkdownEditor'
 
@@ -494,4 +495,42 @@ describe('MarkdownEditor properties', () => {
     fireEvent.click(screen.getByRole('button', { name: 'whenの変更を確定' }))
     expect(onChange).toHaveBeenCalledWith(value.replace('2026-09-30T12:34:56.123+09:00', '2026-10-01T01:02:03.456-04:00'))
   })
+})
+describe('MarkdownEditor footnote edits', () => {
+  it('replaces only the definition in one undo step, with CRLF source offsets and no-op redo preservation', () => {
+    const source = '前文[^a]\r\n\r\n[^a]: 元\r\n    継続\r\n\r\n末尾\r\n'
+    const ref = createRef<MarkdownEditorHandle>(), onChange = vi.fn()
+    const { container } = render(<MarkdownEditor ref={ref} value={source} notePath="A.md" onChange={onChange} />)
+    const view = EditorView.findFromDOM(container.querySelector('.cm-editor') as HTMLElement)!
+    const from = source.indexOf('[^a]:')
+    expect(ref.current!.editFootnote(source, from, '[^a]: 更新\n    複数行')).toBeNull()
+    expect(view.state.doc.toString()).toBe('前文[^a]\n\n[^a]: 更新\n    複数行\n\n末尾\n')
+    undo(view)
+    expect(view.state.doc.toString()).toBe(source.replace(/\r\n/g, '\n'))
+    expect(ref.current!.editFootnote(source, from, '[^a]: 元\r\n    継続')).toBeNull()
+    expect(redo(view)).toBe(true)
+    expect(view.state.doc.toString()).toContain('更新')
+    expect(ref.current!.editFootnote(source, from, '[^a]: 古い')).toBeTruthy()
+  })
+  it('rejects read-only and IME edits and retains invalid source', () => {
+    const source = '本文[^a]\n\n[^a]: 元'
+    const ref = createRef<MarkdownEditorHandle>(), onChange = vi.fn()
+    const { container, rerender } = render(<MarkdownEditor ref={ref} value={source} onChange={onChange} readOnly />)
+    expect(ref.current!.editFootnote(source, source.indexOf('[^a]:'), '[^a]: 更新')).toBeTruthy()
+    rerender(<MarkdownEditor ref={ref} value={source} onChange={onChange} />)
+    fireEvent.compositionStart(container.querySelector('.cm-editor')!)
+    expect(ref.current!.editFootnote(source, source.indexOf('[^a]:'), '[^a]: 更新')).toBeTruthy()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+})
+
+it('maps selection offsets to the original CRLF source without changing its bytes', () => {
+  const source = '# 前文\r\n\r\n抽出したい文。\r\n後文。'
+  const ref = createRef<MarkdownEditorHandle>(), onChange = vi.fn()
+  const { container } = render(<MarkdownEditor ref={ref} value={source} onChange={onChange} />)
+  const view = EditorView.findFromDOM(container.querySelector('.cm-editor') as HTMLElement)!
+  const from = view.state.doc.toString().indexOf('抽出'), to = view.state.doc.toString().indexOf('後文')
+  view.dispatch({ selection: { anchor: from, head: to } })
+  expect(ref.current?.getSelection()).toEqual({ source, range: { from: source.indexOf('抽出'), to: source.indexOf('後文') } })
+  expect(onChange).not.toHaveBeenCalled()
 })

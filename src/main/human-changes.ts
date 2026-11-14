@@ -138,7 +138,7 @@ export class HumanChangesService {
       throw new VaultError({ code: 'INVALID_PATH', message: '一致箇所またはリンク先を確認できません。言及を再検索してください。' })
     const link = `[[${withoutMarkdownExtension(input.targetPath)}|${input.text}]]`
     current()
-    return this.vault.saveNote({ path: note.path, content: note.content.slice(0, candidate.range.from) + link + note.content.slice(candidate.range.to),
+    return this.vault.saveNoteWithHistory({ path: note.path, content: note.content.slice(0, candidate.range.from) + link + note.content.slice(candidate.range.to),
       expectedModifiedAt: note.modifiedAt, expectedContent: note.content })
   }
 }

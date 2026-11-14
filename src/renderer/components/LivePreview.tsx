@@ -8,6 +8,7 @@ import { parseFrontmatter } from '../../core/frontmatter'
 import { resolveNoteNavigation, type NoteNavigationTarget } from '../../core/note-navigation'
 import type { CompiledPathAliases } from '../../core/path-aliases'
 import type { NoteDocument, VaultAttachment } from '../../shared/types'
+import { markdownTables } from '../../core/markdown-table'
 import MarkdownPreview from './MarkdownPreview'
 import { markdownMathRanges } from '../markdown-math'
 import type { VaultEmbedContext } from './VaultEmbed'
@@ -20,11 +21,12 @@ export interface LivePreviewContext {
   onNavigate?: (target: NoteNavigationTarget) => void
   onWikiLink?: (target: string) => void
   embedContext?: VaultEmbedContext
+  onEditTable?: (offset: number) => void
   isComposing: () => boolean
   editorLinkHover?: boolean
 }
 
-interface PreviewBlock { from: number; to: number; markdown: string }
+interface PreviewBlock { from: number; to: number; markdown: string; table: boolean }
 
 export const refreshLivePreview = StateEffect.define<void>()
 
@@ -37,8 +39,8 @@ function blocks(state: EditorState): PreviewBlock[] {
   const isList = (line: string): boolean => /^ {0,3}(?:[-+*]|\d+[.)])[ \t]+/.test(line)
   const isHeading = (line: string): boolean => /^ {0,3}#{1,6}(?:[ \t]+|$)/.test(line)
   const isFence = (line: string): RegExpExecArray | null => /^ {0,3}(`{3,}|~{3,})/.exec(line)
-  const isTableRule = (line: string): boolean => /^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line)
   const content = (index: number): string => lines[index] ? text.slice(lines[index].from, lines[index].to) : ''
+  const tableEnds = new Map(markdownTables(text).map(table => [state.doc.lineAt(table.from).number - 1, state.doc.lineAt(table.to).number]))
   const mathEnds = new Map(markdownMathRanges(text.slice(bodyStart)).filter(range => range.display).map(range => [
     state.doc.lineAt(bodyStart + range.from).number - 1,
     state.doc.lineAt(bodyStart + range.to).number
@@ -67,9 +69,8 @@ function blocks(state: EditorState): PreviewBlock[] {
       const close = new RegExp(`^ {0,3}${marker === '`' ? '`' : '~'}{${fence[1].length},}[ \\t]*$`)
       while (index < lines.length && !close.test(content(index))) index += 1
       if (index < lines.length) index += 1
-    } else if (index + 1 < lines.length && first.includes('|') && isTableRule(content(index + 1))) {
-      index += 2
-      while (index < lines.length && content(index).trim() && content(index).includes('|')) index += 1
+    } else if (tableEnds.has(index)) {
+      index = tableEnds.get(index)!
     } else if (/^ {0,3}>/.test(first)) {
       index = quoteEnds.get(index) ?? index + 1
     } else if (isList(first)) {
@@ -86,14 +87,14 @@ function blocks(state: EditorState): PreviewBlock[] {
       index += 1
     } else {
       index += 1
-      while (index < lines.length && !mathEnds.has(index) && content(index).trim() && !isHeading(content(index)) && !isFence(content(index)) &&
+      while (index < lines.length && !tableEnds.has(index) && !mathEnds.has(index) && content(index).trim() && !isHeading(content(index)) && !isFence(content(index)) &&
         !/^ {0,3}>/.test(content(index)) && !isList(content(index))) index += 1
     }
     const markdown = text.slice(lines[start].from, lines[index - 1].to)
     // Footnotes depend on document-wide numbering/backrefs. Keep them editable
     // until widgets can share that state without duplicating footnote sections.
     if (/\[\^[^\]\r\n]+\]/.test(markdown)) continue
-    output.push({ from: lines[start].from, to: lines[index - 1].to,
+    output.push({ table: tableEnds.has(start), from: lines[start].from, to: lines[index - 1].to,
       markdown: definitions.length ? `${definitions.join('\n\n')}\n\n${markdown}` : markdown })
   }
   return output
@@ -118,7 +119,7 @@ class PreviewWidget extends WidgetType {
       view.focus()
     }
     host.addEventListener('pointerdown', event => {
-      if (event.target instanceof Element && event.target.closest('summary.callout-title, .mermaid-diagram, .note-embed, .media-player, .media-link-content')) return
+      if (event.target instanceof Element && event.target.closest('summary.callout-title, .mermaid-diagram, .note-embed, .media-player, .media-link-content, .ts-table-edit')) return
       if (!event.ctrlKey && !event.metaKey) reveal()
     }, true)
     host.addEventListener('click', event => {
@@ -162,9 +163,11 @@ class PreviewWidget extends WidgetType {
       if (this.destroyed || !this.root) return
       const ctx = this.context()
       flushSync(() => this.root?.render(
-        <MarkdownPreview content={this.block.markdown} notePath={ctx.notePath} attachments={ctx.attachments}
+        <><MarkdownPreview content={this.block.markdown} notePath={ctx.notePath} attachments={ctx.attachments}
           sourceContent={view.state.doc.toString()} notes={ctx.notes} pathAliases={ctx.pathAliases}
           embedContext={ctx.embedContext} onNavigate={() => {}} onWikiLink={() => {}} editorLinkHover={ctx.editorLinkHover} />
+        {this.block.table && ctx.onEditTable && !view.state.readOnly && <button type="button" className="ts-table-edit"
+          onClick={() => this.context().onEditTable?.(view.posAtDOM(host))}>この表を編集</button>}</>
       ))
       host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach(input => { input.disabled = true })
       view.requestMeasure()
@@ -200,7 +203,7 @@ export function livePreviewExtension(context: () => LivePreviewContext): Extensi
     constructor(view: EditorView) { this.decorations = decorations(view, context) }
     update(update: ViewUpdate): void {
       const refresh = update.transactions.some(transaction => transaction.effects.some(effect => effect.is(refreshLivePreview)))
-      if (!context().isComposing() && (update.docChanged || update.selectionSet || refresh)) {
+      if (!context().isComposing() && (update.docChanged || update.selectionSet || update.startState.readOnly !== update.state.readOnly || refresh)) {
         this.decorations = decorations(update.view, context)
       }
     }
