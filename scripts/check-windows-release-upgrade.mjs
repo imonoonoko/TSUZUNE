@@ -163,8 +163,8 @@ try {
 
   const signatures = {}
   for (const [key, path] of Object.entries({ installer: join('dist', installer), app: binary })) {
-    const { stdout } = await exec('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-      '(Get-AuthenticodeSignature -LiteralPath $env:TSUZUNE_VERIFY_SIGNATURE_PATH).Status.ToString()'],
+    const { stdout } = await exec('pwsh.exe', ['-NoProfile', '-NonInteractive', '-Command',
+      "$ErrorActionPreference = 'Stop'; (Get-AuthenticodeSignature -LiteralPath $env:TSUZUNE_VERIFY_SIGNATURE_PATH).Status.ToString()"],
       { env: { ...process.env, TSUZUNE_VERIFY_SIGNATURE_PATH: path } })
     signatures[key] = stdout.trim()
     assert.ok(['Valid', 'NotSigned'].includes(signatures[key]), signatures[key])
