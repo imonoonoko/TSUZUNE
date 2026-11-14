@@ -19,6 +19,8 @@ jobs:
           node-version: 24
       - run: npm ci
       - run: npm run pack:win -- --publish never
+      - name: Prepare the stock Electron icon reference
+        run: npm exec --no -- install-electron
       - run: npm run check:installer
       - run: npm run check:packaged
       - name: Exercise v0.6.0 in-app update
