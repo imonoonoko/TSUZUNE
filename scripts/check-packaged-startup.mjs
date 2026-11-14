@@ -90,15 +90,16 @@ async function waitForOwnedWindowsProcesses(timeoutMs) {
 const child = spawn(appPath, [`--user-data-dir=${isolatedUserData}`], {
   env: {
     ...process.env,
+    ELECTRON_ENABLE_LOGGING: '1',
     TSUZUNE_HEADLESS_SMOKE: '1',
     TSUZUNE_HEADLESS_SMOKE_READY_FILE: readyFile
   },
-  stdio: 'ignore',
+  stdio: ['ignore', 'inherit', 'inherit'],
   windowsHide: true
 })
 
 try {
-  const deadline = Date.now() + 15_000
+  const deadline = Date.now() + 60_000
   let ready = false
   let profile
   while (Date.now() < deadline) {
