@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import FootnotesPanel from './FootnotesPanel'
+import { markdownFootnotes } from '../../core/markdown-footnotes'
+import { useMemo, useState } from 'react'
 import type { NoteDocument, ResolvedWikiLink } from '../../shared/types'
 import type { MarkdownHeading } from '../../core/markdown-headings'
 import type { ResolvedNoteLink } from '../../core/links'
@@ -10,13 +12,19 @@ interface RelatedNotesProps {
   selectedNoteName?: string
   headings?: MarkdownHeading[]
   onHeadingSelect?: (heading: MarkdownHeading) => void
+  footnoteSource?: string
+  footnoteDocumentKey?: string
+  footnoteDisabledReason?: string
+  onFootnoteSelect?: (source: string, from: number, to: number) => void
+  onFootnoteApply?: (source: string, from: number, replacement: string) => string | null
+  onFootnoteEditingChange?: (editing: boolean) => void
   activeTab?: ContextTab
   onActiveTabChange?: (tab: ContextTab) => void
   onOpen: (path: string) => void
   onMissing: (target: string) => void
 }
 
-const contextTabs = ['outline', 'links', 'backlinks', 'temporal'] as const
+const contextTabs = ['outline', 'links', 'backlinks', 'temporal', 'footnotes'] as const
 export type ContextTab = (typeof contextTabs)[number]
 
 function Section({
@@ -43,6 +51,12 @@ export default function RelatedNotes({
   selectedNoteName,
   headings = [],
   onHeadingSelect = () => undefined,
+  footnoteSource = '',
+  footnoteDocumentKey = '',
+  footnoteDisabledReason,
+  onFootnoteSelect = () => undefined,
+  onFootnoteApply = () => '本文を編集できません。',
+  onFootnoteEditingChange,
   activeTab: controlledActiveTab,
   onActiveTabChange,
   onOpen,
@@ -50,6 +64,7 @@ export default function RelatedNotes({
 }: RelatedNotesProps): React.JSX.Element {
   const [uncontrolledActiveTab, setUncontrolledActiveTab] = useState<ContextTab>('links')
   const activeTab = controlledActiveTab ?? uncontrolledActiveTab
+  const footnoteCount = useMemo(() => markdownFootnotes(footnoteSource).length, [footnoteSource])
   const resolved = outgoing.filter((link) => link.status === 'resolved')
   const missing = outgoing.filter((link) => link.status === 'missing')
   const ambiguous = outgoing.filter((link) => link.status === 'ambiguous')
@@ -154,9 +169,18 @@ export default function RelatedNotes({
           >
             時間
           </button>
+          <button type="button" id="context-tab-footnotes" className="related-panel-tab" role="tab"
+            aria-label={`脚注 ${footnoteCount}件`} aria-selected={activeTab === 'footnotes'} aria-controls="context-panel-footnotes"
+            tabIndex={activeTab === 'footnotes' ? 0 : -1} onClick={() => selectTab('footnotes')} onKeyDown={selectTabFromKeyboard}>
+            脚注 <span aria-hidden="true">{footnoteCount}</span>
+          </button>
         </div>
       </div>
 
+      <div id="context-panel-footnotes" className="related-tab-panel" role="tabpanel" aria-labelledby="context-tab-footnotes" hidden={activeTab !== 'footnotes'}>
+        <FootnotesPanel source={footnoteSource} documentKey={footnoteDocumentKey} disabledReason={footnoteDisabledReason}
+          onSelect={onFootnoteSelect} onApply={onFootnoteApply} onEditingChange={onFootnoteEditingChange} />
+      </div>
       <div id="context-panel-outline" className="related-tab-panel" role="tabpanel"
         aria-labelledby="context-tab-outline" hidden={activeTab !== 'outline'}>
         <Section title="アウトライン" empty={headings.length === 0}>
@@ -185,6 +209,7 @@ export default function RelatedNotes({
                 type="button"
                 className="related-link"
                 key={`resolved:${link.target}`}
+                data-note-preview-path={link.resolvedPath}
                 onClick={() => link.resolvedPath && onOpen(link.resolvedPath)}
               >
                 {link.alias ?? link.target}
@@ -248,6 +273,7 @@ export default function RelatedNotes({
                 type="button"
                 className="related-link"
                 key={note.path}
+                data-note-preview-path={note.path}
                 onClick={() => onOpen(note.path)}
               >
                 {note.name}

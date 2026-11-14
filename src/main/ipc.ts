@@ -7,7 +7,7 @@ import {
   shell,
   type IpcMainInvokeEvent
 } from 'electron'
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { isAbsolute, resolve } from 'node:path'
 import type {
   AppError,
@@ -47,11 +47,26 @@ import { parseHotkeySettings } from '../shared/hotkeys'
 import { PropertyTypeSettingsService } from './property-type-settings'
 import { PropertyChangesService } from './property-changes'
 import { HumanChangesService } from './human-changes'
+import { NoteComposerService } from './note-composer'
+import type { NoteComposeApplyInput, NoteComposeInput } from '../shared/note-composer'
+import type { ReadNoteVersionInput, RestoreNoteVersionInput } from '../shared/note-history'
+import { isSupportedAttachmentPath } from '../shared/attachments'
+import { ImporterService } from './importer'
+import type { CanvasCreateInput, CanvasSaveInput } from '../shared/canvas'
+import type { ImportPreviewInput, ImportReadRequest, ImportSelectedFile } from '../shared/importer'
 import type { PropertyChangeScope, PropertyDeclaredType, PropertyPreviewInput, PropertyApplyInput } from '../shared/property-changes'
 import { VaultError, VaultService } from './vault'
+import { packStartupSnapshot } from './startup-snapshot'
 import { WorkspaceService } from './workspaces'
 import type { WorkspaceScope, WorkspaceSnapshotV1 } from '../shared/workspace-state'
 import { EntryMoveCoordinator } from './entry-move'
+import { CanvasPngExportService } from './canvas-png'
+import { PdfExportService } from './pdf-export'
+import { VaultMedia } from './media-protocol'
+import type { PdfExportOptions } from '../shared/pdf-export'
+import { KanbanFolderMoveService } from './kanban-folder-move'
+import type { CanvasPngExportOptions } from '../shared/canvas-png'
+import type { KanbanFolderMoveApplyInput, KanbanFolderMoveInput } from '../shared/kanban-folder-move'
 import { VaultWatcher } from './watcher'
 import type { GoogleConnectionService } from './google-connection'
 import { listObsidianPluginCandidates } from './obsidian-plugins'
@@ -227,7 +242,8 @@ export function registerIpc(
   getWindow: () => BrowserWindow | null,
   confirmClose: (allow: boolean) => void,
   openVaultFileWindow?: (path: string) => Promise<void>,
-  entryMoveOverride?: EntryMoveCoordinator
+  entryMoveOverride?: EntryMoveCoordinator,
+  media = new VaultMedia(vault)
 ): void {
   const isTrusted = (event: IpcMainInvokeEvent): boolean =>
     trustedSender(event, getWindow)
@@ -251,8 +267,37 @@ export function registerIpc(
     entryMoveOverride ?? new EntryMoveCoordinator({ vault, drive: google.driveSync })
   const workspaces = new WorkspaceService(vault)
   const propertyTypes = new PropertyTypeSettingsService(vault)
+  const canvasPng = new CanvasPngExportService(getWindow)
+  const pdfExport = new PdfExportService(getWindow)
+  const kanbanFolderMoves = new KanbanFolderMoveService(vault, entryMove,
+    async () => (await readSettings()).userIgnoreFilters, scope => propertyTypes.get(scope))
+  registerConcurrentTrusted('note:exportPdf', (input: PdfExportOptions) => pdfExport.export(input))
+  registerConcurrentTrusted('canvas:exportPng', (input: CanvasPngExportOptions) => canvasPng.export(input))
+  registerTrusted('kanban:folderMovePreview', (input: KanbanFolderMoveInput) => kanbanFolderMoves.preview(input))
+  registerTrusted('kanban:folderMoveApply', (input: KanbanFolderMoveApplyInput) => runGoogleInOrder(() => kanbanFolderMoves.apply(input)))
   const propertyChanges = new PropertyChangesService(vault, async () => (await readSettings()).userIgnoreFilters)
+  const noteComposer = new NoteComposerService(vault, async () => (await readSettings()).userIgnoreFilters, undefined, async () => {
+    const settings = await readSettings()
+    return { directory: settings.templateDirectory, includeBuiltIns: settings.showBuiltInTemplates }
+  })
+  registerTrusted('note:composePreview', (input: NoteComposeInput) => noteComposer.preview(input))
+  registerTrusted('note:composeApply', (input: NoteComposeApplyInput) => runGoogleInOrder(async () => {
+    const result = await noteComposer.apply(input)
+    google.autoSync?.notifyLocalChange()
+    return result
+  }))
   const humanChanges = new HumanChangesService(vault, async () => (await readSettings()).userIgnoreFilters)
+  const importer = new ImporterService(vault, async () => (await readSettings()).userIgnoreFilters)
+  const importFailure = (error: unknown): never => {
+    if (error instanceof VaultError) throw error
+    throw new VaultError({ code: 'UNKNOWN', message: '取り込みに失敗しました。元ファイルと保存先を確認し、再度プレビューしてください。' })
+  }
+  registerTrusted('importer:readSource', (request: ImportReadRequest, files: ImportSelectedFile[]) =>
+    importer.read(request, files).catch(importFailure))
+  registerTrusted('importer:preview', (input: ImportPreviewInput) => importer.preview(input).catch(importFailure))
+  registerTrusted('importer:apply', (input: { scope: PropertyChangeScope; planId: string }) =>
+    runGoogleInOrder(() => importer.apply(input)).catch(importFailure))
+  registerTrusted('importer:discard', (token: string) => importer.discard(token).catch(importFailure))
   registerTrusted('bases:preview', (input: import('../shared/base-changes').BaseChangeInput) => humanChanges.previewBase(input))
   registerTrusted('bases:apply', (input: import('../shared/base-changes').BaseChangeInput) => humanChanges.applyBase(input))
   registerTrusted('mentions:link', (input: import('../shared/mention-changes').MentionChangeInput) => humanChanges.linkMention(input))
@@ -304,6 +349,7 @@ export function registerIpc(
       await watcher.stop()
       await vault.setRootPath(rootPath)
       await entryMove.recover()
+      await noteComposer.recover()
       const snapshot = await vault.scan()
       await watcher.start(rootPath)
       settingsAttempted = true
@@ -340,7 +386,7 @@ export function registerIpc(
     }
   })
 
-  registerTrusted('vault:openLast', async () => {
+  const openLastVault = async () => {
     const settings = await readSettings()
     if (!settings.lastVaultPath) {
       return null
@@ -349,9 +395,14 @@ export function registerIpc(
     try {
       await vault.setRootPath(settings.lastVaultPath)
       await entryMove.recover()
+      await noteComposer.recover()
       await watcher.start(settings.lastVaultPath)
       return await vault.scan()
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('RECOVERY_REQUIRED')) {
+        await watcher.stop().catch(() => undefined)
+        throw error
+      }
       vault.clearRootPath()
       await watcher.stop()
       await updateSettings({
@@ -360,11 +411,46 @@ export function registerIpc(
       })
       return null
     }
-  })
+  }
 
+  registerTrusted('vault:openLast', openLastVault)
+  registerTrusted('vault:openLastStartup', async () => {
+    const snapshot = await openLastVault()
+    return snapshot ? packStartupSnapshot(snapshot) : null
+  })
   registerTrusted('vault:snapshot', () => vault.scan())
   registerTrusted('vault:readNote', (path: string) => vault.readNote(path))
-  registerTrusted('vault:readBase', (path: string) => vault.readBase(path))
+  registerTrusted('vault:readBase', async (path: string, expectedVaultPath?: string) => {
+    const root = vault.getRootPath()
+    const revision = vault.getRootRevision()
+    const assertScope = (): void => {
+      if (expectedVaultPath !== undefined && (!root || root !== expectedVaultPath ||
+        vault.getRootPath() !== root || vault.getRootRevision() !== revision)) {
+        throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+      }
+    }
+    assertScope()
+    const document = await vault.readBase(path)
+    assertScope()
+    return document
+  })
+  registerTrusted('vault:createBase', (path: string, expectedVaultPath: string) => {
+    const revision = vault.getRootRevision()
+    return runGoogleInOrder(() => {
+      if (typeof path !== 'string' || !expectedVaultPath || vault.getRootPath() !== expectedVaultPath ||
+          vault.getRootRevision() !== revision) {
+        throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。もう一度作成してください。' })
+      }
+      return vault.createBase(path, 'views:\n  - type: table\n    name: 一覧\n')
+    })
+  })
+  registerTrusted('canvas:list', async (expectedVaultPath: string) =>
+    vault.listCanvases(expectedVaultPath, (await readSettings()).userIgnoreFilters))
+  registerTrusted('canvas:read', (path: string, expectedVaultPath: string) => vault.readCanvas(path, expectedVaultPath))
+  registerTrusted('canvas:create', (input: CanvasCreateInput) =>
+    runGoogleInOrder(() => vault.createCanvas(input)))
+  registerTrusted('canvas:save', (input: CanvasSaveInput) =>
+    runGoogleInOrder(() => vault.saveCanvas(input)))
   registerTrusted('vault:listBases', async (expectedVaultPath: string) => {
     if (
       typeof expectedVaultPath !== 'string' ||
@@ -391,6 +477,8 @@ export function registerIpc(
     return vault.listBases(expectedVaultPath, settings.userIgnoreFilters)
   })
   registerTrusted('vault:readImage', (path: string) => vault.readImageDataUrl(path))
+  registerConcurrentTrusted('vault:readPdf', (path: string, expectedRoot?: string) => vault.readPdfBytes(path, expectedRoot))
+  registerTrusted('vault:mediaUrl', (path: string, expectedVaultPath?: string) => media.getUrl(path, expectedVaultPath))
   registerTrusted('settings:get', () => readSettings())
   registerTrusted('workspaces:get', (expectedVaultPath: string) =>
     workspaces.getWorkspaces(expectedVaultPath)
@@ -443,7 +531,7 @@ export function registerIpc(
   )
 
   registerTrusted('note:save', async (input: SaveNoteInput) => {
-    const saved = await vault.saveNote(input)
+    const saved = await vault.saveNoteWithHistory(input)
     watcher.expectOwnWrite(
       input.path,
       input.content,
@@ -452,6 +540,15 @@ export function registerIpc(
     )
     google.autoSync?.notifyLocalChange()
     return saved
+  })
+
+  registerTrusted('note:history', (path: string, expectedRoot: string) => vault.getNoteHistory(path, expectedRoot))
+  registerTrusted('note:version', (input: ReadNoteVersionInput) => vault.getNoteVersion(input))
+  registerTrusted('note:restoreVersion', async (input: RestoreNoteVersionInput) => {
+    const restored = await vault.restoreNoteVersion(input)
+    watcher.expectOwnWrite(restored.path, restored.content, restored.modifiedAt, restored.size)
+    google.autoSync?.notifyLocalChange()
+    return restored
   })
 
   registerTrusted('entry:createNote', async (input: CreateNoteInput) => {
@@ -502,7 +599,7 @@ export function registerIpc(
   })
 
   registerTrusted('entry:rename', async (input: RenameEntryInput) => {
-    if (input.path.toLocaleLowerCase().endsWith('.md')) {
+    if (input.path.toLocaleLowerCase().endsWith('.md') || isSupportedAttachmentPath(input.path)) {
       const destination = vault.resolveMarkdownRenameDestination(input)
       const plan = await entryMove.preflight(input.path, destination, 'human')
       const moved = await runGoogleInOrder(() =>
@@ -533,7 +630,8 @@ export function registerIpc(
   })
 
   registerTrusted('entry:moveEntry', async (input: MoveEntryInput) => {
-    if (input.path.toLocaleLowerCase().endsWith('.md')) {
+    if (input.path.toLocaleLowerCase().endsWith('.md') &&
+        (await stat(await vault.resolveEntryForReveal(input.path))).isFile()) {
       const destination = await vault.resolveMoveDestination(input)
       const plan = await entryMove.preflight(input.path, destination, 'human')
       const moved = await runGoogleInOrder(() =>
@@ -735,8 +833,16 @@ export function registerIpc(
     return null
   })
 
-  registerTrusted('system:openVaultFile', async (path: string) => {
+  registerTrusted('system:openVaultFile', async (path: string, expectedVaultPath?: string) => {
+    const revision = expectedVaultPath === undefined ? undefined : vault.getRootRevision()
+    const ensureCurrentVault = (): void => {
+      if (expectedVaultPath !== undefined && (vault.getRootPath() !== expectedVaultPath || vault.getRootRevision() !== revision)) {
+        throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+      }
+    }
+    ensureCurrentVault()
     const absolutePath = await vault.resolveFileForOpen(path)
+    ensureCurrentVault()
     const error = await shell.openPath(absolutePath)
     if (error) {
       throw new VaultError({

@@ -78,6 +78,7 @@ interface WikiGraphViewProps {
   onOpenLinkedView?: (path: string) => void
   onRevealInFolder?: (path: string) => void
   onMove?: (path: string) => void
+  onRenameAttachment?: (path: string) => void
   bookmarkedPaths?: ReadonlySet<string>
   onBookmark?: (path: string) => void
   onCopyPath?: (path: string, format: CopyPathFormat) => void
@@ -258,6 +259,7 @@ export default function WikiGraphView({
   onOpenLinkedView,
   onRevealInFolder,
   onMove,
+  onRenameAttachment,
   bookmarkedPaths = new Set(),
   onBookmark,
   onCopyPath,
@@ -1771,6 +1773,12 @@ export default function WikiGraphView({
                       >
                         ファイルを移動…
                       </button>
+                      {nodeContextMenu.node.kind === 'attachment' && onRenameAttachment && (
+                        <button type="button" role="menuitem" onClick={() => {
+                          onRenameAttachment(nodeContextMenu.node.path)
+                          setNodeContextMenu(null)
+                        }}>名前変更…</button>
+                      )}
                       <button
                         type="button"
                         role="menuitem"

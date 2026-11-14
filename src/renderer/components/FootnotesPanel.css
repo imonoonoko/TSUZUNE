@@ -1,0 +1,13 @@
+.footnotes-list { display: grid; gap: 12px; }
+.footnote-item { min-width: 0; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.footnote-item > header, .footnote-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.footnote-item > header { justify-content: space-between; font-size: 12px; }
+.footnote-item pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.footnote-actions button { min-height: 30px; font-size: 12px; }
+.footnote-dialog { width: min(650px, 94vw); max-width: 96vw; max-height: 90vh; overflow: auto; padding: 18px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--paper); }
+.footnote-dialog::backdrop { background: rgb(25 23 19 / 45%); }
+.footnote-dialog > header, .footnote-dialog > footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.footnote-dialog h2 { margin: 0; font-size: 18px; }
+.footnote-dialog p, .footnote-dialog label { font-size: 13px; }
+.footnote-dialog textarea { display: block; box-sizing: border-box; margin-top: 8px; width: 100%; min-height: 180px; max-height: 50vh; resize: vertical; font-family: monospace; }
+.footnote-dialog > footer { justify-content: flex-end; margin-top: 16px; }

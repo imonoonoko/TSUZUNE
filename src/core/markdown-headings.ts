@@ -1,4 +1,5 @@
 import { parseFrontmatter } from './frontmatter'
+import { commonmarkLanguage } from '@codemirror/lang-markdown'
 
 export interface MarkdownHeading {
   id: string
@@ -9,40 +10,33 @@ export interface MarkdownHeading {
   sourceOffset: number
 }
 
-interface Fence {
-  marker: '`' | '~'
-  length: number
-}
-
 export function extractMarkdownHeadings(markdown: string): MarkdownHeading[] {
   const frontmatter = parseFrontmatter(markdown)
   const hasValidFrontmatter = frontmatter.found && frontmatter.warnings.length === 0
   const body = hasValidFrontmatter ? frontmatter.body : markdown
   const bodyOffset = hasValidFrontmatter ? markdown.length - body.length : 0
   const headings: MarkdownHeading[] = []
-  let fence: Fence | null = null
+  const excluded: { from: number; to: number }[] = []
+  let excludedIndex = 0
+  // Lezer expects the normalized lines supplied by CodeMirror; keep raw offsets for callers.
+  commonmarkLanguage.parser.parse(body.replace(/\r\n/g, '\n')).iterate({ enter(node) {
+    if (['FencedCode', 'CodeBlock', 'Comment', 'CommentBlock', 'HTMLBlock'].includes(node.name)) {
+      excluded.push({ from: node.from, to: node.to })
+      return false
+    }
+  } })
   let sourceOffset = bodyOffset
+  let syntaxOffset = 0
   let line = hasValidFrontmatter ? markdown.slice(0, bodyOffset).split(/\r?\n/).length : 1
   let previewLine = 1
   let setextCandidate: { title: string; line: number; previewLine: number; sourceOffset: number } | null = null
 
   for (const rawLine of body.split(/\r?\n/)) {
     const syntaxLine = sourceOffset === 0 ? rawLine.replace(/^\uFEFF/, '') : rawLine
-    const fenceMatch = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(syntaxLine)
-
-    if (fence) {
+    while (excludedIndex < excluded.length && excluded[excludedIndex].to <= syntaxOffset) excludedIndex++
+    const range = excluded[excludedIndex]
+    if (range && syntaxOffset >= range.from) {
       setextCandidate = null
-      if (
-        fenceMatch &&
-        fenceMatch[1][0] === fence.marker &&
-        fenceMatch[1].length >= fence.length &&
-        fenceMatch[2].trim() === ''
-      ) {
-        fence = null
-      }
-    } else if (fenceMatch) {
-      setextCandidate = null
-      fence = { marker: fenceMatch[1][0] as '`' | '~', length: fenceMatch[1].length }
     } else {
       const setextMatch = /^ {0,3}(=+|-+)[ \t]*$/.exec(syntaxLine)
       if (setextMatch && setextCandidate) {
@@ -74,6 +68,7 @@ export function extractMarkdownHeadings(markdown: string): MarkdownHeading[] {
     }
 
     sourceOffset += rawLine.length + (sourceOffset + rawLine.length < markdown.length ? (markdown[sourceOffset + rawLine.length] === '\r' ? 2 : 1) : 0)
+    syntaxOffset += rawLine.length + 1
     line += 1
     previewLine += 1
   }

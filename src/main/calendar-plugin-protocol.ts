@@ -59,9 +59,12 @@ export async function planCalendarPluginRoute(requestUrl: string, vaultRoot: str
   return error(404)
 }
 
-export function registerCalendarPluginSchemeAsPrivileged(): void {
+export function registerVaultSchemesAsPrivileged(mediaScheme: string): void {
   if (registered) return
-  protocol.registerSchemesAsPrivileged([{ scheme: CALENDAR_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: false } }])
+  protocol.registerSchemesAsPrivileged([
+    { scheme: CALENDAR_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: false } },
+    { scheme: mediaScheme, privileges: { standard: true, secure: true, stream: true } }
+  ])
   registered = true
 }
 

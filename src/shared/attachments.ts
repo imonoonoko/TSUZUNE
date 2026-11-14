@@ -12,6 +12,7 @@ export const SUPPORTED_ATTACHMENT_EXTENSIONS: ReadonlySet<string> = new Set([
   '.wav',
   '.m4a',
   '.ogg',
+  '.weba',
   '.mp4',
   '.webm',
   '.mov',
@@ -27,4 +28,16 @@ export function isSupportedAttachmentPath(path: string): boolean {
   return SUPPORTED_ATTACHMENT_EXTENSIONS.has(
     fileName.slice(dotIndex).toLocaleLowerCase()
   )
+}
+
+const MEDIA_TYPES: Record<string, string> = {
+  mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', ogg: 'audio/ogg', weba: 'audio/webm',
+  mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', mkv: 'video/x-matroska'
+}
+
+export function mediaMimeType(path: string): string | null {
+  const name = path.split(/[\\/]/).at(-1) ?? ''
+  const dot = name.lastIndexOf('.')
+  const extension = dot > 0 ? name.slice(dot + 1).toLowerCase() : ''
+  return Object.hasOwn(MEDIA_TYPES, extension) ? MEDIA_TYPES[extension] : null
 }

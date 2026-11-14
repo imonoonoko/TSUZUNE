@@ -6,6 +6,7 @@ import { listHeadingSlugs, resolveHeadingSlug } from './note-navigation'
 
 export type BookmarkTarget =
   | { status: 'resolved'; type: 'file'; path: string }
+  | { status: 'resolved'; type: 'folder'; path: string }
   | { status: 'resolved'; type: 'heading'; path: string; headingId: string }
   | { status: 'resolved'; type: 'search'; query: string }
   | { status: 'stale'; reason: string; rootPath?: string }
@@ -18,9 +19,17 @@ export function resolveBookmarkTarget(
   bookmark: VaultBookmark,
   notes: readonly NoteDocument[],
   attachments: readonly VaultAttachment[] = [],
-  aliases?: CompiledPathAliases
+  aliases?: CompiledPathAliases,
+  directories: readonly string[] = []
 ): BookmarkTarget {
   if (bookmark.type === 'search') return { status: 'resolved', type: 'search', query: bookmark.query }
+  if (bookmark.type === 'folder') {
+    const requested = bookmark.path.toLocaleLowerCase()
+    const path = directories.find(directory => directory && directory.toLocaleLowerCase() === requested)
+    return path
+      ? { status: 'resolved', type: 'folder', path }
+      : { status: 'stale', reason: `フォルダー「${bookmark.path}」が見つかりません。` }
+  }
   const requested = aliases && /\.md$/i.test(bookmark.path)
     ? resolvePathAlias(aliases, bookmark.path) : bookmark.path
   const path = [...notes, ...attachments].find(item => item.path.toLocaleLowerCase() === requested.toLocaleLowerCase())?.path

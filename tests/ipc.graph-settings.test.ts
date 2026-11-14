@@ -617,6 +617,30 @@ describe('graph settings IPC', () => {
     })
   })
 
+  it('moves a folder whose name ends in .md as a directory', async () => {
+    const root = join(electron.appData, 'vault')
+    await mkdir(join(root, 'Folder.md'), { recursive: true })
+    await mkdir(join(root, 'Archive'))
+    const vault = new VaultService()
+    await vault.setRootPath(root)
+    const mainFrame = {}
+    const webContents = { mainFrame }
+    registerIpc(
+      vault,
+      {} as never,
+      { connection: {} as never, driveSync: {} as never },
+      {} as never,
+      () => ({ webContents }) as never,
+      () => undefined
+    )
+    const handler = electron.handlers.get('entry:moveEntry')!
+
+    await expect(handler({ sender: webContents, senderFrame: mainFrame }, {
+      path: 'Folder.md', destinationDirectory: 'Archive', destinationPath: 'Archive/Folder.md'
+    })).resolves.toEqual({ ok: true, value: { oldPath: 'Folder.md', path: 'Archive/Folder.md' } })
+    expect((await vault.scan()).directories).toContain('Archive/Folder.md')
+  })
+
   it('returns the shared move coordinator failure to the renderer', async () => {
     const mainFrame = {}
     const webContents = { mainFrame }

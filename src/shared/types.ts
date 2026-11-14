@@ -78,6 +78,8 @@ export interface VaultSnapshot {
   pathAliases?: Record<string, string>
 }
 
+export type StartupSnapshot = VaultSnapshot | { encoding: 'gzip-base64'; data: string }
+
 export interface SaveNoteInput {
   path: string
   content: string
@@ -356,6 +358,7 @@ export interface TsuzuneApi {
   applyPropertyChanges(input: import('./property-changes').PropertyApplyInput): Promise<Result<import('./property-changes').PropertyApplyResult>>
   chooseVault(): Promise<Result<VaultSnapshot | null>>
   openLastVault(): Promise<Result<VaultSnapshot | null>>
+  openLastVaultStartup?(): Promise<Result<StartupSnapshot | null>>
   getSettings(): Promise<Result<AppSettings>>
   getWorkspaces(expectedVaultPath: string): Promise<Result<WorkspaceCollection>>
   saveWorkspace(
@@ -376,14 +379,34 @@ export interface TsuzuneApi {
   getCalendarPluginStatus(): Promise<Result<CalendarPluginRuntimeStatus>>
   getSnapshot(): Promise<Result<VaultSnapshot>>
   readNote(path: string): Promise<Result<NoteDocument>>
-  readBase(path: string): Promise<Result<BaseDocument>>
+  readBase(path: string, expectedVaultPath?: string): Promise<Result<BaseDocument>>
+  createBase(path: string, expectedVaultPath: string): Promise<Result<BaseDocument>>
   listBases(expectedVaultPath: string): Promise<Result<string[]>>
+  listCanvases(expectedVaultPath: string): Promise<Result<string[]>>
+  readCanvas(path: string, expectedVaultPath: string): Promise<Result<import('./canvas').CanvasDocument>>
+  createCanvas(input: import('./canvas').CanvasCreateInput): Promise<Result<import('./canvas').CanvasDocument>>
+  saveCanvas(input: import('./canvas').CanvasSaveInput): Promise<Result<import('./canvas').CanvasDocument>>
+  exportNotePdf(input: import('./pdf-export').PdfExportOptions): Promise<Result<import('./pdf-export').PdfExportResult>>
+  exportCanvasPng(input: import('./canvas-png').CanvasPngExportOptions): Promise<Result<import('./canvas-png').CanvasPngExportResult>>
+  previewKanbanFolderMove(input: import('./kanban-folder-move').KanbanFolderMoveInput): Promise<Result<import('./kanban-folder-move').KanbanFolderMovePreview>>
+  applyKanbanFolderMove(input: import('./kanban-folder-move').KanbanFolderMoveApplyInput): Promise<Result<{ oldPath: string; path: string }>>
+  readImportSource(request: import('./importer').ImportReadRequest, files: File[]): Promise<Result<import('./importer').ImportSource>>
+  previewImport(input: import('./importer').ImportPreviewInput): Promise<Result<import('./importer').ImportPreview>>
+  applyImport(input: { scope: import('./property-changes').PropertyChangeScope; planId: string }): Promise<Result<import('./importer').ImportApplyResult>>
+  discardImport(token: string): Promise<Result<null>>
   readVaultImage(path: string): Promise<Result<string>>
-  openVaultFile(path: string): Promise<Result<null>>
+  readVaultPdf(path: string, expectedRoot?: string): Promise<Result<Uint8Array>>
+  getVaultMediaUrl(path: string, expectedVaultPath?: string): Promise<Result<string>>
+  openVaultFile(path: string, expectedVaultPath?: string): Promise<Result<null>>
   revealVaultFile(path: string): Promise<Result<null>>
   openVaultFileWindow(path: string): Promise<Result<null>>
   copyText(text: string): Promise<Result<null>>
+  previewNoteCompose(input: import('./note-composer').NoteComposeInput): Promise<Result<import('./note-composer').NoteComposePreview>>
+  applyNoteCompose(input: import('./note-composer').NoteComposeApplyInput): Promise<Result<import('./note-composer').NoteComposeResult>>
   saveNote(input: SaveNoteInput): Promise<Result<SaveNoteOutput>>
+  getNoteHistory(path: string, expectedRoot: string): Promise<Result<import('./note-history').NoteHistory>>
+  getNoteVersion(input: import('./note-history').ReadNoteVersionInput): Promise<Result<{ content: string }>>
+  restoreNoteVersion(input: import('./note-history').RestoreNoteVersionInput): Promise<Result<NoteDocument>>
   createNote(input: CreateNoteInput): Promise<Result<EntryOperationOutput>>
   importAttachments(
     destinationDirectory: string

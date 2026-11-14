@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { NoteDocument, VaultAttachment, BaseDocument } from '../../shared/types'
 import type { SavedWorkspaceTab, WorkspaceScope } from '../../shared/workspace-state'
-import type { PropertyDeclaredType } from '../../shared/property-changes'
+import type { PropertyChangeOperation, PropertyDeclaredType } from '../../shared/property-changes'
+import type { KanbanFolderMoveState } from '../../core/base-kanban'
 import type { CompiledPathAliases } from '../../core/path-aliases'
 import { buildWikiGraph, getVaultWikiGraph } from '../../core/graph'
 import { buildPropertyInventory } from '../../core/property-inventory'
@@ -9,6 +10,7 @@ import { basenameRelative } from '../../core/paths'
 import { parseBaseProfile } from '../../core/base-profile'
 import { evaluateBaseInWorker } from '../base-worker-client'
 import AttachmentPreview from './AttachmentPreview'
+import { mediaMimeType } from '../../shared/attachments'
 import BaseTableView, { type BaseTableState } from './BaseTableView'
 import PropertyInventoryView from './PropertyInventoryView'
 import WikiGraphView from './WikiGraphView'
@@ -23,6 +25,8 @@ export interface PaneAuxiliaryContentProps {
   userExcluded?: (path: string) => boolean
   onOpenNote?: (path: string) => void
   onEditCell?: (path: string, property: string) => void
+  onMoveBaseCard?: (path: string, operation: Extract<PropertyChangeOperation, { kind: 'set' }>) => void
+  onMoveBaseFile?: (state: Extract<BaseTableState, { status: 'ready' }> & KanbanFolderMoveState, path: string, directory: string) => void
   onDeclare?: (name: string, type: PropertyDeclaredType | null) => Promise<void>
   onNavigateParent?: () => void
   editingDisabled?: boolean
@@ -41,7 +45,10 @@ export default function PaneAuxiliaryContent(props: PaneAuxiliaryContentProps): 
   if (tab.kind === 'base') return <AuxiliaryBase key={`${props.scope?.rootRevision}:${tab.path}`} {...props} notes={visibleNotes} path={tab.path} />
   if (tab.kind === 'attachment') {
     const attachment = visibleAttachments.find(item => item.path === tab.path)
-    return attachment ? <AttachmentPreview key={`${props.scope?.rootRevision}:${attachment.path}`} attachment={attachment} onOpenExternally={() => { void window.tsuzune.openVaultFile(attachment.path) }} />
+    return attachment ? <AttachmentPreview key={`${props.scope?.rootRevision}:${attachment.path}`} attachment={attachment} vaultPath={props.scope?.rootPath} onOpenExternally={() => {
+      if (/\.pdf$/i.test(attachment.path) || mediaMimeType(attachment.path)) void window.tsuzune.openVaultFile(attachment.path, props.scope?.rootPath)
+      else void window.tsuzune.openVaultFile(attachment.path)
+    }} />
       : <p role="status">添付ファイルが見つかりません。{tab.path}</p>
   }
   if (tab.kind === 'linked-view') {
@@ -57,7 +64,7 @@ export default function PaneAuxiliaryContent(props: PaneAuxiliaryContentProps): 
   return <p role="status">ノートの表示を選択してください。</p>
 }
 
-function AuxiliaryBase({ path, notes, scope, declaredTypes, onOpenNote = () => undefined, onEditCell, editingDisabled }: PaneAuxiliaryContentProps & { path: string }): React.JSX.Element {
+function AuxiliaryBase({ path, notes, scope, declaredTypes, onOpenNote = () => undefined, onEditCell, onMoveBaseCard, onMoveBaseFile, editingDisabled }: PaneAuxiliaryContentProps & { path: string }): React.JSX.Element {
   const [state, setState] = useState<BaseTableState>({ status: 'loading', path })
   const [index, setIndex] = useState(0)
   const [reload, setReload] = useState(0)
@@ -89,7 +96,7 @@ function AuxiliaryBase({ path, notes, scope, declaredTypes, onOpenNote = () => u
         const resultEvaluation = await evaluateBaseInWorker(parsed.profile, notes, index, { propertyTypes: declaredTypes, signal: controller.signal,
           thisFile: { ...result.value, name: basenameRelative(path), size: new TextEncoder().encode(result.value.content).length } })
         if (active()) setState({ status: 'ready', path, profile: parsed.profile, evaluation: resultEvaluation, content: result.value.content,
-          modifiedAt: result.value.modifiedAt, notes, declaredTypes, viewIndex: index })
+          modifiedAt: result.value.modifiedAt, notes, declaredTypes, viewIndex: index, revision: result.value.revision })
       } catch (error) { if (generation.current === current) setState({ status: 'error', path, message: error instanceof Error ? error.message : 'Baseを読み込めませんでした。' }) }
       finally { if (generation.current === current) setEvaluating(false) }
     })()
@@ -130,7 +137,7 @@ function AuxiliaryBase({ path, notes, scope, declaredTypes, onOpenNote = () => u
     } catch (error) { if (generation.current === current) setMessage(error instanceof Error ? error.message : '設定を保存できませんでした。') }
     finally { if (generation.current === current) setSaving(false) }
   }
-  return <><BaseTableView state={state} onReload={() => setReload(value => value + 1)} onOpenNote={onOpenNote} onEditCell={onEditCell}
+  return <><BaseTableView state={state} onReload={() => setReload(value => value + 1)} onOpenNote={onOpenNote} onEditCell={onEditCell} onMoveCard={onMoveBaseCard} onMoveFile={onMoveBaseFile}
     editingDisabled={editingDisabled || saving || !scope} onSelectView={setIndex} onPreviewProfile={preview} onSaveProfile={source => { void save(source) }}
     evaluating={evaluating} onStopEvaluation={() => evaluation.current?.abort()} onResolveImage={async path => { const result = await window.tsuzune.readVaultImage(path); return result.ok ? result.value : null }} />
     {message && <p role="alert">{message}</p>}</>

@@ -4,7 +4,8 @@ import { isAuditHistoryPath } from './ai-write-policy'
 import { DEFAULT_GRAPH_FILTER_SETTINGS, parseGraphFilterSettings, type GraphFilterSettings } from './graph-filters'
 
 export type SavedWorkspaceTab =
-  | { kind: 'note' | 'attachment' | 'linked-view' | 'base'; path: string }
+  | { kind: 'note'; path: string; pinned?: boolean }
+  | { kind: 'attachment' | 'linked-view' | 'base' | 'canvas'; path: string }
   | { kind: 'global-graph' }
   | { kind: 'global-properties' }
 
@@ -13,7 +14,7 @@ export type WorkspaceSnapshotV1 = {
   activeIndex: number | null
   noteView: 'edit' | 'preview' | 'local-graph'
   left: { open: boolean; view: 'files' | 'search' | 'bookmarks'; query: string }
-  right: { open: boolean; view: 'outline' | 'links' | 'backlinks' | 'temporal' }
+  right: { open: boolean; view: 'outline' | 'links' | 'backlinks' | 'temporal' | 'footnotes' }
 }
 
 export type VaultWorkspacesV1 = {
@@ -39,6 +40,7 @@ export type WorkspacePaneState = {
   activeIndex: number | null
   noteView: 'source' | 'live-preview' | 'preview' | 'local-graph'
   scroll: { top: number; left: number }
+  editorStates?: Record<string, NoteEditorWorkspaceState>
   localGraph: {
     depth: 1 | 2 | 3
     direction: 'both' | 'outgoing' | 'incoming'
@@ -46,6 +48,14 @@ export type WorkspacePaneState = {
     filters?: GraphFilterSettings
   }
 }
+
+export type NoteEditorWorkspaceState = {
+  anchor: number
+  head: number
+  folds: Array<{ from: number; to: number }>
+}
+
+export const MAX_WORKSPACE_EDITOR_FOLDS = 2_000
 
 // Flat fields are rebuilt from the active pane for legacy consumers.
 export type WorkspaceSnapshotV2 = WorkspaceSnapshotV1 & {
@@ -95,28 +105,33 @@ function oneOf<T extends string>(value: unknown, values: readonly T[], label: st
 
 function parseTab(value: unknown): SavedWorkspaceTab {
   const tab = record(value, 'workspace tab')
-  const kind = oneOf(tab.kind, ['note', 'attachment', 'linked-view', 'base', 'global-graph', 'global-properties'], 'tab kind')
+  const kind = oneOf(tab.kind, ['note', 'attachment', 'linked-view', 'base', 'canvas', 'global-graph', 'global-properties'], 'tab kind')
   if (kind === 'global-graph' || kind === 'global-properties') {
     exactKeys(tab, ['kind'], 'global graph tab')
     return { kind }
   }
 
-  exactKeys(tab, ['kind', 'path'], 'workspace tab')
+  exactKeys(tab, ['kind', 'path', ...(kind === 'note' && 'pinned' in tab ? ['pinned'] : [])], 'workspace tab')
+  if ('pinned' in tab && typeof tab.pinned !== 'boolean') throw new Error('tab pin is invalid.')
   if (typeof tab.path !== 'string') throw new Error('tab path is invalid.')
   const path = validateRelativePath(tab.path)
   if (!path.valid || !path.normalized) throw new Error('tab path is invalid.')
   const markdown = path.normalized.toLocaleLowerCase().endsWith('.md')
   const base = path.normalized.toLocaleLowerCase().endsWith('.base')
+  const canvas = path.normalized.toLocaleLowerCase().endsWith('.canvas')
   const attachment = isSupportedAttachmentPath(path.normalized)
   if (
     (kind === 'note' && !markdown) ||
     (kind === 'attachment' && !attachment) ||
     (kind === 'linked-view' && !markdown && !attachment) ||
-    (kind === 'base' && (!base || isAuditHistoryPath(path.normalized)))
+    (kind === 'base' && (!base || isAuditHistoryPath(path.normalized))) ||
+    (kind === 'canvas' && (!canvas || isAuditHistoryPath(path.normalized)))
   ) {
     throw new Error(`tab path is invalid for ${kind}.`)
   }
-  return { kind, path: path.normalized }
+  return kind === 'note' && typeof tab.pinned === 'boolean'
+    ? { kind, path: path.normalized, pinned: tab.pinned }
+    : { kind, path: path.normalized }
 }
 
 export function parseWorkspaceName(value: unknown): string {
@@ -157,11 +172,18 @@ export function parseWorkspaceSnapshotV1(value: unknown): WorkspaceSnapshotV1 {
     throw new Error('workspace can contain only one global properties view.')
   }
   const basePaths = new Set<string>()
+  const canvasPaths = new Set<string>()
   for (const tab of tabs) {
-    if (tab.kind !== 'base') continue
+    if (!('path' in tab)) continue
     const key = tab.path.toLocaleLowerCase()
-    if (basePaths.has(key)) throw new Error('workspace can contain only one tab for each Base.')
-    basePaths.add(key)
+    if (tab.kind === 'base') {
+      if (basePaths.has(key)) throw new Error('workspace can contain only one tab for each Base.')
+      basePaths.add(key)
+    }
+    if (tab.kind === 'canvas') {
+      if (canvasPaths.has(key)) throw new Error('workspace can contain only one tab for each Canvas.')
+      canvasPaths.add(key)
+    }
   }
 
   const activeIndex = snapshot.activeIndex
@@ -199,7 +221,7 @@ export function parseWorkspaceSnapshotV1(value: unknown): WorkspaceSnapshotV1 {
     },
     right: {
       open: right.open,
-      view: oneOf(right.view, ['outline', 'links', 'backlinks', 'temporal'], 'right view')
+      view: oneOf(right.view, ['outline', 'links', 'backlinks', 'temporal', 'footnotes'], 'right view')
     }
   }
 }
@@ -284,7 +306,7 @@ export function parseWorkspaceSnapshotV2(value: unknown): WorkspaceSnapshotV2 {
   const ids = new Set<string>()
   const panes: WorkspacePaneState[] = snapshot.panes.map((value) => {
     const pane = record(value, 'workspace pane')
-    exactKeys(pane, ['id', 'tabs', 'activeIndex', 'noteView', 'scroll', 'localGraph'], 'workspace pane')
+    exactKeys(pane, ['id', 'tabs', 'activeIndex', 'noteView', 'scroll', 'localGraph', ...('editorStates' in pane ? ['editorStates'] : [])], 'workspace pane')
     const id = paneId(pane.id)
     if (ids.has(id)) throw new Error('duplicate pane id.')
     ids.add(id)
@@ -303,9 +325,41 @@ export function parseWorkspaceSnapshotV2(value: unknown): WorkspaceSnapshotV2 {
       if (Object.values(values).some(value => typeof value !== 'boolean')) throw new Error('pane graph filters are invalid.')
       filters = parseGraphFilterSettings(values)
     }
+    let editorStates: Record<string, NoteEditorWorkspaceState> | undefined
+    if ('editorStates' in pane) {
+      const savedStates = record(pane.editorStates, 'editor states')
+      const entries = Object.entries(savedStates)
+      if (entries.length > MAX_WORKSPACE_TABS) throw new Error('editor states are invalid.')
+      editorStates = {}
+      for (const [path, value] of entries) {
+        const normalized = validateRelativePath(path)
+        if (!normalized.valid || !normalized.normalized || !normalized.normalized.toLocaleLowerCase().endsWith('.md')) {
+          throw new Error('editor state path is invalid.')
+        }
+        const state = record(value, 'editor state')
+        exactKeys(state, ['anchor', 'head', 'folds'], 'editor state')
+        const anchor = boundedNumber(state.anchor, 0, 1_000_000_000, 'editor anchor')
+        const head = boundedNumber(state.head, 0, 1_000_000_000, 'editor head')
+        if (!Number.isSafeInteger(anchor) || !Number.isSafeInteger(head) || !Array.isArray(state.folds) ||
+          state.folds.length > MAX_WORKSPACE_EDITOR_FOLDS) {
+          throw new Error('editor state is invalid.')
+        }
+        const folds = state.folds.map(value => {
+          const range = record(value, 'editor fold')
+          exactKeys(range, ['from', 'to'], 'editor fold')
+          const from = boundedNumber(range.from, 0, 1_000_000_000, 'editor fold start')
+          const to = boundedNumber(range.to, 0, 1_000_000_000, 'editor fold end')
+          if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to) || from >= to) throw new Error('editor fold is invalid.')
+          return { from, to }
+        })
+        if (normalized.normalized in editorStates) throw new Error('duplicate editor state path.')
+        editorStates[normalized.normalized] = { anchor, head, folds }
+      }
+    }
     return { id, tabs: validated.tabs, activeIndex: validated.activeIndex,
       noteView: oneOf(pane.noteView, ['source', 'live-preview', 'preview', 'local-graph'], 'pane note view'),
       scroll: { top: boundedNumber(scroll.top, 0, 1_000_000_000, 'scroll top'), left: boundedNumber(scroll.left, 0, 1_000_000_000, 'scroll left') },
+      ...(editorStates ? { editorStates } : {}),
       localGraph: { depth: depth as 1 | 2 | 3, direction: oneOf(graph.direction, ['both', 'outgoing', 'incoming'], 'local graph direction'),
         ...(filters ? { filters } : {}) } }
   })

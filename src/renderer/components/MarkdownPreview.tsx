@@ -1,9 +1,14 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
 import { inspectFrontmatterProperty, parseFrontmatter } from '../../core/frontmatter'
 import { extractMarkdownHeadings } from '../../core/markdown-headings'
-import { transformWikiLinksForPreview } from '../../core/links'
+import { transformMathPreview } from '../markdown-math'
+import { calloutMarkup } from '../callout-markup'
+import MermaidDiagram from './MermaidDiagram'
 import { notePreviewText, resolveNoteNavigation, type NoteNavigationTarget } from '../../core/note-navigation'
 import type { CompiledPathAliases } from '../../core/path-aliases'
 import {
@@ -13,6 +18,12 @@ import {
   validateRelativePath
 } from '../../core/paths'
 import type { NoteDocument, VaultAttachment } from '../../shared/types'
+import { resolvePdfLink } from '../../core/pdf-links'
+import { mediaMimeType } from '../../shared/attachments'
+import PdfLink from './PdfLink'
+import MediaPlayer, { MediaLink } from './MediaPlayer'
+import { noteEmbedMarkup } from '../note-embed-markup'
+import VaultEmbed, { type VaultEmbedContext } from './VaultEmbed'
 
 interface MarkdownPreviewProps {
   content: string
@@ -22,10 +33,16 @@ interface MarkdownPreviewProps {
   notes?: readonly NoteDocument[]
   pathAliases?: CompiledPathAliases
   onNavigate?: (target: NoteNavigationTarget) => void
+  editorLinkHover?: boolean
+  embedContext?: VaultEmbedContext
+  sourceContent?: string
+  headingPrefix?: string
+  localImagesOnly?: boolean
+  printAttachments?: boolean
 }
 
 function NoteLink({
-  href, children, kind, wikiTarget, notePath, content, notes, pathAliases, onWikiLink, onNavigate
+  href, children, kind, wikiTarget, notePath, content, notes, pathAliases, onWikiLink, onNavigate, editorLinkHover
 }: {
   href: string
   children: React.ReactNode
@@ -37,23 +54,27 @@ function NoteLink({
   pathAliases?: CompiledPathAliases
   onWikiLink: (target: string) => void
   onNavigate?: (target: NoteNavigationTarget) => void
+  editorLinkHover?: boolean
 }): React.JSX.Element {
   const [showPreview, setShowPreview] = useState(false)
-  const target = resolveNoteNavigation(kind === 'wiki' ? wikiTarget ?? '' : href, kind, notePath, notes, content, pathAliases)
+  const target = useMemo(() => showPreview
+    ? resolveNoteNavigation(kind === 'wiki' ? wikiTarget ?? '' : href, kind, notePath, notes, content, pathAliases)
+    : null, [showPreview, kind, wikiTarget, href, notePath, notes, content, pathAliases])
   const open = (): void => {
     setShowPreview(false)
-    if (target.status === 'resolved') {
-      if (onNavigate) onNavigate(target)
+    const navigation = target ?? resolveNoteNavigation(kind === 'wiki' ? wikiTarget ?? '' : href, kind, notePath, notes, content, pathAliases)
+    if (navigation.status === 'resolved') {
+      if (onNavigate) onNavigate(navigation)
       else if (kind === 'wiki' && wikiTarget) onWikiLink(wikiTarget)
-    } else if (kind === 'wiki' && wikiTarget && target.status === 'missing' && !target.fragment) {
+    } else if (kind === 'wiki' && wikiTarget && navigation.status === 'missing' && !navigation.fragment) {
       onWikiLink(wikiTarget)
     } else {
-      onNavigate?.(target)
+      onNavigate?.(navigation)
     }
   }
   return (
     <span className="note-link-preview-anchor"
-      onMouseEnter={() => setShowPreview(true)}
+      onMouseEnter={editorLinkHover ? undefined : () => setShowPreview(true)}
       onMouseLeave={() => setShowPreview(false)}
       onFocus={() => setShowPreview(true)}
       onBlur={(event) => {
@@ -66,8 +87,11 @@ function NoteLink({
         }
       }}>
       <a href={href} className={kind === 'wiki' ? 'wiki-link' : undefined}
+        data-editor-preview-href={editorLinkHover ? (kind === 'wiki' ? wikiTarget : href) : undefined}
+        data-editor-preview-kind={editorLinkHover ? kind : undefined}
+        data-editor-preview-source={editorLinkHover ? notePath : undefined}
         onClick={(event) => { event.preventDefault(); open() }}>{children}</a>
-      {showPreview ? (
+      {showPreview && target ? (
         <span className="note-link-preview" role="group" aria-label="リンク先プレビュー">
           <span>{target.status === 'resolved' ? target.path : target.reason}</span>
           <span>{notePreviewText(target, notePath, content, notes)}</span>
@@ -140,6 +164,19 @@ function resolveMarkdownImagePath(
   const resolved = parts.join('/')
   if (!resolved || !validateRelativePath(resolved).valid) return null
   return attachments.find(attachment => attachment.path.toLocaleLowerCase() === resolved.toLocaleLowerCase())?.path ?? null
+}
+
+function MediaAttachment({ target, wiki, label, href }: { target: string; wiki: boolean; label: React.ReactNode; href?: string }): React.JSX.Element {
+  const { notePath, attachments, embedContext } = useContext(PreviewContext)
+  const path = wiki
+    ? validateRelativePath(target).valid ? resolveAttachmentPath(target, notePath, attachments) : null
+    : resolveMarkdownImagePath(target, notePath, attachments)
+  const attachment = attachments.find(item => item.path === path)
+  const key = JSON.stringify([embedContext?.vaultPath, embedContext?.scopeRevision, notePath, path, attachment?.modifiedAt, attachment?.size])
+  const expectedVaultPath = embedContext?.vaultPath || undefined
+  return href !== undefined
+    ? <MediaLink key={key} path={path} href={href} expectedVaultPath={expectedVaultPath}>{label}</MediaLink>
+    : <MediaPlayer key={key} path={path} label={typeof label === 'string' && label ? label : target} expectedVaultPath={expectedVaultPath} />
 }
 
 function VaultImage({
@@ -232,14 +269,34 @@ function useHeadingProps(
     node: { position?: { start?: { line?: number } } } | undefined,
     level: number
   ): { id?: string; tabIndex?: number } {
-    const { headings } = useContext(PreviewContext)
+    const { headings, headingPrefix = '' } = useContext(PreviewContext)
     const heading = headings.find(
       (candidate) => candidate.previewLine === node?.position?.start?.line && candidate.level === level
     )
-    return heading ? { id: heading.id, tabIndex: -1 } : {}
+    return heading ? { id: `${headingPrefix}${heading.id}`, tabIndex: -1 } : {}
+}
+
+function EmbedMarkup({ target, label, budget }: { target: string; label: string; budget: number }): React.JSX.Element {
+  const props = useContext(PreviewContext)
+  const { notePath, sourceContent, content, onWikiLink, onNavigate, pathAliases, notes = [], attachments, embedContext } = props
+  return <VaultEmbed target={target} label={label} hostPath={notePath} hostContent={sourceContent ?? content}
+    context={{ vaultPath: '', notes, attachments, onNavigate, onWikiLink, pathAliases, ...embedContext, budget, printAttachments: props.printAttachments }} />
 }
 
 const previewComponents: Components = {
+  pre: ({ node, children }) => {
+    const { printAttachments } = useContext(PreviewContext)
+    const code = node?.children[0]
+    if (code?.type === 'element' && code.tagName === 'code' &&
+        Array.isArray(code.properties.className) && code.properties.className.includes('language-mermaid')) {
+      return <MermaidDiagram code={code.children.map(child => child.type === 'text' ? child.value : '').join('')} forExport={printAttachments} />
+    }
+    return <pre>{children}</pre>
+  },
+  div: ({ node, children, ...props }) => typeof node?.properties['data-note-embed'] === 'string'
+    ? <EmbedMarkup target={node.properties['data-note-embed']} label={String(node.properties['data-embed-label'])}
+        budget={Number(node.properties['data-embed-budget'])} />
+    : <div {...props}>{children}</div>,
   h1: ({ node, children }) => <h1 {...useHeadingProps(node, 1)}>{children}</h1>,
   h2: ({ node, children }) => <h2 {...useHeadingProps(node, 2)}>{children}</h2>,
   h3: ({ node, children }) => <h3 {...useHeadingProps(node, 3)}>{children}</h3>,
@@ -247,7 +304,17 @@ const previewComponents: Components = {
   h5: ({ node, children }) => <h5 {...useHeadingProps(node, 5)}>{children}</h5>,
   h6: ({ node, children }) => <h6 {...useHeadingProps(node, 6)}>{children}</h6>,
   img: ({ src, alt, title }) => {
-    const { notePath, attachments } = useContext(PreviewContext)
+    const { notePath, attachments, localImagesOnly, printAttachments, embedContext } = useContext(PreviewContext)
+    const wiki = Boolean(src?.startsWith('#/vault-asset/'))
+    const asset = wiki && src ? vaultAssetTarget(src) : src
+    if (localImagesOnly && src && /^https?:\/\//i.test(src)) return <span>{alt}</span>
+    if (asset && /\.pdf$/i.test(asset.split('#')[0])) return printAttachments
+      ? <span>{alt || asset}</span>
+      : <PdfLink key={embedContext?.scopeRevision} href={src ?? ''} expectedRoot={embedContext?.vaultPath || undefined}
+          location={resolvePdfLink(asset, wiki ? 'wiki' : 'markdown', notePath, attachments)}>{alt || asset}</PdfLink>
+    if (asset && mediaMimeType(asset.split(/[?#]/)[0])) return printAttachments
+      ? <span>{alt || asset}</span>
+      : <MediaAttachment target={asset} wiki={wiki} label={alt || asset} />
     return src && /^https?:\/\//i.test(src) ? (
       <img src={src} alt={alt ?? ''} title={title} />
     ) : (
@@ -261,15 +328,20 @@ const previewComponents: Components = {
     )
   },
   a: ({ href, children }) => {
-    const { notePath, content, notes = [], pathAliases, onWikiLink, onNavigate } = useContext(PreviewContext)
+    const { notePath, content, notes = [], pathAliases, onWikiLink, onNavigate, editorLinkHover, attachments, printAttachments, embedContext } = useContext(PreviewContext)
+    const expectedRoot = embedContext?.vaultPath || undefined
     if (href?.startsWith('#/wiki/')) {
       let target: string
       try { target = decodeURIComponent(href.slice('#/wiki/'.length)) }
       catch { return <span className="inactive-link">{children}</span> }
+      if (/\.pdf$/i.test(target.split('#')[0])) return printAttachments ? <span>{children}</span>
+        : <PdfLink key={embedContext?.scopeRevision} href={href} expectedRoot={expectedRoot} location={resolvePdfLink(target, 'wiki', notePath, attachments)}>{children}</PdfLink>
+      if (mediaMimeType(target.split(/[?#]/)[0])) return printAttachments ? <span>{children}</span>
+        : <MediaAttachment target={target} wiki label={children} href={href} />
       return (
         <NoteLink href={href} kind="wiki" wikiTarget={target} notePath={notePath}
           content={content} notes={notes} pathAliases={pathAliases}
-          onWikiLink={onWikiLink} onNavigate={onNavigate}>{children}</NoteLink>
+          onWikiLink={onWikiLink} onNavigate={onNavigate} editorLinkHover={editorLinkHover}>{children}</NoteLink>
       )
     }
 
@@ -287,10 +359,14 @@ const previewComponents: Components = {
       )
     }
 
+    if (href && /\.pdf$/i.test(href.split('#')[0])) return printAttachments ? <span>{children}</span>
+      : <PdfLink key={embedContext?.scopeRevision} href={href} expectedRoot={expectedRoot} location={resolvePdfLink(href, 'markdown', notePath, attachments)}>{children}</PdfLink>
+    if (href && mediaMimeType(href.split(/[?#]/)[0])) return printAttachments ? <span>{children}</span>
+      : <MediaAttachment target={href} wiki={false} label={children} href={href} />
     if (href && (href.startsWith('#') || /\.md(?:#|$)/i.test(href))) {
       return <NoteLink href={href} kind="markdown" notePath={notePath}
         content={content} notes={notes} pathAliases={pathAliases}
-        onWikiLink={onWikiLink} onNavigate={onNavigate}>{children}</NoteLink>
+        onWikiLink={onWikiLink} onNavigate={onNavigate} editorLinkHover={editorLinkHover}>{children}</NoteLink>
     }
 
     return <span className="inactive-link">{children}</span>
@@ -304,7 +380,8 @@ export default function MarkdownPreview({
   onWikiLink,
   notes = [],
   pathAliases,
-  onNavigate
+  onNavigate,
+  editorLinkHover, embedContext, sourceContent, headingPrefix, localImagesOnly, printAttachments
 }: MarkdownPreviewProps): React.JSX.Element {
   const frontmatter = parseFrontmatter(content)
   const hasValidFrontmatter =
@@ -312,13 +389,12 @@ export default function MarkdownPreview({
   const properties = hasValidFrontmatter
     ? Object.entries(frontmatter.attributes)
     : []
-  const transformed = transformWikiLinksForPreview(
-    hasValidFrontmatter ? frontmatter.body : content
-  )
+  const body = hasValidFrontmatter ? frontmatter.body : content
+  const transformed = useMemo(() => transformMathPreview(body), [body])
   const headings = extractMarkdownHeadings(content)
 
   return (
-    <PreviewContext.Provider value={{ content, notePath, attachments, onWikiLink, notes, pathAliases, onNavigate, headings }}>
+    <PreviewContext.Provider value={{ content, notePath, attachments, onWikiLink, notes, pathAliases, onNavigate, headings, editorLinkHover, embedContext, sourceContent, headingPrefix, localImagesOnly, printAttachments }}>
     <article className="markdown-preview" aria-label="Markdownプレビュー">
       {properties.length > 0 ? (
         <details className="markdown-properties" aria-label="プロパティ">
@@ -339,7 +415,12 @@ export default function MarkdownPreview({
         </details>
       ) : null}
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[
+          calloutMarkup,
+          [noteEmbedMarkup, { budget: embedContext?.budget }],
+          [rehypeKatex, { trust: false, maxExpand: 1000, maxSize: 20, strict: 'ignore', output: 'htmlAndMathml' }]
+        ]}
         components={previewComponents}
       >
         {transformed}

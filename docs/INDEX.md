@@ -11,6 +11,23 @@
 - [Working Agreement](../AGENTS.md) — 開発と本番dogfoodの運用規約。
 - [Browser Clipper](browser-clipper.md) — Chrome／EdgeからWebページとYouTubeを`01_受信箱`へ受け取る方法、出典情報、安全境界。
 
+## ノートの編集
+
+- [版履歴](note-history.md) — 保存前の本文、差分、復元。
+- [ノートの抽出・統合](note-composer.md) — 選択範囲の抽出、全体統合、参照更新。
+- [Markdown表の編集](markdown-tables.md) — 挿入とセル編集。
+- [脚注](footnotes.md) — 参照・定義への移動と定義編集。
+
+- [Wikiリンク補完](wiki-link-completion.md) — ノート、見出し、ブロックの候補。
+- [ToDo](todo.md) — Vault直下のタスク追加、完了、削除。
+- [ノート内タスク](task-aggregation.md) — 本文中のタスクの確認、移動、完了。
+
+## ファイル一覧と作業タブ
+
+- [ファイル一覧](file-tree.md) — 並び順、アクティブノートへの追従、まとめ移動、フォルダーブックマーク。
+- [フォルダーブックマーク](bookmark-targets.md) — 作成、一覧への移動、編集と削除。
+- [ノートタブの固定](tab-pinning.md) — 固定、別タブでの表示、配置の復元。
+
 ## 現在の開発
 
 - [改善・未達成項目 実行台帳](reports/tsuzune-improvement-ledger-2026-08-23.md) — する／しない／条件成立時だけを確定した判断索引。現在のPrimary／Nextは[PLAN.mdのCurrent Decision](../PLAN.md#current-decision)を正本とし、ここでは可変状態を複製しない。
@@ -38,6 +55,7 @@
 - [AI再利用の基盤レビュー 2026-09-06](reports/ai-reuse-foundation-review-2026-09-06.md) — 検索・本文取得・Context収録・回答根拠の境界、live観測と隔離反例。製品変更の採用は含まない。
 - [レビュー後の保守 2026-09-06](reports/review-maintenance-2026-09-06.md) — 公開対象保護、依存3件更新、LF方針と本番source archive、現在欄の整合。受入結果は対応する最新receiptとVault実施記録。
 - [プロジェクトレビュー 2026-09-06](reports/project-review-2026-09-06.md) — 本番・Git・公開Release・計画の照合、公開対象保護と依存更新候補、現在欄のずれ、限定source review。新機能の採用は含まない。
+- [v0.7.0の変更点とインストール](releases/v0.7.0.md) — 編集・検索、Canvas・Bases、移行、PDF・メディア、Windows配布。
 - [v0.6.0 公開Release・本番受入](reports/v0.6.0-public-release-2026-08-26.md) — verified commit/tag、Latest Release、3 assetsの匿名HTTP到達性とdigest、本番10/10、profile不変、匿名updater修正、隔離Windows待ちの二版間更新境界を固定。
 - [Workflow Verification Harness Phase 1](reports/workflow-verification-harness-phase1-plan-2026-08-26.md) — 固定allowlist、fail-first、source不変性、JSON Receipt、public CLI fixture 4件と初回`mcp` dogfoodのsource／fixture証拠。現在のPrimary／Nextは[PLAN.mdのCurrent Decision](../PLAN.md#current-decision)を参照。
 - [Executable Policy Pilot 1](reports/executable-policy-pilot-1-2026-08-26.md) — 宣言済みread-only MCP 10件の通常Vault／隔離profile不変性と完全coverageを既存`mcp` checkへ接続したsource／fixture証拠。`.tsuzune`内部台帳repairとliteralな環境全体zero writeを分離する。

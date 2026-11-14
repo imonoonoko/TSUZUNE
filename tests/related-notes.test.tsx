@@ -102,7 +102,7 @@ describe('RelatedNotes', () => {
 
     const linksTab = screen.getByRole('tab', { name: 'リンク 2件' })
     const backlinksTab = screen.getByRole('tab', { name: 'バックリンク 1件' })
-    const temporalTab = screen.getByRole('tab', { name: '時間' })
+    const footnotesTab = screen.getByRole('tab', { name: '脚注 0件' })
     const outlineTab = screen.getByRole('tab', { name: 'アウトライン 0件' })
 
     linksTab.focus()
@@ -111,16 +111,16 @@ describe('RelatedNotes', () => {
     expect(document.activeElement).toBe(backlinksTab)
 
     fireEvent.keyDown(backlinksTab, { key: 'End' })
-    expect(temporalTab.getAttribute('aria-selected')).toBe('true')
-    expect(document.activeElement).toBe(temporalTab)
+    expect(footnotesTab.getAttribute('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(footnotesTab)
 
-    fireEvent.keyDown(temporalTab, { key: 'Home' })
+    fireEvent.keyDown(footnotesTab, { key: 'Home' })
     expect(outlineTab.getAttribute('aria-selected')).toBe('true')
     expect(document.activeElement).toBe(outlineTab)
 
     fireEvent.keyDown(outlineTab, { key: 'ArrowLeft' })
-    expect(temporalTab.getAttribute('aria-selected')).toBe('true')
-    expect(document.activeElement).toBe(temporalTab)
+    expect(footnotesTab.getAttribute('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(footnotesTab)
 
     fireEvent.click(outlineTab)
     expect(screen.getByRole('tabpanel', { name: 'アウトライン 0件' }).textContent)

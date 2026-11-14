@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 import PaneActionsMenu from './PaneActionsMenu'
+import Icon from './Icon'
 import {
   basenameRelative,
   withoutMarkdownExtension
@@ -8,9 +9,11 @@ import {
 export type WorkspaceTab =
   | {
       id: number
-      kind: 'note' | 'attachment'
+      kind: 'note'
       path: string
+      pinned?: boolean
     }
+  | { id: number; kind: 'attachment'; path: string }
   | {
       id: number
       kind: 'linked-view'
@@ -19,6 +22,11 @@ export type WorkspaceTab =
   | {
       id: number
       kind: 'base'
+      path: string
+    }
+  | {
+      id: number
+      kind: 'canvas'
       path: string
     }
   | {
@@ -52,9 +60,6 @@ export function workspaceTabLabel(tab: WorkspaceTab): string {
   if (tab.kind === 'linked-view') {
     return `${withoutFileExtension(tab.path)} へのバックリンク`
   }
-  if (tab.kind === 'base') {
-    return basenameRelative(tab.path)
-  }
   return tab.kind === 'note'
     ? withoutMarkdownExtension(basenameRelative(tab.path))
     : basenameRelative(tab.path)
@@ -70,6 +75,7 @@ type WorkspaceTabBarProps = {
   tabRefs?: RefObject<Map<number, HTMLButtonElement>>
   onActivate: (tab: WorkspaceTab) => void
   onClose: (tabId: number) => void
+  onTogglePin?: (tabId: number) => void
   onFocus?: (tabId: number) => void
   onKeyDown?: (
     event: KeyboardEvent<HTMLButtonElement>,
@@ -87,6 +93,7 @@ export default function WorkspaceTabBar({
   tabRefs,
   onActivate,
   onClose,
+  onTogglePin,
   onFocus,
   onKeyDown
 }: WorkspaceTabBarProps): React.JSX.Element | null {
@@ -126,6 +133,8 @@ export default function WorkspaceTabBar({
     <div ref={strip} className="workspace-tabs" role="tablist" aria-label="開いているタブ">
       {tabs.map((tab) => {
         const label = labelFor(tab)
+        const pinned = tab.kind === 'note' && tab.pinned === true
+        const pinLabel = pinned ? `${label}の固定を解除` : `${label}を固定`
         return (
           <div className={`workspace-tab${tab.id === activeTabId ? ' is-selected' : ''}`} key={tab.id} role="presentation">
             <button
@@ -138,8 +147,8 @@ export default function WorkspaceTabBar({
               }}
               aria-controls={panelId}
               aria-selected={tab.id === activeTabId}
-              aria-label={label}
-              title={'path' in tab ? `${workspaceTabLabel(tab)}\n${tab.path}` : label}
+              aria-label={pinned ? `${label}（固定）` : label}
+              title={'path' in tab ? `${workspaceTabLabel(tab)}\n${tab.path}${pinned ? '\n固定' : ''}` : label}
               tabIndex={tab.id === focusedId ? 0 : -1}
               className={tab.id === activeTabId ? 'is-active' : ''}
               onClick={() => onActivate(tab)}
@@ -156,8 +165,13 @@ export default function WorkspaceTabBar({
                 else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onActivate(tab) }
               }}
             >
-              {label}
+              {pinned && <span aria-hidden="true">📌 </span>}{label}
             </button>
+            {tab.kind === 'note' && onTogglePin && <button type="button" className="workspace-tab-pin"
+              aria-label={pinLabel} title={pinLabel} aria-pressed={pinned}
+              tabIndex={tab.id === focusedId ? 0 : -1} onClick={() => onTogglePin(tab.id)}>
+              <Icon name="pin" size={14} />
+            </button>}
             <button
               type="button"
               className="workspace-tab-close"
@@ -172,7 +186,7 @@ export default function WorkspaceTabBar({
       })}
     </div>
     <PaneActionsMenu label="開いているタブの一覧" triggerClassName="tabs-list-trigger" menuClassName="workspace-tabs-menu" symbol="▾"
-      actions={tabs.map((tab, index) => ({ label: `${index + 1}. ${labelFor(tab)}`, detail: 'path' in tab ? tab.path : undefined,
+      actions={tabs.map((tab, index) => ({ label: `${index + 1}. ${labelFor(tab)}${tab.kind === 'note' && tab.pinned ? '（固定）' : ''}`, detail: 'path' in tab ? tab.path : undefined,
         selected: tab.id === activeTabId, onSelect: () => onActivate(tab) }))} />
     </div>
   )

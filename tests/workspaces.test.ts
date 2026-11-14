@@ -97,6 +97,18 @@ describe('per-Vault workspace persistence', () => {
     expect(raw.unknown).toBe(true)
   })
 
+  it('reloads a pinned Markdown tab in named workspaces and the last session', async () => {
+    const { scope } = await service.getWorkspaces(vaultA)
+    const tabs = [{ kind: 'note' as const, path: 'Research/仮説.md', pinned: true }]
+    const pinned = migrateWorkspaceSnapshotV1({ ...snapshot, tabs })
+    await service.saveWorkspace(scope, '参照', pinned, false)
+    await service.saveLastWorkspaceSession(scope, pinned)
+
+    const reopened = await new WorkspaceService(vault).getWorkspaces(vaultA)
+    expect(reopened.state.named[0].snapshot.panes[0].tabs).toEqual(tabs)
+    expect(reopened.state.lastSession?.panes[0].tabs).toEqual(tabs)
+  })
+
   it('rejects an A to B to A stale mutation by root revision without writing', async () => {
     const collection = await service.getWorkspaces(vaultA)
     await writeFile(join(appData.path, 'settings.json'), '{"sentinel":true}', 'utf8')

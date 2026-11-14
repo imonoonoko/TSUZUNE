@@ -11,15 +11,25 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 ## TSUZUNEでできること
 
 - **自然に書く** — 通常ノートをすぐ編集画面で開き、Daily／Ideaを含む自由に増やせるテンプレートと簡易書式ツールバーを使えます。
-- **画面を整理する** — 分割・ペイン移動は右上の「…」から操作。左の一覧はノート名を最大2行で表示し、空画面から検索・新規作成できます。画像のあるノートもPreviewで末尾までスクロールできます。
+- **Markdownを手早く編集する** — `[[` からノート・見出し・ブロックを補完できます。ノートの版履歴を確認し、選択範囲を別ノートへ抽出したり、ノートを統合したりできます。表・脚注の編集や、添付ファイル改名時のリンク更新にも対応します。
+- **タスクに戻る** — ルートのToDoとノート本文のタスクを扱えます。「ノートのタスク」で複数ノートのタスクを集約し、元の行に移動したり完了状態を切り替えたりできます。
+- **画面を整理する** — 分割・ペイン移動は右上の「…」から操作。ワークスペースはペインごとにノートのカーソル位置・選択範囲・折りたたみを記憶します。左の一覧はノート名を最大2行で表示し、空画面から検索・新規作成できます。画像のあるノートもPreviewで末尾までスクロールできます。
 - **画像を貼り付ける** — 画像をコピーし、ノートの編集／Live Preview本文で`Ctrl+V`。画像を同じフォルダへPNGで保存し、画像リンクを挿入します。PNG／JPEGの画像データ、1画像20MBまで。通常のテキスト貼り付けも使えます。
 - **分類せず受け取る** — `Ctrl+P`の「受信箱へメモを作成」で、選択中の場所に関係なく`01_受信箱`へ空のメモを作り、そのまま書き始められます。
 - **Webを分類せず受け取る** — Chrome／EdgeのBrowser Clipperから、表示中のWebページやYouTubeを出典情報付きMarkdownで`01_受信箱`へ保存できます。通常Webは記事本文を抽出し、YouTubeは画面上の文字起こしから検証済み字幕トラック、取得不能または途中の場合のローカル`yt-dlp`まで順に探して取得状態も残します。初回だけTSUZUNEの通知領域で6桁コードを使ってペアリングします。[Browser Clipper](docs/browser-clipper.md)
+- **PDFを読んで引用する** — Vault内のPDFを開いて本文検索やページ移動ができます。ページや選択文への引用リンクをコピーし、ノートから元のPDFに戻れます。
+- **数式・図・補足を表示する** — ノートのプレビューで、数式（`$…$`／`$$…$$`）、Mermaidのコードブロック、コールアウト（`> [!note]` など）を表示します。
+- **ノートをPDFで保存する** — ノート上部の「PDF書き出し」から、開いた時点の本文をA4／Letter、縦／横で保存できます。未保存の編集も出力に含まれます。数式とMermaidの図を描画し、折りたたんだコールアウトは展開します。
+- **ローカルの音声・動画を再生する** — 添付タブ、Canvas、ノートのプレビューで、Vault内の添付をその場で再生できます。ノートには `![[録音.wav]]` のように埋め込めます。再生できる形式はWindows版に同梱されたElectronのコーデックに依存します。
 - **Markdownのまま残す** — ノートは`.md`、添付は通常ファイル。TSUZUNEがなくても一般的なeditorで読めます。
 - **知識をつなぐ** — `[[Wiki link]]`、backlink、未解決link、ブックマーク、Local/Global Graph。
-- **すばやく開く** — `Ctrl+O`のQuick Switcher、`Ctrl+P`のCommand Palette、複数ノートを行き来できるworkspace tab。
-- **必要なノートを探す** — `Ctrl+Shift+F`で「内容を検索」を開き、AND、除外、`tag:`／`path:`／`file:`／`category:`／`topic:`、完全phraseで絞り込めます。結果は知識・情報源・受信箱・その他の固定順に分け、各group内では関連度順を保ちます。
+- **すばやく開く** — `Ctrl+O`のQuick Switcherはタイトル・パス・別名からノートを探せます。`Ctrl+P`でCommand Paletteを開き、タブで複数ノートを行き来できます。参照中のノートを固定すると、別ノートを開いてもタブが残ります。
+- **必要なノートを探す** — `Ctrl+Shift+F`で「内容を検索」を開き、AND、除外、`tag:`／`path:`／`file:`／`category:`／`topic:`、完全phraseで絞り込めます。既定では知識・情報源・受信箱・その他に分け、各グループ内は関連度順です。名前や更新日でも並べ替えられます。「一致箇所を表示」から前後の行を確認でき、「この一致へ移動」で該当箇所を編集できます。
+- **開く前に内容を見る** — ファイル一覧・検索結果・関連ノートにポインターを重ねると、ノートの内容を確認できます。ソースエディタやLive Previewのノートリンクは、`Ctrl`（macOSでは`⌘`）を押しながらポインターを重ねます。
 - **安全に整理する** — 一覧の右クリックから名前変更、移動、`.trash`への退避。衝突時は上書きしません。
+- **Canvasで考えを広げる** — 左側の「Canvasを開く」から`.canvas`を作成または開きます。テキストカードやVault内のファイルを配置してつなぎ、グループ化や整列ができます。全体または表示範囲をPNGに出力し、ノートには`![[Board.canvas]]`で読み取り専用のCanvasを埋め込めます。
+- **Basesでノートを見渡す** — 左側の「Baseを開く」から`.base`を作成または開きます。ノートのプロパティを表・カード・リスト・Kanbanで表示し、Base内検索やCSV／TSV書き出しができます。Kanbanの列順はドラッグで変更し、設定でプレビューして保存できます。`file.folder`でグループ化したKanbanでは、移動先とリンクへの影響を確認してノートを別フォルダーへ移動できます。
+- **他のアプリから移行する** — 「他アプリから取り込む」でMarkdownフォルダー、ChatGPT Export、Notion Export、Evernote ENEXを選択。プレビューを確認してから、現在のVault内の新しいフォルダーへ保存します。
 - **画面を広く使う** — 左右のsidebarを独立して閉じ、必要な側だけ再表示できます。
 - **古さに気づく** — 最終更新日時と任意の`review_after`から、再確認の目安を非破壊で表示。
 - **時間を区別する** — 現在・過去・未来、情報が有効だった時点とAIが知った時点を分離。
@@ -29,9 +39,7 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 
 ## 現在地
 
-2026-10-02（JST）、利用者は検証済み候補を普段使うTSUZUNEへ反映する提案に「いいよ」と回答した。これにより、この確定候補のproduction:updateと隔離installed受入・EXE／app.asar hash・通常profile保全・既存MCP登録確認まで承認済み。以下の承認待ち・今回install対象外の記述は前段検証時の履歴として読む。導入結果は今回source fingerprintに対応するexcluded receiptで判定し、この記載だけで本番反映済みとはしない。実Vault内容変更、Drive同期の有効化・実転送、認証や永続アクセスの拡張、公開push、個人クリップボード変更は引き続き対象外。
-
-この隔離候補にはDrive自動同期・画像スクロール改善と追加タブ／表示改善が実装・隔離検証済みです。16:47本番には前二者が導入済みですが、追加タブ／表示改善を含むこの候補は未導入です。候補内の古いproduction receiptは現在の本番／候補導入を証明しません。実Drive転送・実接続でのオフライン復帰、物理Windows IME、実クリップボードからのCtrl+V、利用者の元ノート／入力症状の受入は未確認。fixture／mock／CDPと利用者確認を分ける。今回の追加検証では個人クリップボードを操作しない。
+公開版は[変更点と配布ファイル](https://github.com/imonoonoko/TSUZUNE/releases/latest)で確認できます。
 
 | 対象 | 状態 |
 |---|---|
@@ -43,16 +51,16 @@ TSUZUNEは、普通のMarkdownファイルを原本にするWindows向けの個�
 
 ## 使い始める
 
-現在のrepository／package versionは`0.6.0`です。[TSUZUNE v0.6.0](https://github.com/imonoonoko/TSUZUNE/releases/tag/v0.6.0)からWindows x64 installerを取得できます。公開v0.6.0は2026-08-26時点の配布物で、このREADMEの最新source機能や手元の本番更新をすべて含むとは限りません。最新sourceから起動する場合は下記の開発手順を使用してください。
+現在のrepository／package versionは`0.7.0`です。[v0.7.0の配布ページ](https://github.com/imonoonoko/TSUZUNE/releases/tag/v0.7.0)またはGitHubの[最新リリース](https://github.com/imonoonoko/TSUZUNE/releases/latest)から、Windows x64用の `TSUZUNE-Setup-<version>.exe` を取得できます。[v0.7.0の変更点](docs/releases/v0.7.0.md)も参照できます。既に使用している場合は、アプリ内で更新を確認できます。
 
 インストール済みbinaryを使う場合:
 
-1. 入手元を確認したTSUZUNEのinstallerまたはportable版を起動します。
+1. GitHubから取得したインストーラーを起動します。
 2. Start menuまたはdesktopの「TSUZUNE」を開きます。
 3. 「Vaultを開く」から、Markdownを保存するfolderを選びます。
 4. 「ノート」で空のノートを開くか、選択欄からテンプレートを選んで書き始めます。
 
-現在の個人用buildはcode signingしていないため、Windowsが発行元不明の警告を出す場合があります。入手元を確認して実行してください。通常のinstall先は`%LOCALAPPDATA%\Programs\tsuzune`です。uninstallしてもVaultは削除しません。
+公開インストーラーはコード署名なしで配布しています。Windowsに発行元不明と表示される場合は、GitHubの公式リリースから取得したファイルであることを確認してください。通常のインストール先は `%LOCALAPPDATA%\Programs\tsuzune` です。アンインストールしてもVaultは削除されません。
 
 ## 毎日の書き方
 
@@ -81,7 +89,7 @@ link先、backlink、未作成・曖昧・無効linkを右panelで確認でき�
 
 ### 検索演算子を使う場合
 
-通常検索では、Obsidian Desktop 1.13.4との固定比較に基づく次の演算子を利用できます。
+デスクトップの「内容を検索」とQuick Switcherでは、次の演算子を利用できます。
 
 | 入力例 | 意味 |
 |---|---|
@@ -93,8 +101,15 @@ link先、backlink、未作成・曖昧・無効linkを右panelで確認でき�
 | `category:知識管理` | frontmatterの主カテゴリ完全一致で絞り込み |
 | `topic:"原典,追跡"` | frontmatterのtopic完全一致で絞り込み |
 | `"Project Alpha"` | 連続したphraseの完全一致 |
+| `(cat OR dog) -(paused OR draft)` | いずれかを含むノートを探し、除外条件をまとめる |
+| `content:needle` | 本文を検索する |
+| `line:(cat dog)` | 同じ行に両方があるノートを探す。段落や見出しのまとまりを指定する場合は `block:` や `section:` |
+| `task-todo:確認` | 未完了タスクを探す。完了済みは `task-done:`、両方を対象にする場合は `task:` |
+| `match-case:API` | 大文字小文字を区別する。区別しない範囲は `ignore-case:` |
+| `content:/c.t/` | 本文をJavaScriptの正規表現で検索する |
+| `[担当:田中] [優先度:>=3]` | frontmatterのプロパティの値で絞り込む |
 
-演算子名、tag、path、file、category、topic、通常語の大文字小文字は区別しません。空白で区切った条件はANDになります。一つの空白なし日本語自然文は文中の区切り候補をORとして順位付けします。`category:`と`topic:`はデスクトップ画面とMCP検索で同じ検索処理を使います。Graph検索は既存契約を維持します。
+通常語は大文字小文字を区別せず、空白で区切った条件はANDになります。一つの空白なし日本語自然文は文中の区切り候補をORとして順位付けします。MCP検索でも `category:` と `topic:` が使えます。
 
 ## Codex Desktopと連携する
 
@@ -152,7 +167,7 @@ npm run mcp:unregister
 
 Googleへ接続しなくても、local Vault、Graph、MCPを使えます。標準接続は基本profileと`drive.file`に限定し、TSUZUNE専用Drive folderを手動でpreview/applyします。Calendar読取を有効にした場合だけ、`calendar.events.readonly`を追加で要求します。
 
-Windowsでウィンドウの×を押すと、保存確認後に通知領域へ隠れてTSUZUNE本体とDrive同期MCP bridgeは動作を続けます。通知領域のTSUZUNEから再表示または明示終了できます。自動同期は行いません。
+v0.7.0の配布候補はGoogle OAuthのクライアント情報を同梱していません。Google接続を使う場合は、設定で自分のDesktop OAuthクライアントの設定ファイルを読み込んでください。Vaultごとの自動同期は既定でオフです。
 
 - Google広告profile、検索履歴、他appのDrive全体は取得しません。
 - token、OAuth JSON、account情報をVaultやGitへ保存しません。
@@ -166,7 +181,8 @@ OAuth build、credential保存、update/releaseの運用は[Windows Production G
 
 - 保存前に更新時刻を照合し、外部変更との競合を通知します。
 - 保存は同じfolder内の一時fileを経由します。
-- renameとmoveは既存項目を上書きしません。
+- renameとmoveは既存項目を上書きしません。添付の改名では、参照先が一意に解決できるMarkdownリンク・埋め込みを更新します。
+- ノートの[版履歴](docs/note-history.md)と[抽出・統合](docs/note-composer.md)はVault内のローカルファイルとして扱います。
 - deleteはVault内`.trash`へ退避します。
 - dot folderとsymbolic linkはVault一覧から除外します。
 - cache、index、GraphはMarkdownと添付から再構築可能に保ちます。

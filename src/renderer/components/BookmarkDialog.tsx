@@ -5,6 +5,7 @@ import { basenameRelative } from '../../core/paths'
 interface BookmarkDialogProps {
   path?: string
   query?: string
+  isFolder?: boolean
   headings?: readonly { slug: string; title: string }[]
   bookmark?: VaultBookmark
   onCancel: () => void
@@ -15,6 +16,7 @@ interface BookmarkDialogProps {
 export default function BookmarkDialog({
   path,
   query,
+  isFolder = false,
   headings = [],
   bookmark,
   onCancel,
@@ -27,15 +29,15 @@ export default function BookmarkDialog({
   const [busy, setBusy] = useState(false)
   const effectivePath = path ?? (bookmark?.type !== 'search' ? bookmark?.path : undefined)
   const effectiveQuery = query ?? (bookmark?.type === 'search' ? bookmark.query : undefined)
-  const [kind, setKind] = useState<'file' | 'heading' | 'search'>(bookmark?.type ?? (effectivePath ? 'file' : 'search'))
+  const [kind, setKind] = useState<VaultBookmark['type']>(bookmark?.type ?? (isFolder ? 'folder' : effectivePath ? 'file' : 'search'))
   const [headingSlug, setHeadingSlug] = useState(bookmark?.type === 'heading' ? bookmark.slug : headings[0]?.slug ?? '')
   const availableHeadings = bookmark?.type === 'heading' && !headings.some(heading => heading.slug === bookmark.slug)
     ? [{ slug: bookmark.slug, title: bookmark.headingTitle }, ...headings] : headings
-  const availableKinds = bookmark ? [bookmark.type] : [
+  const availableKinds = bookmark ? [bookmark.type] : isFolder ? ['folder'] : [
     ...(effectivePath ? ['file'] : []),
     ...(effectivePath && availableHeadings.length ? ['heading'] : []),
     ...(effectiveQuery !== undefined ? ['search'] : [])
-  ] as ('file' | 'heading' | 'search')[]
+  ] as VaultBookmark['type'][]
 
   useEffect(() => {
     previousFocusRef.current =
@@ -102,7 +104,7 @@ export default function BookmarkDialog({
                   const heading = availableHeadings.find(item => item.slug === headingSlug)
                   return effectivePath && heading ? { type: 'heading', path: effectivePath, slug: heading.slug, headingTitle: heading.title } : null
                 })()
-              : effectivePath ? { type: 'file', path: effectivePath } : null
+              : effectivePath ? { type: kind, path: effectivePath } : null
           if (!target) return
           setBusy(true)
           const title = String(data.get('title') ?? '')

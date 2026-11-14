@@ -23,6 +23,16 @@ const snapshot = {
 } as const
 
 describe('workspace state V1 parser', () => {
+  it('round-trips note pins and migrates old unpinned tabs without accepting other pin fields', () => {
+    const value = { ...snapshot, tabs: [{ kind: 'note' as const, path: 'A.md', pinned: true }] }
+    expect(parseWorkspaceSnapshotV2(migrateWorkspaceSnapshotV1(value)).tabs).toEqual(value.tabs)
+    expect(parseWorkspaceSnapshotV1(snapshot).tabs[0]).not.toHaveProperty('pinned')
+    expect(parseWorkspaceSnapshotV1({ ...value, tabs: [{ kind: 'note', path: 'A.md', pinned: false }] }).tabs[0]).toHaveProperty('pinned', false)
+    for (const pinned of ['true', 1, null]) {
+      expect(() => parseWorkspaceSnapshotV1({ ...value, tabs: [{ kind: 'note', path: 'A.md', pinned }] })).toThrow()
+    }
+    expect(() => parseWorkspaceSnapshotV1({ ...value, tabs: [{ kind: 'attachment', path: 'A.png', pinned: true }] })).toThrow()
+  })
   it('accepts the complete public snapshot including attachment linked views', () => {
     expect(parseWorkspaceSnapshotV1(snapshot)).toEqual(snapshot)
   })
@@ -65,6 +75,17 @@ describe('workspace state V1 parser', () => {
     }
     expect(() => parseWorkspaceSnapshotV1({ ...value, tabs: [
       { kind: 'base', path: 'views/notes.base' }, { kind: 'base', path: 'VIEWS/NOTES.BASE' }
+    ] })).toThrow(/only one tab/)
+  })
+
+  it('round-trips local Canvas paths and rejects protected, invalid, and duplicate tabs', () => {
+    const value = { ...snapshot, tabs: [{ kind: 'canvas', path: 'boards\\ideas.canvas' }] }
+    expect(parseWorkspaceSnapshotV1(value).tabs).toEqual([{ kind: 'canvas', path: 'boards/ideas.canvas' }])
+    for (const path of ['../outside.canvas', '50_履歴/audit.canvas', 'notes.md']) {
+      expect(() => parseWorkspaceSnapshotV1({ ...value, tabs: [{ kind: 'canvas', path }] })).toThrow()
+    }
+    expect(() => parseWorkspaceSnapshotV1({ ...value, tabs: [
+      { kind: 'canvas', path: 'boards/ideas.canvas' }, { kind: 'canvas', path: 'BOARDS/IDEAS.CANVAS' }
     ] })).toThrow(/only one tab/)
   })
 
@@ -120,6 +141,18 @@ describe('workspace state V2 parser', () => {
     expect(parseWorkspaceSnapshotV2({ ...parsed, left: { ...parsed.left, width: 120 } }).left.width).toBe(120)
   })
 
+  it('round-trips bounded editor selections and folds while preserving legacy panes', () => {
+    const editorStates = { 'Research/仮説.md': { anchor: 4, head: 12, folds: [{ from: 0, to: 18 }] } }
+    const saved = { ...migrated, panes: [{ ...migrated.panes[0], editorStates }] }
+    expect(parseWorkspaceSnapshotV2(saved).panes[0].editorStates).toEqual(editorStates)
+    expect(parseWorkspaceSnapshotV2(migrated).panes[0].editorStates).toBeUndefined()
+    expect(parseVaultWorkspaces({ version: 2, lastSession: saved, named: [] }).lastSession?.panes[0].editorStates).toEqual(editorStates)
+    const tooManyFolds = Array.from({ length: 2_001 }, (_, index) => ({ from: index * 2, to: index * 2 + 1 }))
+    expect(() => parseWorkspaceSnapshotV2({ ...migrated,
+      panes: [{ ...migrated.panes[0], editorStates: { 'Research/仮説.md': { anchor: 0, head: 0, folds: tooManyFolds } } }]
+    })).toThrow()
+  })
+
   it('keeps legacy filters unset for global inheritance and persists explicit per-pane graph filters', () => {
     expect(migrated.panes[0].localGraph.filters).toBeUndefined()
     expect(parseWorkspaceSnapshotV2(migrated).panes[0].localGraph.filters).toBeUndefined()
@@ -147,6 +180,10 @@ describe('workspace state V2 parser', () => {
     { ...migrated, panes: [{ ...migrated.panes[0], scroll: { top: -1, left: 0 } }] },
     { ...migrated, panes: [{ ...migrated.panes[0], localGraph: { depth: 4, direction: 'both' } }] },
     { ...migrated, panes: [{ ...migrated.panes[0], localGraph: { depth: 1.5, direction: 'both' } }] }
+    ,{ ...migrated, panes: [{ ...migrated.panes[0], editorStates: { '../outside.md': { anchor: 0, head: 0, folds: [] } } }] }
+    ,{ ...migrated, panes: [{ ...migrated.panes[0], editorStates: { 'bad.txt': { anchor: 0, head: 0, folds: [] } } }] }
+    ,{ ...migrated, panes: [{ ...migrated.panes[0], editorStates: { 'notes.md': { anchor: -1, head: 0, folds: [] } } }] }
+    ,{ ...migrated, panes: [{ ...migrated.panes[0], editorStates: { 'notes.md': { anchor: 0, head: 0, folds: [{ from: 4, to: 4 }] } } }] }
   ])('rejects invalid V2 layouts and bounds', (value) => {
     expect(() => parseWorkspaceSnapshotV2(value)).toThrow()
   })

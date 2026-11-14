@@ -28,6 +28,18 @@ describe('bookmarks', () => {
     expect(resolveBookmarkTarget(bookmark, [note('Notes/One.md', '# B')])).toMatchObject({ status: 'stale', rootPath: notes[0].path })
   })
 
+  it('resolves a folder to the scanned path or reports it as missing', () => {
+    const [bookmark] = normalizeBookmarks([
+      { type: 'folder', path: 'notes\\project', ctime: 1 },
+      { type: 'folder', path: '', ctime: 2 }
+    ])
+    expect(bookmark).toMatchObject({ type: 'folder', path: 'notes/project', id: 'folder:notes%2Fproject' })
+    expect(resolveBookmarkTarget(bookmark, [], [], undefined, ['', 'Notes', 'Notes/Project'])).toEqual({
+      status: 'resolved', type: 'folder', path: 'Notes/Project'
+    })
+    expect(resolveBookmarkTarget(bookmark, [note('notes/project', '')])).toMatchObject({ status: 'stale' })
+  })
+
   it('replays the exact saved search text', () => {
     const bookmark = normalizeBookmarks([{ type: 'search', query: '  title:"A B" ', ctime: 1 }])[0]
     expect(resolveBookmarkTarget(bookmark, [])).toEqual({ status: 'resolved', type: 'search', query: '  title:"A B" ' })

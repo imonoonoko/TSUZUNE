@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, dialog, Menu, safeStorage, shell, Tray } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, Menu, protocol, safeStorage, shell, Tray } from 'electron'
 import electronUpdater from 'electron-updater'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { basename, isAbsolute, join } from 'node:path'
@@ -21,12 +21,13 @@ import {
 } from './browser-clip-bridge'
 import { resolveGitHubUpdateToken, UpdateService } from './update-service'
 import { VaultService } from './vault'
+import { MEDIA_SCHEME, VaultMedia } from './media-protocol'
 import { VaultWatcher } from './watcher'
 import { createCalendarPluginHostHtml } from './calendar-plugin-host-page'
 import {
   loadMomentScript,
   registerCalendarPluginProtocol,
-  registerCalendarPluginSchemeAsPrivileged
+  registerVaultSchemesAsPrivileged
 } from './calendar-plugin-protocol'
 import calendarBootstrapSource from './calendar-plugin-host-bootstrap.js?raw'
 import calendarCommonJsSource from './calendar-plugin-host-commonjs.js?raw'
@@ -44,7 +45,7 @@ if (explicitUserData) {
   app.setPath('sessionData', explicitUserData)
 }
 
-registerCalendarPluginSchemeAsPrivileged()
+registerVaultSchemesAsPrivileged(MEDIA_SCHEME)
 app.setAppUserModelId('jp.tsuzune.app')
 const singleInstanceLock = app.requestSingleInstanceLock()
 if (!singleInstanceLock) app.quit()
@@ -299,6 +300,8 @@ if (singleInstanceLock) {
     moment: loadMomentScript(),
     html: createCalendarPluginHostHtml
   })
+  const media = new VaultMedia(vault)
+  protocol.handle(MEDIA_SCHEME, request => media.handle(request))
   autoUpdater.logger = null
   const updates = new UpdateService({
     isPackaged: app.isPackaged,
@@ -335,7 +338,8 @@ if (singleInstanceLock) {
       mainWindow?.hide()
     },
     openAttachmentWindow,
-    entryMove
+    entryMove,
+    media
   )
   try {
     driveSyncBridge = await startDriveSyncBridge({

@@ -1,7 +1,8 @@
 import type {
   NoteDocument,
   ResolvedWikiLink,
-  WikiLinkOccurrence
+  WikiLinkOccurrence,
+  VaultAttachment
 } from '../shared/types'
 import {
   basenameRelative,
@@ -12,7 +13,7 @@ import {
   withoutMarkdownExtension
 } from './paths'
 import type { CompiledPathAliases } from './path-aliases'
-import { isSupportedAttachmentPath } from '../shared/attachments'
+import { isSupportedAttachmentPath, mediaMimeType } from '../shared/attachments'
 import { commonmarkLanguage } from '@codemirror/lang-markdown'
 import { decodeString } from 'micromark-util-decode-string'
 import type { NoteLinkCache } from './note-link-cache'
@@ -90,7 +91,9 @@ export function extractNoteLinks(content: string, sourcePath: string, includeEmb
     const frontmatterWiki = to <= frontmatter.length && frontmatterWikiMask.slice(from, to) !== match[0]
     if (escapes % 2 || (!frontmatterWiki && excluded(from, to)) || markdownRanges.some(range => from < range.to && to > range.from)) continue
     const occurrence = readWikiLink(match[0])
-    if (!occurrence || (!includeEmbeddedAttachments && content[from - 1] === '!' && isSupportedAttachmentPath(occurrence.target.split('#')[0]))) continue
+    if (!occurrence) continue
+    const targetPath = occurrence.target.split('#')[0]
+    if (!includeEmbeddedAttachments && (/\.pdf$/i.test(targetPath) || mediaMimeType(targetPath) || (content[from - 1] === '!' && isSupportedAttachmentPath(targetPath)))) continue
     links.push({ ...occurrence, kind: 'wiki', sourcePath, fragment: occurrence.target.includes('#') ? occurrence.target.slice(occurrence.target.indexOf('#') + 1) : undefined, range: { from, to }, destinationRange: { from: from + 2, to: from + 2 + match[1].split('|')[0].length } })
   }
   return links.sort((a, b) => a.range.from - b.range.from)
@@ -164,7 +167,8 @@ function readWikiLink(raw: string): WikiLinkOccurrence | null {
 
 function processInlineLine(
   line: string,
-  onLink: (occurrence: WikiLinkOccurrence, embedded: boolean) => string
+  onLink: (occurrence: WikiLinkOccurrence, embedded: boolean, range: SourceRange) => string,
+  lineOffset: number
 ): string {
   let output = ''
   let index = 0
@@ -194,7 +198,7 @@ function processInlineLine(
         const raw = line.slice(index, closing + 2)
         const occurrence = readWikiLink(raw)
         output += occurrence
-          ? onLink(occurrence, index > 0 && line[index - 1] === '!')
+          ? onLink(occurrence, index > 0 && line[index - 1] === '!', { from: lineOffset + index, to: lineOffset + closing + 2 })
           : raw
         index = closing + 2
         continue
@@ -210,13 +214,16 @@ function processInlineLine(
 
 function walkMarkdown(
   markdown: string,
-  onLink: (occurrence: WikiLinkOccurrence, embedded: boolean) => string
+  onLink: (occurrence: WikiLinkOccurrence, embedded: boolean, range: SourceRange) => string
 ): string {
   const lines = markdown.split('\n')
   let activeFence: FenceState | null = null
+  let offset = 0
 
   return lines
     .map((line) => {
+      const lineOffset = offset
+      offset += line.length + 1
       if (activeFence) {
         if (isClosingFence(line, activeFence)) {
           activeFence = null
@@ -230,7 +237,7 @@ function walkMarkdown(
         return line
       }
 
-      return processInlineLine(line, onLink)
+      return processInlineLine(line, onLink, lineOffset)
     })
     .join('\n')
 }
@@ -248,8 +255,13 @@ function escapeMarkdownLabel(value: string): string {
   return value.replaceAll('\\', '\\\\').replaceAll('[', '\\[').replaceAll(']', '\\]')
 }
 
-export function transformWikiLinksForPreview(markdown: string): string {
-  return walkMarkdown(markdown, (occurrence, embedded) => {
+export function transformWikiLinksForPreview(markdown: string, mathRanges: readonly SourceRange[] = []): string {
+  let mathIndex = 0
+  return walkMarkdown(markdown, (occurrence, embedded, range) => {
+    // Both walks visit source ranges in order.
+    while (mathIndex < mathRanges.length && mathRanges[mathIndex].to <= range.from) mathIndex += 1
+    const math = mathRanges[mathIndex]
+    if (math && math.from <= range.from && math.to >= range.to) return occurrence.raw
     const label = escapeMarkdownLabel(occurrence.alias ?? occurrence.target)
     const route = embedded ? 'vault-asset' : 'wiki'
     return `[${label}](#/${route}/${encodeURIComponent(occurrence.target)})`
@@ -369,6 +381,11 @@ export function resolveIndexedWikiLink(
       : { status: 'missing', path: intendedPath, candidates: [] }
   }
 
+  const explicitRoot = /\.md$/i.test(baseTarget) ? index.exactPaths.get(lowerTarget) : undefined
+  if (explicitRoot) {
+    return { status: 'resolved', path: explicitRoot, candidates: [explicitRoot] }
+  }
+
   const basenameKey = normalized.toLocaleLowerCase()
   const candidates = index.basenameCandidates.get(basenameKey)
   if (candidates) {
@@ -389,6 +406,61 @@ export function resolveIndexedWikiLink(
   }
 
   return { status: 'missing', path: intendedPath, candidates: [] }
+}
+
+interface AttachmentLinkIndex {
+  exactPaths: Map<string, string>
+  uniqueBasenames: Map<string, string | null>
+}
+
+export type IndexedAttachmentLinkResolution =
+  | { status: 'resolved'; path: string }
+  | { status: 'missing'; path: string }
+  | { status: 'ambiguous' }
+  | { status: 'invalid' }
+
+export function buildAttachmentLinkIndex(
+  attachments: readonly VaultAttachment[]
+): AttachmentLinkIndex {
+  const exactPaths = new Map<string, string>()
+  const uniqueBasenames = new Map<string, string | null>()
+
+  for (const attachment of attachments) {
+    exactPaths.set(attachment.path.toLocaleLowerCase(), attachment.path)
+    const basename = basenameRelative(attachment.path).toLocaleLowerCase()
+    uniqueBasenames.set(
+      basename,
+      uniqueBasenames.has(basename) ? null : attachment.path
+    )
+  }
+  return { exactPaths, uniqueBasenames }
+}
+
+export function resolveIndexedAttachmentLink(
+  target: string,
+  index: AttachmentLinkIndex
+): IndexedAttachmentLinkResolution {
+  const attachmentTarget = target.trim().split('#', 1)[0].replaceAll('\\', '/')
+  const validation = validateRelativePath(attachmentTarget)
+  if (!validation.valid || !validation.normalized) {
+    return { status: 'invalid' }
+  }
+
+  const normalized = validation.normalized
+  if (normalized.includes('/')) {
+    const resolvedPath = index.exactPaths.get(normalized.toLocaleLowerCase())
+    return resolvedPath
+      ? { status: 'resolved', path: resolvedPath }
+      : { status: 'missing', path: normalized }
+  }
+
+  const candidate = index.uniqueBasenames.get(normalized.toLocaleLowerCase())
+  if (candidate === null) {
+    return { status: 'ambiguous' }
+  }
+  return candidate
+    ? { status: 'resolved', path: candidate }
+    : { status: 'missing', path: normalized }
 }
 
 function resolvedWikiLink(

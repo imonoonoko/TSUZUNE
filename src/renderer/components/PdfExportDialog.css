@@ -1,0 +1,40 @@
+.pdf-export-dialog { width: min(480px, calc(100vw - 32px)); }
+.pdf-export-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.pdf-export-path { overflow-wrap: anywhere; font-weight: 600; }
+.pdf-export-options { display: flex; flex-wrap: wrap; gap: 20px; }
+.pdf-export-options label { display: grid; gap: 6px; flex: 1; }
+.pdf-export-root {
+  position: fixed; left: -100000px; top: 0; pointer-events: none;
+  color: #171717; background: white; color-scheme: light;
+  --text: #171717; --ink: #171717; --muted: #555; --paper: #fff; --editor: #fff; --line: #b8b8b8; --accent: #275f83; --link: #275f83;
+  font-family: "Yu Gothic", Meiryo, sans-serif;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.pdf-export-root .markdown-preview { padding: 0; overflow: visible; font-size: 11pt; line-height: 1.75; }
+.pdf-export-root .markdown-preview > * { max-width: none; }
+.pdf-export-root .markdown-properties,
+.pdf-export-root button,
+.pdf-export-root audio,
+.pdf-export-root video { display: none; }
+.pdf-export-root a { color: #275f83; text-decoration: underline; }
+.pdf-export-root a:not([href]) { color: inherit; text-decoration: none; }
+.pdf-export-root .markdown-preview pre, .pdf-export-root .markdown-preview code,
+.pdf-export-root .markdown-preview pre * { background: #f2f2f2; color: #171717; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pdf-export-root pre { overflow: visible; border: 1px solid #ccc; padding: 10px; }
+.pdf-export-root blockquote { color: #444; border-color: #888; }
+.pdf-export-root h1, .pdf-export-root h2, .pdf-export-root h3, .pdf-export-root h4 { break-after: avoid; }
+.pdf-export-root p { orphans: 3; widows: 3; overflow-wrap: anywhere; }
+.pdf-export-root table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.pdf-export-root th, .pdf-export-root td { border: 1px solid #aaa; padding: 6px; overflow-wrap: anywhere; }
+.pdf-export-root thead { display: table-header-group; }
+.pdf-export-root tr { break-inside: avoid; }
+.pdf-export-root img { max-width: 100%; max-height: var(--pdf-media-height); object-fit: contain; break-inside: avoid; }
+.pdf-export-root .note-embed { break-inside: auto; }
+.pdf-export-root .mermaid-diagram { background: white; padding: 10px; overflow: visible; break-inside: avoid; }
+.pdf-export-root .mermaid-diagram > svg { display: block; width: 100%; height: auto; max-height: var(--pdf-media-height); margin-inline: auto; }
+.pdf-export-root .katex-display { overflow: visible; break-inside: avoid; }
+@media print {
+  :root:has(body > .pdf-export-root), body:has(> .pdf-export-root) { height: auto !important; min-height: 0 !important; overflow: visible !important; background: white !important; color-scheme: light !important; }
+  body:has(> .pdf-export-root) > :not(.pdf-export-root) { display: none !important; }
+  .pdf-export-root { display: block; position: static; width: auto !important; }
+}

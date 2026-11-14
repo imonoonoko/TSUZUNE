@@ -11,6 +11,7 @@ export interface BasePathDialogProps {
   onRefresh: () => void
   onCancel: () => void
   onConfirm: (path: string, mode: 'list' | 'manual') => void
+  onCreate?: (path: string) => void
 }
 
 function normalize(value: string): string {
@@ -41,7 +42,8 @@ export default function BasePathDialog({
   error = null,
   onRefresh,
   onCancel,
-  onConfirm
+  onConfirm,
+  onCreate
 }: BasePathDialogProps): React.JSX.Element {
   const dialogRef = useRef<HTMLFormElement | null>(null)
   const searchRef = useRef<HTMLInputElement | null>(null)
@@ -50,7 +52,7 @@ export default function BasePathDialog({
   const composingRef = useRef(false)
   const [query, setQuery] = useState('')
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
-  const [mode, setMode] = useState<'list' | 'manual'>('list')
+  const [mode, setMode] = useState<'list' | 'manual' | 'create'>('list')
   const [path, setPath] = useState('')
 
   const queryTokens = useMemo(() => tokensFor(query), [query])
@@ -85,6 +87,10 @@ export default function BasePathDialog({
 
   const confirm = (): void => {
     if (busy) return
+    if (mode === 'create') {
+      if (manualValid) onCreate?.(normalizedPath)
+      return
+    }
     if (mode === 'manual') {
       if (manualValid) onConfirm(normalizedPath, 'manual')
       return
@@ -172,7 +178,7 @@ export default function BasePathDialog({
           if (!composingRef.current) confirm()
         }}
       >
-        <h2 id="base-path-dialog-title" className="base-path-dialog-title">Baseを開く</h2>
+        <h2 id="base-path-dialog-title" className="base-path-dialog-title">{mode === 'create' ? '新しいBaseを作成' : 'Baseを開く'}</h2>
         <label className="sr-only" htmlFor="base-path-search">Baseを検索</label>
         <input
           ref={searchRef}
@@ -232,8 +238,8 @@ export default function BasePathDialog({
             </button>
           </>
         ) : (
-          <section className="base-path-manual" aria-label="Baseパスを入力">
-            <label htmlFor="base-path-input">Vault相対の.baseパス</label>
+          <section className="base-path-manual" aria-label={mode === 'create' ? '新しいBaseのパス' : 'Baseパスを入力'}>
+            <label htmlFor="base-path-input">{mode === 'create' ? '新しいBaseのパス' : 'Vault相対の.baseパス'}</label>
             <input
               ref={manualInputRef}
               id="base-path-input"
@@ -264,9 +270,11 @@ export default function BasePathDialog({
           </section>
         )}
         {error && <p className="base-path-error" role="alert">{error}</p>}
+        {onCreate && mode !== 'create' && <button type="button" disabled={busy} className="secondary-button"
+          onClick={() => { setPath('新しいBase.base'); setMode('create') }}>新しいBaseを作成</button>}
         <div className="modal-actions">
           <button type="button" className="secondary-button" disabled={busy} onClick={onCancel}>キャンセル</button>
-          <button type="submit" className="primary-button" disabled={busy || (mode === 'list' ? !activePath : !manualValid)}>開く</button>
+          <button type="submit" className="primary-button" disabled={busy || (mode === 'list' ? !activePath : !manualValid)}>{mode === 'create' ? '作成' : '開く'}</button>
         </div>
       </form>
     </div>

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react'
+import { gzipSync } from 'node:zlib'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
@@ -25,17 +26,36 @@ vi.mock('../src/renderer/components/MarkdownEditor', async () => {
         value,
         onChange,
         onCompositionChange,
-        readOnly
+        readOnly,
+        workspaceState
       }: {
         value: string
         onChange: (value: string) => void
         onCompositionChange?: (composing: boolean) => void
         readOnly?: boolean
+        workspaceState?: { anchor: number; head: number }
       },
-      ref: React.ForwardedRef<{ scrollToOffset: (offset: number) => void }>
+      ref: React.ForwardedRef<{
+        scrollToOffset: (offset: number) => void
+        getWorkspaceState: () => { anchor: number; head: number; folds: [] } | null
+        selectSourceRange: (source: string, from: number, to: number) => boolean
+      }>
     ) {
       const inputRef = ReactApi.useRef<HTMLTextAreaElement | null>(null)
+      ReactApi.useEffect(() => {
+        if (workspaceState) inputRef.current?.setSelectionRange(workspaceState.anchor, workspaceState.head)
+      }, [])
       ReactApi.useImperativeHandle(ref, () => ({
+        getWorkspaceState: () => inputRef.current && {
+          anchor: inputRef.current.selectionStart, head: inputRef.current.selectionEnd, folds: []
+        },
+        selectSourceRange: (source, from, to) => {
+          const input = inputRef.current
+          if (!input || input.value !== source) return false
+          input.setSelectionRange(from, to)
+          input.focus()
+          return true
+        },
         scrollToOffset: (offset: number) => {
           const input = inputRef.current
           if (!input) return
@@ -66,7 +86,7 @@ import { DEFAULT_GRAPH_FORCE_SETTINGS } from '../src/shared/graph-settings'
 import { DEFAULT_GRAPH_FILTER_SETTINGS } from '../src/shared/graph-filters'
 import { DEFAULT_GRAPH_GROUPS } from '../src/shared/graph-groups'
 import { DEFAULT_GRAPH_VIEW_STATES } from '../src/shared/graph-view-state'
-import { migrateWorkspaceSnapshotV1, type WorkspaceSnapshotV1 } from '../src/shared/workspace-state'
+import { migrateWorkspaceSnapshotV1, type WorkspaceSnapshotV1, type WorkspaceSnapshotV2 } from '../src/shared/workspace-state'
 
 const noteA: NoteDocument = {
   path: 'A.md',
@@ -660,6 +680,93 @@ describe('App Bases', () => {
 })
 
 describe('App data-loss guards', () => {
+  it('opens the compressed startup snapshot and restores the previous note', async () => {
+    const packed = gzipSync(JSON.stringify(snapshot)).toString('base64')
+    const startup = vi.fn(() => ok({ encoding: 'gzip-base64' as const, data: packed }))
+    Object.assign(api, { openLastVaultStartup: startup })
+    render(<App />)
+
+    await screen.findByText('Aの本文')
+    expect(startup).toHaveBeenCalledOnce()
+    expect(api.openLastVault).not.toHaveBeenCalled()
+    expect(api.getSnapshot).not.toHaveBeenCalled()
+    expect(api.getWorkspaces).toHaveBeenCalledWith(snapshot.rootPath)
+  })
+
+  it('recovers a plain snapshot from the already open Vault if gzip decoding fails', async () => {
+    const startup = vi.fn(() => ok({ encoding: 'gzip-base64' as const, data: 'invalid-base64!' }))
+    Object.assign(api, { openLastVaultStartup: startup })
+    render(<App />)
+
+    await screen.findByText('Aの本文')
+    expect(startup).toHaveBeenCalledOnce()
+    expect(api.getSnapshot).toHaveBeenCalledOnce()
+    expect(api.openLastVault).not.toHaveBeenCalled()
+  })
+
+  it('opens the matching source range for editing from the search sidebar', async () => {
+    const match = 'matching text'
+    const target = { ...noteB, content: `A line before\n${match}\nA line after` }
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok({ ...snapshot, notes: [noteA, target] }))
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '内容を検索' }))
+    fireEvent.change(screen.getByPlaceholderText('内容を検索'), { target: { value: '"matching text"' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: '一致箇所を表示' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'この一致へ移動' }))
+
+    const editor = await screen.findByLabelText<HTMLTextAreaElement>('Markdown編集欄')
+    await waitFor(() => expect(editor.value.slice(editor.selectionStart, editor.selectionEnd)).toBe(match))
+    expect(document.activeElement).toBe(editor)
+    expect(api.saveNote).not.toHaveBeenCalled()
+  })
+
+  it('returns to the matching note tab from the Vault graph', async () => {
+    const match = 'unique search match'
+    const target = { ...noteA, content: `Before the match\n${match}` }
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok({ ...snapshot, notes: [target] }))
+    render(<App />)
+    fireEvent.click((await screen.findAllByRole('button', { name: 'グラフビュー' }))[0])
+    await screen.findByRole('region', { name: 'Vault全体グラフ' })
+
+    fireEvent.click(screen.getByRole('button', { name: '内容を検索' }))
+    fireEvent.change(screen.getByPlaceholderText('内容を検索'), { target: { value: '"unique search match"' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: '一致箇所を表示' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'この一致へ移動' }))
+
+    const editor = await screen.findByLabelText<HTMLTextAreaElement>('Markdown編集欄')
+    expect(editor.value.slice(editor.selectionStart, editor.selectionEnd)).toBe(match)
+    expect(screen.getByRole('tab', { name: 'A' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tab', { name: 'グラフビュー' }).getAttribute('aria-selected')).toBe('false')
+  })
+
+  it('restores a note selection and checkpoints the current selection on close', async () => {
+    const saved = migrateWorkspaceSnapshotV1({
+      tabs: [{ kind: 'note', path: noteA.path }], activeIndex: 0, noteView: 'edit',
+      left: { open: true, view: 'files', query: '' }, right: { open: true, view: 'links' }
+    })
+    const session = {
+      ...saved,
+      panes: saved.panes.map(pane => ({ ...pane, editorStates: {
+        [noteA.path]: { anchor: 1, head: 3, folds: [] }
+      } }))
+    }
+    vi.mocked(api.getWorkspaces).mockResolvedValue(await ok({
+      scope: { rootPath: snapshot.rootPath, rootRevision: 1 },
+      state: { version: 1, named: [], lastSession: session }
+    }))
+    render(<App />)
+    const editor = await screen.findByLabelText<HTMLTextAreaElement>('Markdown編集欄')
+    expect(editor.selectionStart).toBe(1)
+    expect(editor.selectionEnd).toBe(3)
+
+    editor.setSelectionRange(0, 2)
+    await act(async () => { requestClose?.() })
+    await waitFor(() => expect(api.confirmClose).toHaveBeenCalledWith(true))
+    const persisted = vi.mocked(api.saveLastWorkspaceSession).mock.calls.at(-1)?.[1] as WorkspaceSnapshotV2
+    expect(persisted.panes[0].editorStates?.[noteA.path]).toEqual({ anchor: 0, head: 2, folds: [] })
+    expect(api.saveNote).not.toHaveBeenCalled()
+  })
+
   it('saves the old Vault layout before switching and restores only the next Vault session', async () => {
     const nextVault = { ...snapshot, rootPath: 'C:\\OtherVault', rootName: 'OtherVault', notes: [{ ...noteB, content: '別Vaultの本文' }] }
     vi.mocked(api.chooseVault).mockResolvedValue(await ok(nextVault))
@@ -1932,7 +2039,9 @@ describe('App data-loss guards', () => {
     fireEvent.change(within(workspace).getByRole('textbox', { name: 'ワークスペース名' }), {
       target: { value: '調査' }
     })
-    fireEvent.click(within(workspace).getByRole('button', { name: '保存' }))
+    await act(async () => {
+      fireEvent.click(within(workspace).getByRole('button', { name: '保存' }))
+    })
     await waitFor(() => expect(api.saveWorkspace).toHaveBeenCalledWith(
       savedCollection.scope,
       '調査',
@@ -4026,6 +4135,55 @@ describe('App data-loss guards', () => {
     await waitFor(() => {
       expect(api.readVaultImage).toHaveBeenCalledWith(movedPath)
     })
+  })
+
+  it.each([true, false])('renames a graph image through the file dialog when reference confirmation is %s', async approved => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(approved)
+    const attachment = { path: 'assets/diagram.png', name: 'diagram.png', modifiedAt: 500, createdAt: 400, size: 10 }
+    const initialSnapshot: VaultSnapshot = {
+      ...snapshot,
+      directories: ['', 'assets'],
+      notes: [{ ...noteA, content: '![[assets/diagram.png]]' }, noteB, noteC],
+      attachments: [attachment]
+    }
+    const renamedPath = 'assets/renamed.png'
+    vi.mocked(api.openLastVault).mockResolvedValue(await ok(initialSnapshot))
+    vi.mocked(api.getSnapshot).mockResolvedValue(await ok({
+      ...initialSnapshot,
+      notes: [{ ...noteA, content: '![[assets/renamed.png]]' }, noteB, noteC],
+      attachments: [{ ...attachment, path: renamedPath, name: 'renamed.png' }]
+    }))
+    vi.mocked(api.renameEntry).mockResolvedValue(await ok({ path: renamedPath }))
+
+    render(<App />)
+    fireEvent.click((await screen.findAllByRole('button', { name: 'グラフビュー' }))[0])
+    fireEvent.click(screen.getByRole('button', { name: 'フィルタを開く' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: '添付書類' }))
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'diagram.png（添付書類）を開く' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '新規タブに開く' }))
+    await screen.findByRole('tab', { name: 'diagram.png' })
+    fireEvent.click(screen.getByRole('tab', { name: 'グラフビュー' }))
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'diagram.png（添付書類）を開く' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '名前変更…' }))
+    const dialog = screen.getByRole('dialog', { name: '添付ファイルの名前を変更' })
+    expect((within(dialog).getByRole('textbox', { name: '新しい名前' }) as HTMLInputElement).value).toBe('diagram.png')
+    fireEvent.change(within(dialog).getByRole('textbox', { name: '新しい名前' }), { target: { value: 'renamed.png' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: '名前変更', exact: true }))
+
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1))
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Markdownリンクを更新'))
+    if (approved) {
+      await waitFor(() => expect(api.renameEntry).toHaveBeenCalledWith({ path: attachment.path, newName: 'renamed.png' }))
+      await screen.findByRole('button', { name: 'renamed.png（添付書類）を開く' })
+    } else {
+      expect(api.renameEntry).not.toHaveBeenCalled()
+      expect(api.getSnapshot).not.toHaveBeenCalled()
+    }
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '添付ファイルの名前を変更' })).toBeNull())
+    expect(screen.getByRole('tab', { name: 'グラフビュー' }).getAttribute('aria-selected')).toBe('true')
+    vi.mocked(api.readVaultImage).mockClear()
+    fireEvent.click(screen.getByRole('tab', { name: approved ? 'renamed.png' : 'diagram.png' }))
+    await waitFor(() => expect(api.readVaultImage).toHaveBeenCalledWith(approved ? renamedPath : attachment.path))
   })
 
   it('moves a file-backed graph node to trash from its context menu', async () => {

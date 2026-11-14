@@ -1,4 +1,5 @@
 import type { BaseDiagnostic, BaseProfile } from '../../core/base-profile'
+import { canMoveKanbanFolderPath, createKanbanFolderMoveIndex, kanbanFolderMove, type KanbanFolderMoveIndex, type KanbanFolderMoveState } from '../../core/base-kanban'
 import type {
   BaseCell,
   BaseEvaluation,
@@ -20,6 +21,7 @@ export type BaseTableState =
       notes?: NoteDocument[]
       declaredTypes?: Record<string, string>
       viewIndex?: number
+      revision?: string
     }
 
 type BaseTableViewProps = {
@@ -32,6 +34,9 @@ type BaseTableViewProps = {
   onSaveProfile?: (content: string) => void
   onPreviewProfile?: (content: string, viewIndex: number) => void | Promise<boolean | void>
   onResolveImage?: (path: string) => Promise<string | null>
+  localImagesOnly?: boolean
+  onMoveCard?: (path: string, operation: Extract<import('../../shared/property-changes').PropertyChangeOperation, { kind: 'set' }>) => void
+  onMoveFile?: (state: Extract<BaseTableState, { status: 'ready' }>, path: string, directory: string) => void
   evaluating?: boolean
   onStopEvaluation?: () => void
 }
@@ -43,17 +48,17 @@ function cellText(cell: BaseCell): string {
   return baseValueText(cell.value)
 }
 
-function BaseImage({ path, resolve }: { path: string; resolve?: (path: string) => Promise<string | null> }): React.JSX.Element {
+function BaseImage({ path, resolve, localImagesOnly }: { path: string; resolve?: (path: string) => Promise<string | null>; localImagesOnly?: boolean }): React.JSX.Element {
   const [source, setSource] = useState<string | null>(null)
-  useEffect(() => { let current = true; setSource(null); if (/^https?:\/\//i.test(path)) setSource(path); else if (resolve) void resolve(path).then((result) => { if (current) setSource(result) }).catch(() => {}); return () => { current = false } }, [path, resolve])
+  useEffect(() => { let current = true; setSource(null); if (!localImagesOnly && /^https?:\/\//i.test(path)) setSource(path); else if (!/^https?:\/\//i.test(path) && resolve) void resolve(path).then((result) => { if (current) setSource(result) }).catch(() => {}); return () => { current = false } }, [path, resolve, localImagesOnly])
   return source ? <img src={source} alt={path} loading="lazy" style={{ maxWidth: 160, maxHeight: 120 }} /> : <span>{path}</span>
 }
-function BaseValueDisplay({ value, open, image }: { value: BaseValue; open: (path: string) => void; image?: (path: string) => Promise<string | null> }): React.JSX.Element {
-  if (Array.isArray(value)) return <span>{value.map((item, index) => <span key={index}>{index ? ', ' : ''}<BaseValueDisplay value={item} open={open} image={image} /></span>)}</span>
+function BaseValueDisplay({ value, open, image, localImagesOnly }: { value: BaseValue; open: (path: string) => void; image?: (path: string) => Promise<string | null>; localImagesOnly?: boolean }): React.JSX.Element {
+  if (Array.isArray(value)) return <span>{value.map((item, index) => <span key={index}>{index ? ', ' : ''}<BaseValueDisplay value={item} open={open} image={image} localImagesOnly={localImagesOnly} /></span>)}</span>
   if (special(value, 'html')) return <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(value.value, { FORBID_TAGS: ['style', 'form', 'iframe', 'object', 'embed', 'img', 'video', 'audio'], FORBID_ATTR: ['style'], ALLOWED_URI_REGEXP: /^https?:\/\//i }) }} />
-  if (special(value, 'image')) return <BaseImage path={value.value} resolve={image} />
+  if (special(value, 'image')) return <BaseImage path={value.value} resolve={image} localImagesOnly={localImagesOnly} />
   if (special(value, 'icon')) { const key = value.value.replace(/(^|-)([a-z])/g, (_, __, letter: string) => letter.toUpperCase()) as keyof typeof icons; const Icon = icons[key]; return Icon ? <Icon size={18} aria-label={value.value} /> : <span>{value.value}</span> }
-  if (special(value, 'link')) { const label = value.label != null ? <BaseValueDisplay value={value.label} open={open} image={image} /> : baseValueText(value); return /^https?:\/\//i.test(value.value) ? <a href={value.value} target="_blank" rel="noopener noreferrer">{label}</a> : <button type="button" className="base-table-note-link" onClick={() => open(value.value)}>{label}</button> }
+  if (special(value, 'link')) { const label = value.label != null ? <BaseValueDisplay value={value.label} open={open} image={image} localImagesOnly={localImagesOnly} /> : baseValueText(value); return /^https?:\/\//i.test(value.value) ? <a href={value.value} target="_blank" rel="noopener noreferrer">{label}</a> : <button type="button" className="base-table-note-link" onClick={() => open(value.value)}>{label}</button> }
   return <span>{baseValueText(value)}</span>
 }
 
@@ -76,10 +81,18 @@ export default function BaseTableView({
   onSaveProfile,
   onPreviewProfile,
   onResolveImage,
+  localImagesOnly,
+  onMoveCard,
+  onMoveFile,
   evaluating,
   onStopEvaluation
 }: BaseTableViewProps): React.JSX.Element {
   const [settings, setSettings] = useState(false)
+  const [query, setQuery] = useState('')
+  const [exportError, setExportError] = useState<string | null>(null)
+  const [settingsProfile, setSettingsProfile] = useState<BaseProfile | null>(null)
+  const [folderMoveOptions, setFolderMoveOptions] = useState<{ state: BaseTableState; query: string; destination: number; paths: string[] } | null>(null)
+  const columnDrag = useRef<{ index: number; state: BaseTableState } | null>(null)
   if (state.status === 'loading') {
     return (
       <section className="base-table-panel" aria-label="Baseテーブル">
@@ -119,14 +132,81 @@ export default function BaseTableView({
   const { profile, evaluation } = state
   const selectedView = state.viewIndex ?? evaluation.viewIndex ?? 0
   const view = (profile.views ?? [profile.view])[selectedView] ?? profile.view
-  const renderRows = (rows: BaseEvaluation['rows']): React.JSX.Element[] => rows.map((row) => (
+  const folderMoveIndex: KanbanFolderMoveIndex | null = state.status === 'ready' && onMoveFile && !editingDisabled && !evaluating ? createKanbanFolderMoveIndex(state) : null
+  const canMoveTo = (index: number): boolean => Boolean((onMoveCard || onMoveFile) && !editingDisabled && !evaluating && state.status === 'ready' && evaluation.groups?.[index]?.rows.length)
+  const canDragCard = (path: string): boolean => Boolean(onMoveCard && !editingDisabled && !evaluating && visibleGroups.some(({ evaluationIndex }) => kanbanMove(state, path, evaluationIndex)))
+  const canDragFile = (path: string): boolean => canMoveKanbanFolderPath(folderMoveIndex, path)
+  const moveFile = (path: string, index: number): void => { if (state.status !== 'ready' || editingDisabled || evaluating) return; const directory = kanbanFolderMove(state as KanbanFolderMoveState, path, index, folderMoveIndex); if (directory !== null) onMoveFile?.(state, path, directory) }
+  const requestColumnOrder = (order: BaseValue[]): void => {
+    if (state.status !== 'ready' || !state.content || editingDisabled || evaluating || settings || !onPreviewProfile || !onSaveProfile) return
+    const views = [...(state.profile.views ?? [state.profile.view])]
+    const currentView = views[selectedView] ?? state.profile.view
+    if (currentView.groupOrder) {
+      const hidden = currentView.groupBy?.hidden ?? []
+      const hiddenKeys = currentView.groupOrder.filter(key => hidden.some(value => baseValueEqual(value, key)))
+      views[selectedView] = { ...currentView, groupOrder: [...order, ...hiddenKeys] }
+    } else if (currentView.groupBy) {
+      views[selectedView] = { ...currentView, groupBy: { ...currentView.groupBy, order } }
+    } else return
+    setSettingsProfile({ ...state.profile, views, view: views[0] })
+    setSettings(true)
+  }
+  const reorderColumn = (from: number, to: number): void => {
+    const groups = visibleGroups.map(item => item.group)
+    if (from === to || from < 0 || to < 0 || from >= groups.length || to >= groups.length) return
+    const order = groups.map(group => group.key)
+    const [moved] = order.splice(from, 1)
+    order.splice(to, 0, moved)
+    requestColumnOrder(order)
+  }
+  const downloadBase = (format: 'csv' | 'tsv'): void => {
+    let content: string
+    try {
+      content = serializeBaseExport(evaluation, format)
+      setExportError(null)
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : '書き出しに失敗しました。')
+      return
+    }
+    const blob = new Blob([content], { type: format === 'csv' ? 'text/csv;charset=utf-8' : 'text/tab-separated-values;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `${view.name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_')}.${format}`
+    anchor.click()
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+  const rows = searchBaseRows(evaluation, query)
+  const visiblePaths = new Set(rows.map(row => row.path))
+  const visibleGroups = (evaluation.groups ?? []).map((group, evaluationIndex) => ({ group, evaluationIndex }))
+    .filter(({ group }) => !view.groupBy?.hidden?.some(hidden => baseValueEqual(hidden, group.key)))
+  const visibleKanbanPaths = new Set(visibleGroups.flatMap(({ group }) => group.rows.map(row => row.path)).filter(path => visiblePaths.has(path)))
+  const loadFolderMoveOptions = (destination: number): void => {
+    if (state.status !== 'ready' || !folderMoveIndex || !visibleKanbanPaths.size) return
+    const paths = [...visibleKanbanPaths].filter(path => kanbanFolderMove(state, path, destination, folderMoveIndex) !== null)
+    setFolderMoveOptions({ state, query, destination, paths })
+  }
+  const renderRows = (sourceRows: BaseEvaluation['rows']): React.JSX.Element[] => sourceRows.filter(row => visiblePaths.has(row.path)).map((row) => (
     <tr key={row.path}>{evaluation.columns.map((column) => {
       const cell = row.cells[column] ?? { kind: 'missing' as const }; const value = cellText(cell)
-      return <td key={column}>{column === 'file.name' || column === 'file.path' ? <button type="button" className="base-table-note-link" aria-label={`${row.path}を開く`} onClick={() => onOpenNote(row.path)}>{value || '—'}</button> : cell.kind === 'value' ? <BaseValueDisplay value={cell.value} open={onOpenNote} image={onResolveImage} /> : value}
+      return <td key={column}>{column === 'file.name' || column === 'file.path' ? <button type="button" className="base-table-note-link" aria-label={`${row.path}を開く`} onClick={() => onOpenNote(row.path)}>{value || '—'}</button> : cell.kind === 'value' ? <BaseValueDisplay value={cell.value} open={onOpenNote} image={onResolveImage} localImagesOnly={localImagesOnly} /> : value}
         {!column.startsWith('file.') && !column.startsWith('formula.') && onEditCell && <button type="button" className="base-cell-edit" disabled={editingDisabled} aria-label={`${row.path}の${column}を編集`} onClick={() => cell.kind === 'diagnostic' ? onOpenNote(row.path) : onEditCell(row.path, column.replace(/^note\./, ''))}>{cell.kind === 'diagnostic' ? 'ソースで編集' : '編集'}</button>}
       </td>
     })}</tr>
   ))
+  const renderCard = (row: BaseEvaluation['rows'][number], fileMove = false): React.JSX.Element => {
+    const cover = view.image ? row.cells[view.image] : undefined
+    const draggable = view.type === 'kanban' && (fileMove ? canDragFile(row.path) : canDragCard(row.path))
+    return <article className="base-card" key={row.path} draggable={draggable} onDragStart={event => {
+      if (!draggable) { event.preventDefault(); return }
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData(fileMove ? kanbanFileMime : kanbanCardMime, row.path)
+    }}>
+      <h3><button type="button" className="base-table-note-link" aria-label={`${cellText(row.cells['file.name'] ?? { kind: 'missing' })}を開く`} onClick={() => onOpenNote(row.path)}>{cellText(row.cells['file.name'] ?? { kind: 'value', value: row.path.split('/').at(-1) ?? row.path })}</button></h3>
+      {cover?.kind === 'value' && <BaseValueDisplay value={cover.value} open={onOpenNote} image={onResolveImage} localImagesOnly={localImagesOnly} />}
+      <dl>{evaluation.columns.filter(column => column !== 'file.name').map(column => <div key={column}><dt>{evaluation.labels?.[column] ?? column}</dt><dd>{row.cells[column]?.kind === 'value' ? <BaseValueDisplay value={row.cells[column].value} open={onOpenNote} image={onResolveImage} localImagesOnly={localImagesOnly} /> : cellText(row.cells[column] ?? { kind: 'missing' })}{!column.startsWith('file.') && !column.startsWith('formula.') && onEditCell && <button type="button" className="base-cell-edit" disabled={editingDisabled} aria-label={`${row.path}の${column}を編集`} onClick={() => onEditCell(row.path, column.replace(/^note\./, ''))}>編集</button>}</dd></div>)}</dl>
+    </article>
+  }
   const renderSummary = (values: Record<string, BaseCell> | undefined): React.JSX.Element => <tr className="base-summary-row">{evaluation.columns.map((column) => <td key={column}>{values?.[column] ? cellText(values[column]) : ''}</td>)}</tr>
   return (
     <section className="base-table-panel" aria-label="Baseテーブル">
@@ -137,14 +217,18 @@ export default function BaseTableView({
         </div>
         <div className="base-table-meta" aria-label="Baseの状態">
           <span>可視スナップショット</span>
-          <span>{evaluation.rows.length}行 / 対象 {evaluation.targetCount}件</span>
+          <span>{rows.length}行 / 対象 {evaluation.targetCount}件</span>
+          <label>検索<input type="search" aria-label="Base内を検索" value={query} onChange={event => setQuery(event.target.value)} maxLength={256} /></label>
+          <button type="button" onClick={() => downloadBase('csv')}>CSVを書き出す</button>
+          <button type="button" onClick={() => downloadBase('tsv')}>TSVを書き出す</button>
           <button type="button" onClick={onReload}>再読み込み</button>
           {(profile.views?.length ?? 1) > 1 && <label>ビュー<select value={selectedView} onChange={(event) => onSelectView?.(Number(event.target.value))}>{profile.views!.map((item, index) => <option key={index} value={index}>{item.name}</option>)}</select></label>}
-          {onSaveProfile && state.content && <button type="button" onClick={() => setSettings(!settings)}>設定</button>}
+          {onSaveProfile && state.content && <button type="button" onClick={() => { setSettings(!settings); if (settings) setSettingsProfile(null) }}>設定</button>}
           {evaluating && <><span role="status">評価中…</span><button type="button" onClick={onStopEvaluation}>評価を停止</button></>}
         </div>
       </header>
-      {settings && state.content && onSaveProfile && <BaseSettingsPanel key={state.path} content={state.content} profile={profile} selectedView={selectedView} disabled={editingDisabled} onSave={onSaveProfile} onPreview={(content, index) => onPreviewProfile?.(content, index)} onClose={() => setSettings(false)} />}
+      {exportError && <p role="alert">{exportError}</p>}
+      {settings && state.content && onSaveProfile && <BaseSettingsPanel key={`${state.path}:${settingsProfile ? 'column-order' : 'normal'}`} content={state.content} profile={settingsProfile ?? profile} selectedView={selectedView} groupValues={visibleGroups.map(({ group }) => group.key)} groupValuesViewIndex={selectedView} groupValuesProperty={view.groupBy?.property} disabled={editingDisabled} onSave={onSaveProfile} onPreview={(content, index) => onPreviewProfile?.(content, index)} onClose={() => { setSettings(false); setSettingsProfile(null) }} />}
       {evaluation.diagnostics.length > 0 && (
         <div role="status" className="base-table-diagnostics">
           <strong>一部のPropertyを表示できません。</strong>
@@ -157,8 +241,68 @@ export default function BaseTableView({
           </ul>
         </div>
       )}
-      {evaluation.rows.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="base-table-empty" role="status">条件に一致するノートはありません。</p>
+      ) : view.type === 'kanban' ? (
+        <div className={`base-kanban-board base-width-${view.columnWidth ?? 'default'}`} aria-label="Kanbanボード">
+          {visibleGroups.map(({ group, evaluationIndex }, index) => (
+            <section
+              className="base-kanban-column"
+              key={index}
+              onDragOver={event => {
+                const types = Array.from(event.dataTransfer.types)
+                const cardMove = canMoveTo(evaluationIndex) && (types.includes(kanbanCardMime) || types.includes(kanbanFileMime))
+                if (cardMove || (onSaveProfile && types.includes(kanbanColumnMime))) event.preventDefault()
+              }}
+              onDrop={event => {
+                const types = Array.from(event.dataTransfer.types)
+                if (types.includes(kanbanColumnMime)) {
+                  event.preventDefault()
+                  const dragged = columnDrag.current
+                  columnDrag.current = null
+                  if (dragged?.state === state && !editingDisabled && !evaluating && !settings) reorderColumn(dragged.index, index)
+                  return
+                }
+                if (!canMoveTo(evaluationIndex)) return
+                if (types.includes(kanbanFileMime)) {
+                  event.preventDefault()
+                  moveFile(event.dataTransfer.getData(kanbanFileMime), evaluationIndex)
+                  return
+                }
+                if (!types.includes(kanbanCardMime)) return
+                event.preventDefault()
+                const path = event.dataTransfer.getData(kanbanCardMime)
+                const operation = kanbanMove(state, path, evaluationIndex)
+                if (operation) onMoveCard?.(path, operation)
+              }}
+            >
+              <h3>
+                {onSaveProfile && view.groupBy && visibleGroups.length > 1 && <button type="button" draggable={!editingDisabled && !evaluating && !settings} aria-label={`${baseValueText(group.key)}列をドラッグして並べ替え`} onDragStart={event => {
+                  if (editingDisabled || evaluating || settings) { event.preventDefault(); return }
+                  columnDrag.current = { index, state }
+                  event.dataTransfer.effectAllowed = 'move'
+                  event.dataTransfer.setData(kanbanColumnMime, String(index))
+                }} onDragEnd={() => { columnDrag.current = null }}>↔</button>}
+                {baseValueText(group.key) || '（空）'} <span>{group.rows.filter(row => visiblePaths.has(row.path)).length}</span>
+              </h3>
+              {onMoveFile && view.groupBy?.property === 'file.folder' && folderMoveIndex?.targetDirectories.has(evaluationIndex) && <label>移動先を選択
+                <select aria-label={`${baseValueText(group.key) || 'ルート'}へファイルを移動`} disabled={editingDisabled || evaluating || !state.revision} defaultValue="" onFocus={() => loadFolderMoveOptions(evaluationIndex)} onChange={event => {
+                  const path = event.target.value
+                  if (path) moveFile(path, evaluationIndex)
+                  event.currentTarget.value = ''
+                }}>
+                  <option value="">ファイルを選択…</option>
+                  {folderMoveOptions?.state === state && folderMoveOptions.query === query && folderMoveOptions.destination === evaluationIndex && folderMoveOptions.paths.map(path => <option key={path} value={path}>{path}</option>)}
+                </select>
+              </label>}
+              <div>{group.rows.filter(row => visiblePaths.has(row.path)).map(row => renderCard(row, view.groupBy?.property === 'file.folder' && Boolean(onMoveFile)))}</div>
+            </section>
+          ))}
+        </div>
+      ) : view.type === 'cards' ? (
+        <div className={`base-cards-grid base-width-${view.cardWidth ?? 'default'}`}>{(evaluation.groups ? evaluation.groups.flatMap(group => group.rows) : rows).filter(row => visiblePaths.has(row.path)).map(row => renderCard(row))}</div>
+      ) : view.type === 'list' ? (
+        <ol className="base-list-view" style={{ listStyleType: view.markers === 'none' ? 'none' : view.markers === 'numbers' ? 'decimal' : 'disc' }}>{rows.map(row => <li key={row.path}><button type="button" className="base-table-note-link" onClick={() => onOpenNote(row.path)}>{cellText(row.cells['file.name'] ?? { kind: 'value', value: row.path.split('/').at(-1) ?? row.path })}</button><span>{evaluation.columns.filter(column => column !== 'file.name').map(column => `${evaluation.labels?.[column] ?? column}: ${cellText(row.cells[column] ?? { kind: 'missing' })}`).join(view.separator ?? ' · ')}</span></li>)}</ol>
       ) : (
         <div className="base-table-scroll">
           <table>
@@ -169,7 +313,7 @@ export default function BaseTableView({
               </tr>
             </thead>
             <tbody>
-              {evaluation.groups ? evaluation.groups.map((group, index) => <GroupRows key={index} name={baseValueText(group.key) || '（空）'} columns={evaluation.columns.length} rows={renderRows(group.rows)} summary={renderSummary(group.summaries)} />) : renderRows(evaluation.rows)}
+              {evaluation.groups ? evaluation.groups.map((group, index) => <GroupRows key={index} name={baseValueText(group.key) || '（空）'} columns={evaluation.columns.length} rows={renderRows(group.rows)} summary={renderSummary(group.summaries)} />) : renderRows(rows)}
             </tbody>
             {evaluation.summaries && Object.keys(evaluation.summaries).length > 0 && <tfoot>{renderSummary(evaluation.summaries)}</tfoot>}
           </table>
@@ -178,10 +322,16 @@ export default function BaseTableView({
     </section>
   )
 }
+const kanbanFileMime = 'application/x-tsuzune-kanban-file'
+const kanbanColumnMime = 'application/x-tsuzune-kanban-column'
 function GroupRows({ name, columns, rows, summary }: { name: string; columns: number; rows: React.JSX.Element[]; summary: React.JSX.Element }): React.JSX.Element { return <><tr className="base-group-row"><th colSpan={columns} scope="rowgroup">{name}</th></tr>{rows}{summary}</> }
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { icons } from 'lucide-react'
-import { baseValueText, special, type BaseValue } from '../../core/base-expression'
+import { baseValueEqual, baseValueText, special, type BaseValue } from '../../core/base-expression'
 import type { NoteDocument } from '../../shared/types'
 import BaseSettingsPanel from './BaseSettingsPanel'
+import { searchBaseRows } from '../../core/base-search'
+import { serializeBaseExport } from '../../core/base-export'
+import { kanbanMove } from '../../core/base-kanban'
+const kanbanCardMime = 'application/x-tsuzune-kanban-card'

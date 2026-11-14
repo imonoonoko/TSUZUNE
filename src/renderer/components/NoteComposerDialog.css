@@ -1,0 +1,15 @@
+.modal.note-composer-dialog { width: min(900px, calc(100vw - 40px)); max-height: calc(100vh - 48px); overflow: auto; }
+.note-composer-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.note-composer-dialog h2 { margin: 0; }
+.note-composer-path { overflow-wrap: anywhere; }
+.note-composer-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.note-composer-options label, .note-composer-contents label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.note-composer-target { grid-column: 1 / -1; }
+.note-composer-options input, .note-composer-options select { width: 100%; }
+.note-composer-changes { display: grid; gap: 12px; }
+.note-composer-changes summary { padding: 6px 0; cursor: pointer; overflow-wrap: anywhere; }
+.note-composer-contents { display: flex; flex-wrap: wrap; gap: 12px; }
+.note-composer-contents label { flex: 1 1 300px; }
+.note-composer-contents textarea { width: 100%; min-height: 130px; resize: vertical; font-family: var(--font-mono, monospace); }
+.note-composer-dialog footer { margin-top: 16px; }
+@media (max-width: 600px) { .note-composer-options { grid-template-columns: 1fr; } }

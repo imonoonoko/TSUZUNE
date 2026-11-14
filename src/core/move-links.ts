@@ -1,8 +1,8 @@
 import { commonmarkLanguage } from '@codemirror/lang-markdown'
 import { decodeString } from 'micromark-util-decode-string'
-import { resolveIndexedWikiLink, type WikiLinkIndex } from './links'
+import { buildAttachmentLinkIndex, resolveIndexedAttachmentLink, resolveIndexedWikiLink, type WikiLinkIndex } from './links'
 import { dirnameRelative, withoutMarkdownExtension } from './paths'
-import type { NoteDocument } from '../shared/types'
+import type { NoteDocument, VaultAttachment } from '../shared/types'
 
 function localPath(base: string, target: string): string | null {
   const parts = target.startsWith('/') ? [] : base.split('/').filter(Boolean)
@@ -32,17 +32,25 @@ export function rewriteMovedLinks(
   index: WikiLinkIndex,
   source: string,
   destination: string,
+  options: { attachments?: readonly VaultAttachment[]; fragments?: ReadonlySet<string>; rebaseOnly?: boolean; selfAnchors?: boolean; onRewrite?: (count: number) => void } = {},
 ): string {
   const content = note.content
+  const attachmentIndex = options.attachments ? buildAttachmentLinkIndex(options.attachments) : null
+  const resolveTarget = (target: string) => attachmentIndex
+    ? resolveIndexedAttachmentLink(target, attachmentIndex) : resolveIndexedWikiLink(target, index)
   const ignored: Array<{ from: number; to: number }> = []
   const urls: Array<{ from: number; to: number }> = []
+  const labels: Array<{ from: number; to: number }> = []
   const singleQuotedValues: Array<{ from: number; to: number }> = []
-  commonmarkLanguage.parser.parse(content).iterate({
+  // Wiki brackets are label text inside Markdown links; mask them without shifting offsets.
+  const markdown = content.replace(/\[\[([^\]\r\n]+)\]\]/g, match => 'x'.repeat(match.length))
+  commonmarkLanguage.parser.parse(markdown).iterate({
     enter(node) {
       if (['FencedCode', 'CodeBlock', 'InlineCode', 'Comment', 'CommentBlock', 'HTMLBlock', 'HTMLTag', 'LinkTitle'].includes(node.name)) {
         ignored.push({ from: node.from, to: node.to })
         return false
       }
+      if (['Link', 'Image', 'LinkReference'].includes(node.name)) labels.push({ from: node.from, to: node.to })
       if (node.name === 'URL') urls.push({ from: node.from, to: node.to })
     }
   })
@@ -60,7 +68,7 @@ export function rewriteMovedLinks(
         // Block scalars are outside the supported property forms; do not leave a known link stale.
         for (const link of line.matchAll(/\[\[([^\]\r\n]+)\]\]/g)) {
           const target = link[1].split('|', 1)[0].split('#', 1)[0]
-          const resolved = resolveIndexedWikiLink(target, index)
+          const resolved = resolveTarget(target)
           if (resolved.status === 'resolved' && resolved.path === source) {
             throw new Error('YAMLの複数行値に参照リンクがあるため、名前変更・移動を停止しました。')
           }
@@ -101,10 +109,20 @@ export function rewriteMovedLinks(
     let slashes = 0
     for (let i = from - 1; i >= 0 && content[i] === '\\'; i--) slashes++
     if (slashes % 2 || isIgnored(from, from + match[0].length) ||
-      urls.some(span => from < span.to && from + match[0].length > span.from)) continue
+      [...urls, ...labels].some(span => from < span.to && from + match[0].length > span.from)) continue
     const target = match[1].split('|', 1)[0].split('#', 1)[0]
-    const resolution = resolveIndexedWikiLink(target, index)
-    if (resolution.status !== 'resolved' || resolution.path !== source) continue
+    const rawTarget = match[1].split('|', 1)[0]
+    const anchor = rawTarget.includes('#') ? rawTarget.slice(rawTarget.indexOf('#') + 1) : ''
+    let decodedAnchor = anchor
+    try { decodedAnchor = decodeURIComponent(anchor) } catch { /* Keep literal fragment. */ }
+    const selectedAnchor = options.fragments?.has(decodedAnchor.toLocaleLowerCase()) ?? false
+    if (options.selfAnchors) {
+      if (target || !anchor || selectedAnchor) continue
+      edits.push({ from: from + 2, to: from + 2, text: withoutMarkdownExtension(source) })
+      continue
+    }
+    const resolution = resolveTarget(target)
+    if (!(resolution.status === 'resolved' && resolution.path === source || !target && anchor && note.path === source) || (options.fragments && !selectedAnchor)) continue
     if (/[#|\[\]]/.test(destination)) {
       throw new Error('Wikiリンクを保つため、移動先の名前には #・|・[・] を使用できません。')
     }
@@ -125,16 +143,40 @@ export function rewriteMovedLinks(
     const raw = decodeString(original)
     const fragment = raw.indexOf('#')
     const path = fragment < 0 ? raw : raw.slice(0, fragment)
+    if (options.selfAnchors && !path && fragment >= 0) {
+      let anchor = raw.slice(fragment + 1)
+      try { anchor = decodeURIComponent(anchor) } catch { /* Keep literal fragment. */ }
+      if (!options.fragments?.has(anchor.toLocaleLowerCase())) {
+        const target = relativePath(dirnameRelative(destination), source).split('/').map(encodeURIComponent).join('/')
+        edits.push({ from, to, text: target + original })
+      }
+      continue
+    }
+    if (!options.selfAnchors && !path && fragment >= 0 && note.path === source) {
+      let anchor = raw.slice(fragment + 1)
+      try { anchor = decodeURIComponent(anchor) } catch { /* Keep literal fragment. */ }
+      if (!options.fragments || options.fragments.has(anchor.toLocaleLowerCase())) {
+        const base = dirnameRelative(options.rebaseOnly ? source : destination)
+        const target = relativePath(base, destination).split('/').map(encodeURIComponent).join('/')
+        edits.push({ from, to, text: target + original })
+      }
+      continue
+    }
     if (!path || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(path) || /[?\\]/.test(path)) continue
     let decoded: string
     try { decoded = decodeURIComponent(path) } catch { continue }
     const resolved = localPath(dirnameRelative(note.path), decoded)
     if (!resolved) continue
-    const incoming = resolved.toLowerCase() === source.toLowerCase()
+    if (options.selfAnchors) continue
+    const anchor = fragment < 0 ? '' : raw.slice(fragment + 1)
+    let decodedAnchor = anchor
+    try { decodedAnchor = decodeURIComponent(anchor) } catch { /* Keep literal fragment. */ }
+    const incoming = resolved.toLowerCase() === source.toLowerCase() &&
+      (!options.fragments || options.fragments.has(decodedAnchor.toLocaleLowerCase()))
     // The moving source needs every relative destination rebased, including missing assets.
-    if (!incoming && (note.path !== source || path.startsWith('/'))) continue
+    if (!incoming && (options.rebaseOnly || note.path !== source || path.startsWith('/'))) continue
     const target = incoming ? destination : resolved
-    const base = dirnameRelative(note.path === source ? destination : note.path)
+    const base = dirnameRelative(note.path === source && !options.rebaseOnly ? destination : note.path)
     const replacement = path.startsWith('/') ? `/${target}` : relativePath(base, target)
     const encoded = replacement.split('/').map(part =>
       encodeURIComponent(part).replace(/[!'()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
@@ -147,6 +189,7 @@ export function rewriteMovedLinks(
     edits.push({ from, to, text: (path.startsWith('./') ? './' : '') + encoded +
       (fragmentToken ? original.slice(fragmentToken.index) : '') })
   }
+  options.onRewrite?.(edits.length)
   return edits.sort((a, b) => b.from - a.from).reduce(
     (text, edit) => text.slice(0, edit.from) + edit.text + text.slice(edit.to), content
   )

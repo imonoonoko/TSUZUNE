@@ -26,7 +26,11 @@ import {
 } from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import { createServer } from 'node:net'
+import { isCanvasPath, parseCanvas, parseCanvasInput } from '../core/canvas'
+import { MAX_CANVAS_BYTES, type CanvasCreateInput, type CanvasSaveInput, type CanvasDocument, type CanvasScope } from '../shared/canvas'
 import { isSupportedAttachmentPath } from '../shared/attachments'
+import { isVersionedNotePath, type NoteHistory, type NoteVersion, type ReadNoteVersionInput, type RestoreNoteVersionInput } from '../shared/note-history'
+import type { WorkspaceScope } from '../shared/workspace-state'
 import { MAX_PASTED_IMAGE_BYTES, type PasteImageInput } from '../shared/image-paste'
 import { isAuditHistoryPath } from '../shared/ai-write-policy'
 import { createExcludedFileMatcher } from '../shared/excluded-files'
@@ -221,6 +225,7 @@ export class VaultService {
   private rootPath: string | null = null
   private rootRevision = 0
   private creationTimeQueue: Promise<void> = Promise.resolve()
+  private canvasSaveQueue: Promise<void> = Promise.resolve()
 
   getRootPath(): string | null {
     return this.rootPath
@@ -772,7 +777,7 @@ export class VaultService {
     )
     const resolvedBookmarks = normalizeBookmarks(
       bookmarks.map((bookmark) => {
-        if (bookmark.type === 'search' || !isMarkdownFile(bookmark.path)) {
+        if (bookmark.type === 'search' || bookmark.type === 'folder' || !isMarkdownFile(bookmark.path)) {
           return bookmark
         }
         const liveExactPath = liveNotePaths.get(bookmark.path.toLocaleLowerCase())
@@ -801,6 +806,18 @@ export class VaultService {
   async listBases(
     expectedVaultPath: string,
     userIgnoreFilters: readonly string[] = []
+  ): Promise<string[]> {
+    return this.listStructuredFiles(expectedVaultPath, userIgnoreFilters, isBaseFile)
+  }
+
+  async listCanvases(expectedVaultPath: string, userIgnoreFilters: readonly string[] = []): Promise<string[]> {
+    return this.listStructuredFiles(expectedVaultPath, userIgnoreFilters, isCanvasPath)
+  }
+
+  private async listStructuredFiles(
+    expectedVaultPath: string,
+    userIgnoreFilters: readonly string[],
+    acceptsPath: (path: string) => boolean
   ): Promise<string[]> {
     if (
       typeof expectedVaultPath !== 'string' ||
@@ -874,7 +891,7 @@ export class VaultService {
     }
 
     const isExcluded = createExcludedFileMatcher(userIgnoreFilters)
-    const bases = new Map<string, string>()
+    const paths = new Map<string, string>()
     const walk = async (absoluteDirectory: string, relativeDirectory: string): Promise<void> => {
       await inspectRoot()
       if (relativeDirectory) {
@@ -915,7 +932,7 @@ export class VaultService {
           }
           continue
         }
-        if (!entry.isFile() || !isBaseFile(entry.name)) {
+        if (!entry.isFile() || !acceptsPath(normalizedPath)) {
           continue
         }
 
@@ -925,7 +942,7 @@ export class VaultService {
         }
         await assertSafeDirectoryChain(relativeDirectory)
         const key = normalizedPath.toLocaleLowerCase('en-US')
-        const existing = bases.get(key)
+        const existing = paths.get(key)
         if (existing && existing !== normalizedPath) {
           throw new VaultError({
             code: 'INVALID_PATH',
@@ -933,14 +950,14 @@ export class VaultService {
           })
         }
         if (!existing) {
-          bases.set(key, normalizedPath)
+          paths.set(key, normalizedPath)
         }
       }
     }
 
     await walk(root, '')
     await inspectRoot()
-    return [...bases.values()].sort((left, right) => {
+    return [...paths.values()].sort((left, right) => {
       const foldedLeft = left.toLocaleLowerCase('en-US')
       const foldedRight = right.toLocaleLowerCase('en-US')
       if (foldedLeft < foldedRight) return -1
@@ -954,6 +971,9 @@ export class VaultService {
     const revision = this.rootRevision
     try {
       if (!input || typeof input !== 'object') throw new VaultError({ code: 'INVALID_PATH', message: 'ブックマークが不正です。' })
+      if (![undefined, 'file', 'heading', 'search', 'folder'].includes(input.type)) {
+        throw new VaultError({ code: 'INVALID_PATH', message: 'ブックマークの種類が不正です。' })
+      }
       let target: SaveBookmarkInput
       if (input.type === 'search') {
         target = input
@@ -961,9 +981,11 @@ export class VaultService {
         const absolute = this.absolutePath(input.path)
         await this.assertNoSymlinkTraversal(absolute)
         const info = await stat(absolute)
-        if (!info.isFile()) throw new VaultError({ code: 'INVALID_PATH', message: 'ファイルだけをブックマークできます。' })
+        if (input.type === 'folder' ? !info.isDirectory() : !info.isFile()) {
+          throw new VaultError({ code: 'INVALID_PATH', message: 'ブックマークの対象の種類が一致しません。' })
+        }
         const path = this.relativePathFrom(root, absolute)
-        target = input.type === 'heading' ? { ...input, path } : { ...input, type: 'file', path }
+        target = input.type === undefined ? { ...input, type: 'file', path } : { ...input, path }
       }
       const current = await this.readBookmarks(root)
       const aliases = compilePathAliases(await this.readPathAliases(root))
@@ -972,7 +994,9 @@ export class VaultService {
           ? bookmark.type === 'search' && bookmark.query === target.query
           : bookmark.type !== 'search' && bookmark.type === (target.type ?? 'file') &&
             (target.type !== 'heading' || (bookmark.type === 'heading' && bookmark.slug === target.slug)) &&
-            await this.bookmarkMatchesPath(bookmark.path, target.path, aliases))
+            (target.type === 'folder'
+              ? bookmark.path.toLocaleLowerCase() === target.path.toLocaleLowerCase()
+              : await this.bookmarkMatchesPath(bookmark.path, target.path, aliases)))
       )
       const previous = current.find((_, index) => matches[index])
       const bookmark = normalizeBookmarks([{ ...target, ctime: previous?.ctime ?? Date.now() }])[0]
@@ -1017,6 +1041,19 @@ export class VaultService {
       }
       throw fromNodeError(error, 'SAVE_FAILED', 'ブックマークを削除できませんでした。')
     }
+  }
+
+  /** Internal journal recovery endpoint; never exposed through renderer or MCP. */
+  async resolveComposerTrash(operationId: string, sourcePath: string): Promise<string> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(operationId)) throw new Error('Invalid compose operation id.')
+    this.absolutePath(sourcePath)
+    const root = this.requireRoot(), revision = this.rootRevision
+    const absolute = join(root, '.trash', `onoko-op-${operationId}`, ...sourcePath.split('/'))
+    await this.assertNoSymlinkTraversal(absolute)
+    const info = await lstat(absolute)
+    if (!info.isFile()) throw new Error('Compose trash is not a regular file.')
+    if (this.rootPath !== root || this.rootRevision !== revision) throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+    return absolute
   }
 
   async readNote(relativePath: string): Promise<NoteDocument> {
@@ -1094,6 +1131,46 @@ export class VaultService {
     }
   }
 
+  async createBase(path: string, content: string): Promise<BaseDocument> {
+    if (!isBaseFile(path) || isAuditHistoryPath(path)) {
+      throw new VaultError({ code: 'INVALID_PATH', message: 'Vault内の新しい.baseファイルを指定してください。' })
+    }
+    const root = this.requireRoot(), generation = this.rootRevision
+    const canonicalRoot = await realpath(root)
+    const absolute = this.absolutePath(path)
+    const directory = dirname(absolute)
+    const temporary = join(directory, `.tsuzune-${randomUUID()}.tmp`)
+    const assertCurrent = (): void => {
+      if (this.rootPath !== root || this.rootRevision !== generation) throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+    }
+    const assertSafeScope = async (): Promise<void> => {
+      assertCurrent()
+      const info = await lstat(root)
+      if (info.isSymbolicLink() || !info.isDirectory() || await realpath(root) !== canonicalRoot) {
+        throw new VaultError({ code: 'INVALID_PATH', message: 'Vaultの場所を安全に確認できませんでした。' })
+      }
+      await this.assertNoSymlinkTraversal(directory)
+      assertCurrent()
+    }
+    try {
+      await assertSafeScope()
+      if (!(await stat(directory)).isDirectory()) throw new VaultError({ code: 'INVALID_PATH', message: '作成先フォルダが見つかりません。' })
+      const handle = await open(temporary, 'wx')
+      try {
+        await handle.writeFile(content, 'utf8')
+        await handle.sync()
+      } finally { await handle.close() }
+      await assertSafeScope()
+      await link(temporary, absolute)
+      assertCurrent()
+      const document = await this.readBase(path)
+      if (document.content !== content) throw new VaultError({ code: 'FILE_CHANGED', message: '.baseが作成後に変更されました。' })
+      return document
+    } catch (error) {
+      throw fromNodeError(error, 'SAVE_FAILED', '.baseを作成できませんでした。')
+    } finally { await rm(temporary, { force: true }).catch(() => undefined) }
+  }
+
   async saveBase(path: string, expectedRevision: string, content: string): Promise<BaseDocument> {
     const requestedRoot = this.requireRoot()
     const requestedGeneration = this.rootRevision
@@ -1132,6 +1209,107 @@ export class VaultService {
       await rm(temporary, { force: true }).catch(() => undefined)
       throw fromNodeError(error, 'SAVE_FAILED', '.baseを保存できませんでした。')
     }
+  }
+
+  private canvasGuard(scope?: CanvasScope): () => void {
+    const root = this.requireRoot()
+    const revision = this.rootRevision
+    if (scope && (scope.rootPath !== root || scope.rootRevision !== revision)) {
+      throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。Canvasを保存しませんでした。' })
+    }
+    return () => {
+      if (!this.isCurrentRoot(root, revision)) throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+    }
+  }
+
+  private validateCanvasInput(input: unknown, save: false): CanvasCreateInput
+  private validateCanvasInput(input: unknown, save: true): CanvasSaveInput
+  private validateCanvasInput(input: unknown, save: boolean): CanvasCreateInput | CanvasSaveInput {
+    try { return save ? parseCanvasInput(input, true) : parseCanvasInput(input, false) }
+    catch (error) { throw new VaultError({ code: 'INVALID_PATH', message: (error as Error).message }) }
+  }
+
+  private async validateCanvasReferences(content: string): Promise<void> {
+    const data = parseCanvas(content)
+    for (const node of data.nodes) {
+      const path = node.type === 'file' ? node.file : node.type === 'group' ? node.background : undefined
+      if (path) await this.assertNoSymlinkTraversal(this.absolutePath(path), true)
+    }
+  }
+
+  async readCanvas(path: string, expectedVaultPath?: string): Promise<CanvasDocument> {
+    const root = this.requireRoot()
+    const revision = this.rootRevision
+    if (expectedVaultPath !== undefined && (typeof expectedVaultPath !== 'string' || !isAbsolute(expectedVaultPath) || resolve(expectedVaultPath) !== root)) {
+      throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。Canvasを読み込みませんでした。' })
+    }
+    if (!isCanvasPath(path) || isAuditHistoryPath(path)) throw new VaultError({ code: 'INVALID_PATH', message: 'Vault内の.canvasファイルを指定してください。' })
+    try {
+      const absolute = this.absolutePath(path)
+      await this.assertNoSymlinkTraversal(absolute)
+      const info = await stat(absolute)
+      if (!info.isFile() || info.size > MAX_CANVAS_BYTES) throw new VaultError({ code: 'INVALID_PATH', message: 'Canvasの容量または形式が不正です。' })
+      const content = await readFile(absolute, 'utf8')
+      parseCanvas(content)
+      await this.validateCanvasReferences(content)
+      await this.assertNoSymlinkTraversal(absolute)
+      const latest = await stat(absolute)
+      if (!this.isCurrentRoot(root, revision)) throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。Canvasを読み込みませんでした。' })
+      if (latest.mtimeMs !== info.mtimeMs || latest.size !== info.size || latest.ino !== info.ino) throw new VaultError({ code: 'FILE_CHANGED', message: 'Canvasが読み込み中に変更されました。' })
+      return { path: this.relativePathFrom(root, absolute), content, modifiedAt: latest.mtimeMs, revision: createHash('sha256').update(content).digest('hex') }
+    } catch (error) { throw fromNodeError(error, 'INVALID_PATH', (error as Error).message || 'Canvasを読み込めませんでした.') }
+  }
+
+  async createCanvas(value: CanvasCreateInput): Promise<CanvasDocument> {
+    const input = this.validateCanvasInput(value, false)
+    return this.writeCanvas(input)
+  }
+
+  async saveCanvas(value: CanvasSaveInput): Promise<CanvasDocument> {
+    const input = this.validateCanvasInput(value, true)
+    const captured = { ...input, scope: { ...input.scope } }
+    const operation = () => this.writeCanvas(captured)
+    const next = this.canvasSaveQueue.then(operation, operation)
+    this.canvasSaveQueue = next.then(() => undefined, () => undefined)
+    return next
+  }
+
+  private async writeCanvas(input: CanvasCreateInput | CanvasSaveInput): Promise<CanvasDocument> {
+    const check = this.canvasGuard(input.scope)
+    const absolute = this.absolutePath(input.path)
+    const path = this.relativePath(absolute)
+    if (!isCanvasPath(path) || isAuditHistoryPath(path)) throw new VaultError({ code: 'INVALID_PATH', message: 'Vault内の.canvasファイルを指定してください。' })
+    const temporary = join(dirname(absolute), `.tsuzune-${randomUUID()}.tmp`)
+    const saving = 'expectedRevision' in input
+    let current: CanvasDocument | undefined
+    const safe = async (): Promise<void> => {
+      check()
+      await this.assertNoSymlinkTraversal(saving ? absolute : dirname(absolute))
+      await this.validateCanvasReferences(input.content)
+      check()
+    }
+    try {
+      await safe()
+      if (saving) {
+        current = await this.readCanvas(path)
+        if (current.revision !== input.expectedRevision) throw new VaultError({ code: 'FILE_CHANGED', message: 'Canvasが変更されています。再読み込みしてください。' })
+      }
+      const handle = await open(temporary, 'wx')
+      try { await handle.writeFile(input.content, 'utf8'); await handle.sync() } finally { await handle.close() }
+      const written = await stat(temporary)
+      await safe()
+      if (saving) {
+        const latest = await this.readCanvas(path)
+        if (latest.revision !== input.expectedRevision || latest.modifiedAt !== current!.modifiedAt) throw new VaultError({ code: 'FILE_CHANGED', message: 'Canvasが保存中に変更されました。' })
+        check()
+        await rename(temporary, absolute)
+      } else {
+        check()
+        await link(temporary, absolute)
+      }
+      return { path, content: input.content, modifiedAt: written.mtimeMs, revision: createHash('sha256').update(input.content).digest('hex') }
+    } catch (error) { throw fromNodeError(error, 'SAVE_FAILED', (error as Error).message || 'Canvasを保存できませんでした。') }
+    finally { await rm(temporary, { force: true }).catch(() => undefined) }
   }
 
   async resolveFileForOpen(relativePath: string): Promise<string> {
@@ -1194,6 +1372,47 @@ export class VaultService {
     } catch (error) {
       throw fromNodeError(error, 'UNKNOWN', '画像を読み込めませんでした。')
     }
+  }
+
+  async readPdfBytes(relativePath: string, expectedRoot?: string): Promise<Uint8Array> {
+    if (typeof relativePath !== 'string' || extname(relativePath).toLowerCase() !== '.pdf') {
+      throw new VaultError({ code: 'INVALID_PATH', message: 'PDFファイルだけを内部表示できます。' })
+    }
+    const root = this.getRootPath(), revision = this.getRootRevision()
+    const assertCurrent = (): void => {
+      if ((expectedRoot !== undefined && root !== expectedRoot) || root !== this.getRootPath() || revision !== this.getRootRevision()) {
+        throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わったため、PDFの読み込みを中止しました。' })
+      }
+    }
+    assertCurrent()
+    const absolute = await this.resolveFileForOpen(relativePath)
+    assertCurrent()
+    const file = await open(absolute, 'r')
+    try {
+      const before = await file.stat()
+      if (!before.isFile() || before.size > 100 * 1024 * 1024) {
+        throw new VaultError({ code: 'INVALID_PATH', message: '内部表示できるPDFは100 MiB以下です。外部アプリで開いてください。' })
+      }
+      // Bound allocation even if another process grows the file during the read.
+      const bytes = new Uint8Array(before.size + 1)
+      let length = 0
+      while (length < bytes.length) {
+        const result = await file.read(bytes, length, bytes.length - length, length)
+        if (result.bytesRead === 0) break
+        length += result.bytesRead
+      }
+      const after = await file.stat()
+      assertCurrent()
+      if (length !== before.size || before.size !== after.size || before.mtimeMs !== after.mtimeMs) {
+        throw new VaultError({ code: 'FILE_CHANGED', message: '読み込み中にPDFが変更されました。再度開いてください。' })
+      }
+      if (!Buffer.from(bytes.subarray(0, Math.min(length, 1024))).includes(Buffer.from('%PDF-'))) {
+        throw new VaultError({ code: 'INVALID_PATH', message: 'PDFの形式を確認できませんでした。' })
+      }
+      return bytes.slice(0, length)
+    } catch (error) {
+      throw fromNodeError(error, 'UNKNOWN', 'PDFを読み込めませんでした。')
+    } finally { await file.close() }
   }
 
   async readAttachmentBytes(relativePath: string): Promise<Buffer> {
@@ -1306,7 +1525,137 @@ export class VaultService {
     }
   }
 
-  async saveNote(input: SaveNoteInput): Promise<SaveNoteOutput> {
+  async createComposerNote(input: { path: string; content: string }, assertScope: () => Promise<unknown>): Promise<void> {
+    const root = this.requireRoot(), revision = this.rootRevision
+    if (!isVersionedNotePath(input.path)) {
+      throw new VaultError({ code: 'INVALID_PATH', message: '通常のMarkdownノートを指定してください。' })
+    }
+    const absolute = this.absolutePath(input.path)
+    await this.assertNoSymlinkTraversal(absolute, true)
+    const temporary = join(dirname(absolute), `.tsuzune-composer-${randomUUID()}.tmp`)
+    try {
+      const handle = await open(temporary, 'wx')
+      try { await handle.writeFile(input.content, 'utf8'); await handle.sync() } finally { await handle.close() }
+      await assertScope()
+      await this.assertNoSymlinkTraversal(absolute, true)
+      if (!this.isCurrentRoot(root, revision)) {
+        throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+      }
+      await link(temporary, absolute)
+    } finally { await rm(temporary, { force: true }).catch(() => undefined) }
+  }
+
+  async saveNoteWithHistory(input: SaveNoteInput): Promise<SaveNoteOutput> {
+    return this.saveNote(input, typeof input?.path === 'string' && isVersionedNotePath(input.path))
+  }
+
+  private assertHistoryScope(scope: WorkspaceScope): void {
+    if (!scope || scope.rootPath !== this.requireRoot() || scope.rootRevision !== this.rootRevision) {
+      throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。版履歴を開き直してください。' })
+    }
+  }
+
+  async getNoteHistory(path: string, expectedRoot: string): Promise<NoteHistory> {
+    const scope = { rootPath: this.requireRoot(), rootRevision: this.rootRevision }
+    if (expectedRoot !== scope.rootPath) throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+    const versions = await this.listNoteVersions(path)
+    this.assertHistoryScope(scope)
+    const note = await this.readNote(path)
+    this.assertHistoryScope(scope)
+    return { scope, path: note.path, content: note.content, modifiedAt: note.modifiedAt, versions }
+  }
+
+  async getNoteVersion(input: ReadNoteVersionInput): Promise<{ content: string }> {
+    this.assertHistoryScope(input?.scope)
+    const version = await this.readNoteVersion(input.path, input.id)
+    this.assertHistoryScope(input.scope)
+    return version
+  }
+
+  async restoreNoteVersion(input: RestoreNoteVersionInput): Promise<NoteDocument> {
+    this.assertHistoryScope(input?.scope)
+    if (typeof input.expectedContent !== 'string' || !Number.isFinite(input.expectedModifiedAt)) {
+      throw new VaultError({ code: 'INVALID_PATH', message: '比較した現在の本文と更新日時が必要です。' })
+    }
+    const version = await this.getNoteVersion(input)
+    this.assertHistoryScope(input.scope)
+    const saved = await this.saveNoteWithHistory({ path: input.path, content: version.content,
+      expectedContent: input.expectedContent, expectedModifiedAt: input.expectedModifiedAt })
+    this.assertHistoryScope(input.scope)
+    return { ...saved, name: withoutMarkdownExtension(basenameRelative(saved.path)), content: version.content }
+  }
+
+  private noteHistoryDirectory(path: string): string {
+    if (typeof path !== 'string' || !isVersionedNotePath(path)) {
+      throw new VaultError({ code: 'INVALID_PATH', message: '通常のMarkdownノートだけが版履歴の対象です。' })
+    }
+    const normalized = this.relativePath(this.absolutePath(path))
+    const key = createHash('sha256').update(normalized.toLowerCase()).digest('hex')
+    return join(this.requireRoot(), '.tsuzune', 'note-history', key)
+  }
+
+  async listNoteVersions(path: string): Promise<NoteVersion[]> {
+    const root = this.requireRoot(), generation = this.rootRevision
+    const directory = this.noteHistoryDirectory(path)
+    try {
+      await this.assertNoSymlinkTraversal(directory)
+      const entries = await readdir(directory, { withFileTypes: true })
+      const versions: NoteVersion[] = []
+      for (const entry of entries) {
+        if (!entry.isFile() || !/^\d{13}-[a-f0-9-]{36}-[a-f0-9]{64}\.md$/.test(entry.name)) continue
+        const info = await lstat(join(directory, entry.name))
+        if (info.isFile() && !info.isSymbolicLink()) versions.push({ id: entry.name, savedAt: Number(entry.name.slice(0, 13)), size: info.size })
+      }
+      if (!this.isCurrentRoot(root, generation)) throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+      return versions.sort((a, b) => b.savedAt - a.savedAt || b.id.localeCompare(a.id))
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+      throw fromNodeError(error, 'UNKNOWN', '版履歴を読み込めませんでした。')
+    }
+  }
+
+  async readNoteVersion(path: string, id: string): Promise<{ content: string }> {
+    const root = this.requireRoot(), generation = this.rootRevision
+    const directory = this.noteHistoryDirectory(path)
+    if (typeof id !== 'string' || !/^\d{13}-[a-f0-9-]{36}-[a-f0-9]{64}\.md$/.test(id)) {
+      throw new VaultError({ code: 'INVALID_PATH', message: '有効な版を選択してください。' })
+    }
+    const absolute = join(directory, id)
+    await this.assertNoSymlinkTraversal(absolute)
+    if (!(await lstat(absolute)).isFile()) throw new VaultError({ code: 'INVALID_PATH', message: '版履歴ファイルが不正です。' })
+    const bytes = await readFile(absolute)
+    if (createHash('sha256').update(bytes).digest('hex') !== id.slice(-67, -3)) {
+      throw new VaultError({ code: 'FILE_CHANGED', message: 'この版の内容が変更または破損しています。復元できません。' })
+    }
+    if (!this.isCurrentRoot(root, generation)) throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。' })
+    return { content: bytes.toString('utf8') }
+  }
+
+  private async captureNoteVersion(path: string, content: string, root: string, generation: number): Promise<void> {
+    this.assertHistoryScope({ rootPath: root, rootRevision: generation })
+    const directory = this.noteHistoryDirectory(path)
+    await this.assertNoSymlinkTraversal(directory, true)
+    await mkdir(directory, { recursive: true })
+    await this.assertNoSymlinkTraversal(directory)
+    this.assertHistoryScope({ rootPath: root, rootRevision: generation })
+    const digest = createHash('sha256').update(content).digest('hex')
+    const id = `${Date.now()}-${randomUUID()}-${digest}.md`
+    const temporary = join(directory, `.${randomUUID()}.tmp`)
+    try {
+      const handle = await open(temporary, 'wx')
+      try { await handle.writeFile(content, 'utf8'); await handle.sync() } finally { await handle.close() }
+      await this.assertNoSymlinkTraversal(directory)
+      if (!this.isCurrentRoot(root, generation)) throw new VaultError({ code: 'FILE_CHANGED', message: 'Vaultが切り替わりました。保存を停止しました。' })
+      // The UUID gives each version its own path on filesystems without hard links.
+      await rename(temporary, join(directory, id))
+      // The original path makes raw Markdown snapshots identifiable without the app.
+      await writeFile(join(directory, 'note-path.txt'), path, { encoding: 'utf8', flag: 'wx' }).catch(error => {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+      })
+    } finally { await rm(temporary, { force: true }).catch(() => undefined) }
+  }
+
+  async saveNote(input: SaveNoteInput, recordHistory = false): Promise<SaveNoteOutput> {
     if (!isMarkdownFile(input.path)) {
       throw new VaultError({
         code: 'INVALID_PATH',
@@ -1340,6 +1689,11 @@ export class VaultService {
         })
       }
 
+      if (recordHistory && initialContent === input.content) {
+        this.assertHistoryScope({ rootPath: root, rootRevision: revision })
+        return { path: input.path, modifiedAt: currentInfo.mtimeMs, size: currentInfo.size }
+      }
+
       await this.updateCreationTimes(root, revision, (current) => {
         const timestamp = current[normalizedPath] ?? validBirthtime(currentInfo.birthtimeMs)
         return validCreationTime(timestamp)
@@ -1357,7 +1711,8 @@ export class VaultService {
           encoding: 'utf8',
           flag: 'wx'
         })
-        if (!input.force) {
+        if (recordHistory) await this.captureNoteVersion(normalizedPath, initialContent, root, revision)
+        if (!input.force || recordHistory) {
           await this.assertNoSymlinkTraversal(absolute)
           const latestInfo = await stat(absolute)
           if (
@@ -1372,9 +1727,9 @@ export class VaultService {
               currentModifiedAt: latestInfo.mtimeMs
             })
           }
-          if (input.expectedContent !== undefined) {
+          if (recordHistory || input.expectedContent !== undefined) {
             const latestContent = await readFile(absolute, 'utf8')
-            if (latestContent !== input.expectedContent) {
+            if (latestContent !== (recordHistory ? initialContent : input.expectedContent)) {
               throw new VaultError({
                 code: 'FILE_CHANGED',
                 message: '保存中に、このノートが別のアプリで変更されました。',
@@ -1932,7 +2287,7 @@ export class VaultService {
   }
 
   resolveMarkdownRenameDestination(input: RenameEntryInput): string {
-    const newName = withMarkdownExtension(input.newName.trim())
+    const newName = isSupportedAttachmentPath(input.path) ? input.newName.trim() : withMarkdownExtension(input.newName.trim())
     const validation = validateEntryName(newName)
     if (!validation.valid) {
       throw new VaultError({

@@ -14,7 +14,9 @@ import type { MentionChangeInput } from '../shared/mention-changes'
 
 const hash = (content: string): string => createHash('sha256').update(content, 'utf8').digest('hex')
 const editableBaseKeys = new Set(['filters', 'views', 'formulas', 'properties', 'summaries'])
-const editableViewKeys = new Set(['type', 'name', 'filters', 'order', 'sort', 'groupBy', 'summaries', 'limit'])
+const editableViewKeys = new Set(['type', 'name', 'filters', 'order', 'sort', 'groupBy', 'groupOrder', 'summaries', 'limit'])
+const editableSortKeys = new Set(['property', 'direction'])
+const editableGroupByKeys = new Set([...editableSortKeys, 'order'])
 const extras = (value: Record<string, unknown>, supported: ReadonlySet<string>): Record<string, unknown> =>
   Object.fromEntries(Object.entries(value).filter(([key]) => !supported.has(key)))
 
@@ -36,12 +38,12 @@ function yamlComments(document: ReturnType<typeof parseDocument>): Map<string, n
 function nestedBaseSettings(value: Record<string, unknown>): { properties: Record<string, unknown>; views: Record<string, unknown>[] } {
   const properties = Object.fromEntries(Object.entries((value.properties ?? {}) as Record<string, Record<string, unknown>>)
     .map(([key, item]) => [key, extras(item, new Set(['displayName', 'type']))] as const).filter(([, item]) => Object.keys(item).length))
-  const sortSettings = (raw: unknown): unknown[] => (raw == null ? [] : Array.isArray(raw) ? raw : [raw])
-    .map(item => { const extra = extras(item as Record<string, unknown>, new Set(['property', 'direction'])); return Object.keys(extra).length ? { property: (item as Record<string, unknown>).property, extra } : null })
+  const sortSettings = (raw: unknown, supported: ReadonlySet<string>): unknown[] => (raw == null ? [] : Array.isArray(raw) ? raw : [raw])
+    .map(item => { const extra = extras(item as Record<string, unknown>, supported); return Object.keys(extra).length ? { property: (item as Record<string, unknown>).property, extra } : null })
     .filter(item => item !== null)
   const views = (value.views as Record<string, unknown>[]).map(view => {
     const extra = extras(view, editableViewKeys)
-    const sort = sortSettings(view.sort); const groupBy = sortSettings(view.groupBy)
+    const sort = sortSettings(view.sort, editableSortKeys); const groupBy = sortSettings(view.groupBy, editableGroupByKeys)
     return { ...extra, ...(sort.length ? { sort } : {}), ...(groupBy.length ? { groupBy } : {}) }
   }).filter(item => Object.keys(item).length)
   return { properties, views }
@@ -136,7 +138,7 @@ export class HumanChangesService {
       throw new VaultError({ code: 'INVALID_PATH', message: '一致箇所またはリンク先を確認できません。言及を再検索してください。' })
     const link = `[[${withoutMarkdownExtension(input.targetPath)}|${input.text}]]`
     current()
-    return this.vault.saveNote({ path: note.path, content: note.content.slice(0, candidate.range.from) + link + note.content.slice(candidate.range.to),
+    return this.vault.saveNoteWithHistory({ path: note.path, content: note.content.slice(0, candidate.range.from) + link + note.content.slice(candidate.range.to),
       expectedModifiedAt: note.modifiedAt, expectedContent: note.content })
   }
 }

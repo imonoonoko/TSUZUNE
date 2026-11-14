@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type {
   AppSettings,
   AppUpdateStatus,
@@ -33,6 +33,7 @@ import type {
   TemplateSettings,
   VaultChangeEvent,
   VaultBookmark,
+  StartupSnapshot,
   VaultSnapshot
 } from '../shared/types'
 import type {
@@ -55,6 +56,7 @@ const api: TsuzuneApi = {
   applyPropertyChanges: (input) => invoke('properties:apply', input),
   chooseVault: () => invoke<VaultSnapshot | null>('vault:choose'),
   openLastVault: () => invoke<VaultSnapshot | null>('vault:openLast'),
+  openLastVaultStartup: () => invoke<StartupSnapshot | null>('vault:openLastStartup'),
   getSettings: () => invoke<AppSettings>('settings:get'),
   getWorkspaces: (expectedVaultPath: string) =>
     invoke<WorkspaceCollection>('workspaces:get', expectedVaultPath),
@@ -83,17 +85,42 @@ const api: TsuzuneApi = {
     invoke<CalendarPluginRuntimeStatus>('calendarPlugin:status'),
   getSnapshot: () => invoke<VaultSnapshot>('vault:snapshot'),
   readNote: (path: string) => invoke<NoteDocument>('vault:readNote', path),
-  readBase: (path: string) => invoke<BaseDocument>('vault:readBase', path),
+  readBase: (path, expectedVaultPath) => expectedVaultPath === undefined
+    ? invoke<BaseDocument>('vault:readBase', path)
+    : invoke<BaseDocument>('vault:readBase', path, expectedVaultPath),
+  createBase: (path, expectedVaultPath) => invoke('vault:createBase', path, expectedVaultPath),
   listBases: (expectedVaultPath: string) =>
     invoke<string[]>('vault:listBases', expectedVaultPath),
+  listCanvases: expectedVaultPath => invoke('canvas:list', expectedVaultPath),
+  readCanvas: (path, expectedVaultPath) => invoke('canvas:read', path, expectedVaultPath),
+  createCanvas: input => invoke('canvas:create', input),
+  saveCanvas: input => invoke('canvas:save', input),
+  exportNotePdf: input => invoke('note:exportPdf', input),
+  exportCanvasPng: input => invoke('canvas:exportPng', input),
+  previewKanbanFolderMove: input => invoke('kanban:folderMovePreview', input),
+  applyKanbanFolderMove: input => invoke('kanban:folderMoveApply', input),
+  readImportSource: (request, files) => invoke('importer:readSource', request, files.map(file => ({
+    path: webUtils.getPathForFile(file),
+    relativePath: file.webkitRelativePath || file.name
+  }))),
+  previewImport: input => invoke('importer:preview', input),
+  applyImport: input => invoke('importer:apply', input),
+  discardImport: token => invoke('importer:discard', token),
   readVaultImage: (path: string) => invoke<string>('vault:readImage', path),
-  openVaultFile: (path: string) => invoke<null>('system:openVaultFile', path),
+  readVaultPdf: (path, expectedRoot) => invoke<Uint8Array>('vault:readPdf', path, expectedRoot),
+  getVaultMediaUrl: (path, expectedVaultPath) => invoke<string>('vault:mediaUrl', path, expectedVaultPath),
+  openVaultFile: (path, expectedVaultPath) => invoke<null>('system:openVaultFile', path, expectedVaultPath),
   revealVaultFile: (path: string) =>
     invoke<null>('system:revealVaultFile', path),
   openVaultFileWindow: (path: string) =>
     invoke<null>('system:openVaultFileWindow', path),
   copyText: (text: string) => invoke<null>('system:copyText', text),
+  previewNoteCompose: (input) => invoke('note:composePreview', input),
+  applyNoteCompose: (input) => invoke('note:composeApply', input),
   saveNote: (input: SaveNoteInput) => invoke<SaveNoteOutput>('note:save', input),
+  getNoteHistory: (path, expectedRoot) => invoke('note:history', path, expectedRoot),
+  getNoteVersion: (input) => invoke('note:version', input),
+  restoreNoteVersion: (input) => invoke('note:restoreVersion', input),
   createNote: (input: CreateNoteInput) =>
     invoke<EntryOperationOutput>('entry:createNote', input),
   importAttachments: (destinationDirectory: string) =>

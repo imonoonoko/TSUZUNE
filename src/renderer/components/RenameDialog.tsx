@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 
 interface RenameDialogProps {
   entryPath: string
-  entryKind: 'note' | 'directory'
+  entryKind: 'note' | 'directory' | 'attachment'
   currentName: string
   error?: string | null
   busy?: boolean
@@ -19,7 +19,7 @@ export default function RenameDialog({
   onCancel,
   onConfirm
 }: RenameDialogProps): React.JSX.Element {
-  const title = `${entryKind === 'note' ? 'ノート' : 'フォルダ'}の名前を変更`
+  const title = `${entryKind === 'note' ? 'ノート' : entryKind === 'attachment' ? '添付ファイル' : 'フォルダ'}の名前を変更`
   const dialogRef = useRef<HTMLFormElement | null>(null)
   const nameRef = useRef<HTMLInputElement | null>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)

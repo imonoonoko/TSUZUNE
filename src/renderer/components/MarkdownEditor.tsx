@@ -7,8 +7,15 @@ import {
   useState
 } from 'react'
 import { basicSetup, EditorView } from 'codemirror'
+import { closeCompletion, completionStatus, startCompletion } from '@codemirror/autocomplete'
+import { wikiLinkCompletionExtension } from '../wiki-link-completion'
+import { isolateHistory } from '@codemirror/commands'
+import { footnoteChange } from '../../core/markdown-footnotes'
+import { markdownTables, newMarkdownTable, markdownTableChange, type MarkdownTable } from '../../core/markdown-table'
+import MarkdownTableEditor from './MarkdownTableEditor'
 import { markdown } from '@codemirror/lang-markdown'
 import { Compartment, EditorState } from '@codemirror/state'
+import { foldedRanges, foldEffect, foldable, unfoldEffect } from '@codemirror/language'
 import {
   formatMarkdownSelection,
   insertWikiLink,
@@ -28,11 +35,19 @@ import type { NoteNavigationTarget } from '../../core/note-navigation'
 import type { PropertyDeclaredType, PropertyValue } from '../../shared/property-changes'
 import type { NoteDocument, VaultAttachment } from '../../shared/types'
 import { MAX_PASTED_IMAGE_BYTES } from '../../shared/image-paste'
-import { livePreviewExtension, type LivePreviewContext } from './LivePreview'
+import { livePreviewExtension, refreshLivePreview, type LivePreviewContext } from './LivePreview'
+import type { VaultEmbedContext } from './VaultEmbed'
 import PropertyValueFields from './PropertyValueFields'
+import { useEditorLinkPreview } from './NoteHoverPreview'
+import { attachEditorLinkHover } from '../editor-link-hover'
+import { MAX_WORKSPACE_EDITOR_FOLDS, type NoteEditorWorkspaceState } from '../../shared/workspace-state'
 
 export interface MarkdownEditorHandle {
+  editFootnote: (expectedSource: string, from: number, replacement: string) => string | null
+  getSelection: () => { source: string; range: { from: number; to: number } } | null
   scrollToOffset: (offset: number) => void
+  selectSourceRange: (source: string, from: number, to: number) => boolean
+  getWorkspaceState: () => NoteEditorWorkspaceState | null
 }
 
 interface MarkdownEditorProps {
@@ -50,11 +65,25 @@ interface MarkdownEditorProps {
   deprioritizedPaths?: ReadonlySet<string>
   onCompositionChange?: (composing: boolean) => void
   livePreview?: boolean
+  vaultPath?: string
   notePath?: string
   attachments?: readonly VaultAttachment[]
   pathAliases?: CompiledPathAliases
   onNavigate?: (target: NoteNavigationTarget) => void
   onWikiLink?: (target: string) => void
+  workspaceState?: NoteEditorWorkspaceState
+  onWorkspaceStateChange?: (state: NoteEditorWorkspaceState) => void
+  embedContext?: VaultEmbedContext
+}
+
+function readEditorWorkspaceState(view: EditorView): NoteEditorWorkspaceState {
+  const { anchor, head } = view.state.selection.main
+  const folds: Array<{ from: number; to: number }> = []
+  foldedRanges(view.state).between(0, view.state.doc.length, (from, to) => {
+    folds.push({ from, to })
+    if (folds.length >= MAX_WORKSPACE_EDITOR_FOLDS) return false
+  })
+  return { anchor, head, folds }
 }
 
 const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(function MarkdownEditor({
@@ -72,16 +101,21 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   deprioritizedPaths,
   onCompositionChange,
   livePreview = false,
+  vaultPath,
   notePath = '',
   attachments = [],
   pathAliases,
   onNavigate,
-  onWikiLink
+  onWikiLink,
+  workspaceState,
+  onWorkspaceStateChange,
+  embedContext
 }: MarkdownEditorProps, ref): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
   const onCompositionChangeRef = useRef(onCompositionChange)
+  const onWorkspaceStateChangeRef = useRef(onWorkspaceStateChange)
   const onPasteImageRef = useRef(onPasteImage)
   onPasteImageRef.current = onPasteImage
   const pendingPastesRef = useRef(new Set<{ from: number; to: number; invalid: boolean }>())
@@ -91,13 +125,21 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   const composingRef = useRef(false)
   const readOnlyCompartmentRef = useRef(new Compartment())
   const livePreviewCompartmentRef = useRef(new Compartment())
+  const hoverPreview = useEditorLinkPreview()
+  const [tableSession, setTableSession] = useState<{ source: string; path: string; table: MarkdownTable; insert?: boolean } | null>(null)
+  const tableSessionRef = useRef(tableSession)
+  tableSessionRef.current = tableSession
+  const [tableError, setTableError] = useState<string | null>(null)
+  const embedAncestorsKey = JSON.stringify(embedContext?.ancestors ?? [])
   const livePreviewContextRef = useRef<LivePreviewContext>({
-    notePath, attachments, notes, pathAliases, onNavigate, onWikiLink,
-    isComposing: () => composingRef.current
+    vaultPath, notePath, attachments, notes, pathAliases, onNavigate, onWikiLink,
+    embedContext, onEditTable: openTable,
+    isComposing: () => composingRef.current, editorLinkHover: !!hoverPreview
   })
   livePreviewContextRef.current = {
-    notePath, attachments, notes, pathAliases, onNavigate, onWikiLink,
-    isComposing: () => composingRef.current
+    vaultPath, notePath, attachments, notes, pathAliases, onNavigate, onWikiLink,
+    embedContext, onEditTable: openTable,
+    isComposing: () => composingRef.current, editorLinkHover: !!hoverPreview
   }
   const orderedNotes = useMemo(
     () =>
@@ -120,6 +162,49 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   const [propertyDraft, setPropertyDraft] = useState<PropertyValue>({ type: 'text', value: '' })
   const addPropertyRef = useRef<HTMLButtonElement>(null)
   const propertiesDisabled = readOnly || propertiesReadOnly
+  function openTable(offset?: number): void {
+    const view = viewRef.current
+    if (!view || view.state.readOnly || composingRef.current) return
+    const source = view.state.doc.toString()
+    const position = offset ?? view.state.selection.main.head
+    const table = markdownTables(source).find(table => position >= table.from && position <= table.to)
+    if (!table) { setTableError('編集する表の中にカーソルを置いてください。引用・リスト内の表はソースで編集できます。'); return }
+    setTableError(null)
+    setTableSession({ source, path: notePath, table })
+  }
+
+  function closeTable(): void {
+    setTableSession(null)
+    queueMicrotask(() => viewRef.current?.focus())
+  }
+
+  function insertTable(): void {
+    const view = viewRef.current
+    if (!view || view.state.readOnly || composingRef.current) return
+    const source = view.state.doc.toString()
+    const table = newMarkdownTable(source, view.state.selection.main.head)
+    if (!table) { setTableError('この位置には表を挿入できません。コードブロック・HTML・frontmatterを閉じてから挿入してください。'); return }
+    setTableError(null)
+    setTableSession({ source, path: notePath, table, insert: true })
+  }
+
+  function applyTable(table: MarkdownTable): string | null {
+    const view = viewRef.current
+    if (!view || !tableSession || view.state.readOnly) return '現在は読み取り専用です。'
+    if (notePath !== tableSession.path || view.state.doc.toString() !== tableSession.source) {
+      return '編集中に本文が変わりました。キャンセルして表を開き直してください。'
+    }
+    if (tableSession.insert || JSON.stringify([table.rows, table.align]) !== JSON.stringify([tableSession.table.rows, tableSession.table.align])) {
+      try {
+        const insert = markdownTableChange(table, tableSession.source)
+        view.dispatch({ changes: { from: table.from, to: table.to, insert }, userEvent: 'input.table', annotations: isolateHistory.of('full') })
+      } catch (error) { return error instanceof Error ? error.message : '表を適用できませんでした。' }
+    }
+    closeTable()
+    return null
+  }
+
+  useEffect(() => { setTableSession(null); setTableError(null) }, [notePath])
   const properties = useMemo(
     () => frontmatterMalformed ? [] : Object.entries(frontmatter.attributes).map(([name, rawValue]) => ({
       name,
@@ -139,8 +224,64 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
 
   onChangeRef.current = onChange
   onCompositionChangeRef.current = onCompositionChange
+  onWorkspaceStateChangeRef.current = onWorkspaceStateChange
 
   useImperativeHandle(ref, () => ({
+    editFootnote: (expectedSource, from, replacement) => {
+      const view = viewRef.current, normalize = (text: string): string => text.replace(/\r\n?/g, '\n')
+      if (!view || view.state.readOnly || composingRef.current || tableSessionRef.current || view.state.doc.toString() !== normalize(expectedSource)) {
+        return '本文や編集状態が変更されています。編集を終えて開き直してください。'
+      }
+      try {
+        const change = footnoteChange(expectedSource, from, replacement)
+        const start = normalize(expectedSource.slice(0, change.from)).length
+        const end = normalize(expectedSource.slice(0, change.to)).length
+        const insert = normalize(change.insert)
+        if (view.state.doc.sliceString(start, end) !== insert) view.dispatch({
+          changes: { from: start, to: end, insert }, userEvent: 'input.footnote', annotations: isolateHistory.of('full')
+        })
+        return null
+      } catch (error) { return error instanceof Error ? error.message : '脚注を適用できませんでした。' }
+    },
+    getSelection: () => {
+      const view = viewRef.current
+      if (!view || composingRef.current) return null
+      const { from, to } = view.state.selection.main
+      const document = view.state.doc.toString()
+      if (value.replace(/\r\n?/g, '\n') !== document) return { source: document, range: { from, to } }
+      // CodeMirror normalizes line endings; extraction must address the original saved text.
+      const sourceOffset = (offset: number): number => {
+        let extra = 0
+        for (const match of value.matchAll(/\r\n/g)) {
+          if (match.index - extra >= offset) break
+          extra += 1
+        }
+        return offset + extra
+      }
+      return { source: value, range: { from: sourceOffset(from), to: sourceOffset(to) } }
+    },
+    selectSourceRange: (source, from, to) => {
+      const view = viewRef.current
+      const normalize = (text: string): string => text.replace(/\r\n?/g, '\n')
+      if (!view || composingRef.current || !Number.isSafeInteger(from) || !Number.isSafeInteger(to) ||
+        from < 0 || to < from || to > source.length || view.state.doc.toString() !== normalize(source)) return false
+      const anchor = normalize(source.slice(0, from)).length
+      const head = normalize(source.slice(0, to)).length
+      const effects: ReturnType<typeof unfoldEffect.of>[] = []
+      foldedRanges(view.state).between(Math.min(anchor, head), Math.max(anchor, head), (foldFrom, foldTo) => {
+        const containsTarget = anchor === head
+          ? foldFrom <= anchor && foldTo >= anchor
+          : foldFrom < Math.max(anchor, head) && foldTo > Math.min(anchor, head)
+        if (containsTarget) effects.push(unfoldEffect.of({ from: foldFrom, to: foldTo }))
+      })
+      view.dispatch({
+        selection: { anchor, head },
+        effects: [...effects, EditorView.scrollIntoView(anchor, { y: 'center' })]
+      })
+      view.focus()
+      return true
+    },
+    getWorkspaceState: () => viewRef.current ? readEditorWorkspaceState(viewRef.current) : null,
     scrollToOffset: (offset) => {
       const view = viewRef.current
       if (!view) return
@@ -152,7 +293,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
       })
       view.focus()
     }
-  }), [])
+  }), [value])
 
   useEffect(() => {
     if (!hostRef.current) {
@@ -165,6 +306,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
       extensions: [
         basicSetup,
         markdown(),
+        wikiLinkCompletionExtension(() => livePreviewContextRef.current, () => composingRef.current),
         EditorView.lineWrapping,
         readOnlyCompartmentRef.current.of([
           EditorState.readOnly.of(readOnly),
@@ -172,6 +314,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
         ]),
         livePreviewCompartmentRef.current.of([]),
         EditorView.domEventHandlers({
+          blur: (_event, view) => onWorkspaceStateChangeRef.current?.(readEditorWorkspaceState(view)),
           paste: (event, view) => {
             if (view.state.readOnly || composingRef.current || !onPasteImageRef.current) return false
             const images = Array.from(event.clipboardData?.files ?? []).filter(file => file.type.startsWith('image/'))
@@ -214,6 +357,10 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
           }
         }),
         EditorView.updateListener.of((update) => {
+          if (viewRef.current === update.view &&
+            update.transactions.some(transaction => transaction.effects.some(effect => effect.is(foldEffect) || effect.is(unfoldEffect)))) {
+            onWorkspaceStateChangeRef.current?.(readEditorWorkspaceState(update.view))
+          }
           if (update.docChanged) for (const pending of pendingPastesRef.current) {
             update.changes.iterChangedRanges((from, to) => {
               if (from < pending.to && to > pending.from) pending.invalid = true
@@ -228,7 +375,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
               compositionEndPendingRef.current = false
               composingRef.current = false
               onCompositionChangeRef.current?.(false)
-              queueMicrotask(() => viewRef.current?.dispatch({}))
+              queueMicrotask(() => viewRef.current?.dispatch({ effects: refreshLivePreview.of(undefined) }))
             }
           }
         })
@@ -236,6 +383,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
     })
 
     const handleCompositionStart = (): void => {
+      closeCompletion(view)
       compositionEndPendingRef.current = false
       if (composingRef.current) return
       composingRef.current = true
@@ -248,12 +396,25 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
         compositionEndPendingRef.current = false
         composingRef.current = false
         onCompositionChangeRef.current?.(false)
-        viewRef.current?.dispatch({})
+        viewRef.current?.dispatch({ effects: refreshLivePreview.of(undefined) })
       })
     }
     view.dom.addEventListener('compositionstart', handleCompositionStart)
     view.dom.addEventListener('compositionend', handleCompositionEnd)
 
+    if (workspaceState) {
+      const clamp = (offset: number): number => Math.max(0, Math.min(offset, view.state.doc.length))
+      const effects = workspaceState.folds.flatMap(({ from, to }) => {
+        if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to) || from <= 0 || from >= to || to > view.state.doc.length) return []
+        const line = view.state.doc.lineAt(from - 1)
+        const currentRange = foldable(view.state, line.from, line.to)
+        return currentRange?.from === from && currentRange.to === to ? [foldEffect.of({ from, to })] : []
+      })
+      view.dispatch({
+        selection: { anchor: clamp(workspaceState.anchor), head: clamp(workspaceState.head) },
+        effects
+      })
+    }
     viewRef.current = view
     return () => {
       view.dom.removeEventListener('compositionstart', handleCompositionStart)
@@ -276,8 +437,31 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   }, [livePreview])
 
   useEffect(() => {
-    if (livePreview) viewRef.current?.dispatch({})
-  }, [livePreview, notePath, attachments, notes, pathAliases])
+    const view = viewRef.current
+    if (view && hoverPreview) return attachEditorLinkHover(view, () => livePreviewContextRef.current, hoverPreview)
+  }, [hoverPreview])
+
+  useEffect(() => {
+    if (viewRef.current) closeCompletion(viewRef.current)
+  }, [notePath, vaultPath])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view || !completionStatus(view.state)) return
+    const head = view.state.selection.main.head
+    const line = view.state.doc.lineAt(head)
+    if (/\[\[[^\]\n|]*$/.test(view.state.sliceDoc(Math.max(line.from, head - 4096), head))) {
+      closeCompletion(view)
+      startCompletion(view)
+    }
+  }, [notes, pathAliases])
+
+  useEffect(() => {
+    if (livePreview) viewRef.current?.dispatch({ effects: refreshLivePreview.of(undefined) })
+  }, [livePreview, notePath, attachments, notes, pathAliases, hoverPreview,
+    embedContext?.vaultPath, embedContext?.scopeRevision, embedContext?.documentRevision, embedContext?.notes,
+    embedContext?.attachments, embedContext?.pathAliases, embedContext?.declaredTypes,
+    embedAncestorsKey, embedContext?.budget])
 
   useEffect(() => {
     const view = viewRef.current
@@ -287,6 +471,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
 
     const current = view.state.doc.toString()
     if (current !== value) {
+      closeCompletion(view)
       applyingValueRef.current = true
       try {
         view.dispatch({
@@ -308,6 +493,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
       return
     }
     const current = view.state.doc.toString()
+    closeCompletion(view)
     applyingValueRef.current = true
     try {
       view.dispatch({
@@ -588,6 +774,8 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
         <button type="button" disabled={readOnly} onClick={() => applyFormat('link')}>
           ノートリンク
         </button>
+        <button type="button" disabled={readOnly} onClick={() => openTable()}>表を編集</button>
+        <button type="button" disabled={readOnly} onClick={insertTable}>表を挿入</button>
         {onImportAttachments ? (
           <button type="button" disabled={readOnly} onClick={() => void importAttachments()}>
             添付ファイルを挿入
@@ -628,6 +816,8 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
         aria-label="Markdown編集欄"
         aria-busy={readOnly}
       />
+      {tableError && <p role="status">{tableError}</p>}
+      {tableSession && <MarkdownTableEditor table={tableSession.table} readOnly={readOnly} onApply={applyTable} onClose={closeTable} />}
       {pasteError ? <p role="alert">{pasteError}</p> : null}
     </div>
   )

@@ -116,11 +116,45 @@ export function renderTemplate(
 ): string {
   const date = localDate(values.now)
   const time = localTime(values.now)
-  return markdown
-    .replaceAll('{{title}}', values.title)
-    .replaceAll('{{date}}', date)
-    .replaceAll('{{time}}', time)
-    .replaceAll('{{datetime}}', `${date}T${time}`)
+  return markdown.replace(/\{\{([\s\S]*?)\}\}/g, (placeholder, expression: string) => {
+    if (expression === 'title') return values.title
+    const match = /^(date|time|datetime)(?::([^\r\n]*))?$/.exec(expression)
+    if (!match) return placeholder
+    if (match[2] !== undefined) {
+      return formatTemplateDate(values.now, match[2]) ?? placeholder
+    }
+    return match[1] === 'date' ? date : match[1] === 'time' ? time : `${date}T${time}`
+  })
+}
+
+function formatTemplateDate(date: Date, format: string): string | null {
+  if (!format) return null
+  const tokens: Record<string, string> = {
+    YYYY: String(date.getFullYear()).padStart(4, '0'),
+    YY: String(date.getFullYear()).slice(-2).padStart(2, '0'),
+    M: String(date.getMonth() + 1),
+    MM: String(date.getMonth() + 1).padStart(2, '0'),
+    D: String(date.getDate()),
+    DD: String(date.getDate()).padStart(2, '0'),
+    H: String(date.getHours()),
+    HH: String(date.getHours()).padStart(2, '0'),
+    h: String(date.getHours() % 12 || 12),
+    hh: String(date.getHours() % 12 || 12).padStart(2, '0'),
+    m: String(date.getMinutes()),
+    mm: String(date.getMinutes()).padStart(2, '0'),
+    s: String(date.getSeconds()),
+    ss: String(date.getSeconds()).padStart(2, '0'),
+    A: date.getHours() < 12 ? 'AM' : 'PM',
+    a: date.getHours() < 12 ? 'am' : 'pm'
+  }
+  let valid = !/[{}\r\n]/.test(format)
+  const result = format.replace(/\[([^\[\]]*)\]|([A-Za-z])\2*|[\[\]]/g, (token, literal: string | undefined) => {
+    if (literal !== undefined) return literal
+    if (Object.hasOwn(tokens, token)) return tokens[token]
+    valid = false
+    return token
+  })
+  return valid ? result : null
 }
 
 function appendSection(lines: string[], heading: string, value: string): void {
