@@ -7,7 +7,7 @@ import {
   shell,
   type IpcMainInvokeEvent
 } from 'electron'
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { isAbsolute, resolve } from 'node:path'
 import type {
   AppError,
@@ -630,7 +630,8 @@ export function registerIpc(
   })
 
   registerTrusted('entry:moveEntry', async (input: MoveEntryInput) => {
-    if (input.path.toLocaleLowerCase().endsWith('.md')) {
+    if (input.path.toLocaleLowerCase().endsWith('.md') &&
+        (await stat(await vault.resolveEntryForReveal(input.path))).isFile()) {
       const destination = await vault.resolveMoveDestination(input)
       const plan = await entryMove.preflight(input.path, destination, 'human')
       const moved = await runGoogleInOrder(() =>

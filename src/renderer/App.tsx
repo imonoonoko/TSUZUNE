@@ -1,3 +1,4 @@
+import { planBulkEntryMoves, runBulkEntryMoves } from '../shared/entry-moves'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DriveAutoSyncSettings from './components/DriveAutoSyncSettings'
 import ImportDialog from './components/ImportDialog'
@@ -102,7 +103,7 @@ import { DEFAULT_HOTKEYS, matchHotkey, hotkeyLabel, ariaKeyshortcuts, type Hotke
 import HotkeySettingsPanel from './components/HotkeySettings'
 import type { PropertyDeclaredType, PropertyChangeOperation, PropertyPreviewResult, PropertyApplyResult, PropertyChangeScope, PropertyValue } from '../shared/property-changes'
 import PropertyChangePanel from './components/PropertyChangePanel'
-import FileTree, { type TreeSelection } from './components/FileTree'
+import FileTree, { type FileTreeSortOrder, type TreeSelection } from './components/FileTree'
 import AttachmentPreview from './components/AttachmentPreview'
 import PdfExportDialog, { type PdfExportSnapshot } from './components/PdfExportDialog'
 import { mediaMimeType } from '../shared/attachments'
@@ -129,6 +130,9 @@ import ConflictBanner, {
 import RenameDialog from './components/RenameDialog'
 import DailyCalendar from './components/DailyCalendar'
 import DailyProfile from './components/DailyProfile'
+import TodoPanel from './components/TodoPanel'
+import NoteTasksPanel from './components/NoteTasksPanel'
+import { toggleNoteTask, type NoteTask } from '../core/note-tasks'
 import CalendarPluginFrame, {
   type CalendarPluginFrameHandle
 } from './components/CalendarPluginFrame'
@@ -277,6 +281,33 @@ async function openStartupVault(isDisposed: () => boolean): Promise<Result<Vault
 
 export default function App(): React.JSX.Element {
   const [snapshot, setSnapshot] = useState<VaultSnapshot | null>(null)
+  const fileTreeVault = snapshot?.rootPath
+  const [fileTreePreferences, setFileTreePreferences] = useState<{
+    vault: string; sort: FileTreeSortOrder; reveal: boolean
+  } | null>(null)
+  const storedTreePreferences = useMemo(() => {
+    let sort: FileTreeSortOrder = 'name-asc'
+    let reveal = false
+    if (fileTreeVault) {
+      try {
+        const value = JSON.parse(localStorage.getItem('tsuzune.file-tree:' + fileTreeVault) ?? '{}')
+        const orders: FileTreeSortOrder[] = ['name-asc', 'name-desc', 'modified-asc', 'modified-desc', 'created-asc', 'created-desc']
+        if (orders.includes(value?.sort)) sort = value.sort
+        reveal = value?.reveal === true
+      } catch { /* A profile without local storage can still use the defaults. */ }
+    }
+    return { sort, reveal }
+  }, [fileTreeVault])
+  const treePreferences = fileTreePreferences && fileTreePreferences.vault === fileTreeVault
+    ? fileTreePreferences : storedTreePreferences
+  const changeTreePreferences = (settings: Partial<typeof storedTreePreferences>): void => {
+    if (!fileTreeVault) return
+    const next = { ...treePreferences, ...settings, vault: fileTreeVault }
+    setFileTreePreferences(next)
+    try { localStorage.setItem('tsuzune.file-tree:' + fileTreeVault, JSON.stringify(next)) }
+    catch { /* These preferences also work in the current session. */ }
+  }
+  const [directoryReveal, setDirectoryReveal] = useState<{ root: string; path: string; request: number } | null>(null)
   const snapshotRef = useRef<VaultSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
@@ -294,6 +325,10 @@ export default function App(): React.JSX.Element {
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(260)
   const [rightSidebarWidth, setRightSidebarWidth] = useState(240)
   const [activeTabId, setActiveTabId] = useState<number | null>(null)
+  const activeTabIdRef = useRef(activeTabId)
+  activeTabIdRef.current = activeTabId
+  const workspaceTabsRef = useRef(workspaceTabs)
+  workspaceTabsRef.current = workspaceTabs
   const [workspaceTabFocusId, setWorkspaceTabFocusId] = useState<number | null>(null)
   const workspaceTabRefs = useRef(new Map<number, HTMLButtonElement>())
   const [activeAttachmentPath, setActiveAttachmentPath] = useState<string | null>(null)
@@ -426,7 +461,8 @@ export default function App(): React.JSX.Element {
   const [conflict, setConflict] = useState<ConflictState | null>(null)
   const conflictRef = useRef<ConflictState | null>(null)
   const [folderMoveRequest, setFolderMoveRequest] = useState<KanbanFolderMoveInput | null>(null)
-  const [movePath, setMovePath] = useState<string | null>(null)
+  const [movePaths, setMovePaths] = useState<string[]>([])
+  const openMove = (path: string): void => setMovePaths([path])
   const [createDirectoryParent, setCreateDirectoryParent] = useState<string | null>(null)
   const [renameRequest, setRenameRequest] = useState<{
     selection: TreeSelection
@@ -463,7 +499,7 @@ export default function App(): React.JSX.Element {
   const composerContextRef = useRef<{ generation: number; focus: HTMLElement | null } | null>(null)
   const [footnoteEditing, setFootnoteEditing] = useState(false)
   const [footnoteComposing, setFootnoteComposing] = useState(false)
-  const [pendingFootnoteFocus, setPendingFootnoteFocus] = useState<{ source: string; from: number; to: number; path: string; pane: string; generation: number } | null>(null)
+  const [pendingSourceSelection, setPendingSourceSelection] = useState<{ source: string; from: number; to: number; path: string; pane: string; generation: number } | null>(null)
   const otherModalOpen =
     Boolean(noteHistory) ||
     Boolean(composerInput) ||
@@ -474,7 +510,7 @@ export default function App(): React.JSX.Element {
     Boolean(quickCreateRequest) ||
     settingsDialogOpen ||
     googleDialogOpen ||
-    Boolean(movePath) ||
+    movePaths.length > 0 ||
     Boolean(folderMoveRequest) ||
     Boolean(renameRequest) ||
     Boolean(bookmarkPath) ||
@@ -722,7 +758,8 @@ export default function App(): React.JSX.Element {
   const loadNoteState = (
     note: NoteDocument | null,
     persistLastNote = true,
-    resumeDraft = false
+    resumeDraft = false,
+    keepAuxiliaryView = false
   ): void => {
     clearSaveTimer()
     const path = note?.path ?? null
@@ -750,8 +787,10 @@ export default function App(): React.JSX.Element {
       setSaveStatus(held.status)
       setCurrentConflict(held.conflict)
     }
-    setActiveAttachmentPath(null)
-    setActiveLinkedViewPath(null)
+    if (!keepAuxiliaryView) {
+      setActiveAttachmentPath(null)
+      setActiveLinkedViewPath(null)
+    }
     if (path) {
       setTreeSelection({ kind: 'note', path })
     }
@@ -808,7 +847,7 @@ export default function App(): React.JSX.Element {
       tabs.push(
         tab.kind === 'global-graph' || tab.kind === 'global-properties'
           ? { kind: tab.kind, id }
-          : { kind: tab.kind, id, path: path! }
+          : { ...tab, id, path: path! }
       )
       if (index === restored.activeIndex) savedActiveId = id
     })
@@ -818,6 +857,8 @@ export default function App(): React.JSX.Element {
       : null
     setCurrentSnapshot(vault)
     loadNoteState(note, false, true)
+    workspaceTabsRef.current = tabs
+    activeTabIdRef.current = active?.id ?? null
     setWorkspaceTabs(tabs)
     setActiveTabId(active?.id ?? null)
     setTreeSelection(active?.kind === 'note'
@@ -846,7 +887,8 @@ export default function App(): React.JSX.Element {
       ? workspaceTabs.map((tab) =>
         tab.kind === 'global-graph' || tab.kind === 'global-properties'
           ? { kind: tab.kind }
-          : { kind: tab.kind, path: tab.path }
+          : tab.kind === 'note' && tab.pinned ? { kind: 'note', path: tab.path, pinned: true }
+            : { kind: tab.kind, path: tab.path }
       )
       : selectedPath ? [{ kind: 'note', path: selectedPath }] : []
     const activeIndex = tabs.length ? Math.max(0, workspaceTabs.findIndex((tab) => tab.id === activeTabId)) : null
@@ -1429,35 +1471,35 @@ export default function App(): React.JSX.Element {
     return result.value
   }
 
-  const activateNoteWorkspace = (path: string): void => {
-    if (activeTabId === null) {
-      return
-    }
-    const activeTab = workspaceTabs.find((tab) => tab.id === activeTabId)
-    if (activeTab?.kind === 'global-graph' || activeTab?.kind === 'global-properties' ||
-        activeTab?.kind === 'base' || activeTab?.kind === 'canvas') {
-      const existing = workspaceTabs.find(
-        (tab) => tab.kind === 'note' && tab.path === path
-      )
+  const activateNoteWorkspace = (path: string): boolean => {
+    // Inactive pane links activate their pane and open the note during the same event.
+    const tabs = workspaceTabsRef.current
+    const tabId = activeTabIdRef.current
+    const activeTab = tabs.find(tab => tab.id === tabId)
+    if (activeTab?.kind === 'note' && activeTab.path === path) return true
+    if (!activeTab || (activeTab.kind === 'note' && activeTab.pinned) ||
+      activeTab.kind === 'global-graph' || activeTab.kind === 'global-properties' ||
+      activeTab.kind === 'base' || activeTab.kind === 'canvas') {
+      const existing = tabs.find(tab => tab.kind === 'note' && tab.path === path)
       if (existing) {
         setActiveTabId(existing.id)
-      } else {
-        const nextTab: WorkspaceTab = {
-          id: nextTabIdRef.current++,
-          kind: 'note',
-          path
-        }
-        setWorkspaceTabs([...workspaceTabs, nextTab])
-        setActiveTabId(nextTab.id)
+        return true
       }
-      setViewMode('preview')
-      return
+      const workspace = workspaceSnapshotRef.current
+      const otherTabCount = workspace?.panes.reduce((count, pane) =>
+        count + (pane.id === workspace.activePaneId ? 0 : pane.tabs.length), 0) ?? 0
+      if (tabs.length + otherTabCount >= MAX_WORKSPACE_TABS) {
+        setMessage('タブは全部で200個までです。タブを閉じてから開いてください。')
+        return false
+      }
+      const tab: WorkspaceTab = { id: nextTabIdRef.current++, kind: 'note', path }
+      setWorkspaceTabs(current => [...current, tab])
+      setActiveTabId(tab.id)
+      return true
     }
-    setWorkspaceTabs((current) =>
-      current.map((tab) =>
-        tab.id === activeTabId ? { ...tab, kind: 'note', path } : tab
-      )
-    )
+    setWorkspaceTabs(current => current.map(tab =>
+      tab.id === tabId ? { id: tab.id, kind: 'note', path } : tab))
+    return true
   }
 
   const openNote = async (path: string, reopen = false): Promise<boolean> => {
@@ -1474,8 +1516,8 @@ export default function App(): React.JSX.Element {
 
       const note = snapshotRef.current?.notes.find((candidate) => candidate.path === path)
       if (note) {
+        if (!activateNoteWorkspace(path)) return false
         loadNoteState(note)
-        activateNoteWorkspace(path)
         rememberRecentNote(path)
         setViewMode('preview')
         return true
@@ -1486,8 +1528,8 @@ export default function App(): React.JSX.Element {
         setMessage(errorMessage(result.error))
         return false
       }
+      if (!activateNoteWorkspace(path)) return false
       loadNoteState(result.value)
-      activateNoteWorkspace(path)
       rememberRecentNote(path)
       setViewMode('preview')
       return true
@@ -1715,6 +1757,7 @@ export default function App(): React.JSX.Element {
             vaultResult.value.pathAliases
           )
           if (previous) {
+            activateNoteWorkspace(previous.path)
             loadNoteState(previous, false)
             rememberRecentNote(previous.path)
           }
@@ -1841,6 +1884,67 @@ export default function App(): React.JSX.Element {
     () => createExcludedFileMatcher(userIgnoreFilters),
     [userIgnoreFilters]
   )
+  const canEditNoteTask = (path: string): boolean => !isAiImmutablePath(path) &&
+    !userExcludedMatcher(path) && !path.split('/').some(part => part.startsWith('.'))
+  const taskNotes = useMemo(() => savedNotes.filter(note => canEditNoteTask(note.path)), [savedNotes, userExcludedMatcher])
+
+  const applyTaskNote = (note: NoteDocument): void => {
+    const latest = snapshotRef.current
+    if (!latest || latest.rootPath !== snapshot?.rootPath || vaultSwitchingRef.current) return
+    setCurrentSnapshot({ ...latest, notes: latest.notes.some(item => item.path === note.path)
+      ? latest.notes.map(item => item.path === note.path ? note : item)
+      : [...latest.notes, note] })
+    if (note.path === selectedPathRef.current && !dirtyRef.current) {
+      loadNoteState(note, false)
+      setActiveAttachmentPath(activeAttachmentPath)
+      setActiveLinkedViewPath(activeLinkedViewPath)
+    }
+  }
+
+  const handleNoteTask = async (note: NoteDocument, task: NoteTask, toggle: boolean): Promise<string | null> => {
+    const rootPath = snapshotRef.current?.rootPath
+    if (!rootPath || !canEditNoteTask(note.path) || !beginOperation()) return '現在は操作できません。再読込してください。'
+    const generation = vaultGenerationRef.current
+    try {
+      if (!(await flushSave())) return '未保存の編集・競合を解消してから再読込してください。'
+      if (!workspaceRequestIsCurrent(generation, rootPath)) return 'Vaultが切り替わりました。'
+      const current = await window.tsuzune.readNote(note.path)
+      if (!workspaceRequestIsCurrent(generation, rootPath)) return 'Vaultが切り替わりました。'
+      if (!current.ok) return errorMessage(current.error) + ' 一覧を再読込してください。'
+      if (current.value.content !== note.content || current.value.modifiedAt !== note.modifiedAt) {
+        return '元ノートが変更されています。一覧を再読込してください。'
+      }
+      if (toggle) {
+        const content = toggleNoteTask(note.content, task)
+        const saved = await window.tsuzune.saveNote({
+          path: note.path, content, expectedContent: note.content, expectedModifiedAt: note.modifiedAt
+        })
+        if (!saved.ok) return errorMessage(saved.error) + ' 一覧を再読込してください。'
+        if (!workspaceRequestIsCurrent(generation, rootPath)) return 'Vaultが切り替わりました。'
+        applyTaskNote({ ...current.value, content, modifiedAt: saved.value.modifiedAt, size: saved.value.size })
+      } else {
+        const workspace = workspaceSnapshotRef.current
+        const owner = editorOwner(note.path)
+        const ownerPane = workspace?.panes.find(pane => pane.id === owner)
+        const index = ownerPane?.tabs.findIndex(tab => tab.kind === 'note' && tab.path === note.path) ?? -1
+        if (workspace && owner && owner !== workspace.activePaneId && index >= 0 && snapshotRef.current) {
+          applyWorkspaceSnapshot(projectWorkspaceSnapshotV2({ ...workspace, activePaneId: owner,
+            panes: workspace.panes.map(pane => pane.id === owner ? { ...pane, activeIndex: index } : pane) }), snapshotRef.current)
+        } else if (!activateNoteWorkspace(note.path)) return 'タブを閉じてから開いてください。'
+        loadNoteState(current.value)
+        rememberRecentNote(note.path)
+        setDailyViewOpen(false)
+        setViewMode('edit')
+        setPendingSourceSelection({ source: note.content, from: task.from, to: task.to,
+          path: note.path, pane: workspaceSnapshotRef.current?.activePaneId ?? currentWorkspace.activePaneId, generation })
+      }
+      return null
+    } catch (cause) {
+      return cause instanceof Error ? cause.message : String(cause)
+    } finally {
+      finishOperation()
+    }
+  }
   const baseListKey = JSON.stringify([
     snapshot?.rootPath, vaultGenerationRef.current, userIgnoreFilters, baseListRefresh, baseDialogSessionRef.current
   ])
@@ -1901,7 +2005,7 @@ export default function App(): React.JSX.Element {
     [snapshot?.pathAliases]
   )
   const bookmarkedPaths = useMemo(
-    () => new Set((snapshot?.bookmarks ?? []).filter(bookmark => bookmark.type === 'file').map((bookmark) => bookmark.path)),
+    () => new Set((snapshot?.bookmarks ?? []).filter(bookmark => bookmark.type === 'file' || bookmark.type === 'folder').map(bookmark => bookmark.path)),
     [snapshot?.bookmarks]
   )
   const bookmarkGroups = useMemo(() => {
@@ -2117,21 +2221,21 @@ export default function App(): React.JSX.Element {
       (editorOwner(selectedPath) !== undefined && editorOwner(selectedPath) !== currentWorkspace.activePaneId)) return
     if (viewMode === 'edit' || viewMode === 'live-preview') markdownEditorRef.current?.selectSourceRange(source, from, to)
     else if (viewMode === 'preview') {
-      setPendingFootnoteFocus({ source, from, to, path: selectedPath, pane: currentWorkspace.activePaneId, generation: vaultGenerationRef.current })
+      setPendingSourceSelection({ source, from, to, path: selectedPath, pane: currentWorkspace.activePaneId, generation: vaultGenerationRef.current })
       setViewMode('edit')
     }
   }
   useEffect(() => {
-    if (!pendingFootnoteFocus || busy || viewMode !== 'edit') return
+    if (!pendingSourceSelection || busy || viewMode !== 'edit') return
     const frame = requestAnimationFrame(() => {
-      const { source, from, to, path, pane, generation } = pendingFootnoteFocus
+      const { source, from, to, path, pane, generation } = pendingSourceSelection
       if (generation === vaultGenerationRef.current && path === selectedPathRef.current && pane === currentWorkspace.activePaneId && source === contentRef.current) {
         markdownEditorRef.current?.selectSourceRange(source, from, to)
       }
-      setPendingFootnoteFocus(null)
+      setPendingSourceSelection(null)
     })
     return () => cancelAnimationFrame(frame)
-  }, [pendingFootnoteFocus, busy, viewMode, currentWorkspace.activePaneId])
+  }, [pendingSourceSelection, busy, viewMode, currentWorkspace.activePaneId])
   const search = useNoteSearch(searchNotes, leftSidebarOpen && leftSidebarView === 'search' && !searchComposing ? query : '')
   const selectedNote = useMemo(
     () =>
@@ -2235,7 +2339,7 @@ export default function App(): React.JSX.Element {
     historyContextRef.current = null
     setComposerInput(null)
     composerContextRef.current = null
-    setPendingFootnoteFocus(null)
+    setPendingSourceSelection(null)
     baseDialogSessionRef.current += 1
     baseDialogPreviousFocusRef.current = null
     setBasePathDialogOpen(false)
@@ -2350,10 +2454,13 @@ export default function App(): React.JSX.Element {
       const next = await refreshSnapshot()
       const note = next?.notes.find((candidate) => candidate.path === result.value.path)
       if (note) {
-        loadNoteState(note)
-        activateNoteWorkspace(note.path)
-        rememberRecentNote(note.path)
-        setViewMode('edit')
+        if (activateNoteWorkspace(note.path)) {
+          loadNoteState(note)
+          rememberRecentNote(note.path)
+          setViewMode('edit')
+        } else {
+          setMessage('ノートを作成しました。表示するにはタブを閉じてください。')
+        }
         return true
       }
       setMessage('作成したノートを現在のVaultから読み込めませんでした。')
@@ -2611,10 +2718,13 @@ export default function App(): React.JSX.Element {
       const next = await refreshSnapshot()
       const note = next?.notes.find((candidate) => candidate.path === result.value.path)
       if (note) {
-        loadNoteState(note)
-        activateNoteWorkspace(note.path)
-        rememberRecentNote(note.path)
-        setViewMode('preview')
+        if (activateNoteWorkspace(note.path)) {
+          loadNoteState(note)
+          rememberRecentNote(note.path)
+          setViewMode('preview')
+        } else {
+          setMessage('ノートを作成しました。表示するにはタブを閉じてください。')
+        }
       }
       setCaptureKind(null)
       setCaptureEditPath(null)
@@ -2825,45 +2935,45 @@ export default function App(): React.JSX.Element {
 
   const moveEntryToDirectory = async (
     path: string,
-    destinationDirectory: string
-  ): Promise<void> => {
-    if (!path || !snapshot) {
-      return
+    destinationDirectory: string,
+    bulk = false
+  ): Promise<false | { moved: true; continue: boolean }> => {
+    const current = snapshotRef.current
+    if (!path || !current) {
+      return false
     }
 
     if (dirnameRelative(path) === destinationDirectory) {
-      return
+      return false
     }
 
     if (!beginOperation()) {
-      return
+      return false
     }
 
     try {
       if (!(await flushSave()) || !(await canvas.flush())) {
         setMessage('編集中のファイルを保存できなかったため、移動を中止しました。')
-        return
+        return false
       }
 
-      const isDirectory = snapshot.directories.includes(path)
+      const isDirectory = current.directories.includes(path)
       const newPath = joinRelative(destinationDirectory, basenameRelative(path))
-      const changes = pathChangesForRename(
-        { kind: isDirectory ? 'directory' : 'note', path },
-        newPath
-      )
-      if (!confirmLinkImpact(changes, !isDirectory && path.toLowerCase().endsWith('.md'))) {
-        return
+      if (!bulk) {
+        const changes = pathChangesForRename({ kind: isDirectory ? 'directory' : 'note', path }, newPath)
+        if (!confirmLinkImpact(changes, !isDirectory && path.toLowerCase().endsWith('.md'))) return false
       }
 
+      const input = bulk ? { path, destinationDirectory, destinationPath: newPath } : { path, destinationDirectory }
       const result = isDirectory
-        ? await window.tsuzune.moveEntry({ path, destinationDirectory })
-        : await window.tsuzune.moveNote({ path, destinationDirectory })
+        ? await window.tsuzune.moveEntry(input)
+        : await window.tsuzune.moveNote(input)
       if (!result.ok) {
         setMessage(errorMessage(result.error))
-        return
+        return false
       }
 
-      const next = await refreshSnapshot()
+      const next = await refreshSnapshot().catch(() => null)
       const mapMovedPath = (candidate: string): string =>
         isPathInsideOrEqual(candidate, path)
           ? `${result.value.path}${candidate.slice(path.length)}`
@@ -2881,47 +2991,88 @@ export default function App(): React.JSX.Element {
           setMessage(errorMessage(templateResult.error))
         }
       }
-      setWorkspaceTabs((current) =>
-        current.map((tab) =>
-          tab.kind !== 'global-graph' &&
-          tab.kind !== 'global-properties' &&
-          isPathInsideOrEqual(tab.path, path)
-            ? { ...tab, path: mapMovedPath(tab.path) }
-            : tab
-        )
-      )
-      setActiveAttachmentPath((current) =>
-        current && isPathInsideOrEqual(current, path) ? mapMovedPath(current) : current
-      )
+      const remap = <T extends { kind: string; path?: string },>(tab: T): T =>
+        tab.path && isPathInsideOrEqual(tab.path, path) ? { ...tab, path: mapMovedPath(tab.path) } : tab
+      setWorkspaceTabs(tabs => tabs.map(remap))
+      setPaneWorkspace(workspace => workspace && {
+        ...workspace, panes: workspace.panes.map(pane => ({
+          ...pane,
+          tabs: pane.tabs.map(remap),
+          editorStates: pane.editorStates && Object.fromEntries(
+            Object.entries(pane.editorStates).map(([key, value]) => [mapMovedPath(key), value])
+          )
+        }))
+      })
+      setActiveAttachmentPath(value => value ? mapMovedPath(value) : value)
+      setActiveLinkedViewPath(value => value ? mapMovedPath(value) : value)
       setTreeSelection((current) =>
         current && isPathInsideOrEqual(current.path, path)
           ? { ...current, path: mapMovedPath(current.path) }
           : current
       )
-      if (
-        selectedPathRef.current &&
-        isPathInsideOrEqual(selectedPathRef.current, path)
-      ) {
-        const selectedPath = mapMovedPath(selectedPathRef.current)
-        const note = next?.notes.find((candidate) => candidate.path === selectedPath)
-        if (note) {
-          loadNoteState(note)
+      const previousNotePath = selectedPathRef.current
+      if (previousNotePath) {
+        const notePath = mapMovedPath(previousNotePath)
+        const note = next?.notes.find(candidate => candidate.path === notePath)
+        if (note && (notePath !== previousNotePath || note.content !== contentRef.current)) {
+          loadNoteState(note, notePath !== previousNotePath, false, true)
+        } else if (notePath !== previousNotePath) {
+          selectedPathRef.current = notePath
+          setSelectedPath(notePath)
+          void window.tsuzune.setLastNote(notePath)
         }
-      } else if (selectedPathRef.current && !dirtyRef.current) {
-        const note = next?.notes.find(candidate => candidate.path === selectedPathRef.current)
-        if (note && note.content !== contentRef.current) loadNoteState(note)
       }
+      if (!next && !bulk) setMessage('移動しました。一覧を再読込して確認してください。')
+      return { moved: true, continue: Boolean(next) }
     } finally {
       finishOperation()
     }
   }
 
-  const moveSelectedFile = async (destinationDirectory: string): Promise<void> => {
-    const path = movePath
-    setMovePath(null)
-    if (path) {
-      await moveEntryToDirectory(path, destinationDirectory)
+  const moveEntriesToDirectory = async (paths: string[], destination: string): Promise<void> => {
+    const current = snapshotRef.current
+    if (!current || busyRef.current || editorComposingRef.current) return
+    const generation = vaultGenerationRef.current
+    let roots: string[]
+    try {
+      const existing = [...current.directories, ...current.notes.map(note => note.path),
+        ...(current.attachments ?? []).map(item => item.path)]
+      roots = planBulkEntryMoves(paths, destination, existing, current.directories)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '移動条件を確認してください。')
+      return
     }
+    if (roots.length === 0) return
+
+    const changes = new Map<string, string>()
+    for (const path of roots) {
+      const kind = current.directories.includes(path) ? 'directory' : 'note'
+      const target = joinRelative(destination, basenameRelative(path))
+      for (const [from, to] of pathChangesForRename({ kind, path }, target)) changes.set(from, to)
+    }
+    if (!confirmLinkImpact(changes, roots.every(path => path.toLowerCase().endsWith('.md') &&
+      !current.directories.includes(path)))) return
+
+    let refreshFailed = false
+    const result = await runBulkEntryMoves(roots, async path => {
+      if (!workspaceRequestIsCurrent(generation, current.rootPath)) return false
+      const receipt = await moveEntryToDirectory(path, destination, true)
+      if (receipt && !receipt.continue) refreshFailed = true
+      return receipt
+    })
+    if (!workspaceRequestIsCurrent(generation, current.rootPath)) return
+    if (result.remaining.length) {
+      setMessage(`移動済み ${result.completed.length}件（${result.completed.join('、') || 'なし'}）。未移動 ${result.remaining.length}件（${result.remaining.join('、')}）。移動先を確認してから再試行してください。`)
+    } else {
+      setMessage(`${result.completed.length}件を移動しました。${refreshFailed ? 'Vaultを再読込して確認してください。' : ''}`)
+    }
+  }
+
+  const moveSelectedFile = async (destinationDirectory: string): Promise<void> => {
+    const paths = movePaths
+    setMovePaths([])
+    if (paths.length > 1) await moveEntriesToDirectory(paths, destinationDirectory)
+    else if (paths[0]) await moveEntryToDirectory(paths[0], destinationDirectory)
   }
 
   const saveGraphBookmark = async (title: string, group: string, target?: SaveBookmarkInput): Promise<void> => {
@@ -2942,11 +3093,13 @@ export default function App(): React.JSX.Element {
     setEditingBookmark(null)
   }
 
+  const dialogBookmark = editingBookmark ?? snapshot?.bookmarks?.find(bookmark =>
+    (bookmark.type === 'file' || bookmark.type === 'folder') && bookmark.path === bookmarkPath)
   const removeGraphBookmark = async (): Promise<void> => {
     if (!bookmarkPath) {
       return
     }
-    const result = await window.tsuzune.removeBookmark(editingBookmark?.id ?? bookmarkPath)
+    const result = await window.tsuzune.removeBookmark(dialogBookmark?.id ?? bookmarkPath)
     if (!result.ok) {
       setMessage(errorMessage(result.error))
       return
@@ -3275,13 +3428,22 @@ export default function App(): React.JSX.Element {
   }
 
   const openBookmark = (bookmark: VaultBookmark): void => {
-    const target = resolveBookmarkTarget(bookmark, normalDiscoveryNotes, snapshot?.attachments, pathAliases)
+    const target = resolveBookmarkTarget(bookmark, normalDiscoveryNotes, snapshot?.attachments, pathAliases, snapshot?.directories)
     if (target.status === 'stale') {
       setMessage(target.reason)
       if (target.rootPath && window.confirm(`${target.reason}\nノート先頭を開きますか？`)) void openNote(target.rootPath)
       return
     }
     if (target.type === 'search') { setQuery(target.query); setLeftSidebarView('search'); setLeftSidebarOpen(true); return }
+    if (target.type === 'folder' && snapshot) {
+      setDirectoryReveal(previous => ({
+        root: snapshot.rootPath, path: target.path, request: (previous?.request ?? 0) + 1
+      }))
+      setTreeSelection({ kind: 'directory', path: target.path })
+      setLeftSidebarView('files')
+      setLeftSidebarOpen(true)
+      return
+    }
     if (target.type === 'heading' && bookmark.type === 'heading') {
       void handleNoteNavigation({ kind: 'markdown', status: 'resolved', path: target.path, headingId: target.headingId, fragment: bookmark.slug })
       return
@@ -4781,6 +4943,10 @@ export default function App(): React.JSX.Element {
       tabRefs={workspaceTabRefs}
       onActivate={(tab) => void loadWorkspaceTab(tab).then(loaded => { if (loaded) focusWorkspaceTab(tab.id) })}
       onClose={(tabId) => void closeWorkspaceTab(tabId)}
+      onTogglePin={tabId => {
+        if (busyRef.current || editorComposingRef.current) return
+        setWorkspaceTabs(tabs => tabs.map(tab => tab.id === tabId && tab.kind === 'note' ? { ...tab, pinned: !tab.pinned } : tab))
+      }}
       onFocus={setWorkspaceTabFocusId}
       onKeyDown={handleWorkspaceTabKeyDown}
     />
@@ -5016,7 +5182,7 @@ export default function App(): React.JSX.Element {
     const editable = !!note && (pane.noteView === 'source' || pane.noteView === 'live-preview') && editorOwner(note.path) === id
     return <>
       {note ? <>{!editable && (pane.noteView === 'source' || pane.noteView === 'live-preview') && <p role="status">このノートの編集は別ペインで行えます。</p>}
-        {editable ? <MarkdownEditor key={`${editorGeneration}:${editorWorkspaceVersion}:${note.path}`} value={draftFor(note.path)} onChange={value => changeHeldDraft(note.path, value)}
+        {editable ? <MarkdownEditor vaultPath={snapshot?.rootPath} key={`${editorGeneration}:${editorWorkspaceVersion}:${note.path}`} value={draftFor(note.path)} onChange={value => changeHeldDraft(note.path, value)}
           workspaceState={pane.editorStates?.[note.path]}
           onWorkspaceStateChange={state => savePaneEditorState(id, note.path, state, editorGeneration)}
           declaredTypes={propertyTypes} readOnly={busy} notes={savedNotes} notePath={note.path} livePreview={pane.noteView === 'live-preview'}
@@ -5435,10 +5601,10 @@ export default function App(): React.JSX.Element {
                       <h2>{group}</h2>
                       {bookmarks.map((bookmark) => {
                         const exists = bookmark.type === 'search' ||
-                          snapshot.notes.some((note) => note.path === bookmark.path) ||
-                          snapshot.attachments?.some(
-                            (attachment) => attachment.path === bookmark.path
-                          )
+                          (bookmark.type === 'folder'
+                            ? snapshot.directories.some(directory => directory.toLocaleLowerCase() === bookmark.path.toLocaleLowerCase())
+                            : snapshot.notes.some(note => note.path === bookmark.path) ||
+                              snapshot.attachments?.some(attachment => attachment.path === bookmark.path))
                         return (
                           <button
                             type="button"
@@ -5472,7 +5638,18 @@ export default function App(): React.JSX.Element {
               </section>
             ) : (
               <FileTree
+                key={snapshot.rootPath}
                 snapshot={snapshot}
+                selectionDisabled={busy}
+                sortOrder={treePreferences.sort}
+                onSortOrderChange={(sort) => changeTreePreferences({ sort })}
+                revealActiveNote={treePreferences.reveal}
+                onRevealActiveNoteChange={(reveal) => changeTreePreferences({ reveal })}
+                revealDirectory={directoryReveal?.root === snapshot.rootPath ? directoryReveal.path : undefined}
+                revealDirectoryRequest={directoryReveal?.request}
+                onBookmarkDirectory={setBookmarkPath}
+                onMoveEntries={setMovePaths}
+                onDropEntries={(paths, destination) => void moveEntriesToDirectory(paths, destination)}
                 selectedNotePath={selectedPath}
                 treeSelection={treeSelection}
                 searchResults={search.results}
@@ -5483,7 +5660,7 @@ export default function App(): React.JSX.Element {
                 onOpenMatch={(path, source, from, to) => void openSearchMatch(path, source, from, to)}
                 onSelectEntry={setTreeSelection}
                 onRename={openRename}
-                onMove={setMovePath}
+                onMove={openMove}
                 onDropEntry={(path, destination) =>
                   void moveEntryToDirectory(path, destination)
                 }
@@ -5515,7 +5692,7 @@ export default function App(): React.JSX.Element {
                   type="button"
                   disabled={!treeSelection || treeSelection.path === ''}
                   onClick={() =>
-                    treeSelection?.path && setMovePath(treeSelection.path)
+                    treeSelection?.path && openMove(treeSelection.path)
                   }
                 >
                   <Icon name="move" />
@@ -5553,7 +5730,16 @@ export default function App(): React.JSX.Element {
                     if (busyRef.current || editorComposingRef.current) return
                     activatePane(id, tab.id)
                     setTimeout(() => document.querySelector<HTMLElement>(`[data-pane-id="${id}"] [role="tab"][aria-selected="true"]`)?.focus(), 0)
-                  }} onClose={index => void closeInactivePaneTab(id, index)} />
+                  }} onClose={index => void closeInactivePaneTab(id, index)}
+                   onTogglePin={index => {
+                     if (busyRef.current || editorComposingRef.current) return
+                     setPaneWorkspace(previous => {
+                       const workspace = previous ?? currentWorkspace
+                       return { ...workspace, panes: workspace.panes.map(item => item.id === id
+                         ? { ...item, tabs: item.tabs.map((tab, i) => i === index && tab.kind === 'note' ? { ...tab, pinned: !tab.pinned } : tab) }
+                         : item) }
+                     })
+                   }} />
               }}
               renderPaneActions={id => <PaneActionsMenu actions={[
                 { label: '左右に分割', disabled: busy || currentWorkspace.panes.length >= 8, onSelect: () => void changePaneLayout('horizontal', undefined, id) },
@@ -5582,6 +5768,23 @@ export default function App(): React.JSX.Element {
                 onReturnToNote={closeDailyOverview}
                 onOpenUserNote={() => void openOrCreateUserNote()}
                 onChangeAvatar={() => void changeUserAvatar()}
+                todo={<>
+                  <TodoPanel notes={normalDiscoveryNotes} pathAliases={pathAliases} onOpenNote={path => void openNote(path)}
+                    beforeSave={async () => {
+                      if (!beginOperation()) return false
+                      try {
+                        if (await flushSave()) return true
+                      } catch (cause) {
+                        setMessage(cause instanceof Error ? cause.message : String(cause))
+                      }
+                      finishOperation()
+                      return false
+                    }} afterSave={finishOperation} onSaved={applyTaskNote} />
+                  <NoteTasksPanel notes={taskNotes} onTask={handleNoteTask} onReload={async () => {
+                    if (!beginOperation()) return false
+                    try { return Boolean(await refreshSnapshot()) } finally { finishOperation() }
+                  }} />
+                </>}
               >
                 {calendarPluginStatus?.state === 'ready' && snapshot && !calendarPluginFailed ? (
                   <section className="calendar-plugin-panel" aria-label="Calendarプラグイン">
@@ -5748,7 +5951,7 @@ export default function App(): React.JSX.Element {
                     void persistGraphViewState('vault', next)
                   }
                   onSearchTag={searchGraphTag}
-                  onMove={setMovePath}
+                  onMove={openMove}
                   onRenameAttachment={path => openRename({ kind: 'note', path })}
                   bookmarkedPaths={bookmarkedPaths}
                   onBookmark={setBookmarkPath}
@@ -5863,6 +6066,7 @@ export default function App(): React.JSX.Element {
                 </div>
                 {(viewMode === 'edit' || viewMode === 'live-preview') && editorOwner(selectedPath) === currentWorkspace.activePaneId ? (
                   <MarkdownEditor
+                    vaultPath={snapshot?.rootPath}
                     livePreview={viewMode === 'live-preview'}
                     embedContext={embedContext()}
                     notePath={selectedPath}
@@ -5947,7 +6151,7 @@ export default function App(): React.JSX.Element {
                       void persistGraphViewState(graphScope, next)
                     }
                     onSearchTag={searchGraphTag}
-                    onMove={setMovePath}
+                    onMove={openMove}
                     onRenameAttachment={path => openRename({ kind: 'note', path })}
                     bookmarkedPaths={bookmarkedPaths}
                     onBookmark={setBookmarkPath}
@@ -6187,17 +6391,15 @@ export default function App(): React.JSX.Element {
       {folderMoveRequest && <KanbanFolderMoveDialog source={folderMoveRequest.sourcePath}
         destination={joinRelative(folderMoveRequest.destinationDirectory, basenameRelative(folderMoveRequest.sourcePath))}
         onPreview={previewKanbanFolderMove} onApply={applyKanbanFolderMove} onCancel={() => setFolderMoveRequest(null)} />}
-      {movePath && snapshot && (
+      {movePaths.length > 0 && snapshot && (
         <MoveDialog
-          notePath={movePath}
-          entryKind={snapshot.directories.includes(movePath) ? 'directory' : 'file'}
-          directories={snapshot.directories.filter(
-            (directory) =>
-              !snapshot.directories.includes(movePath) ||
-              !isPathInsideOrEqual(directory, movePath)
-          )}
-          currentDirectory={dirnameRelative(movePath)}
-          onCancel={() => setMovePath(null)}
+          notePath={movePaths.length > 1 ? `${movePaths.length}件の項目` : movePaths[0]}
+          entryKind={movePaths.length > 1 ? 'multiple' : snapshot.directories.includes(movePaths[0]) ? 'directory' : 'file'}
+          directories={snapshot.directories.filter(directory => !movePaths.some(path =>
+            snapshot.directories.includes(path) && isPathInsideOrEqual(directory, path)
+          ))}
+          currentDirectory={movePaths.length > 1 ? '' : dirnameRelative(movePaths[0])}
+          onCancel={() => setMovePaths([])}
           onConfirm={(directory) => void moveSelectedFile(directory)}
         />
       )}
@@ -6224,8 +6426,9 @@ export default function App(): React.JSX.Element {
         <BookmarkDialog
           path={bookmarkPath === '@search' ? undefined : bookmarkPath}
           query={query}
+          isFolder={snapshot.directories.includes(bookmarkPath)}
           headings={headingBookmarkChoices(bookmarkPath === selectedPath ? content : snapshot.notes.find(note => note.path === bookmarkPath)?.content ?? '')}
-          bookmark={editingBookmark ?? snapshot.bookmarks?.find(bookmark => bookmark.type === 'file' && bookmark.path === bookmarkPath)}
+          bookmark={dialogBookmark}
           onCancel={() => { setBookmarkPath(null); setEditingBookmark(null) }}
           onSave={saveGraphBookmark}
           onDelete={removeGraphBookmark}

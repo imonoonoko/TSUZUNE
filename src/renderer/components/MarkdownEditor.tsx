@@ -7,6 +7,8 @@ import {
   useState
 } from 'react'
 import { basicSetup, EditorView } from 'codemirror'
+import { closeCompletion, completionStatus, startCompletion } from '@codemirror/autocomplete'
+import { wikiLinkCompletionExtension } from '../wiki-link-completion'
 import { isolateHistory } from '@codemirror/commands'
 import { footnoteChange } from '../../core/markdown-footnotes'
 import { markdownTables, newMarkdownTable, markdownTableChange, type MarkdownTable } from '../../core/markdown-table'
@@ -63,6 +65,7 @@ interface MarkdownEditorProps {
   deprioritizedPaths?: ReadonlySet<string>
   onCompositionChange?: (composing: boolean) => void
   livePreview?: boolean
+  vaultPath?: string
   notePath?: string
   attachments?: readonly VaultAttachment[]
   pathAliases?: CompiledPathAliases
@@ -98,6 +101,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   deprioritizedPaths,
   onCompositionChange,
   livePreview = false,
+  vaultPath,
   notePath = '',
   attachments = [],
   pathAliases,
@@ -128,12 +132,12 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   const [tableError, setTableError] = useState<string | null>(null)
   const embedAncestorsKey = JSON.stringify(embedContext?.ancestors ?? [])
   const livePreviewContextRef = useRef<LivePreviewContext>({
-    notePath, attachments, notes, pathAliases, onNavigate, onWikiLink,
+    vaultPath, notePath, attachments, notes, pathAliases, onNavigate, onWikiLink,
     embedContext, onEditTable: openTable,
     isComposing: () => composingRef.current, editorLinkHover: !!hoverPreview
   })
   livePreviewContextRef.current = {
-    notePath, attachments, notes, pathAliases, onNavigate, onWikiLink,
+    vaultPath, notePath, attachments, notes, pathAliases, onNavigate, onWikiLink,
     embedContext, onEditTable: openTable,
     isComposing: () => composingRef.current, editorLinkHover: !!hoverPreview
   }
@@ -302,6 +306,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
       extensions: [
         basicSetup,
         markdown(),
+        wikiLinkCompletionExtension(() => livePreviewContextRef.current, () => composingRef.current),
         EditorView.lineWrapping,
         readOnlyCompartmentRef.current.of([
           EditorState.readOnly.of(readOnly),
@@ -378,6 +383,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
     })
 
     const handleCompositionStart = (): void => {
+      closeCompletion(view)
       compositionEndPendingRef.current = false
       if (composingRef.current) return
       composingRef.current = true
@@ -436,6 +442,21 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   }, [hoverPreview])
 
   useEffect(() => {
+    if (viewRef.current) closeCompletion(viewRef.current)
+  }, [notePath, vaultPath])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view || !completionStatus(view.state)) return
+    const head = view.state.selection.main.head
+    const line = view.state.doc.lineAt(head)
+    if (/\[\[[^\]\n|]*$/.test(view.state.sliceDoc(Math.max(line.from, head - 4096), head))) {
+      closeCompletion(view)
+      startCompletion(view)
+    }
+  }, [notes, pathAliases])
+
+  useEffect(() => {
     if (livePreview) viewRef.current?.dispatch({ effects: refreshLivePreview.of(undefined) })
   }, [livePreview, notePath, attachments, notes, pathAliases, hoverPreview,
     embedContext?.vaultPath, embedContext?.scopeRevision, embedContext?.documentRevision, embedContext?.notes,
@@ -450,6 +471,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
 
     const current = view.state.doc.toString()
     if (current !== value) {
+      closeCompletion(view)
       applyingValueRef.current = true
       try {
         view.dispatch({
@@ -471,6 +493,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
       return
     }
     const current = view.state.doc.toString()
+    closeCompletion(view)
     applyingValueRef.current = true
     try {
       view.dispatch({

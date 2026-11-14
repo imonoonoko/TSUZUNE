@@ -4,7 +4,8 @@ import { isAuditHistoryPath } from './ai-write-policy'
 import { DEFAULT_GRAPH_FILTER_SETTINGS, parseGraphFilterSettings, type GraphFilterSettings } from './graph-filters'
 
 export type SavedWorkspaceTab =
-  | { kind: 'note' | 'attachment' | 'linked-view' | 'base' | 'canvas'; path: string }
+  | { kind: 'note'; path: string; pinned?: boolean }
+  | { kind: 'attachment' | 'linked-view' | 'base' | 'canvas'; path: string }
   | { kind: 'global-graph' }
   | { kind: 'global-properties' }
 
@@ -110,7 +111,8 @@ function parseTab(value: unknown): SavedWorkspaceTab {
     return { kind }
   }
 
-  exactKeys(tab, ['kind', 'path'], 'workspace tab')
+  exactKeys(tab, ['kind', 'path', ...(kind === 'note' && 'pinned' in tab ? ['pinned'] : [])], 'workspace tab')
+  if ('pinned' in tab && typeof tab.pinned !== 'boolean') throw new Error('tab pin is invalid.')
   if (typeof tab.path !== 'string') throw new Error('tab path is invalid.')
   const path = validateRelativePath(tab.path)
   if (!path.valid || !path.normalized) throw new Error('tab path is invalid.')
@@ -127,7 +129,9 @@ function parseTab(value: unknown): SavedWorkspaceTab {
   ) {
     throw new Error(`tab path is invalid for ${kind}.`)
   }
-  return { kind, path: path.normalized }
+  return kind === 'note' && typeof tab.pinned === 'boolean'
+    ? { kind, path: path.normalized, pinned: tab.pinned }
+    : { kind, path: path.normalized }
 }
 
 export function parseWorkspaceName(value: unknown): string {

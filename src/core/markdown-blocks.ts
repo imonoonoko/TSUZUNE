@@ -33,3 +33,10 @@ export function resolveMarkdownBlock(source: string, id: string): { content: str
   return blocks.length === 1 ? { content: blocks[0].content, sourceOffset: blocks[0].sourceOffset } : { reason: blocks.length > 1
     ? `ブロックID「${id}」が複数あります。` : `ブロック「${id}」が見つかりません。` }
 }
+
+export function listMarkdownBlocks(source: string): { blockId: string; content: string; sourceOffset: number }[] {
+  const blocks = markdownBlocks(source)
+  const counts = new Map<string, number>()
+  for (const block of blocks) counts.set(block.blockId, (counts.get(block.blockId) ?? 0) + 1)
+  return blocks.filter(block => counts.get(block.blockId) === 1)
+}

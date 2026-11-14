@@ -14,6 +14,8 @@ export interface TreeSelection {
   kind: 'note' | 'directory'
   path: string
 }
+export type FileTreeSortOrder = 'name-asc' | 'name-desc' | 'modified-asc' | 'modified-desc' | 'created-asc' | 'created-desc'
+
 interface FileTreeProps {
   snapshot: VaultSnapshot
   selectedNotePath: string | null
@@ -22,11 +24,21 @@ interface FileTreeProps {
   searchPending?: boolean
   searchError?: string | null
   query: string
+  selectionDisabled?: boolean
+  sortOrder?: FileTreeSortOrder
+  onSortOrderChange?: (order: FileTreeSortOrder) => void
+  revealActiveNote?: boolean
+  onRevealActiveNoteChange?: (enabled: boolean) => void
+  revealDirectory?: string | null
+  revealDirectoryRequest?: number
+  onBookmarkDirectory?: (path: string) => void
   onOpenMatch?: (path: string, source: string, from: number, to: number) => void
   onSelectNote: (path: string) => void
   onSelectEntry: (selection: TreeSelection) => void
   onRename: (selection: TreeSelection) => void
   onMove: (path: string) => void
+  onMoveEntries?: (paths: string[]) => void
+  onDropEntries?: (paths: string[], destination: string) => void
   onDropEntry: (path: string, destinationDirectory: string) => void
   onInlineRename: (
     selection: TreeSelection,
@@ -59,6 +71,13 @@ interface VisibleTreeItem {
 
 const CONTEXT_MENU_WIDTH = 210
 const CONTEXT_MENU_ITEM_HEIGHT = 36
+const exactNoteDate = new Intl.DateTimeFormat('ja-JP', {
+  year: 'numeric', month: 'numeric', day: 'numeric',
+  hour: 'numeric', minute: 'numeric', second: 'numeric'
+})
+const compactNoteDate = new Intl.DateTimeFormat('ja-JP', {
+  year: '2-digit', month: '2-digit', day: '2-digit'
+})
 
 function treeItemKey(selection: TreeSelection): string {
   return `${selection.kind}:${selection.path}`
@@ -108,11 +127,21 @@ export default function FileTree({
   searchPending,
   searchError,
   query,
+  selectionDisabled = false,
+  sortOrder,
+  onSortOrderChange,
+  revealActiveNote,
+  onRevealActiveNoteChange,
+  revealDirectory = null,
+  revealDirectoryRequest,
+  onBookmarkDirectory,
   onOpenMatch,
   onSelectNote,
   onSelectEntry,
   onRename,
   onMove,
+  onMoveEntries,
+  onDropEntries,
   onDropEntry,
   onInlineRename,
   onTrash,
@@ -130,9 +159,25 @@ export default function FileTree({
   const [showAllMatches, setShowAllMatches] = useState(false)
   const [showSearchContext, setShowSearchContext] = useState(false)
   const [contextLimits, setContextLimits] = useState<Record<string, number>>({})
+  const [localSortOrder, setLocalSortOrder] = useState<FileTreeSortOrder>('name-asc')
+  const [localRevealActiveNote, setLocalRevealActiveNote] = useState(false)
+  const currentRevealActiveNote = revealActiveNote ?? localRevealActiveNote
+  const currentSortOrder = sortOrder ?? localSortOrder
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
   const [contextMenu, setContextMenu] = useState<FileTreeContextMenu | null>(null)
-  const [draggedEntry, setDraggedEntry] = useState<TreeSelection | null>(null)
+  const [selectedEntries, setSelectedEntries] = useState<string[] | null>(null)
+  const selectionAnchor = useRef<string | null>(null)
+  const draggedPaths = useRef<string[]>([])
+  const canSelectMultiple = Boolean(onMoveEntries || onDropEntries)
+
+  useEffect(() => {
+    setSelectedEntries(current => {
+      if (!current?.length) return current
+      const paths = new Set([...snapshot.directories, ...snapshot.notes.map(note => note.path)])
+      const next = current.filter(path => paths.has(path))
+      return next.length === current.length ? current : next
+    })
+  }, [snapshot])
   const [dropTarget, setDropTarget] = useState<string | null>(null)
   const [inlineRename, setInlineRename] = useState<{
     selection: TreeSelection
@@ -153,6 +198,34 @@ export default function FileTree({
   const [treeFocusKey, setTreeFocusKey] = useState<string | null>(null)
   const inlineRenameSubmittingRef = useRef(false)
   const inlineCreateSubmittingRef = useRef(false)
+
+  const searching = Boolean(query.trim())
+  const folderToReveal = revealDirectory && snapshot.directories.includes(revealDirectory) ? revealDirectory : null
+  const noteToReveal = currentRevealActiveNote && selectedNotePath && snapshot.notes.some(note => note.path === selectedNotePath) ? selectedNotePath : null
+
+  useEffect(() => {
+    if (searching || !folderToReveal) return
+    setCollapsed(current => new Set([...current].filter(path => !isPathInsideOrEqual(folderToReveal, path))))
+    const key = treeItemKey({ kind: 'directory', path: folderToReveal })
+    setTreeFocusKey(key)
+    const frame = requestAnimationFrame(() => {
+      const row = treeItemRefs.current.get(key)
+      row?.scrollIntoView?.({ block: 'nearest' })
+      row?.focus()
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [folderToReveal, revealDirectoryRequest, searching, snapshot.rootPath])
+
+  useEffect(() => {
+    if (searching || !noteToReveal) return
+    setCollapsed(current => {
+      const next = new Set([...current].filter(path => !isPathInsideOrEqual(noteToReveal, path)))
+      return next.size === current.size ? current : next
+    })
+    const key = treeItemKey({ kind: 'note', path: noteToReveal })
+    const frame = requestAnimationFrame(() => treeItemRefs.current.get(key)?.scrollIntoView?.({ block: 'nearest' }))
+    return () => cancelAnimationFrame(frame)
+  }, [noteToReveal, searching, snapshot.rootPath])
 
   useEffect(
     () => () => {
@@ -194,13 +267,17 @@ export default function FileTree({
     selection: TreeSelection
   ): void => {
     event.preventDefault()
+    if (canSelectMultiple && !selectedEntries?.includes(selection.path)) {
+      setSelectedEntries([selection.path])
+      selectionAnchor.current = selection.path
+    }
     onSelectEntry(selection)
     const trigger = event.currentTarget
     const bounds = trigger.getBoundingClientRect()
     const pointerEvent = event as React.MouseEvent<HTMLElement>
     const x = typeof pointerEvent.clientX === 'number' ? pointerEvent.clientX : bounds.left
     const y = typeof pointerEvent.clientY === 'number' ? pointerEvent.clientY : bounds.bottom
-    const itemCount = 7
+    const itemCount = selection.kind === 'directory' && onBookmarkDirectory ? 8 : 7
     setContextMenu({
       selection,
       x: Math.max(8, Math.min(x, window.innerWidth - CONTEXT_MENU_WIDTH - 8)),
@@ -214,24 +291,28 @@ export default function FileTree({
       trigger
     })
   }
-  const noteAges = useMemo(() => {
+  const getNoteAge = useMemo(() => {
     const now = new Date()
-    return new Map(
-      snapshot.notes.map((note) => {
-        const freshness = getNoteFreshness(note, now)
-        const exact = note.modifiedAt
-          ? new Date(note.modifiedAt).toLocaleString('ja-JP')
-          : '不明'
-        const compact = note.modifiedAt
-          ? new Date(note.modifiedAt).toLocaleDateString('ja-JP', {
-              year: '2-digit',
-              month: '2-digit',
-              day: '2-digit'
-            })
-          : '—'
-        return [note.path, { freshness, exact, compact }] as const
-      })
-    )
+    const ages = new Map<string, {
+      freshness: ReturnType<typeof getNoteFreshness>
+      exact: string
+      compact: string
+      dateTime?: string
+    }>()
+    return (note: VaultSnapshot['notes'][number]) => {
+      const cached = ages.get(note.path)
+      if (cached) return cached
+      const date = new Date(note.modifiedAt)
+      const hasDate = note.modifiedAt > 0 && Number.isFinite(date.getTime())
+      const age = {
+        freshness: getNoteFreshness(note, now),
+        exact: hasDate ? exactNoteDate.format(date) : '不明',
+        compact: hasDate ? compactNoteDate.format(date) : '—',
+        dateTime: hasDate ? date.toISOString() : undefined
+      }
+      ages.set(note.path, age)
+      return age
+    }
   }, [snapshot.notes])
 
   const notesByPath = useMemo(() => new Map(snapshot.notes.map(note => [note.path, note])), [snapshot.notes])
@@ -252,8 +333,24 @@ export default function FileTree({
       list.push(note)
       result.set(directory, list)
     }
+    const descending = currentSortOrder.endsWith('desc')
+    const field = currentSortOrder.startsWith('created') ? 'createdAt' : currentSortOrder.startsWith('modified') ? 'modifiedAt' : null
+    for (const list of result.values()) list.sort((left, right) => {
+      if (field) {
+        const a = field === 'createdAt' ? left.createdAt : left.modifiedAt
+        const b = field === 'createdAt' ? right.createdAt : right.modifiedAt
+        const aValid = typeof a === 'number' && Number.isFinite(a)
+        const bValid = typeof b === 'number' && Number.isFinite(b)
+        if (aValid !== bValid) return aValid ? -1 : 1
+        if (aValid && bValid && a !== b) return (a < b ? -1 : 1) * (descending ? -1 : 1)
+      } else {
+        const byName = left.name.localeCompare(right.name, 'ja') * (descending ? -1 : 1)
+        if (byName) return byName
+      }
+      return left.path.localeCompare(right.path, 'ja')
+    })
     return result
-  }, [snapshot.notes])
+  }, [snapshot.notes, currentSortOrder])
 
   const directoriesByParent = useMemo(() => {
     const result = new Map<string, string[]>()
@@ -311,7 +408,6 @@ export default function FileTree({
     : fallbackTreeFocusKey
 
   const toggleDirectory = (path: string): void => {
-    onSelectEntry({ kind: 'directory', path })
     setCollapsed((current) => {
       const next = new Set(current)
       if (next.has(path)) {
@@ -323,10 +419,45 @@ export default function FileTree({
     })
   }
 
-  const focusTreeItem = (selection: TreeSelection): void => {
+  const selectTreeEntries = (selection: TreeSelection, modifiers: {
+    shiftKey: boolean
+    ctrlKey: boolean
+    metaKey: boolean
+  }): boolean => {
+    if (selectionDisabled) return true
+    onSelectEntry(selection)
+    if (!canSelectMultiple) return false
+    const path = selection.path
+    const toggle = modifiers.ctrlKey || modifiers.metaKey
+    if (modifiers.shiftKey) {
+      const anchor = selectionAnchor.current ?? treeFocusKey
+      const from = visibleTreeItems.findIndex(item => item.selection.path === anchor || treeItemKey(item.selection) === anchor)
+      const to = visibleTreeItems.findIndex(item => item.selection.path === path)
+      if (from >= 0 && to >= 0) {
+        selectionAnchor.current = visibleTreeItems[from].selection.path
+        setSelectedEntries(visibleTreeItems.slice(Math.min(from, to), Math.max(from, to) + 1).map(item => item.selection.path))
+        return true
+      }
+    }
+    selectionAnchor.current = path
+    setSelectedEntries(current => {
+      if (!toggle) return [path]
+      return current?.includes(path) ? current.filter(item => item !== path) : [...(current ?? []), path]
+    })
+    return toggle || modifiers.shiftKey
+  }
+
+  const focusTreeItem = (selection: TreeSelection, modifiers?: React.KeyboardEvent): void => {
     const key = treeItemKey(selection)
     setTreeFocusKey(key)
-    onSelectEntry(selection)
+    if (modifiers?.shiftKey && canSelectMultiple) selectTreeEntries(selection, modifiers)
+    else {
+      if (canSelectMultiple) {
+        selectionAnchor.current = selection.path
+        setSelectedEntries([selection.path])
+      }
+      onSelectEntry(selection)
+    }
     treeItemRefs.current.get(key)?.focus()
   }
 
@@ -334,13 +465,14 @@ export default function FileTree({
     event: React.KeyboardEvent<HTMLButtonElement>,
     item: VisibleTreeItem
   ): void => {
+    if (selectionDisabled) return
     const itemIndex = visibleTreeItems.findIndex(
       (candidate) => treeItemKey(candidate.selection) === treeItemKey(item.selection)
     )
     const focusAt = (index: number): void => {
       const target = visibleTreeItems[index]
       if (target) {
-        focusTreeItem(target.selection)
+        focusTreeItem(target.selection, event)
       }
     }
 
@@ -368,6 +500,7 @@ export default function FileTree({
       event.preventDefault()
       if (collapsed.has(item.selection.path)) {
         setTreeFocusKey(treeItemKey(item.selection))
+        onSelectEntry(item.selection)
         toggleDirectory(item.selection.path)
         return
       }
@@ -381,6 +514,7 @@ export default function FileTree({
       event.preventDefault()
       if (item.selection.kind === 'directory' && !collapsed.has(item.selection.path)) {
         setTreeFocusKey(treeItemKey(item.selection))
+        onSelectEntry(item.selection)
         toggleDirectory(item.selection.path)
         return
       }
@@ -390,15 +524,12 @@ export default function FileTree({
       }
       return
     }
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' || (event.key === ' ' && canSelectMultiple)) {
       event.preventDefault()
       setTreeFocusKey(treeItemKey(item.selection))
-      if (item.selection.kind === 'directory') {
-        toggleDirectory(item.selection.path)
-      } else {
-        onSelectEntry(item.selection)
-        onSelectNote(item.selection.path)
-      }
+      if (selectTreeEntries(item.selection, event)) return
+      if (item.selection.kind === 'directory') toggleDirectory(item.selection.path)
+      else onSelectNote(item.selection.path)
       return
     }
     if (event.key === 'F2') {
@@ -571,24 +702,36 @@ export default function FileTree({
       </div>
     ) : null
 
-  const canDropInto = (destination: string): boolean =>
-    Boolean(
-      draggedEntry &&
-        dirnameRelative(draggedEntry.path) !== destination &&
-        !(
-          draggedEntry.kind === 'directory' &&
-          isPathInsideOrEqual(destination, draggedEntry.path)
-        )
-    )
+  const startEntryDrag = (event: React.DragEvent, selection: TreeSelection): void => {
+    const paths = onDropEntries && selectedEntries?.includes(selection.path) ? selectedEntries : [selection.path]
+    draggedPaths.current = paths
+    event.dataTransfer.effectAllowed = selection.kind === 'note' ? 'copyMove' : 'move'
+    event.dataTransfer.setData('text/plain', paths.join('\n'))
+    if (paths.length === 1 && selection.kind === 'note') {
+      event.dataTransfer.setData('application/x-tsuzune-vault-file', selection.path)
+    }
+  }
+
+  const endEntryDrag = (): void => {
+    draggedPaths.current = []
+    setDropTarget(null)
+  }
+
+  const canDropInto = (destination: string): boolean => {
+    const paths = draggedPaths.current
+    return paths.some(path => dirnameRelative(path) !== destination) &&
+      paths.every(path => !snapshot.directories.includes(path) || !isPathInsideOrEqual(destination, path))
+  }
 
   const dropInto = (event: React.DragEvent, destination: string): void => {
     event.preventDefault()
     event.stopPropagation()
-    if (draggedEntry && canDropInto(destination)) {
-      onDropEntry(draggedEntry.path, destination)
+    if (canDropInto(destination)) {
+      const paths = draggedPaths.current
+      if (paths.length > 1 && onDropEntries) onDropEntries(paths, destination)
+      else onDropEntry(paths[0], destination)
     }
-    setDraggedEntry(null)
-    setDropTarget(null)
+    endEntryDrag()
   }
 
   const inlineRenameInput = (selection: TreeSelection): React.ReactNode => {
@@ -636,7 +779,7 @@ export default function FileTree({
         {childDirectories.map((child) => {
           const isCollapsed = collapsed.has(child)
           const isSelected =
-            treeSelection?.kind === 'directory' && treeSelection.path === child
+            selectedEntries?.includes(child) ?? (treeSelection?.kind === 'directory' && treeSelection.path === child)
           const selection = { kind: 'directory', path: child } as const
           const item: VisibleTreeItem = {
             selection,
@@ -662,19 +805,14 @@ export default function FileTree({
                   style={{ paddingInlineStart: `${12 + depth * 16}px` }}
                   onClick={(event) => {
                     event.currentTarget.focus()
-                    toggleDirectory(child)
+                    if (!selectTreeEntries(selection, event)) toggleDirectory(child)
                   }}
                   onDoubleClick={() =>
                     startInlineRename({ kind: 'directory', path: child })
                   }
                   onFocus={() => setTreeFocusKey(treeItemKey(selection))}
                   onKeyDown={(event) => handleTreeItemKeyDown(event, item)}
-                  onDragStart={(event) => {
-                    const selection = { kind: 'directory', path: child } as const
-                    setDraggedEntry(selection)
-                    event.dataTransfer.effectAllowed = 'move'
-                    event.dataTransfer.setData('text/plain', child)
-                  }}
+                  onDragStart={(event) => startEntryDrag(event, selection)}
                   onDragOver={(event) => {
                     event.stopPropagation()
                     if (canDropInto(child)) {
@@ -688,10 +826,7 @@ export default function FileTree({
                     setDropTarget(null)
                   }}
                   onDrop={(event) => dropInto(event, child)}
-                  onDragEnd={() => {
-                    setDraggedEntry(null)
-                    setDropTarget(null)
-                  }}
+                  onDragEnd={endEntryDrag}
                   onContextMenu={(event) =>
                     openContextMenu(event, selection)
                   }
@@ -720,11 +855,8 @@ export default function FileTree({
         {childNotes.map((note) => {
           const isSelected = selectedNotePath === note.path
           const isTreeSelected =
-            treeSelection?.kind === 'note' && treeSelection.path === note.path
-          const age = noteAges.get(note.path)
-          if (!age) {
-            return null
-          }
+            selectedEntries?.includes(note.path) ?? (isSelected || (treeSelection?.kind === 'note' && treeSelection.path === note.path))
+          const age = getNoteAge(note)
           const selection = { kind: 'note', path: note.path } as const
           if (inlineRename?.selection.path === note.path) {
             return (
@@ -746,14 +878,13 @@ export default function FileTree({
               key={note.path}
               data-note-preview-path={note.path}
               className={`tree-row tree-note ${
-                isSelected || isTreeSelected ? 'is-selected' : ''
+                isTreeSelected ? 'is-selected' : ''
               }`}
               style={{ paddingInlineStart: `${31 + depth * 16}px` }}
               onClick={(event) => {
                 event.currentTarget.focus()
                 setTreeFocusKey(treeItemKey(selection))
-                onSelectEntry(selection)
-                onSelectNote(note.path)
+                if (!selectTreeEntries(selection, event)) onSelectNote(note.path)
               }}
               onDoubleClick={() => startInlineRename(selection)}
               onFocus={() => setTreeFocusKey(treeItemKey(selection))}
@@ -764,16 +895,8 @@ export default function FileTree({
                   label: note.name
                 })
               }
-              onDragStart={(event) => {
-                setDraggedEntry(selection)
-                event.dataTransfer.effectAllowed = 'copyMove'
-                event.dataTransfer.setData('text/plain', note.path)
-                event.dataTransfer.setData('application/x-tsuzune-vault-file', note.path)
-              }}
-              onDragEnd={() => {
-                setDraggedEntry(null)
-                setDropTarget(null)
-              }}
+              onDragStart={(event) => startEntryDrag(event, selection)}
+              onDragEnd={endEntryDrag}
               onContextMenu={(event) =>
                 openContextMenu(event, selection)
               }
@@ -788,7 +911,7 @@ export default function FileTree({
               tabIndex={treeItemKey(selection) === rovingTreeFocusKey ? 0 : -1}
               aria-label={note.path}
               aria-level={depth + 1}
-              aria-selected={isSelected || isTreeSelected}
+              aria-selected={isTreeSelected}
               aria-current={isSelected ? 'page' : undefined}
               title={`${note.path}\n最終更新: ${age.exact}\n${age.freshness.statusLabel}（${age.freshness.relativeLabel}）`}
             >
@@ -796,9 +919,7 @@ export default function FileTree({
               <span className="tree-label">{note.name}</span>
               <time
                 className={`tree-updated freshness-${age.freshness.level}`}
-                dateTime={
-                  note.modifiedAt ? new Date(note.modifiedAt).toISOString() : undefined
-                }
+                dateTime={age.dateTime}
                 aria-label={`${note.name}の最終更新: ${age.exact}。${age.freshness.statusLabel}、${age.freshness.relativeLabel}`}
               >
                 {age.compact}
@@ -865,6 +986,13 @@ export default function FileTree({
           >
             ここに新規フォルダー
           </button>
+          {onBookmarkDirectory && <button type="button" role="menuitem" onClick={() => {
+            contextMenu.trigger.focus()
+            setContextMenu(null)
+            onBookmarkDirectory(contextMenu.selection.path)
+          }}>
+            {bookmarkedPaths.has(contextMenu.selection.path) ? 'ブックマークを編集' : 'ブックマークへ追加'}
+          </button>}
         </>
       )}
       <button
@@ -985,8 +1113,8 @@ export default function FileTree({
               <section className="search-result-group" key={group.key} aria-label={group.label}>
                 {searchOrder === 'relevance' && <h2 className="search-result-group-heading">{group.label}</h2>}
                 {group.results.map((result) => {
-                  const age = noteAges.get(result.path)
                   const note = notesByPath.get(result.path)
+                  const age = note ? getNoteAge(note) : undefined
                   const allContexts = contextsByPath.get(result.path) ?? []
                   const contextLimit = contextLimits[result.path] ?? 20
                   const contexts = allContexts.slice(0, contextLimit)
@@ -1042,11 +1170,44 @@ export default function FileTree({
   }
 
   return (
-    <>
+    <div className="file-tree-shell">
+      <div className="file-tree-options">
+        <label>
+          並び順
+          <select aria-label="ファイルツリーの並び順" value={currentSortOrder} onChange={event => {
+            const order = event.target.value as FileTreeSortOrder
+            if (onSortOrderChange) onSortOrderChange(order)
+            else setLocalSortOrder(order)
+          }}>
+            <option value="name-asc">名前（昇順）</option>
+            <option value="name-desc">名前（降順）</option>
+            <option value="modified-desc">更新日（新しい順）</option>
+            <option value="modified-asc">更新日（古い順）</option>
+            <option value="created-desc">作成日（新しい順）</option>
+            <option value="created-asc">作成日（古い順）</option>
+          </select>
+        </label>
+        <label>
+          <input type="checkbox" checked={currentRevealActiveNote} onChange={event => {
+            const enabled = event.target.checked
+            if (onRevealActiveNoteChange) onRevealActiveNoteChange(enabled)
+            else setLocalRevealActiveNote(enabled)
+          }} />
+          アクティブノートを追従
+        </label>
+      </div>
+      {selectedEntries && selectedEntries.length > 1 && onMoveEntries && (
+        <div className="file-tree-options">
+          <span>{selectedEntries.length}件を選択（Ctrl・Shiftで追加）</span>
+          <button type="button" aria-label={`選択した${selectedEntries.length}件を移動`} onClick={() => onMoveEntries(selectedEntries)}>まとめて移動</button>
+          <button type="button" onClick={() => { setSelectedEntries(null); selectionAnchor.current = null }}>選択を解除</button>
+        </div>
+      )}
       <div
         className={`file-tree ${dropTarget === '' ? 'is-drop-target' : ''}`}
         role="tree"
         aria-label="Vaultファイル"
+        aria-multiselectable={canSelectMultiple || undefined}
         onDragOver={(event) => {
           if (canDropInto('')) {
             event.preventDefault()
@@ -1066,6 +1227,6 @@ export default function FileTree({
         )}
       </div>
       {contextMenuElement}
-    </>
+    </div>
   )
 }

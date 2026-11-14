@@ -69,8 +69,12 @@ export function moveWorkspaceTab(snapshot: WorkspaceSnapshotV2, fromPaneId: stri
         : pane.activeIndex > tabIndex ? pane.activeIndex - 1 : Math.min(pane.activeIndex, tabs.length - 1)
       return { ...pane, tabs, activeIndex }
     }
-    return pane.id === toPaneId ? { ...pane, tabs: existingIndex < 0 ? [...pane.tabs, tab] : pane.tabs,
-      activeIndex: existingIndex < 0 ? pane.tabs.length : existingIndex } : pane
+    if (pane.id !== toPaneId) return pane
+    const activeIndex = existingIndex < 0 ? pane.tabs.length : existingIndex
+    const tabs = existingIndex < 0 ? [...pane.tabs, tab]
+      : tab.kind === 'note' && tab.pinned ? pane.tabs.map((item, index) =>
+        index === existingIndex ? tab : item) : pane.tabs
+    return { ...pane, tabs, activeIndex }
   })
   return projectWorkspaceSnapshotV2({ ...snapshot, panes, activePaneId: toPaneId })
 }

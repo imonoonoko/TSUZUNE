@@ -2172,12 +2172,16 @@ button.daily-calendar-heatmap-cell:focus-visible {
   background: var(--paper);
 }
 
+.workspace-tab-pin,
 .workspace-tab-close {
   flex: 0 0 28px;
   padding: 0;
   color: var(--muted);
   border-radius: 0;
 }
+
+.workspace-tab-pin[aria-pressed='true'] { color: var(--accent); }
+.workspace-tab-pin svg { width: 14px; height: 14px; }
 
 .pdf-reader { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 280px; overflow: hidden; color: var(--ink); background: var(--paper, #f7f5f0); }
 .pdf-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line-quiet); font-size: 12px; }
@@ -5038,3 +5042,33 @@ summary.callout-title:focus-visible { outline: 2px solid var(--focus); outline-o
 .callout-content > :first-child { margin-top: 0; }
 .callout-content > :last-child { margin-bottom: 0; }
 @media (forced-colors: active) { .callout { border-color: CanvasText; } }
+
+.file-tree-shell { display: flex; flex-direction: column; min-height: 0; }
+.file-tree-shell > .file-tree { flex: 1 1 auto; min-height: 0; }
+.file-tree-options { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 8px; font-size: 12px; }
+.file-tree-options label { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; }
+.file-tree-options select { padding: 3px 4px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 4px; }
+.file-tree-options input { accent-color: var(--accent); }
+.file-tree-options button { min-height: 24px; }
+
+.todo-panel, .note-tasks-panel { margin-top: 24px; }
+.todo-panel-heading { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 12px; }
+.todo-panel-heading h2 { margin: 0; }
+.todo-panel-heading p { margin: 6px 0 0; font-size: 12px; }
+.todo-panel-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.todo-add-form { display: flex; gap: 8px; margin-top: 16px; }
+.todo-add-form input { flex: 1; min-width: 0; padding: 8px 10px; font: inherit; color: var(--ink); background: var(--editor); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.todo-panel .todo-list, .note-tasks-panel .todo-list { max-height: 320px; overflow-y: auto; scrollbar-gutter: stable; }
+.todo-item-content { flex: 1; min-width: 0; }
+.todo-note-links { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 0 26px; }
+.todo-note-links button { overflow-wrap: anywhere; text-align: left; color: var(--accent); }
+.todo-delete { flex-shrink: 0; color: var(--muted); }
+.todo-empty { color: var(--muted); font-size: 13px; }
+.todo-completed summary { cursor: pointer; padding: 8px 0; color: var(--muted); }
+.todo-panel input[type='checkbox'], .note-tasks-panel input[type='checkbox'] { min-width: 16px; min-height: 16px; accent-color: var(--accent); }
+.todo-list { list-style: none; padding: 0; margin: 16px 0; }
+.todo-list li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.todo-list li label { display: flex; flex-direction: row; flex: 1; align-items: flex-start; gap: 10px; margin: 0; min-width: 0; }
+.todo-list li input { width: auto; flex: none; }
+.todo-list li span { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.todo-list li input:checked + span { text-decoration: line-through; opacity: .7; }

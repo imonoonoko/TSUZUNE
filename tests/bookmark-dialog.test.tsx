@@ -51,6 +51,21 @@ describe('BookmarkDialog', () => {
     }))
   })
 
+  it('submits the folder target when creating or editing a folder bookmark', async () => {
+    const path = 'Notes/Project'
+    const onSave = vi.fn(async () => undefined)
+    const callbacks = { onCancel: () => undefined, onSave, onDelete: async () => undefined }
+    const { rerender } = render(<BookmarkDialog {...callbacks} path={path} isFolder />)
+    expect(screen.getByLabelText('タイトル')).toHaveProperty('placeholder', 'Project')
+    expect(screen.queryByRole('combobox')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('', '', { type: 'folder', path }))
+    rerender(<BookmarkDialog {...callbacks} key="edit" bookmark={{ id: 'folder:notes%2Fproject', type: 'folder', path, ctime: 1, title: 'Original' }} />)
+    expect(screen.getByLabelText('タイトル')).toHaveProperty('value', 'Original')
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    await waitFor(() => expect(onSave).toHaveBeenLastCalledWith('Original', '', { type: 'folder', path }))
+  })
+
   it('passes a search target when saving a search bookmark', async () => {
     const onSave = vi.fn(async () => undefined)
     render(<BookmarkDialog query="tag:project" onCancel={() => undefined}

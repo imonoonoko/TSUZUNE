@@ -18,6 +18,16 @@
 - [Markdown表の編集](markdown-tables.md) — 挿入とセル編集。
 - [脚注](footnotes.md) — 参照・定義への移動と定義編集。
 
+- [Wikiリンク補完](wiki-link-completion.md) — ノート、見出し、ブロックの候補。
+- [ToDo](todo.md) — Vault直下のタスク追加、完了、削除。
+- [ノート内タスク](task-aggregation.md) — 本文中のタスクの確認、移動、完了。
+
+## ファイル一覧と作業タブ
+
+- [ファイル一覧](file-tree.md) — 並び順、アクティブノートへの追従、まとめ移動、フォルダーブックマーク。
+- [フォルダーブックマーク](bookmark-targets.md) — 作成、一覧への移動、編集と削除。
+- [ノートタブの固定](tab-pinning.md) — 固定、別タブでの表示、配置の復元。
+
 ## 現在の開発
 
 - [改善・未達成項目 実行台帳](reports/tsuzune-improvement-ledger-2026-08-23.md) — する／しない／条件成立時だけを確定した判断索引。現在のPrimary／Nextは[PLAN.mdのCurrent Decision](../PLAN.md#current-decision)を正本とし、ここでは可変状態を複製しない。

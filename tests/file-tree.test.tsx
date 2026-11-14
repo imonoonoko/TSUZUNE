@@ -614,12 +614,66 @@ describe('FileTree direct manipulation', () => {
     fireEvent.drop(archive, { dataTransfer })
 
     expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', 'Inbox/Note.md')
+    expect(dataTransfer.setData).toHaveBeenCalledWith('application/x-tsuzune-vault-file', 'Inbox/Note.md')
     expect(onDropEntry).toHaveBeenCalledWith('Inbox/Note.md', 'Archive')
 
     fireEvent.dragStart(note, { dataTransfer })
     fireEvent.dragOver(container.querySelector('.file-tree')!, { dataTransfer })
     fireEvent.drop(container.querySelector('.file-tree')!, { dataTransfer })
     expect(onDropEntry).toHaveBeenLastCalledWith('Inbox/Note.md', '')
+  })
+
+  it('keeps a plainly selected row when Ctrl adds another row', () => {
+    render(<FileTree {...commonProps} onMoveEntries={vi.fn()} onDropEntry={vi.fn()} onInlineRename={vi.fn()} />)
+    const note = screen.getByRole('treeitem', { name: 'Inbox/Note.md' })
+    const archive = screen.getByRole('treeitem', { name: 'Archive' })
+    fireEvent.click(note)
+    fireEvent.click(archive, { ctrlKey: true })
+    expect(note.getAttribute('aria-selected')).toBe('true')
+    expect(archive.getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('moves a Ctrl and Shift selection together through the bulk action or a folder drop', () => {
+    const onSelectNote = vi.fn()
+    const onMoveEntries = vi.fn()
+    const onDropEntries = vi.fn()
+    const onDropEntry = vi.fn()
+    const notes = ['Alpha', 'Beta', 'Gamma'].map(name => ({
+      ...snapshot.notes[0], name, path: `Inbox/${name}.md`
+    }))
+    render(<FileTree
+      {...commonProps}
+      snapshot={{ ...snapshot, notes }}
+      onSelectNote={onSelectNote}
+      onMoveEntries={onMoveEntries}
+      onDropEntries={onDropEntries}
+      onDropEntry={onDropEntry}
+      onInlineRename={vi.fn()}
+    />)
+    const alpha = screen.getByRole('treeitem', { name: 'Inbox/Alpha.md' })
+    const beta = screen.getByRole('treeitem', { name: 'Inbox/Beta.md' })
+    const gamma = screen.getByRole('treeitem', { name: 'Inbox/Gamma.md' })
+    fireEvent.click(alpha, { ctrlKey: true })
+    fireEvent.click(beta, { shiftKey: true })
+    fireEvent.keyDown(beta, { key: 'ArrowDown', shiftKey: true })
+
+    expect(document.activeElement).toBe(gamma)
+    expect([alpha, beta, gamma].map(row => row.getAttribute('aria-selected'))).toEqual(['true', 'true', 'true'])
+    expect(onSelectNote).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: '選択した3件を移動' }))
+    expect(onMoveEntries).toHaveBeenCalledWith(notes.map(note => note.path))
+
+    const dataTransfer = { effectAllowed: '', dropEffect: '', setData: vi.fn() }
+    const archive = screen.getByRole('treeitem', { name: 'Archive' })
+    fireEvent.dragStart(beta, { dataTransfer })
+    fireEvent.dragOver(archive, { dataTransfer })
+    fireEvent.drop(archive, { dataTransfer })
+    expect(dataTransfer.dropEffect).toBe('move')
+    expect(onDropEntries).toHaveBeenCalledWith(notes.map(note => note.path), 'Archive')
+    expect(onDropEntry).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: '選択を解除' }))
+    expect(screen.queryByRole('button', { name: '選択した3件を移動' })).toBeNull()
   })
 
   it('renames notes and folders inline with Enter and cancels with Escape', async () => {
@@ -659,5 +713,96 @@ describe('FileTree direct manipulation', () => {
         'Sorted'
       )
     )
+  })
+})
+
+describe('FileTree ordering and active note reveal', () => {
+  const commonProps = {
+    snapshot: {
+      ...snapshot,
+      directories: ['', 'Archive', 'Inbox', 'Inbox/Child'],
+      notes: [
+        { path: 'Inbox/Recent.md', name: 'Recent', content: '', modifiedAt: 30, createdAt: 10, size: 0 },
+        { path: 'Inbox/Old.md', name: 'Old', content: '', modifiedAt: 10, createdAt: 30, size: 0 },
+        { path: 'Inbox/Child/Active.md', name: 'Active', content: '', modifiedAt: 20, createdAt: null, size: 0 }
+      ]
+    },
+    selectedNotePath: null,
+    treeSelection: null,
+    searchResults: [],
+    query: '',
+    onSelectNote: vi.fn(),
+    onSelectEntry: vi.fn(),
+    onRename: vi.fn(),
+    onMove: vi.fn(),
+    onDropEntry: vi.fn(),
+    onInlineRename: vi.fn(),
+    onTrash: vi.fn(),
+    bookmarkedPaths: new Set<string>(),
+    onOpenInNewTab: vi.fn(),
+    onReveal: vi.fn(),
+    onCopyPath: vi.fn(),
+    onBookmark: vi.fn(),
+    onCreateNote: vi.fn(),
+    onCreateDirectory: vi.fn()
+  }
+
+  it('sorts notes by the selected field and direction', () => {
+    const { rerender } = render(<FileTree {...commonProps} sortOrder="modified-desc" />)
+    const paths = () => screen.getAllByRole('treeitem').filter(item => item.getAttribute('aria-label')?.endsWith('.md')).map(item => item.getAttribute('aria-label'))
+    expect(paths()).toEqual(['Inbox/Child/Active.md', 'Inbox/Recent.md', 'Inbox/Old.md'])
+
+    rerender(<FileTree {...commonProps} sortOrder="created-desc" />)
+    expect(paths()).toEqual(['Inbox/Child/Active.md', 'Inbox/Old.md', 'Inbox/Recent.md'])
+  })
+
+  it('follows an active note by expanding ancestors and scrolling without moving focus', async () => {
+    const { rerender } = render(<FileTree {...commonProps} selectedNotePath="Inbox/Recent.md" revealActiveNote />)
+    const inbox = screen.getByRole('treeitem', { name: 'Inbox' })
+    fireEvent.click(inbox)
+    expect(inbox.getAttribute('aria-expanded')).toBe('false')
+    const scrollIntoView = vi.fn()
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView
+    HTMLElement.prototype.scrollIntoView = scrollIntoView
+    rerender(<FileTree {...commonProps} selectedNotePath="Inbox/Child/Active.md" revealActiveNote />)
+    const childFolder = screen.getByRole('treeitem', { name: 'Inbox/Child' })
+    expect(screen.getByRole('treeitem', { name: 'Inbox/Child/Active.md' })).toBeTruthy()
+    expect(childFolder.getAttribute('aria-expanded')).toBe('true')
+    expect(document.activeElement).toBe(inbox)
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' }))
+    if (originalScrollIntoView) HTMLElement.prototype.scrollIntoView = originalScrollIntoView
+    else delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView
+  })
+
+  it('opens a bookmarked folder and exposes its bookmark command', async () => {
+    const onBookmarkDirectory = vi.fn()
+    const { rerender } = render(<FileTree {...commonProps} onBookmarkDirectory={onBookmarkDirectory} />)
+    fireEvent.click(screen.getByRole('treeitem', { name: 'Inbox' }))
+    rerender(<FileTree {...commonProps} onBookmarkDirectory={onBookmarkDirectory} revealDirectory="Inbox/Child" />)
+    const child = screen.getByRole('treeitem', { name: 'Inbox/Child' })
+    await waitFor(() => expect(document.activeElement).toBe(child))
+    expect(child.getAttribute('aria-expanded')).toBe('true')
+    fireEvent.click(child)
+    expect(child.getAttribute('aria-expanded')).toBe('false')
+    rerender(<FileTree {...commonProps} onBookmarkDirectory={onBookmarkDirectory} revealDirectory="Inbox/Child" revealDirectoryRequest={1} />)
+    expect(child.getAttribute('aria-expanded')).toBe('true')
+    fireEvent.contextMenu(child)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ブックマークへ追加' }))
+    expect(onBookmarkDirectory).toHaveBeenCalledWith('Inbox/Child')
+    expect(document.activeElement).toBe(child)
+  })
+
+  it('renders an unknown update date without breaking the tree', () => {
+    const notes = commonProps.snapshot.notes.map(note => ({ ...note, modifiedAt: Infinity }))
+    render(<FileTree {...commonProps} snapshot={{ ...commonProps.snapshot, notes }} />)
+    expect(screen.getByRole('treeitem', { name: 'Inbox/Recent.md' }).textContent).toContain('—')
+  })
+
+  it('keeps manual folder collapse available while follow is enabled', () => {
+    render(<FileTree {...commonProps} selectedNotePath="Inbox/Child/Active.md" revealActiveNote />)
+    const childFolder = screen.getByRole('treeitem', { name: 'Inbox/Child' })
+    fireEvent.click(childFolder)
+    expect(childFolder.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByRole('treeitem', { name: 'Inbox/Child/Active.md' })).toBeNull()
   })
 })

@@ -14,6 +14,7 @@ interface DailyProfileProps {
   onReturnToNote: () => void
   onOpenUserNote: () => void
   onChangeAvatar: () => void
+  todo?: ReactNode
   children: ReactNode
 }
 
@@ -28,6 +29,7 @@ export default function DailyProfile({
   onReturnToNote,
   onOpenUserNote,
   onChangeAvatar,
+  todo,
   children
 }: DailyProfileProps): React.JSX.Element {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
@@ -150,6 +152,7 @@ export default function DailyProfile({
           <div className="daily-profile-calendar-shell">{children}</div>
         </section>
 
+        {todo}
         <div className="daily-profile-lower-grid">
           <section className="daily-profile-card" aria-labelledby="daily-profile-insights-title">
             <header>

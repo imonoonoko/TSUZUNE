@@ -88,6 +88,14 @@ describe('Wiki link resolution', () => {
     })
   })
 
+  it('resolves an explicit root Markdown path among duplicate note names', () => {
+    const duplicates = [note('議事録.md'), note('個人/議事録.md')]
+    expect(resolveWikiLink('議事録', duplicates)).toMatchObject({ status: 'ambiguous' })
+    expect(resolveWikiLink('議事録.md#会議', duplicates)).toMatchObject({
+      status: 'resolved', resolvedPath: '議事録.md'
+    })
+  })
+
   it('resolves old full paths, basenames, and fragments through live aliases', () => {
     const renamedNotes = [note('30_知識/新しい名前.md')]
     const aliases = compilePathAliases({

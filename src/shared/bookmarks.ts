@@ -9,6 +9,7 @@ interface BookmarkDetails {
 
 export type VaultBookmark = BookmarkDetails & (
   | { type: 'file'; path: string }
+  | { type: 'folder'; path: string }
   | { type: 'heading'; path: string; slug: string; headingTitle: string }
   | { type: 'search'; query: string }
 )
@@ -16,6 +17,7 @@ export type VaultBookmark = BookmarkDetails & (
 type SaveDetails = { title?: string; group?: string }
 export type SaveBookmarkInput = SaveDetails & (
   | { type?: 'file'; path: string }
+  | { type: 'folder'; path: string }
   | { type: 'heading'; path: string; slug: string; headingTitle: string }
   | { type: 'search'; query: string }
 )
@@ -23,6 +25,7 @@ export type SaveBookmarkInput = SaveDetails & (
 export function bookmarkId(target: SaveBookmarkInput): string {
   if (target.type === 'search') return `search:${encodeURIComponent(target.query)}`
   const path = encodeURIComponent(target.path.toLocaleLowerCase())
+  if (target.type === 'folder') return `folder:${path}`
   return target.type === 'heading'
     ? `heading:${path}#${encodeURIComponent(target.slug.toLocaleLowerCase())}`
     : `file:${path}`
@@ -46,10 +49,13 @@ export function normalizeBookmarks(value: unknown): VaultBookmark[] {
       if (typeof candidate.query !== 'string' || !candidate.query.trim()) continue
       const target = { type: 'search' as const, query: candidate.query }
       bookmark = { ...details, ...target, id: bookmarkId(target) }
-    } else if (candidate.type === 'file' || candidate.type === 'heading' || candidate.type === undefined) {
+    } else if (candidate.type === 'file' || candidate.type === 'heading' || candidate.type === 'folder' || candidate.type === undefined) {
       const path = typeof candidate.path === 'string' ? validateRelativePath(candidate.path) : { valid: false }
       if (!path.valid || !path.normalized) continue
-      if (candidate.type === 'heading') {
+      if (candidate.type === 'folder') {
+        const target = { type: 'folder' as const, path: path.normalized }
+        bookmark = { ...details, ...target, id: bookmarkId(target) }
+      } else if (candidate.type === 'heading') {
         if (!/\.md$/i.test(path.normalized) || typeof candidate.slug !== 'string' || !candidate.slug.trim() ||
             typeof candidate.headingTitle !== 'string' || !candidate.headingTitle.trim()) continue
         const target = { type: 'heading' as const, path: path.normalized, slug: candidate.slug.trim(), headingTitle: candidate.headingTitle.trim() }

@@ -381,6 +381,11 @@ export function resolveIndexedWikiLink(
       : { status: 'missing', path: intendedPath, candidates: [] }
   }
 
+  const explicitRoot = /\.md$/i.test(baseTarget) ? index.exactPaths.get(lowerTarget) : undefined
+  if (explicitRoot) {
+    return { status: 'resolved', path: explicitRoot, candidates: [explicitRoot] }
+  }
+
   const basenameKey = normalized.toLocaleLowerCase()
   const candidates = index.basenameCandidates.get(basenameKey)
   if (candidates) {

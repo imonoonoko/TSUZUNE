@@ -1,4 +1,5 @@
 type IconName =
+  | 'pin'
   | 'bookmark'
   | 'calendar'
   | 'check'
@@ -85,6 +86,7 @@ const paths: Record<IconName, React.ReactNode> = {
       <path d="M14 3v5h4M9 12h6M9 16h6" />
     </>
   ),
+  pin: <path d="M8 3h8l-1 7 4 4H5l4-4ZM12 14v7" />,
   'note-plus': (
     <>
       <path d="M6 3h8l4 4v14H6Z" />

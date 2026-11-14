@@ -385,6 +385,38 @@ describe('VaultService path and scan boundaries', () => {
     expect(JSON.parse(await readFile(absolute('.tsuzune/bookmarks.json'), 'utf8'))).toEqual([file])
   })
 
+  it('keeps a Markdown-named folder bookmark independent of an old note alias', async () => {
+    await mkdir(absolute('X.md'))
+    await mkdir(absolute('.tsuzune'), { recursive: true })
+    await writeFile(absolute('Y.md'), '# Note', 'utf8')
+    await writeFile(absolute('.tsuzune/path-aliases.json'), JSON.stringify({ 'X.md': 'Y.md' }), 'utf8')
+
+    const folder = await vault.saveBookmark({ type: 'folder', path: 'X.md' })
+    expect((await vault.scan()).bookmarks).toEqual([folder])
+  })
+
+  it('persists and edits a folder bookmark by stable ID and rejects invalid folder targets', async () => {
+    await mkdir(absolute('Notes/Project'), { recursive: true })
+    await writeFile(absolute('Notes/Entry.md'), '# Entry', 'utf8')
+
+    const target = { type: 'folder' as const, path: 'Notes/Project' }
+    const created = await vault.saveBookmark({ ...target, title: ' Project ', group: ' Work ' })
+    expect(created).toMatchObject({ ...target, id: 'folder:notes%2Fproject', title: 'Project', group: 'Work' })
+    const reopened = new VaultService()
+    await reopened.setRootPath(rootPath)
+    expect((await reopened.scan()).bookmarks).toEqual([created])
+
+    const updated = await reopened.saveBookmark({ ...target, title: 'New title' })
+    expect(updated).toEqual({ ...target, id: created.id, ctime: created.ctime, title: 'New title' })
+    for (const path of ['', '../outside', 'Notes/Entry.md']) {
+      await expect(reopened.saveBookmark({ type: 'folder', path })).rejects.toMatchObject({ appError: { code: 'INVALID_PATH' } })
+    }
+    await expect(reopened.saveBookmark({ type: 'folder', path: 'Notes/Missing' })).rejects.toMatchObject({ appError: { code: 'NOT_FOUND' } })
+    expect((await reopened.scan()).bookmarks).toEqual([updated])
+    await reopened.removeBookmark(updated.id)
+    expect((await reopened.scan()).bookmarks).toEqual([])
+  })
+
   it('does not create a bookmark for a missing or outside-Vault file', async () => {
     await expect(
       vault.saveBookmark({ path: 'missing.svg' })

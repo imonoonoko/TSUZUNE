@@ -15,6 +15,26 @@ const tabs: WorkspaceTab[] = [
   ...Array.from({ length: 10 }, (_, index) => ({ id: index + 2, kind: 'note' as const, path: `資料/長い日本語のタイトルでタブの見え方を確認するノート${index}.md` }))
 ]
 
+it('exposes note pin state, an accessible toggle and explicit close while omitting other kinds', () => {
+  const toggle = vi.fn(), close = vi.fn()
+  render(<WorkspaceTabBar tabs={[{ id: 0, kind: 'note', path: '参照.md', pinned: true }, { id: 1, kind: 'attachment', path: '図.png' }]}
+    activeTabId={0} onActivate={vi.fn()} onClose={close} onTogglePin={toggle} />)
+  expect(screen.getByRole('tab', { name: '参照（固定）' }).title).toContain('固定')
+  const pin = screen.getByRole('button', { name: '参照の固定を解除' })
+  expect(pin.getAttribute('aria-pressed')).toBe('true')
+  expect(pin.tabIndex).toBe(0)
+  fireEvent.click(pin)
+  expect(toggle).toHaveBeenCalledWith(0)
+  fireEvent.keyDown(screen.getByRole('tab', { name: '参照（固定）' }), { key: 'Delete' })
+  expect(close).toHaveBeenCalledWith(0)
+  close.mockClear()
+  fireEvent.click(screen.getByRole('button', { name: '参照を閉じる' }))
+  expect(close).toHaveBeenCalledWith(0)
+  expect(screen.queryByRole('button', { name: '図.pngを固定' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: '開いているタブの一覧' }))
+  expect(screen.getByRole('menuitemradio', { name: /参照（固定）/ })).toBeTruthy()
+})
+
 it('disambiguates duplicate names only, keeps full paths in tooltips, and scrolls the selected tab', () => {
   const scroll = vi.fn()
   let resize!: () => void

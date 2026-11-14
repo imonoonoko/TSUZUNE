@@ -14,6 +14,7 @@ import { markdownMathRanges } from '../markdown-math'
 import type { VaultEmbedContext } from './VaultEmbed'
 
 export interface LivePreviewContext {
+  vaultPath?: string
   notePath: string
   attachments: readonly VaultAttachment[]
   notes: readonly NoteDocument[]

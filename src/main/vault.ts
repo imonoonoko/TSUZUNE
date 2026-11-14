@@ -777,7 +777,7 @@ export class VaultService {
     )
     const resolvedBookmarks = normalizeBookmarks(
       bookmarks.map((bookmark) => {
-        if (bookmark.type === 'search' || !isMarkdownFile(bookmark.path)) {
+        if (bookmark.type === 'search' || bookmark.type === 'folder' || !isMarkdownFile(bookmark.path)) {
           return bookmark
         }
         const liveExactPath = liveNotePaths.get(bookmark.path.toLocaleLowerCase())
@@ -971,6 +971,9 @@ export class VaultService {
     const revision = this.rootRevision
     try {
       if (!input || typeof input !== 'object') throw new VaultError({ code: 'INVALID_PATH', message: 'ブックマークが不正です。' })
+      if (![undefined, 'file', 'heading', 'search', 'folder'].includes(input.type)) {
+        throw new VaultError({ code: 'INVALID_PATH', message: 'ブックマークの種類が不正です。' })
+      }
       let target: SaveBookmarkInput
       if (input.type === 'search') {
         target = input
@@ -978,9 +981,11 @@ export class VaultService {
         const absolute = this.absolutePath(input.path)
         await this.assertNoSymlinkTraversal(absolute)
         const info = await stat(absolute)
-        if (!info.isFile()) throw new VaultError({ code: 'INVALID_PATH', message: 'ファイルだけをブックマークできます。' })
+        if (input.type === 'folder' ? !info.isDirectory() : !info.isFile()) {
+          throw new VaultError({ code: 'INVALID_PATH', message: 'ブックマークの対象の種類が一致しません。' })
+        }
         const path = this.relativePathFrom(root, absolute)
-        target = input.type === 'heading' ? { ...input, path } : { ...input, type: 'file', path }
+        target = input.type === undefined ? { ...input, type: 'file', path } : { ...input, path }
       }
       const current = await this.readBookmarks(root)
       const aliases = compilePathAliases(await this.readPathAliases(root))
@@ -989,7 +994,9 @@ export class VaultService {
           ? bookmark.type === 'search' && bookmark.query === target.query
           : bookmark.type !== 'search' && bookmark.type === (target.type ?? 'file') &&
             (target.type !== 'heading' || (bookmark.type === 'heading' && bookmark.slug === target.slug)) &&
-            await this.bookmarkMatchesPath(bookmark.path, target.path, aliases))
+            (target.type === 'folder'
+              ? bookmark.path.toLocaleLowerCase() === target.path.toLocaleLowerCase()
+              : await this.bookmarkMatchesPath(bookmark.path, target.path, aliases)))
       )
       const previous = current.find((_, index) => matches[index])
       const bookmark = normalizeBookmarks([{ ...target, ctime: previous?.ctime ?? Date.now() }])[0]

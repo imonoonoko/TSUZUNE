@@ -23,6 +23,16 @@ const snapshot = {
 } as const
 
 describe('workspace state V1 parser', () => {
+  it('round-trips note pins and migrates old unpinned tabs without accepting other pin fields', () => {
+    const value = { ...snapshot, tabs: [{ kind: 'note' as const, path: 'A.md', pinned: true }] }
+    expect(parseWorkspaceSnapshotV2(migrateWorkspaceSnapshotV1(value)).tabs).toEqual(value.tabs)
+    expect(parseWorkspaceSnapshotV1(snapshot).tabs[0]).not.toHaveProperty('pinned')
+    expect(parseWorkspaceSnapshotV1({ ...value, tabs: [{ kind: 'note', path: 'A.md', pinned: false }] }).tabs[0]).toHaveProperty('pinned', false)
+    for (const pinned of ['true', 1, null]) {
+      expect(() => parseWorkspaceSnapshotV1({ ...value, tabs: [{ kind: 'note', path: 'A.md', pinned }] })).toThrow()
+    }
+    expect(() => parseWorkspaceSnapshotV1({ ...value, tabs: [{ kind: 'attachment', path: 'A.png', pinned: true }] })).toThrow()
+  })
   it('accepts the complete public snapshot including attachment linked views', () => {
     expect(parseWorkspaceSnapshotV1(snapshot)).toEqual(snapshot)
   })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveMarkdownBlock } from '../src/core/markdown-blocks'
+import { listMarkdownBlocks, resolveMarkdownBlock } from '../src/core/markdown-blocks'
 
 describe('Markdown block targets', () => {
   it('resolves paragraph, list and standalone block beginnings in source coordinates', () => {
@@ -12,6 +12,7 @@ describe('Markdown block targets', () => {
 
   it('offers only unambiguous real blocks, excluding code and frontmatter', () => {
     const source = '---\ntitle: false ^front\n---\n\n```\nfalse ^code\n```\n\n`false ^inline`\n\nGood ^ID\n\nOther ^id\n\nA ^duplicate\n\nB ^duplicate\n'
+    expect(listMarkdownBlocks(source).map(block => block.blockId)).toEqual(['ID', 'id'])
     expect(resolveMarkdownBlock(source, 'ID')).toMatchObject({ content: 'Good' })
     expect(resolveMarkdownBlock(source, 'id')).toMatchObject({ content: 'Other' })
     expect(resolveMarkdownBlock(source, 'front')).toHaveProperty('reason')

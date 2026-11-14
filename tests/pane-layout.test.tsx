@@ -12,6 +12,16 @@ const initial = migrateWorkspaceSnapshotV1({ tabs: [{ kind: 'note', path: 'A.md'
 afterEach(cleanup)
 
 describe('pane layout operations', () => {
+  it('keeps note pins on split and move, including merging into an existing unpinned note', () => {
+    const pinned = migrateWorkspaceSnapshotV1({ tabs: [{ kind: 'note', path: 'A.md', pinned: true }], activeIndex: 0, noteView: 'edit', left: { open: true, view: 'files', query: '' }, right: { open: false, view: 'outline' } })
+    const split = splitWorkspacePane(pinned, 'pane-1', 'horizontal', 'pane-2')
+    expect(split.panes[1].tabs[0]).toHaveProperty('pinned', true)
+    const unpinnedTarget = { ...split, panes: split.panes.map(pane => pane.id === 'pane-2'
+      ? { ...pane, tabs: [{ kind: 'note' as const, path: 'A.md' }] } : pane) }
+    expect(moveWorkspaceTab(unpinnedTarget, 'pane-1', 0, 'pane-2').tabs).toEqual([{ kind: 'note', path: 'A.md', pinned: true }])
+    const otherTarget = { ...split, panes: split.panes.map(pane => pane.id === 'pane-2' ? { ...pane, tabs: [], activeIndex: null } : pane) }
+    expect(moveWorkspaceTab(otherTarget, 'pane-1', 0, 'pane-2').tabs[0]).toHaveProperty('pinned', true)
+  })
   it('splits to eight nested panes, preserving original tabs, and collapses closed branches', () => {
     let state = initial
     for (let index = 2; index <= 8; index++) state = splitWorkspacePane(state, state.activePaneId, index % 2 ? 'vertical' : 'horizontal', `pane-${index}`)
