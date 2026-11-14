@@ -2,6 +2,7 @@ import { app, BrowserWindow, clipboard, dialog, Menu, protocol, safeStorage, she
 import electronUpdater from 'electron-updater'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { basename, isAbsolute, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { DriveSyncService } from './drive-sync-service'
 import { DriveAutoSync } from './drive-auto-sync'
 import { readSettings } from './settings'
@@ -112,7 +113,7 @@ function createWindow(): void {
     show: false,
     title: 'TSUZUNE',
     webPreferences: {
-      preload: join(__dirname, '../preload/index.cjs'),
+      preload: fileURLToPath(new URL('../preload/index.cjs', import.meta.url)),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -184,7 +185,7 @@ function createWindow(): void {
   if (process.env.ELECTRON_RENDERER_URL) {
     void mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
   } else {
-    void mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    void mainWindow.loadFile(fileURLToPath(new URL('../renderer/index.html', import.meta.url)))
   }
 }
 
