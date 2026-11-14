@@ -1,9 +1,14 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
 import { inspectFrontmatterProperty, parseFrontmatter } from '../../core/frontmatter'
 import { extractMarkdownHeadings } from '../../core/markdown-headings'
-import { transformWikiLinksForPreview } from '../../core/links'
+import { transformMathPreview } from '../markdown-math'
+import { calloutMarkup } from '../callout-markup'
+import MermaidDiagram from './MermaidDiagram'
 import { notePreviewText, resolveNoteNavigation, type NoteNavigationTarget } from '../../core/note-navigation'
 import type { CompiledPathAliases } from '../../core/path-aliases'
 import {
@@ -279,10 +284,19 @@ function EmbedMarkup({ target, label, budget }: { target: string; label: string;
 }
 
 const previewComponents: Components = {
-  div: ({ node, children }) => typeof node?.properties['data-note-embed'] === 'string'
+  pre: ({ node, children }) => {
+    const { printAttachments } = useContext(PreviewContext)
+    const code = node?.children[0]
+    if (code?.type === 'element' && code.tagName === 'code' &&
+        Array.isArray(code.properties.className) && code.properties.className.includes('language-mermaid')) {
+      return <MermaidDiagram code={code.children.map(child => child.type === 'text' ? child.value : '').join('')} forExport={printAttachments} />
+    }
+    return <pre>{children}</pre>
+  },
+  div: ({ node, children, ...props }) => typeof node?.properties['data-note-embed'] === 'string'
     ? <EmbedMarkup target={node.properties['data-note-embed']} label={String(node.properties['data-embed-label'])}
         budget={Number(node.properties['data-embed-budget'])} />
-    : <div>{children}</div>,
+    : <div {...props}>{children}</div>,
   h1: ({ node, children }) => <h1 {...useHeadingProps(node, 1)}>{children}</h1>,
   h2: ({ node, children }) => <h2 {...useHeadingProps(node, 2)}>{children}</h2>,
   h3: ({ node, children }) => <h3 {...useHeadingProps(node, 3)}>{children}</h3>,
@@ -375,9 +389,8 @@ export default function MarkdownPreview({
   const properties = hasValidFrontmatter
     ? Object.entries(frontmatter.attributes)
     : []
-  const transformed = transformWikiLinksForPreview(
-    hasValidFrontmatter ? frontmatter.body : content
-  )
+  const body = hasValidFrontmatter ? frontmatter.body : content
+  const transformed = useMemo(() => transformMathPreview(body), [body])
   const headings = extractMarkdownHeadings(content)
 
   return (
@@ -402,8 +415,12 @@ export default function MarkdownPreview({
         </details>
       ) : null}
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[[noteEmbedMarkup, { budget: embedContext?.budget }]]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[
+          calloutMarkup,
+          [noteEmbedMarkup, { budget: embedContext?.budget }],
+          [rehypeKatex, { trust: false, maxExpand: 1000, maxSize: 20, strict: 'ignore', output: 'htmlAndMathml' }]
+        ]}
         components={previewComponents}
       >
         {transformed}

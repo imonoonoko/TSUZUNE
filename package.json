@@ -135,7 +135,11 @@
     "electron-vite": "5.0.0",
     "esbuild": "0.25.12",
     "jsdom": "29.1.1",
+    "katex": "0.16.47",
+    "mermaid": "12.2.0",
     "pdfjs-dist": "6.4.299",
+    "rehype-katex": "7.0.1",
+    "remark-math": "6.0.0",
     "typescript": "5.9.3",
     "vite": "7.3.6",
     "vitest": "4.1.10"

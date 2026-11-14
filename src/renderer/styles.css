@@ -4985,3 +4985,56 @@ details.markdown-properties .markdown-properties-editor-header .markdown-propert
 .canvas-note-excerpt { min-height: 0; overflow: auto; padding: 0 12px 12px; font-size: 0.85rem; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .canvas-document .canvas-card .attachment-preview { min-height: 0; padding: 0 12px 12px; }
 .canvas-document .canvas-card .attachment-preview img { max-height: 140px; max-width: 100%; object-fit: contain; }
+
+.mermaid-diagram {
+  margin: 1em 0;
+  overflow: auto;
+  text-align: center;
+}
+
+.mermaid-diagram > svg,
+.mermaid-diagram [data-mermaid-transform] > svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.mermaid-error {
+  margin: 1em 0;
+  padding: 0.75em;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.mermaid-error > p {
+  color: var(--muted);
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.markdown-preview .katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+.markdown-preview .katex-error { overflow-wrap: anywhere; white-space: pre-wrap; }
+
+.callout {
+  --callout-color: var(--accent);
+  margin: 1em 0;
+  border: 1px solid color-mix(in srgb, var(--callout-color) 35%, var(--line));
+  border-left: 3px solid var(--callout-color);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--callout-color) 8%, transparent);
+  overflow-wrap: anywhere;
+}
+.callout[data-callout='tip'], .callout[data-callout='success'] { --callout-color: #39856c; }
+.callout[data-callout='warning'], .callout[data-callout='question'] { --callout-color: #b57c21; }
+.callout[data-callout='failure'], .callout[data-callout='danger'], .callout[data-callout='bug'] { --callout-color: #c35663; }
+.callout[data-callout='example'], .callout[data-callout='abstract'] { --callout-color: #8c68b8; }
+.callout[data-callout='quote'] { --callout-color: var(--muted); }
+.callout-title { padding: 10px 14px; font-weight: 600; }
+summary.callout-title { cursor: pointer; }
+summary.callout-title:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 4px; }
+.callout-icon { display: inline-block; min-width: 1em; margin-right: 8px; color: var(--callout-color); }
+.callout-content { padding: 0 14px 12px; min-height: 16px; }
+.callout-content > :first-child { margin-top: 0; }
+.callout-content > :last-child { margin-bottom: 0; }
+@media (forced-colors: active) { .callout { border-color: CanvasText; } }

@@ -5,9 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import PdfExportDialog from '../src/renderer/components/PdfExportDialog'
 
 const exportNotePdf = vi.fn()
-beforeEach(() => { Object.defineProperty(window, 'tsuzune', { configurable:true, value:{exportNotePdf} }); exportNotePdf.mockReset() })
+const mermaidRender = vi.hoisted(() => vi.fn())
+vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: mermaidRender } }))
+beforeEach(() => {
+  Object.defineProperty(window, 'tsuzune', { configurable:true, value:{exportNotePdf} })
+  exportNotePdf.mockReset()
+  mermaidRender.mockReset()
+})
 afterEach(cleanup)
-function mount() {
+function mount(extraContent = '') {
   const props = {
     snapshot: {
       content: [
@@ -17,7 +23,8 @@ function mount() {
         '![遠隔画像](https://example.com/asset.png)',
         '![[audio.mp3]]',
         '![[clip.webm]]',
-        '![[reference.pdf#page=2]]'
+        '![[reference.pdf#page=2]]',
+        extraContent
       ].join('\n\n'),
       notePath: '研究.md',
       attachments: ['audio.mp3', 'clip.webm', 'reference.pdf'].map(name => ({
@@ -66,6 +73,32 @@ describe('note PDF export dialog', () => {
     fireEvent.click(save)
     expect(await screen.findByRole('alert')).toHaveProperty('textContent','保存できません')
     expect(props.onClose).not.toHaveBeenCalled()
+  })
+  it('prepares math and a diagram inside a folded callout before requesting the native PDF', async () => {
+    let finishDiagram!: (value: { svg: string }) => void
+    mermaidRender.mockImplementation(() => new Promise(resolve => { finishDiagram = resolve }))
+    exportNotePdf.mockResolvedValue({ok:true,value:{canceled:true}})
+    mount([
+      '> [!note]- 展開して出力',
+      '> 本文の数式は $x^2$。',
+      '>',
+      '> ```mermaid',
+      '> flowchart LR',
+      '>   A[出力]',
+      '> ```'
+    ].join('\n'))
+    const root = document.querySelector('.pdf-export-root')!
+    const callout = root.querySelector<HTMLDetailsElement>('details.callout')
+    expect(callout?.open).toBe(true)
+    expect(callout?.querySelector('.katex math')).not.toBeNull()
+    fireEvent.click(screen.getByRole('button',{name:'保存先を選んで書き出す'}))
+    await waitFor(() => expect(mermaidRender).toHaveBeenCalledTimes(1))
+    expect(exportNotePdf).not.toHaveBeenCalled()
+
+    await act(async () => finishDiagram({svg:'<svg viewBox="0 0 100 100"><text>出力</text></svg>'}))
+    await waitFor(() => expect(exportNotePdf).toHaveBeenCalledTimes(1))
+    expect(callout?.querySelector('.mermaid-diagram > svg text')?.textContent).toBe('出力')
+    expect(callout?.querySelector('.mermaid-diagram button')).toBeNull()
   })
   it('prevents duplicate submission and dismissal during printing, and traps focus', async () => {
     let finish!: (value:unknown)=>void

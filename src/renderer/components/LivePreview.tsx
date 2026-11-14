@@ -9,6 +9,7 @@ import { resolveNoteNavigation, type NoteNavigationTarget } from '../../core/not
 import type { CompiledPathAliases } from '../../core/path-aliases'
 import type { NoteDocument, VaultAttachment } from '../../shared/types'
 import MarkdownPreview from './MarkdownPreview'
+import { markdownMathRanges } from '../markdown-math'
 import type { VaultEmbedContext } from './VaultEmbed'
 
 export interface LivePreviewContext {
@@ -38,9 +39,18 @@ function blocks(state: EditorState): PreviewBlock[] {
   const isFence = (line: string): RegExpExecArray | null => /^ {0,3}(`{3,}|~{3,})/.exec(line)
   const isTableRule = (line: string): boolean => /^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line)
   const content = (index: number): string => lines[index] ? text.slice(lines[index].from, lines[index].to) : ''
+  const mathEnds = new Map(markdownMathRanges(text.slice(bodyStart)).filter(range => range.display).map(range => [
+    state.doc.lineAt(bodyStart + range.from).number - 1,
+    state.doc.lineAt(bodyStart + range.to).number
+  ]))
   const definitions: string[] = []
+  const quoteEnds = new Map<number, number>()
   commonmarkLanguage.parser.parse(text).iterate({ enter(node) {
     if (node.name === 'LinkReference' && node.from >= bodyStart) definitions.push(text.slice(node.from, node.to))
+    if (node.name === 'Blockquote' && node.from >= bodyStart) {
+      const start = state.doc.lineAt(node.from).number - 1
+      quoteEnds.set(start, Math.max(quoteEnds.get(start) ?? 0, state.doc.lineAt(node.to).number))
+    }
   } })
 
   for (let index = 0; index < lines.length;) {
@@ -48,7 +58,10 @@ function blocks(state: EditorState): PreviewBlock[] {
     const start = index
     const first = content(index)
     const fence = isFence(first)
-    if (fence) {
+    const mathEnd = mathEnds.get(index)
+    if (mathEnd !== undefined) {
+      index = mathEnd
+    } else if (fence) {
       index += 1
       const marker = fence[1][0]
       const close = new RegExp(`^ {0,3}${marker === '`' ? '`' : '~'}{${fence[1].length},}[ \\t]*$`)
@@ -58,18 +71,22 @@ function blocks(state: EditorState): PreviewBlock[] {
       index += 2
       while (index < lines.length && content(index).trim() && content(index).includes('|')) index += 1
     } else if (/^ {0,3}>/.test(first)) {
-      index += 1
-      while (index < lines.length && /^ {0,3}>/.test(content(index))) index += 1
+      index = quoteEnds.get(index) ?? index + 1
     } else if (isList(first)) {
       index += 1
-      while (index < lines.length && (isList(content(index)) || /^ {2,}\S/.test(content(index)))) index += 1
+      while (index < lines.length) {
+        const nestedMathEnd = mathEnds.get(index)
+        if (nestedMathEnd !== undefined) { index = nestedMathEnd; continue }
+        if (!isList(content(index)) && !/^ {2,}\S/.test(content(index))) break
+        index += 1
+      }
     } else if (!isHeading(first) && index + 1 < lines.length && /^ {0,3}(?:=+|-+)[ \t]*$/.test(content(index + 1))) {
       index += 2
     } else if (isHeading(first) || /^ {0,3}(?:[-*_][ \t]*){3,}$/.test(first)) {
       index += 1
     } else {
       index += 1
-      while (index < lines.length && content(index).trim() && !isHeading(content(index)) && !isFence(content(index)) &&
+      while (index < lines.length && !mathEnds.has(index) && content(index).trim() && !isHeading(content(index)) && !isFence(content(index)) &&
         !/^ {0,3}>/.test(content(index)) && !isList(content(index))) index += 1
     }
     const markdown = text.slice(lines[start].from, lines[index - 1].to)
@@ -101,7 +118,7 @@ class PreviewWidget extends WidgetType {
       view.focus()
     }
     host.addEventListener('pointerdown', event => {
-      if (event.target instanceof Element && event.target.closest('.note-embed, .media-player, .media-link-content')) return
+      if (event.target instanceof Element && event.target.closest('summary.callout-title, .mermaid-diagram, .note-embed, .media-player, .media-link-content')) return
       if (!event.ctrlKey && !event.metaKey) reveal()
     }, true)
     host.addEventListener('click', event => {

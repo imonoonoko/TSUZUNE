@@ -30,8 +30,8 @@
 .pdf-export-root tr { break-inside: avoid; }
 .pdf-export-root img { max-width: 100%; max-height: var(--pdf-media-height); object-fit: contain; break-inside: avoid; }
 .pdf-export-root .note-embed { break-inside: auto; }
-.pdf-export-root .mermaid-diagram { background: #252830; padding: 10px; overflow: visible; break-inside: avoid; }
-.pdf-export-root .mermaid-diagram > svg { max-width: 100%; max-height: var(--pdf-media-height); }
+.pdf-export-root .mermaid-diagram { background: white; padding: 10px; overflow: visible; break-inside: avoid; }
+.pdf-export-root .mermaid-diagram > svg { display: block; width: 100%; height: auto; max-height: var(--pdf-media-height); margin-inline: auto; }
 .pdf-export-root .katex-display { overflow: visible; break-inside: avoid; }
 @media print {
   :root:has(body > .pdf-export-root), body:has(> .pdf-export-root) { height: auto !important; min-height: 0 !important; overflow: visible !important; background: white !important; color-scheme: light !important; }

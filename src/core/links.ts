@@ -166,7 +166,8 @@ function readWikiLink(raw: string): WikiLinkOccurrence | null {
 
 function processInlineLine(
   line: string,
-  onLink: (occurrence: WikiLinkOccurrence, embedded: boolean) => string
+  onLink: (occurrence: WikiLinkOccurrence, embedded: boolean, range: SourceRange) => string,
+  lineOffset: number
 ): string {
   let output = ''
   let index = 0
@@ -196,7 +197,7 @@ function processInlineLine(
         const raw = line.slice(index, closing + 2)
         const occurrence = readWikiLink(raw)
         output += occurrence
-          ? onLink(occurrence, index > 0 && line[index - 1] === '!')
+          ? onLink(occurrence, index > 0 && line[index - 1] === '!', { from: lineOffset + index, to: lineOffset + closing + 2 })
           : raw
         index = closing + 2
         continue
@@ -212,13 +213,16 @@ function processInlineLine(
 
 function walkMarkdown(
   markdown: string,
-  onLink: (occurrence: WikiLinkOccurrence, embedded: boolean) => string
+  onLink: (occurrence: WikiLinkOccurrence, embedded: boolean, range: SourceRange) => string
 ): string {
   const lines = markdown.split('\n')
   let activeFence: FenceState | null = null
+  let offset = 0
 
   return lines
     .map((line) => {
+      const lineOffset = offset
+      offset += line.length + 1
       if (activeFence) {
         if (isClosingFence(line, activeFence)) {
           activeFence = null
@@ -232,7 +236,7 @@ function walkMarkdown(
         return line
       }
 
-      return processInlineLine(line, onLink)
+      return processInlineLine(line, onLink, lineOffset)
     })
     .join('\n')
 }
@@ -250,8 +254,13 @@ function escapeMarkdownLabel(value: string): string {
   return value.replaceAll('\\', '\\\\').replaceAll('[', '\\[').replaceAll(']', '\\]')
 }
 
-export function transformWikiLinksForPreview(markdown: string): string {
-  return walkMarkdown(markdown, (occurrence, embedded) => {
+export function transformWikiLinksForPreview(markdown: string, mathRanges: readonly SourceRange[] = []): string {
+  let mathIndex = 0
+  return walkMarkdown(markdown, (occurrence, embedded, range) => {
+    // Both walks visit source ranges in order.
+    while (mathIndex < mathRanges.length && mathRanges[mathIndex].to <= range.from) mathIndex += 1
+    const math = mathRanges[mathIndex]
+    if (math && math.from <= range.from && math.to >= range.to) return occurrence.raw
     const label = escapeMarkdownLabel(occurrence.alias ?? occurrence.target)
     const route = embedded ? 'vault-asset' : 'wiki'
     return `[${label}](#/${route}/${encodeURIComponent(occurrence.target)})`
